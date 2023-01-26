@@ -5,6 +5,14 @@
 
 @section('content_header')
 @include('ingreso.mensajes')
+
+  
+<div>
+  <input type="text" class="form-control" id="search" placeholder="Buscar...">
+</div>
+<br>
+
+
 <h1>Listado De Ingresos</h1>
 <a href="{{route('Ingreso.create')}}" title="DETALLE" class="btn  btn-primary">
   <span class="icon-zoom-in" ></span> NUEVO INGRESO</a>
@@ -42,7 +50,7 @@
                     <th scope="col">Acciones</th>
                   </tr>
                 </thead>
-                <tbody>
+                <tbody id="table">
                   <tr>
                     @foreach($master as $student2)
                     <th scope="row">{{ $student2->id }}</th>
@@ -95,21 +103,16 @@
 @stop
 
 @section('js')
-    <script>
-   $('#q').on('keyup', function(){
-    $value=$(this).val();
-    $.ajax({
-        type : 'get',
-        url : '{{URL::to('search')}}',
-        data:{
-            'q':$value
-        },
-        success:function(data){
-            $('#posts').html(data);
-        }
-    });
-})
-  </script>
+<script type="text/javascript"> 
+  $(document).ready(function(){
+      $("#search").on("keyup", function() {
+          var value = $(this).val().toLowerCase();
+          $("#table tr").filter(function() {
+              $(this).toggle($(this).text().toLowerCase().indexOf(value) > -1)
+          });
+      });
+  });
+</script>
 @stop
 
 

@@ -34,8 +34,9 @@ class IngresoController extends Controller
      *
      * @return \Illuminate\Http\Response
      */
-    public function index()
+    public function index(Request $request)
     {
+        $busqueda = $request->busqueda;
 
         $students2 = Ingreso::select('pri_nom_','ingresos.id','seg_nom_','pri_ape_','Fecha_ingreso_ingres','num_ide_')
         ->orderBy('ingresos.created_at', 'desc')
