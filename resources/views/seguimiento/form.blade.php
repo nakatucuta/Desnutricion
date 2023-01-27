@@ -25,7 +25,7 @@
                         <select class="person " name="ingresos_id" id="ingresos_id"  style="width: 100%">
                             <option value="">SELECCIONE</option>
                             @foreach($incomeedit as $developer)
-                            <option  value="{{$developer->idin }}">{{$developer->iden.' '.$developer->num_ide_.' '.$developer->pri_nom_.' '.$developer->seg_nom_.' '.$developer->pri_ape_.' '.$developer->seg_ape_ }}</option>
+                            <option  value="{{$developer->idin }}">{{$developer->num_ide_.' '.$developer->pri_nom_.' '.$developer->seg_nom_.' '.$developer->pri_ape_.' '.$developer->seg_ape_ }}</option>
                             @endforeach
                             
                           </select>
