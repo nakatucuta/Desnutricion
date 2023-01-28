@@ -14,7 +14,7 @@
             
             @if(Carbon\Carbon::now()->format('Y-m-d') > Carbon\Carbon::parse($seguimiento->fecha_proximo_control))
             <div class="alert alert-danger">
-                EL SEGUIMIENTO CON ID {{$seguimiento->ingresos_id}} HA SOBREPASADO SU  FECHA LIMITE. {{$seguimiento->fecha_proximo_control}} FALLO POR {{Carbon\Carbon::now()->diffInDays($seguimiento->fecha_proximo_control)}} DIAS <a href="{{route('Seguimiento.create')}}">CLICK AQUI PARA GESTIONAR</a>
+                EL SEGUIMIENTO CON ID {{$seguimiento->ingresos_id}} HA SOBREPASADO SU  FECHA LIMITE {{$seguimiento->fecha_proximo_control}} FALLO POR {{Carbon\Carbon::now()->diffInDays($seguimiento->fecha_proximo_control)}} DIAS <a href="{{route('Seguimiento.create')}}">CLICK AQUI PARA GESTIONAR</a>
             </div>
             @else
             @if(Carbon\Carbon::now()->diffInDays($seguimiento->fecha_proximo_control) == 1)
