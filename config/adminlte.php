@@ -167,12 +167,28 @@ return [
     |
     */
 
-    'classes_auth_card' => 'card-outline card-primary',
-    'classes_auth_header' => '',
+    'classes_auth_card' => '',
+    'classes_auth_header' => 'bg-gradient-info',
     'classes_auth_body' => '',
-    'classes_auth_footer' => '',
-    'classes_auth_icon' => '',
+    'classes_auth_footer' => 'text-center',
+    'classes_auth_icon' => 'fa-lg text-info',
     'classes_auth_btn' => 'btn-flat btn-primary',
+
+
+
+    // 'classes_auth_card' => 'card-outline card-primary',
+    // 'classes_auth_header' => '',
+    // 'classes_auth_body' => '',
+    // 'classes_auth_footer' => '',
+    // 'classes_auth_icon' => '',
+    // 'classes_auth_btn' => 'btn-flat btn-primary',
+
+//     'classes_auth_card' => 'bg-gradient-dark',
+// 'classes_auth_header' => '',
+// 'classes_auth_body' => 'bg-gradient-dark',
+// 'classes_auth_footer' => 'text-center',
+// 'classes_auth_icon' => 'fa-fw text-light',
+// 'classes_auth_btn' => 'btn-flat btn-light',
 
     /*
     |--------------------------------------------------------------------------
@@ -186,15 +202,15 @@ return [
     |
     */
 
-    'classes_body' => '',
-    'classes_brand' => '',
-    'classes_brand_text' => '',
-    'classes_content_wrapper' => '',
-    'classes_content_header' => '',
+    'classes_body' => '',   //agrega un cale a todo el contenido en general
+    'classes_brand' => ' ',  //bg-success  le da u estailo a la pparte superior izquierda
+    'classes_brand_text' => '', //text-primary  le cambia el color al textu superior izquierdo
+    'classes_content_wrapper' => '', //es todo el contenindo dentro de la plantilla ojo
+    'classes_content_header' => '',  //estilos al header de la pgina 
     'classes_content' => '',
     'classes_sidebar' => 'sidebar-dark-primary elevation-4',
     'classes_sidebar_nav' => '',
-    'classes_topnav' => 'navbar-dark-primary elevation-4',
+    'classes_topnav' => 'navbar-dark-info elevation-4',
     'classes_topnav_nav' => 'navbar-expand',
     'classes_topnav_container' => 'container',
 
@@ -315,24 +331,24 @@ return [
         [
             'text'        => 'Sivigila',
             'url'         => 'sivigila',
-            'icon'        => 'far fa-fw fa-file',
-            'label'       => 4,
+            'icon'        => 'fas fa-fw fa-home',
+            'label'       => '',  
             'label_color' => 'success',
         ],
 
         [
             'text'        => 'Ingreso',
             'url'         => 'Ingreso',
-            'icon'        => 'far fa-fw fa-file',
-            'label'       => 4,
-            'label_color' => 'success',
+            'icon'        => 'fas fa-fw fa-book',
+            'label'       => 'ZONA PARA IPS', 
+            'label_color' => 'warning ',
         ],
         [
             'text'        => 'Seguimiento',
             'url'         => 'Seguimiento',
-            'icon'        => 'far fa-fw fa-file',
-            'label'       => 4,
-            'label_color' => 'success',
+             'icon'        => 'fas fa-fw fa-user',
+             'label'       => '',  
+             'label_color' => 'success',
         ],
         ['header' => 'account_settings'],
         // [
@@ -388,6 +404,8 @@ return [
             'text'       => 'ALERTAS',
             'icon_color' => 'red',
             'url'        => 'alert',
+            'label'       => 'REVISAR',  
+            'label_color' => 'danger',
         ],
         // [
         //     'text'       => 'warning',
