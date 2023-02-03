@@ -334,6 +334,7 @@ return [
             'icon'        => 'fas fa-fw fa-home',
             'label'       => '',  
             'label_color' => 'success',
+            // 'icon_color'  => 'red'
         ],
 
         [
@@ -342,6 +343,7 @@ return [
             'icon'        => 'fas fa-fw fa-book',
             'label'       => 'ZONA PARA IPS', 
             'label_color' => 'warning ',
+            'icon_color'  => 'yellow'
         ],
         [
             'text'        => 'Seguimiento',
@@ -349,6 +351,7 @@ return [
              'icon'        => 'fas fa-fw fa-user',
              'label'       => '',  
              'label_color' => 'success',
+            //  'icon_color'  => 'green'
         ],
         ['header' => 'account_settings'],
         // [
@@ -406,6 +409,7 @@ return [
             'url'        => 'alert',
             'label'       => 'REVISAR',  
             'label_color' => 'danger',
+            'icon_color'  => 'red'
         ],
         // [
         //     'text'       => 'warning',
@@ -500,7 +504,7 @@ return [
             ],
         ],
         'Sweetalert2' => [
-            'active' => false,
+            'active' => true,
             'files' => [
                 [
                     'type' => 'js',

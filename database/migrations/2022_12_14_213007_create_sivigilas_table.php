@@ -33,6 +33,7 @@ return new class extends Migration
             $table->integer('edad_ges');
             $table->string('telefono_');
             $table->string('nom_grupo_')->nullable();
+            $table->string('regimen')->nullable();
             $table->string('Ips_at_inicial')->nullable();
             $table->integer('estado');
             $table->date('fecha_aten_inicial')->nullable();

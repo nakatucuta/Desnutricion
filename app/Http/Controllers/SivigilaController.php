@@ -123,12 +123,18 @@ class SivigilaController extends Controller
         $income12 =  DB::connection('sqlsrv_1')->table('refIps')->select('descrip')
         ->where('refIps.codigoDepartamento', 44)
         ->get();
+
+        $incomeedit13 = DB::connection('sqlsrv_1')->table('maestroAfiliados')
+        ->select(DB::raw("IIF(codigoAgente = 'EPSI04', 'subsidiado', 'contributivo') as tipo_afiliacion"))
+        ->where('identificacion', $num_ide_)
+        ->value('tipo_afiliacion');
         
 
         return view('sivigila.create',["incomeedit"=>$incomeedit,"incomeedit1"=>$incomeedit1,"incomeedit2"=>$incomeedit2,
          "incomeedit3"=>$incomeedit3,"incomeedit4"=>$incomeedit4,"incomeedit5"=>$incomeedit5,
          "incomeedit6"=>$incomeedit6,"incomeedit7"=>$incomeedit7,"incomeedit8"=>$incomeedit8,
-         "incomeedit9"=>$incomeedit9, "incomeedit10"=>$incomeedit10, "income11"=>$income11,"income12"=>$income12 ]);
+         "incomeedit9"=>$incomeedit9, "incomeedit10"=>$incomeedit10, "income11"=>$income11,"income12"=>$income12 
+         ,"incomeedit13"=>$incomeedit13]);
     }
 
     /**
@@ -201,6 +207,7 @@ class SivigilaController extends Controller
             $entytistore->edad_ges = $request->edad_ges;
             $entytistore->telefono_ = $request->telefono_;
             $entytistore->nom_grupo_ = $request->nom_grupo_;
+            $entytistore->regimen = $request->regimen;
             $entytistore->Ips_at_inicial = $request->Ips_at_inicial;
             $entytistore->estado = 1;
             $entytistore->fecha_aten_inicial = $request->fecha_aten_inicial;

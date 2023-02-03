@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\DB;
 use Session;
 use Maatwebsite\Excel\Facades\Excel;
 use App\Exports\SeguimientoExport;
+use App\Exports\GeneralExport;
 use Carbon\Carbon;
 class SeguimientoController extends Controller
 {
@@ -256,6 +257,12 @@ class SeguimientoController extends Controller
 
 
 
+    public function reporte2()
+    {   
+        return Excel::download(new GeneralExport, 'general.xls');
+
+
+    }
         
 
 

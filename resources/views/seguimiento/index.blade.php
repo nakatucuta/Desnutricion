@@ -7,7 +7,8 @@
 
 @include('seguimiento.mensajes')
 
-
+<h1>Listado De Seguimientos</h1>
+<br>
 {{-- <form action="{{ route('BUSCADOR1')}}" method="GET" role="search">
   <div class="input-group">
     <input type="text" name="q" id="q" class="form-control" placeholder="Search..."> <span class="input-group-btn">
@@ -25,9 +26,20 @@
 </div>
 <br>
 
-<h1>Listado De Seguimientos</h1>
+
+
+
+
 <a href="{{route('Seguimiento.create')}}" title="DETALLE" class="btn  btn-primary">
   <span class="icon-zoom-in" ></span> NUEVO SEGUIMIENTO</a>
+{{-- secion del reporte general --}}
+<a href="{{route('export3')}}" class="btn  btn-success " style="
+float: right:;
+margin-right: 0;
+width: 6%;
+position: relative;
+right: 0;"><i class="fas fa-book"></i>  </a>
+  {{-- seccion del primer reporte --}}
   <a href="{{route('export')}}" class="btn  btn-success " style="float: right;
   margin-right: 0;
   width: 14%;
@@ -122,6 +134,13 @@
           });
       });
   });
+
+
+//   Swal.fire(
+//   'Good job!',
+//   'You clicked the button!',
+//   'success'
+// )
 </script>
 @stop
 

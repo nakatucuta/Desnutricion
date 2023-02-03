@@ -35,3 +35,4 @@ Route::get('/alert', 'App\Http\Controllers\SeguimientoController@alerta')->name(
 Route::get('/report', [SeguimientoController::class,'resporte'])->name('export');
 Route::get('/report1', [IngresoController::class,'reporte'])->name('export1');
 Route::get('/report2', [SivigilaController::class,'reporte1'])->name('export2');
+Route::get('/report3', [SeguimientoController::class,'reporte2'])->name('export3');

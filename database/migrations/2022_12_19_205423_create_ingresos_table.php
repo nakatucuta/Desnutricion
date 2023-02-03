@@ -22,10 +22,10 @@ return new class extends Migration
             $table->string('calificacion');
             $table->string('Edema');
             $table->string('Emaciacion');
-            $table->integer('perimetro_brazo');
+            $table->float('perimetro_brazo');
             $table->string('interpretacion_p_braqueal');
             $table->integer('requ_energia_dia');
-            $table->integer('mes_entrega_FTLC');
+            $table->string('mes_entrega_FTLC');
             $table->date('fecha_entrega_FTLC')->nullable();
             $table->string('Menor_anos_des_aguda');
             $table->string('medicamentos');
