@@ -180,6 +180,17 @@
 </div>
 </div>
 
+<div class="row">
+    <div class="col-sm-3">
+
+        <div class="form-group">
+            <label for="Nombre">Regimen</label> {{-- el isset pregunta si el archivo esta seleccionado lo muestre sino no muestra nada por eso las comillas vacias al final --}}
+            <input class="form-control" type="text" name="regimen" id = 'regimen'
+            value="{{$incomeedit13}}" readonly>
+        </div>
+
+        </div>
+        </div>
 <div class="row">   
     <div class="col-sm-6">
             <div class="form-group">

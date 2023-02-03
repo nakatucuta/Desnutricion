@@ -49,7 +49,7 @@
 <div class="col-sm-6">
 <div class="form-group">
     <label for="Nombre">Peso En Kilos y un decimal</label> {{-- el isset pregunta si el archivo esta seleccionado lo muestre sino no muestra nada por eso las comillas vacias al final --}}
-    <input class="form-control" type="text" name="peso_ingres" id = 'peso_ingres'
+    <input class="form-control" type="number" step="0.01" name="peso_ingres" id = 'peso_ingres'
     value="{{ isset($empleado->peso_ingres)?$empleado->peso_ingres:old('peso_ingres')}}">
 </div>
 </div>
@@ -60,7 +60,7 @@
     <div class="col-sm-6">
         <div class="form-group">
             <label for="Nombre"> Talla en cms y un decimal </label> {{-- el isset pregunta si el archivo esta seleccionado lo muestre sino no muestra nada por eso las comillas vacias al final --}}
-            <input class="form-control" type="text" name="talla_ingres" id = 'talla_ingres'
+            <input class="form-control"  type="number" step="0.01" name="talla_ingres" id = 'talla_ingres'
             value="{{ isset($empleado->talla_ingres)?$empleado->talla_ingres:old('talla_ingres')}}">
         </div>
         </div>
@@ -68,7 +68,7 @@
         <div class="col-sm-6">
             <div class="form-group">
                 <label for="Nombre">Puntaje z (peso / talla)</label> {{-- el isset pregunta si el archivo esta seleccionado lo muestre sino no muestra nada por eso las comillas vacias al final --}}
-                <input class="form-control" type="text" name="puntaje_z" id = 'puntaje_z'
+                <input class="form-control" type="number" step="0.01"  name="puntaje_z" id = 'puntaje_z'
                 value="{{ isset($empleado->puntaje_z)?$empleado->puntaje_z:old('puntaje_z')}}">
             </div>
             </div>
@@ -126,7 +126,7 @@
                 <div class="col-sm-6">
                     <div class="form-group">
                         <label for="Nombre"> Perimetro del brazo </label> {{-- el isset pregunta si el archivo esta seleccionado lo muestre sino no muestra nada por eso las comillas vacias al final --}}
-                        <input class="form-control" type="text" name="perimetro_brazo" id = 'perimetro_brazo'
+                        <input class="form-control" type="number" step="0.01" name="perimetro_brazo" id = 'perimetro_brazo'
                         value="{{ isset($empleado->perimetro_brazo)?$empleado->perimetro_brazo:old('perimetro_brazo')}}">
                     </div>
                     </div>
@@ -164,7 +164,7 @@
                                         <div class="col-sm-6">
                                             <div class="form-group">
                                                 <label for="Nombre"> mes </label> {{-- el isset pregunta si el archivo esta seleccionado lo muestre sino no muestra nada por eso las comillas vacias al final --}}
-                                                <input class="form-control" type="number" name="mes_entrega_FTLC" id = 'mes_entrega_FTLC'
+                                                <input class="form-control" type="month" name="mes_entrega_FTLC" id = 'mes_entrega_FTLC'
                                                 value="{{ isset($empleado->mes_entrega_FTLC)?$empleado->mes_entrega_FTLC:old('mes_entrega_FTLC')}}">
                                             </div>
                                         </div>
@@ -194,9 +194,14 @@
 
                                                     <div class="col-sm-6">
                                                         <div class="form-group">
-                                                            <label for="Nombre"> medicamentos </label> {{-- el isset pregunta si el archivo esta seleccionado lo muestre sino no muestra nada por eso las comillas vacias al final --}}
-                                                            <input class="form-control" type="text" name="medicamentos" id = 'medicamentos'
-                                                            value="{{ isset($empleado->medicamentos)?$empleado->medicamentos:old('medicamentos')}}">
+                                                            <label for="Nombre">Ips-ese atencion primaria</label>
+                                                            <select class="person" name="Nom_ips_at_prim" id="Nom_ips_at_prim"  style="width: 100% ">
+                                                                <option  value="0">SELECCIONAR</option>
+                                                                @foreach($income12 as $developer)
+                                                                <option  value="{{$developer->descrip}}">{{$developer->descrip}}</option>
+                                                                @endforeach
+                                                
+                                                            </select>
                                                         </div>
                                                         </div>
                                                         </div>
@@ -212,39 +217,21 @@
         
                                     <div class="col-sm-6">
                                         <div class="form-group">
-                                            <label for="Nombre">Ips-ese atencion primaria</label>
-                                            <select class="person" name="Nom_ips_at_prim" id="Nom_ips_at_prim"  style="width: 100% ">
-                                                <option  value="0">SELECCIONAR</option>
-                                                @foreach($income12 as $developer)
-                                                <option  value="{{$developer->descrip}}">{{$developer->descrip}}</option>
-                                                @endforeach
-                                
-                                            </select>
+                                            <label for="Nombre"> medicamentos </label> {{-- el isset pregunta si el archivo esta seleccionado lo muestre sino no muestra nada por eso las comillas vacias al final --}}
+                                            <textarea name="medicamentos" id="medicamentos" value="{{ isset($empleado->medicamentos)?$empleado->medicamentos:old('medicamentos')}}" class="form-control" rows="5" maxlength="600"></textarea>
+                                           
                                         </div>
                                         </div>
                                                 
                                         </div>
 
+
                                         
-    <div class="row">
-        <div class="col-lg-12 ">
-            <div class="card card-info card-outline ">
-        <center><h6 class=""> <strong>DEMANDA INDUCIDA</strong></h6></center>
 
-    </div>
-        </div>
-            </div>
+                                        
+    
 
 
-
-<div class="row">
-    <div class="col-lg-12 ">
-        <div class="card card-info card-outline ">
-    <center><h6 class=""> <strong>ATENCION NOMINAL</strong></h6></center>
-
-</div>
-    </div>
-        </div>
 
 
 
