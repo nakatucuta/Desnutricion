@@ -173,7 +173,7 @@ formulario de edicion
                                                         <div class="col-sm-6">
                                                             <div class="form-group">
                                                                 <label for="Nombre"> mes </label> {{-- el isset pregunta si el archivo esta seleccionado lo muestre sino no muestra nada por eso las comillas vacias al final --}}
-                                                                <input class="form-control" type="number" name="mes_entrega_FTLC" id = 'mes_entrega_FTLC'
+                                                                <input class="form-control" type="month" name="mes_entrega_FTLC" id = 'mes_entrega_FTLC'
                                                                 value="{{ isset($empleado->mes_entrega_FTLC)?$empleado->mes_entrega_FTLC:old('mes_entrega_FTLC')}}">
                                                             </div>
                                                         </div>

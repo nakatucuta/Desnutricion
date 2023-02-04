@@ -40,8 +40,8 @@ return new class extends Migration
 
             $table->string('Ips_seguimiento_Ambulatorio')->nullable();
             $table->string('Caso_confirmada_desnutricion_etiologia_primaria')->nullable();
-            $table->string('Tipo_ajuste')->nullable();
-            $table->string('Promedio_dias_oportuna_remision')->nullable();
+            $table->integer('Tipo_ajuste')->nullable();
+            $table->integer('Promedio_dias_oportuna_remision')->nullable();
             $table->string('Esquemq_complrto_pai_edad')->nullable();
             $table->string('Atecion_primocion_y_mantenimiento_res3280_2018')->nullable();
             $table->string('est_act_menor')->nullable();

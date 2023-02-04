@@ -225,7 +225,7 @@
                 <div class="col-sm-6">
                     <div class="form-group">
                             <label for="Nombre"> Promedio en  dias para hacerse efectiva la remisión </label> {{-- el isset pregunta si el archivo esta seleccionado lo muestre sino no muestra nada por eso las comillas vacias al final --}}
-                            <input class="form-control" type="text" name="Promedio_dias_oportuna_remision" id = 'Promedio_dias_oportuna_remision'
+                            <input class="form-control" type="number" name="Promedio_dias_oportuna_remision" id = 'Promedio_dias_oportuna_remision'
                                         value="">
                     </div>
                 </div>
@@ -233,7 +233,7 @@
                 <div class="col-sm-6">
                     <div class="form-group">
                             <label for="Nombre">Tipo de ajuste</label> {{-- el isset pregunta si el archivo esta seleccionado lo muestre sino no muestra nada por eso las comillas vacias al final --}}
-                            <input class="form-control" type="text" name="Tipo_ajuste" id = 'Tipo_ajuste'value="">
+                            <input class="form-control" type="number" name="Tipo_ajuste" id = 'Tipo_ajuste'value="">
                     </div>
                 </div> 
             </div>
