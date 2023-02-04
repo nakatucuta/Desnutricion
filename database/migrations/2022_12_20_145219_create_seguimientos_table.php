@@ -20,8 +20,8 @@ return new class extends Migration
             $table->float('peso_kilos');
             $table->float('talla_cm');
             $table->float('puntajez');
-            $table->integer('clasificacion');
-            $table->integer('requerimiento_energia_ftlc');
+            $table->string('clasificacion');
+            $table->string('requerimiento_energia_ftlc');
             $table->date('fecha_entrega_ftlc');
             $table->string('medicamento');
             $table->string('recomendaciones_manejo');

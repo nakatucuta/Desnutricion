@@ -24,7 +24,7 @@ return new class extends Migration
             $table->string('Emaciacion');
             $table->float('perimetro_brazo');
             $table->string('interpretacion_p_braqueal');
-            $table->integer('requ_energia_dia');
+            $table->string('requ_energia_dia');
             $table->string('mes_entrega_FTLC');
             $table->date('fecha_entrega_FTLC')->nullable();
             $table->string('Menor_anos_des_aguda');

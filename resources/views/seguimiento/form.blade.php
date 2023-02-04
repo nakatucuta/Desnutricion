@@ -50,7 +50,7 @@
 <div class="col-sm-6">
 <div class="form-group">
     <label for="Nombre">Peso En Kilos y un decimal</label> {{-- el isset pregunta si el archivo esta seleccionado lo muestre sino no muestra nada por eso las comillas vacias al final --}}
-    <input class="form-control" type="number" name="peso_kilos" id = 'peso_kilos'
+    <input class="form-control" type="number" step="0.01" name="peso_kilos" id = 'peso_kilos'
     value="">
 </div>
 </div>
@@ -61,7 +61,7 @@
     <div class="col-sm-6">
         <div class="form-group">
             <label for="Nombre"> Talla en centimetros</label> {{-- el isset pregunta si el archivo esta seleccionado lo muestre sino no muestra nada por eso las comillas vacias al final --}}
-            <input class="form-control" type="number" name="talla_cm" id = 'talla_cm'
+            <input class="form-control" type="number" step="0.01" name="talla_cm" id = 'talla_cm'
             value="">
         </div>
         </div>
@@ -69,7 +69,7 @@
         <div class="col-sm-6">
             <div class="form-group">
                 <label for="Nombre">Puntaje z (peso / talla)</label> {{-- el isset pregunta si el archivo esta seleccionado lo muestre sino no muestra nada por eso las comillas vacias al final --}}
-                <input class="form-control" type="text" name="puntajez" id = 'puntajez'
+                <input class="form-control" type="number" step="0.0001" name="puntajez" id = 'puntajez'
                 value="">
             </div>
             </div>
@@ -79,8 +79,14 @@
         <div class="col-sm-6">
             <div class="form-group">
                 <label for="Nombre">Calificacion </label> {{-- el isset pregunta si el archivo esta seleccionado lo muestre sino no muestra nada por eso las comillas vacias al final --}}
-                <input class="form-control" type="text" name="clasificacion" id = 'clasificacion'
-                value="">
+                <select class="person2 " name="clasificacion" id="clasificacion"  style="width: 100% ">
+                    <option  value="">SELECCIONAR</option>
+                    <option  value="DESNUTRICION AGUDA MODERADA">DESNUTRICION AGUDA MODERADA</option>
+                    <option  value="DESNUTRICION AGUDA SEVERA">DESNUTRICION AGUDA SEVERA</option>
+                    <option  value="DESNUTRICION AGUDA SEVERA TIPO KWASHIORKOR">DESNUTRICION AGUDA SEVERA TIPO KWASHIORKOR</option>
+                    <option  value="DESNUTRICION AGUDA SEVERA TIPO KWWASHIORKOR">DESNUTRICION AGUDA SEVERA TIPO KWWASHIORKOR</option>
+                    
+                  </select>
             </div>
             </div>
         
@@ -108,8 +114,9 @@
                 <div class="col-sm-6">
                     <div class="form-group">
                         <label for="Nombre"> Medicamento </label> {{-- el isset pregunta si el archivo esta seleccionado lo muestre sino no muestra nada por eso las comillas vacias al final --}}
-                        <input class="form-control" type="text" name="medicamento" id = 'medicamento'
-                        value="">
+                        <textarea name="medicamento" id="medicamento" value=""
+                         class="form-control" rows="5" maxlength="600"></textarea>
+                                           
                     </div>
                     </div>
 
@@ -119,16 +126,20 @@
                             <div class="col-sm-6">
                                 <div class="form-group">
                                     <label for="Nombre"> Recomendacion De Manejo </label> {{-- el isset pregunta si el archivo esta seleccionado lo muestre sino no muestra nada por eso las comillas vacias al final --}}
-                                    <input class="form-control" type="text" name="recomendaciones_manejo" id = 'recomendaciones_manejo'
-                                    value="">
+                                    
+
+                                    <textarea name="recomendaciones_manejo" id="recomendaciones_manejo" value="{{ isset($empleado->recomendaciones_manejo)?$empleado->recomendaciones_manejo:old('recomendaciones_manejo')}}" class="form-control" rows="5" maxlength="600"></textarea>
+                         
                                 </div>
                                 </div>
 
                             <div class="col-sm-6">
                                 <div class="form-group">
                                     <label for="Nombre"> Resultados de Seguimientos </label> {{-- el isset pregunta si el archivo esta seleccionado lo muestre sino no muestra nada por eso las comillas vacias al final --}}
-                                    <input class="form-control" type="text" name="resultados_seguimientos" id = 'resultados_seguimientos'
-                                    value="">
+                                    
+
+                                    <textarea name="resultados_seguimientos" id="resultados_seguimientos" value="{{ isset($empleado->resultados_seguimientos)?$empleado->resultados_seguimientos:old('resultados_seguimientos')}}" class="form-control" rows="5" maxlength="600"></textarea>
+                         
                                 </div>
                                 </div>
                                 
@@ -151,8 +162,10 @@
                                         <div class="col-sm-6">
                                             <div class="form-group">
                                                 <label for="Nombre"> Observaciones </label> {{-- el isset pregunta si el archivo esta seleccionado lo muestre sino no muestra nada por eso las comillas vacias al final --}}
-                                                <input class="form-control" type="text" name="observaciones" id = 'observaciones'
-                                                value="">
+                                                
+
+                                                <textarea name="observaciones" id="observaciones" value="{{ isset($empleado->observaciones)?$empleado->observaciones:old('observaciones')}}" class="form-control" rows="5" maxlength="600"></textarea>
+                         
                                             </div>
                                             </div>
                                 

@@ -549,9 +549,9 @@ return [
             'title' => null,
         ],
         'buttons' => [
-            'close' => true,
-            'close_all' => true,
-            'close_all_other' => true,
+            'close' => false,
+            'close_all' => false,
+            'close_all_other' => false,
             'scroll_left' => true,
             'scroll_right' => true,
             'fullscreen' => true,

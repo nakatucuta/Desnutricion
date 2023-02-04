@@ -68,7 +68,7 @@
         <div class="col-sm-6">
             <div class="form-group">
                 <label for="Nombre">Puntaje z (peso / talla)</label> {{-- el isset pregunta si el archivo esta seleccionado lo muestre sino no muestra nada por eso las comillas vacias al final --}}
-                <input class="form-control" type="number" step="0.01"  name="puntaje_z" id = 'puntaje_z'
+                <input class="form-control" type="number" step="0.0001"  name="puntaje_z" id = 'puntaje_z'
                 value="{{ isset($empleado->puntaje_z)?$empleado->puntaje_z:old('puntaje_z')}}">
             </div>
             </div>
@@ -77,7 +77,7 @@
     <div class="row">
         <div class="col-sm-6">
             <div class="form-group">
-                <label for="Nombre">Calificacion</label>
+                <label for="Nombre">Clasificacion</label>
                 <select class="person2 " name="calificacion" id="calificacion"  style="width: 100% ">
                 <option  value="">SELECCIONAR</option>
                 <option  value="DESNUTRICION AGUDA MODERADA">DESNUTRICION AGUDA MODERADA</option>
@@ -210,8 +210,9 @@
                                 <div class="col-sm-6">
                                     <div class="form-group">
                                         <label for="Nombre"> se remite a alguna institucion para apoyo </label> {{-- el isset pregunta si el archivo esta seleccionado lo muestre sino no muestra nada por eso las comillas vacias al final --}}
-                                        <input class="form-control" type="text" name="remite_alguna_inst_apoyo" id = 'remite_alguna_inst_apoyo'
-                                        value="{{ isset($empleado->remite_alguna_inst_apoyo)?$empleado->remite_alguna_inst_apoyo:old('remite_alguna_inst_apoyo')}}">
+                                        
+                                        
+                                        <textarea name="remite_alguna_inst_apoyo" id="remite_alguna_inst_apoyo" value="{{ isset($empleado->remite_alguna_inst_apoyo)?$empleado->remite_alguna_inst_apoyo:old('remite_alguna_inst_apoyo')}}" class="form-control" rows="5" maxlength="600"></textarea>
                                     </div>
                                     </div>
         
