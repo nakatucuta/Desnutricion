@@ -69,5 +69,8 @@ class Kernel extends HttpKernel
         'Admin_seguimiento' => \App\Http\Middleware\Admin_seguimiento::class,
         'Admin_ingreso_edit' => \App\Http\Middleware\Admin_ingreso_edit::class,
         'Admin_ingreso_destroy' => \App\Http\Middleware\Admin_ingreso_destroy::class,
+        'Admin_nutric_ingres' => \App\Http\Middleware\Admin_nutric_ingres::class,
+        'Admin_nutric_seguimiento' => \App\Http\Middleware\Admin_nutric_seguimiento::class,
+        
     ];
 }

@@ -19,7 +19,14 @@ class SeguimientoController extends Controller
         $this->middleware('auth');
         $this->middleware('Admin_seguimiento', ['only' =>'create']);
         $this->middleware('Admin_seguimiento', ['only' =>'index']);
-        $this->middleware('Admin_seguimiento', ['only' =>'show']);
+        $this->middleware('Admin_seguimiento', ['only' =>'alerta']);
+        $this->middleware('Admin_nutric_seguimiento', ['only' =>'edit']);
+        $this->middleware('Admin_nutric_seguimiento', ['only' =>'destroy']);
+        
+
+        
+        // $this->middleware('Admin_nutric_ingres', ['only' =>'edit','only' =>'destroy']);
+        // $this->middleware('Admin_nutric_ingres', ['only' =>'destroy','only' =>'edit']);
         
        
 

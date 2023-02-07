@@ -42,12 +42,14 @@
             <table class="table">
                 <thead class="table table-hover table-dark">
                   <tr>
-                    <th scope="col">#</th>
-                    <th scope="col">Fecha Ingreso</th>
-                    <th scope="col">Tipo ID</th>
-                    <th scope="col">Identificacion</th>
-                    <th scope="col">Nombre</th>
-                    <th scope="col">Acciones</th>
+                    <th scope="col">ID</th>
+                    <th scope="col">FECHA INGRESO</th>
+                    <th scope="col">IDENTIFICACION</th>
+                    <th scope="col">NOMBRE</th>
+                    
+                     <th scope="col">IPS ATENCION</th>
+                    
+                    <th scope="col">ACCIONES</th>
                   </tr>
                 </thead>
                 <tbody id="table">
@@ -55,9 +57,13 @@
                     @foreach($master as $student2)
                     <th scope="row">{{ $student2->id }}</th>
                     <td>{{$student2->Fecha_ingreso_ingres}}</td>
-                    <td>{{ $student2->pri_nom_.' '.$student2->seg_nom_.' '.$student2->pri_ape_ }}</td>
                     <td>{{$student2->num_ide_}}</td>
-                    <td></td>
+                    <td>{{ $student2->pri_nom_.' '.$student2->seg_nom_.' '.$student2->pri_ape_ }}</td>
+                    <td>{{$student2->Nom_ips_at_prim}}</td>
+                    
+                  
+                    
+                    
                         
                       <td>  <a class="btn  btn-warning" href="{{url('/Ingreso/'.$student2->id. '/edit')}}" class="ref" >
                         <i class="fas fa-edit"></i>
