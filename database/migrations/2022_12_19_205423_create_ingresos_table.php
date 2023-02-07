@@ -34,6 +34,8 @@ return new class extends Migration
             $table->integer('estado');
             $table->integer('sivigilas_id')->unsigned();//relacion uno a uno 
             $table->foreign('sivigilas_id')->references('id')->on('sivigilas')->onDelete('cascade')->onUpdate('cascade');
+            $table->integer('user_id')->unsigned();
+            $table->foreign('user_id')->references('id')->on('users');
             $table->timestamps();
         });
     }

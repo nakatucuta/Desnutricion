@@ -48,6 +48,8 @@ return new class extends Migration
             $table->string('tratamiento_f75')->nullable();
             $table->date('fecha_recibio_tratf75')->nullable();
             $table->string('nombreips_manejo_hospita')->nullable();
+            $table->integer('user_id')->unsigned();
+            $table->foreign('user_id')->references('id')->on('users');
             $table->timestamps();
         });
     }

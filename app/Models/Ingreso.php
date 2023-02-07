@@ -10,4 +10,12 @@ class Ingreso extends Model
     public function getDateFormat(){
         return 'Y-d-m h:m:s';
         }
+
+        public function user()
+        {
+        
+            return $this->belongsTo('App\User');
+        
+        }
+
 }

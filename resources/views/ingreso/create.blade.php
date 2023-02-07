@@ -4,7 +4,7 @@
 @section('title', 'Dashboard')
 
 @section('content_header')
-formulario de creacion ingreso uuu
+
 @stop
 @section('content')
 
