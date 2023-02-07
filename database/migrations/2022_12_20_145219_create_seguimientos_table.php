@@ -31,6 +31,9 @@ return new class extends Migration
             $table->date('fecha_proximo_control')->nullable();
             $table->integer('ingresos_id');//relacion uno a uno 
             $table->foreign('ingresos_id')->references('id')->on('ingresos')->onDelete('cascade')->onUpdate('cascade');
+            
+            $table->integer('user_id')->unsigned();
+            $table->foreign('user_id')->references('id')->on('users');
             $table->timestamps();
         });
     }

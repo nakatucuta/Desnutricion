@@ -34,4 +34,12 @@ class Seguimiento1 implements FromCollection
     {
     return Seguimiento::all();
     }
+
+
+    public function user()
+    {
+    
+        return $this->belongsTo('App\User');
+    
+    }
 }

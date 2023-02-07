@@ -134,6 +134,7 @@ class IngresoController extends Controller
             $entytistore->estado = 1;
             $entytistore->sivigilas_id = $request->sivigilas_id;
             $entytistore->sivigilas_id = $request->sivigilas_id;
+            $entytistore->user_id = auth()->user()->id;
             $entytistore->save();
         // $datosEmpleado = request()->except('_token');
         // Ingreso::insert($datosEmpleado);

@@ -222,7 +222,7 @@ class SivigilaController extends Controller
             $entytistore->tratamiento_f75 = $request->tratamiento_f75;
             $entytistore->fecha_recibio_tratf75 = $request->fecha_recibio_tratf75;
             $entytistore->nombreips_manejo_hospita = $request->nombreips_manejo_hospita;
-          
+            $entytistore->user_id = auth()->user()->id;
         
             $entytistore->save();
             return redirect()->route('sivigila.index')

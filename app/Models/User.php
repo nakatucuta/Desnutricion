@@ -53,6 +53,29 @@ class User extends Authenticatable
         'email_verified_at' => 'datetime',
     ];
 
+    public function Ingreso ()
+    {
+    
+        return $this->hasMany('App\Models\Ingreso');
+    
+    }
+
+
+    public function Sivigila ()
+    {
+    
+        return $this->hasMany('App\Models\Sivigila');
+    
+    }
+
+
+    public function Seguimiento ()
+    {
+    
+        return $this->hasMany('App\Models\Seguimiento');
+    
+    }
+
 
 
 }

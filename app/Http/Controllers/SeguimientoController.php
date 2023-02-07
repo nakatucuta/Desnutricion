@@ -126,6 +126,7 @@ class SeguimientoController extends Controller
         $entytistore->observaciones = $request->observaciones;
         $entytistore->fecha_proximo_control = $request->fecha_proximo_control;
         $entytistore->ingresos_id = $request->ingresos_id;
+        $entytistore->user_id = auth()->user()->id;
         
        
         if ( $entytistore->estado == 0) {
