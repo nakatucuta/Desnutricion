@@ -97,6 +97,7 @@
                 <option value="0">selecione</option>
                 <option value="1">ADMINISTRADOR</option>
                 <option value="2">PRESTADOR</option>
+                <option value="3">NUTRICIONISTA</option>
                 <!-- <option value="3">Contador</option> -->
                    
             </select>

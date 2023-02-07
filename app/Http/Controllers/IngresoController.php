@@ -15,10 +15,13 @@ class IngresoController extends Controller
     public function __construct(){/*3.se crea este contruct en el controlador a trabajar*/
 
         $this->middleware('auth');
-        $this->middleware('Admin_ingreso', ['only' =>'create']);
+      
         $this->middleware('Admin_ingreso_edit', ['only' =>'edit']);
+        $this->middleware('Admin_ingreso_edit', ['only' =>'reporte']);
         $this->middleware('Admin_ingreso_destroy', ['only' =>'destroy']);
-        $this->middleware('Admin_ingreso_destroy', ['only' =>'reporte']);
+        $this->middleware('Admin_ingreso', ['only' =>'edit']);
+        $this->middleware('Admin_nutric_ingres', ['only' =>'destroy']);
+        
        
  
         /*$this->middleware('edit_product', ['only' =>'edit']);
@@ -38,7 +41,7 @@ class IngresoController extends Controller
     {
         $busqueda = $request->busqueda;
 
-        $students2 = Ingreso::select('pri_nom_','ingresos.id','seg_nom_','pri_ape_','Fecha_ingreso_ingres','num_ide_')
+        $students2 = Ingreso::select('pri_nom_','ingresos.id','seg_nom_','pri_ape_','Fecha_ingreso_ingres','num_ide_','Nom_ips_at_prim')
         ->orderBy('ingresos.created_at', 'desc')
         ->join('sivigilas as m', 'ingresos.sivigilas_id', '=', 'm.id' )
         ->paginate(5);

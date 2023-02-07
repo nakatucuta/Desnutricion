@@ -198,43 +198,7 @@
                                            
 
 
-                                       
-                                        
-                                     
-
-                                        
-    <div class="row">
-        <div class="col-lg-12 ">
-            <div class="card card-info card-outline ">
-        <center><h6 class=""> <strong>DEMANDA INDUCIDA</strong></h6></center>
-
-    </div>
-        </div>
-            </div>
-
-
-
-<div class="row">
-    <div class="col-lg-12 ">
-        <div class="card card-info card-outline ">
-    <center><h6 class=""> <strong>ATENCION NOMINAL</strong></h6></center>
-
-</div>
-    </div>
-        </div>
-
-
-
-
-    
-
-            <div class="row">
-                
-
-
-                  
-                        
-                             </div>
+            
 
                            
 

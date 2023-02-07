@@ -51,7 +51,7 @@ right: 0;"><i class="fas fa-book"></i>   REPORTE</a>
             <table class="table">
                 <thead class="table table-hover table-dark">
                   <tr>
-                    <th scope="col">#</th>
+                    {{-- <th scope="col">#</th> --}}
                     <th scope="col">Fecha Notificacion</th>
                     <th scope="col">Tipo ID</th>
                     <th scope="col">Identificacion</th>
@@ -62,7 +62,7 @@ right: 0;"><i class="fas fa-book"></i>   REPORTE</a>
                 <tbody id="table">
                   <tr>
                     @foreach($sivigilas as $student2)
-                    <th scope="row">1</th>
+                    {{-- <th scope="row">1</th> --}}
                     <td>{{ $student2->fec_noti }}</td>
                     <td>{{ $student2->tip_ide_ }}</td>
                     <td>{{ $student2->num_ide_ }}</td>

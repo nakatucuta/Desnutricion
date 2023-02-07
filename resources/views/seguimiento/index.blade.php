@@ -122,6 +122,11 @@ right: 0;"><i class="fas fa-book"></i>  </a>
 
 @section('css')
     <link rel="stylesheet" href="/css/admin_custom.css">
+    <style>
+      .sidebar-dark-blue{
+        background: #455279 !important;
+      }
+ </style>
 @stop
 
 @section('js')
