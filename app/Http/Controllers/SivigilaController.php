@@ -38,6 +38,7 @@ class SivigilaController extends Controller
       
         ->groupBy('tip_ide_ ','num_ide_','pri_nom_','seg_nom_','pri_ape_','seg_ape_')
         
+
         ->GET();
 
         $sivi = Sivigila::all();
