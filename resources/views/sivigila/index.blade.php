@@ -71,10 +71,23 @@ right: 0;"><i class="fas fa-book"></i>   REPORTE</a>
                     {{-- <td>{{ $student2->cod_eve }}</td> --}}
                     <td> 
                         
-                      
+                      @if (DB::connection('sqlsrv_1')->table('maestroSiv113')
+                      ->where('num_ide_', $student2->num_ide_)
+                      ->where('fec_not', Carbon\Carbon::parse($student2->fec_noti)->format('d/m/Y'))->exists() &&
+                      DB::connection('sqlsrv')->table('sivigilas')
+                      ->where('num_ide_', $student2->num_ide_)
+                      ->where('fec_not', $student2->fec_noti)
+                      ->exists())
+                      <div>
+                        <a href="" title="DETALLE" class="btn  btn-danger">
+                          <span class="icon-zoom-in" ></span>Procesado</a>
+                      </div>
+                 
+                      @else
+
                     <a href="{{route('detalle_sivigila', $student2->num_ide_)}}" title="DETALLE" class="btn  btn-warning">
                       <span class="icon-zoom-in" ></span>Seguimiento</a>
-                      
+                      @endif
                 </td>
                   </tr>
                   
