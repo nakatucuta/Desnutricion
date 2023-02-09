@@ -79,18 +79,19 @@ right: 0;"><i class="fas fa-book"></i>   REPORTE</a>
                       ->where('fec_not', $student2->fec_noti)
                       ->exists())
                       <div>
-                        <a href="" title="DETALLE" class="btn  btn-danger">
-                          <span class="icon-zoom-in" ></span>Procesado</a>
+                        <a href="" onclick="return false;" title="DETALLE" class="btn  btn-secondary">
+                          <span class="icon-zoom-in" ></span>Procesado <i class="fas fa-stop"></i></a>
                       </div>
                  
                       @else
 
+                      
                     <a href="{{route('detalle_sivigila', $student2->num_ide_)}}" title="DETALLE" class="btn  btn-warning">
                       <span class="icon-zoom-in" ></span>Seguimiento</a>
                       @endif
                 </td>
                   </tr>
-                  
+                    
              
               
                   @endforeach 
