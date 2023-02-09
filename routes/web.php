@@ -36,3 +36,6 @@ Route::get('/report', [SeguimientoController::class,'resporte'])->name('export')
 Route::get('/report1', [IngresoController::class,'reporte'])->name('export1');
 Route::get('/report2', [SivigilaController::class,'reporte1'])->name('export2');
 Route::get('/report3', [SeguimientoController::class,'reporte2'])->name('export3');
+
+//RUTAS PDF
+Route::get('libros/pdf','App\Http\Controllers\IngresoController@reporte2pdf')->name('pdfcertificado');

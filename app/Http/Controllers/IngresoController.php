@@ -8,7 +8,8 @@ use App\Models\Sivigila;
 use Maatwebsite\Excel\Facades\Excel;
 use App\Exports\IngresoExport;
 use App\Http\Middleware\Admin_ingreso;
-
+use PDF;
+use Storage;
 class IngresoController extends Controller
 {
 
@@ -155,10 +156,11 @@ class IngresoController extends Controller
 
 
 
-
+    return view('ingreso.certificado')
+    ->with('mensaje',' El Ingreso fue guardado Exitosamente..!');
         //esto es para la vista index ojo 
-        return redirect()->route('Ingreso.index')
-        ->with('mensaje',' El Ingreso fue guardado Exitosamente..!');
+        // // return redirect()->route('Ingreso.index')
+        // ->with('mensaje',' El Ingreso fue guardado Exitosamente..!');
 
     }
 
@@ -254,6 +256,22 @@ class IngresoController extends Controller
 
 
     }
+
+
+    public function reporte2pdf()
+    {
+        $pdf = PDF::loadView('ingreso.pdf');
+        // $pdf->loadHTML('<h1>Test</h1>');
+        $url = Storage::url('public/img/logo.jpg');
+        
+       
+        return $pdf->stream('ingreso.pdf',compact('url'));
+
+        // $students2 = Ingreso::paginate();
+        // return view('ingreso.pdf');
+
+    }
+
 
 
 }
