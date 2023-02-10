@@ -120,19 +120,19 @@
              
               <br>
               
-              <strong>Hora:</strong>
+              <strong>Hora:{{Carbon\Carbon::now()->format('H:i:s')}} </strong>
              
     
         </div>
     
     
     
-         <div  class="posicion2" align="left">
+         <div  class="posicion2"  style="text-align: center;">
            
     
     
           <strong style="font-size: 10;" >ANAS WAYUU <br> Nit: 839.000.495-6 <br> Regimen:simplificado</strong> <br> <p align="center"></p>
-          <p > 
+          <p style="text-align: center;"> 
             
             EMPRESA PROMOTORA DE SALUD SUBSIDIADA 
             
@@ -151,8 +151,12 @@
        
     
     
-    
-      <strong>Cant:</strong>  Productos.  
+    <p style="text-align: center;">
+        <strong >Vigilado Supersalud Resolución No 15-10 de Julio de 2001
+            Nit: 839.000.495-6
+            </strong> 
+    </p>
+         
                        
      {{-- &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;<strong>CC:</strong> 
     <br>   &nbsp;  &nbsp;&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;  &nbsp;  &nbsp;  &nbsp;  &nbsp;<strong>Nombre:</strong> 
@@ -172,12 +176,12 @@
                                 <br>
                                 
                                
-                                <p>
+                                <p style="display: flex; justify-content: center;">
 
 
     
-                                    Hola  {{ auth()->user()->name }} <strong> la E.P.S.I ANAS WAYUU</strong> <br> <br>
-                                    Ha Recepcionado la informacion de manera exitosa el dia <strong>{{Carbon\Carbon::now()->format('d-m-Y')}}</strong>
+                                    Hola <strong> {{ auth()->user()->name }}</strong> la <strong>  E.P.S.I ANAS WAYUU</strong> <br> <br>
+                                    Ha Recepcionado la informacion de manera exitosa el dia: <strong>{{Carbon\Carbon::now()->format('d-m-Y')}}</strong>
                                     </p> 
                             </tr>
                                 

@@ -10,16 +10,29 @@
 @include('ingreso.mensajes')
 
 <br><br>
-
+<p style="position: absolute;
+top: 50%;
+left: 50%;
+transform: translate(-50%, -50%);">
     
     <img src="img/logo.jpg" alt="" style=" float: left; width: 100px" >
-       
-    <br><br><br><br><br><br>
-    <a  class="btn btn-primary" href="{{route('pdfcertificado')}}" class="btn  btn-success"> 
-        GENERAR CERTIFICADO</a>
+
+    <div class="alert alert-info" role="alert">
+        <h1 style="text-align: center;">Espacio para descargar certificado de ingreso de datos</h1>
+      </div>
+
+
+    <P style="text-align: center;">
+      
+    </P>
+    <a style="position: absolute;
+    top: 35%;
+    left: 50%;
+    transform: translate(-50%, -50%);" class="btn btn-primary" href="{{route('pdfcertificado')}}" class="btn  btn-success"> 
+       <h5>CLICK AQUI</h5> </a>
     @stop
        
-    
+</p> 
 
 
     @section('css')
