@@ -71,26 +71,51 @@ class SivigilaController extends Controller
      *
      * @return \Illuminate\Http\Response
      */
-    public function create($num_ide_)
+    public function create($num_ide_,$fec_not)
     { 
+        $fecha_casteada = DB::connection('sqlsrv_1')->table('maestroSiv113')
+        ->selectRaw("CONVERT(CHAR(10), '$fec_not', 105) as fec_not")
+        // ->selectRaw("CAST(fec_not AS DATE) as fecha_casteada")
+        ->where('num_ide_', $num_ide_)
+        ->value('fec_not'); //ojo esto lo hiciste para el incomeedit5 pero lo vas  aimplementar pra lo demas
+
+        
         $incomeedit = DB::connection('sqlsrv_1')->table('maestroSiv113')->selectRaw('CAST(num_ide_ AS VARCHAR)')
         ->where('num_ide_', $num_ide_)->value('num_ide_');
 
         
         $incomeedit1 = DB::connection('sqlsrv_1')->table('maestroSiv113')
-        ->where('num_ide_', $num_ide_)->first();
+        ->where('num_ide_', $num_ide_)
+        ->whereRaw('CAST(fec_not AS DATE) = ?', [$fecha_casteada])
+        ->first();
 
-        $incomeedit2 = DB::connection('sqlsrv_1')->table('maestroSiv113')->selectRaw('CAST(MAX(fec_not)AS DATE )')
-        ->where('num_ide_', $num_ide_)->VALUE('fec_not');//GET() O VALUE() O FIRST()  //ULTIMO AÑO DE REPORTE
+       
+        $incomeedit2 = DB::connection('sqlsrv_1')->table('maestroSiv113')
+        ->selectRaw("CONVERT(VARCHAR(10), '$fec_not', 105) as fec_not")
+        ->selectRaw("CAST(fec_not AS DATE) as fecha_casteada")
+        ->where('num_ide_', $num_ide_)
+        ->VALUE('fecha_casteada');//GET() O VALUE() O FIRST()  //ULTIMO AÑO DE REPORTE ->selectRaw("'".$fec_not."' as fec_not") CAST(MAX(fec_not)AS DATE )
 
         $incomeedit3 = DB::connection('sqlsrv_1')->table('maestroSiv113')->selectRaw('MAX(edad_)')
-        ->where('num_ide_', $num_ide_)->VALUE('edad_'); //LA EDAD MAYOR
+        ->where('num_ide_', $num_ide_)->VALUE('edad_'); //LA EDAD MAYOR ->selectRaw('MAX(edad_)')
 
-        $incomeedit4 = DB::connection('sqlsrv_1')->table('maestroSiv113')->selectRaw('MAX(CAST(year(year)AS INT ))')
-        ->where('num_ide_', $num_ide_)->VALUE('year'); //ULTIMO AÑO DE REPORTE O AÑO MAYOR
+        $incomeedit4 = DB::connection('sqlsrv_1')->table('maestroSiv113')->selectRaw('CAST(year(year)AS INT )')
+        
+        ->where('num_ide_', $num_ide_)
+        ->whereRaw('CAST(fec_not AS DATE) = ?', [$fecha_casteada])
+        ->VALUE('year'); //ULTIMO AÑO DE REPORTE O AÑO MAYOR ->selectRaw('MAX(CAST(year(year)AS INT ))')
 
-        $incomeedit5 = DB:: connection('sqlsrv_1')->table('maestroSiv113')->selectRaw('MAX(CAST(semana AS INT) )')
-        ->where('num_ide_', $num_ide_)->VALUE('semana'); //semana mayor  de notificacion
+
+
+
+       
+       
+        
+
+        $incomeedit5 = DB:: connection('sqlsrv_1')->table('maestroSiv113')->selectRaw('CAST(semana AS INT)')
+        ->where('num_ide_', $num_ide_)
+        ->whereRaw('CAST(fec_not AS DATE) = ?', [$fecha_casteada])
+        ->value('semana'); //semana mayor  de notificacion ->selectRaw('MAX(CAST(semana AS INT) )')
 
         $incomeedit6 = DB:: connection('sqlsrv_1')->table('maestroSiv113')->selectRaw('m.descrip as mun')
         ->join('municipios as m', 'maestroSiv113.cod_mun_o', '=', 'm.codigoMunicipio' )
@@ -107,7 +132,11 @@ class SivigilaController extends Controller
         ->where('num_ide_', $num_ide_)->VALUE('fecha_nto_'); //PARA FECHA DE NACIMIENTO
 
         $incomeedit9 = DB::connection('sqlsrv_1')->table('maestroSiv113')->selectRaw('CAST(edad_ges AS INT )')
-        ->where('num_ide_', $num_ide_)->VALUE('edad_ges'); //PARA EDAD EN MESES
+        ->where('num_ide_', $num_ide_)
+        ->where('num_ide_', $num_ide_)
+        ->whereRaw('CAST(fec_not AS DATE) = ?', [$fecha_casteada])
+        
+        ->VALUE('edad_ges'); //PARA EDAD EN MESES
 
 
         $incomeedit10 = DB::connection('sqlsrv_1')->table('maestroSiv113')->selectRaw('CONCAT(trim(cod_pre),trim(cod_sub)) ')

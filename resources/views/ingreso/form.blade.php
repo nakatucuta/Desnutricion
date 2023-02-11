@@ -26,7 +26,7 @@
                         <select class="person " name="sivigilas_id" id="sivigilas_id"  style="width: 200%">
                             <option value="">SELECCIONE</option>
                             @foreach($incomeedit as $developer)
-                            <option  value="{{$developer->id}}">{{$developer->num_ide_.' '. $developer->pri_nom_ .' '. $developer->seg_nom_
+                            <option  value="{{$developer->id}}">{{$developer->fec_not.' '.$developer->num_ide_.' '. $developer->pri_nom_ .' '. $developer->seg_nom_
                              .' '. $developer->pri_ape_ .' '. $developer->seg_ape_}}</option>
                             @endforeach
                             
