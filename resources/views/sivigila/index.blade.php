@@ -32,7 +32,7 @@ width: 14%;
 position: relative;
 right: 0;"><i class="fas fa-book"></i>   REPORTE</a>
     <h1>Datos Sivigila</h1>
-
+ Total {{ $sivigilas->total() }} 
     {{-- <section class="content-header">
       
         <h1 class="pull-right">
@@ -102,7 +102,7 @@ right: 0;"><i class="fas fa-book"></i>   REPORTE</a>
                  
               </table>
                {{ $sivigilas->links() }} 
-              {{-- {{ $sivigilas->total() }}  --}}
+              
             
           
              

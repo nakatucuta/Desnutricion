@@ -30,7 +30,7 @@ class SivigilaController extends Controller
     public function index()
 
     {  
-        $sivigilas = DB::connection('sqlsrv_1')
+       $sivigilas = DB::connection('sqlsrv_1')
         ->table('maestroSiv113 AS m')
         ->select(DB::raw("CAST(MAX(m.fec_not) AS DATE) as fec_noti, m.tip_ide_, m.num_ide_, m.pri_nom_, m.seg_nom_, m.pri_ape_, m.seg_ape_"))
         ->where('m.cod_eve', 113)
