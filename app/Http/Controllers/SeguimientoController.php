@@ -65,7 +65,8 @@ class SeguimientoController extends Controller
         ->join('ingresos', 'sivigilas.id', '=', 'ingresos.sivigilas_id')// ojo en la alerta es el id del ingreso
         //->join('seguimientos', 'ingresos.id', '=', 'seguimientos.ingresos_id') ojo arregla esto por algo no funciona el select 2 de esta relacion y por es
         ->where('ingresos.estado',1)
-        ->get();
+        
+        ->paginate(5);
 
         $income12 =  DB::connection('sqlsrv_1')->table('refIps')->select('descrip')
         ->where('refIps.codigoDepartamento', 44)
