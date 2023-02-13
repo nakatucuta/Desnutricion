@@ -6,7 +6,7 @@
 @section('content_header')
 @include('seguimiento.mensajes')
 
-{{-- <form action="{{ route('BUSCADOR')}}" method="GET" role="search">
+<form action="{{ route('BUSCADOR')}}" method="GET" role="search">
   <div class="input-group">
     <input type="text" name="q" id="q" class="form-control" placeholder="Search..."> <span class="input-group-btn">
           <button type="submit" class="btn btn-primary">
@@ -18,11 +18,11 @@
       
   </div>
  
-</form> --}}
+</form>
 
-<div>
+{{-- <div>
     <input type="text" class="form-control" id="search" placeholder="Buscar...">
-</div>
+</div> --}}
 <br>
 
 
@@ -101,7 +101,7 @@ right: 0;"><i class="fas fa-book"></i>   REPORTE</a>
                 </tbody>
                  
               </table>
-              {{-- {{ $sivigilas->links() }}  --}}
+               {{ $sivigilas->links() }} 
               {{-- {{ $sivigilas->total() }}  --}}
             
           
@@ -116,7 +116,7 @@ right: 0;"><i class="fas fa-book"></i>   REPORTE</a>
 @section('js')
 <script type="text/javascript"> 
   $(document).ready(function(){
-      $("#search").on("keyup", function() {
+      $("#q").on("keyup", function() {
           var value = $(this).val().toLowerCase();
           $("#table tr").filter(function() {
               $(this).toggle($(this).text().toLowerCase().indexOf(value) > -1)
