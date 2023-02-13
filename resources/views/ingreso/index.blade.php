@@ -7,20 +7,21 @@
 @include('ingreso.mensajes')
 
   
-<div>
-  <input type="text" class="form-control" id="search" placeholder="Buscar...">
-</div>
-<br>
+
 
 
 <h1>Listado De Ingresos</h1>
 <a href="{{route('Ingreso.create')}}" title="DETALLE" class="btn  btn-primary">
   <span class="icon-zoom-in" ></span> NUEVO INGRESO</a>
+  
   <a href="{{route('export1')}}" class="btn  btn-success " style="float: right;
   margin-right: 0;
   width: 14%;
   position: relative;
   right: 0;"><i class="fas fa-book"></i>   REPORTE</a>
+ 
+  <br>
+  <strong>Total {{ $master->total() }} </strong> <br>
     
     {{-- <section class="content-header">
       
@@ -33,13 +34,18 @@
             
         </h1>
         </section> --}}
+
+        <div>
+          <input type="text" class="form-control" id="search" placeholder="Buscar...">
+        </div>
+        
 @stop
 
             @section('content')
             
 
 
-            <table class="table">
+            <table class="table table-hover table-striped">
                 <thead class="table table-hover table-dark">
                   <tr>
                     <th scope="col">ID</th>
@@ -97,7 +103,7 @@
                 </tbody>
                 
               </table>
-              {{ $master->links() }} 
+               {{ $master->links() }} 
             
           
              

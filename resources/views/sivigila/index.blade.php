@@ -6,19 +6,7 @@
 @section('content_header')
 @include('seguimiento.mensajes')
 
-<form action="{{ route('BUSCADOR')}}" method="GET" role="search">
-  <div class="input-group">
-    <input type="text" name="q" id="q" class="form-control" placeholder="Search..."> <span class="input-group-btn">
-          <button type="submit" class="btn btn-primary">
-              <span class="glyphicon glyphicon-search"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-search" viewBox="0 0 16 16">
-                <path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001c.03.04.062.078.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1.007 1.007 0 0 0-.115-.1zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0z"/>
-              </svg></span>
-          </button>
-         
-      
-  </div>
- 
-</form>
+
 
 {{-- <div>
     <input type="text" class="form-control" id="search" placeholder="Buscar...">
@@ -32,7 +20,8 @@ width: 14%;
 position: relative;
 right: 0;"><i class="fas fa-book"></i>   REPORTE</a>
     <h1>Datos Sivigila</h1>
- Total {{ $sivigilas->total() }} 
+    <strong>Total {{ $sivigilas->total() }} </strong>
+ 
     {{-- <section class="content-header">
       
         <h1 class="pull-right">
@@ -44,11 +33,25 @@ right: 0;"><i class="fas fa-book"></i>   REPORTE</a>
             
         </h1>
         </section> --}}
+
+        <form action="{{ route('BUSCADOR')}}" method="GET" role="search">
+          <div class="input-group">
+            <input type="text" name="q" id="q" class="form-control" placeholder="Search..."> <span class="input-group-btn">
+                  <button type="submit" class="btn btn-primary">
+                      <span class="glyphicon glyphicon-search"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-search" viewBox="0 0 16 16">
+                        <path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001c.03.04.062.078.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1.007 1.007 0 0 0-.115-.1zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0z"/>
+                      </svg></span>
+                  </button>
+                 
+              
+          </div>
+         
+        </form>
 @stop
 
             @section('content')
             
-            <table class="table">
+             <table class="table table-hover table-striped {{-- table-responsive--}}"> 
                 <thead class="table table-hover table-dark">
                   <tr>
                     {{-- <th scope="col">#</th> --}}
@@ -114,6 +117,7 @@ right: 0;"><i class="fas fa-book"></i>   REPORTE</a>
 @stop
 
 @section('js')
+
 <script type="text/javascript"> 
   $(document).ready(function(){
       $("#q").on("keyup", function() {

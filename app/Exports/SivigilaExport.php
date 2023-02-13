@@ -50,6 +50,7 @@ class SivigilaExport implements FromCollection, WithHeadings, ShouldAutoSize, Wi
             'Edad en meses',
             'Telefono',
             'Etnia',
+            'Regimen',
             'Ips atencion inicial',
             'Estado',
             'Fecha atencion inicial',
