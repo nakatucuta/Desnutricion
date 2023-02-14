@@ -32,7 +32,14 @@ class GeneralExport implements  FromCollection, WithHeadings, ShouldAutoSize, Wi
         sivigilas.Tipo_ajuste,sivigilas.Promedio_dias_oportuna_remision,sivigilas.Esquemq_complrto_pai_edad,sivigilas.Atecion_primocion_y_mantenimiento_res3280_2018,
         sivigilas.est_act_menor,sivigilas.tratamiento_f75,sivigilas.fecha_recibio_tratf75,sivigilas.nombreips_manejo_hospita,
 
-        ingresos.Fecha_ingreso_ingres,
+
+        ingresos.Fecha_ingreso_ingres,ingresos.peso_ingres,ingresos.talla_ingres,
+        ingresos.puntaje_z,ingresos.calificacion,ingresos.Edema,ingresos.Emaciacion,ingresos.perimetro_brazo,
+        ingresos.interpretacion_p_braqueal,ingresos.requ_energia_dia,ingresos.mes_entrega_FTLC,ingresos.fecha_entrega_FTLC,
+        ingresos.Menor_anos_des_aguda,ingresos.medicamentos,ingresos.remite_alguna_inst_apoyo,ingresos.Nom_ips_at_prim,
+        
+
+
          IIF(seguimientos.estado = 1, 'Activo', 'Inactivo') as Estado, seguimientos.fecha_consulta,
           seguimientos.peso_kilos,seguimientos.talla_cm,seguimientos.puntajez,seguimientos.clasificacion,
           seguimientos.requerimiento_energia_ftlc,seguimientos.fecha_entrega_ftlc,seguimientos.medicamento,seguimientos.recomendaciones_manejo,
@@ -46,7 +53,7 @@ class GeneralExport implements  FromCollection, WithHeadings, ShouldAutoSize, Wi
         return [
 
             
-
+            //sivigila
             'ID',
             'Cod_eve',
             'Semana de notificacion',
@@ -78,21 +85,29 @@ class GeneralExport implements  FromCollection, WithHeadings, ShouldAutoSize, Wi
             'RECIBE  TRATAMIENTO CON F75 (DURANTE LAS PRIMERAS 48 HORAS)',
             'FECHA EN QUE RECIBIO EL TRATAMIENTO CON F75',
             'NOMBRE IPS DE MANEJO HOSPITALARIO ',
-            'Fecha_Ingreso',
-            'Estado',
-            'Fecha de consulta',
-            'Peso en kilos y un decimal',
-            'Talla en centimetros',
-            'Puntaje z(peso/talla)',
-            'Calificacion',
-            'Requerimiento de energia FTLC',
-            'Fecha de entrega FTLC',
-            'Medicamento',
-            'Recomendacion de manejo',
-            'Resultados seguimiento',
-            'Ips que realiza el seguimiento',
-            'Obvservaciones',
-            'Fecha del proeximo seguimiento'
+
+            //los de ingreso
+            'Fecha_Ingreso','(ingreso)Peso en Kilos','(ingreso)Talla en cms y un decimal',
+            '(ingreso)Puntaje z peso/talla','(ingreso)Clasificacion','(ingreso)Edema','(ingreso)Emaciacion',
+            '(ingreso)Perimetro del brazo','(ingreso)Interpretacion perimetro o braqueal','(ingreso)Requerimiento de nergia para cubrir ftlc',
+            '(ingreso)Mes','(ingreso)Fecha en la que se entrega ftlc','(ingreso)Menor de 5 añños desnutrcion aguda',
+            '(ingreso)Ips Atencion primaria','(ingreso) Se remite a alguna institucion para el apoyo ','(ingreso)Medicamentos',
+
+            // de aqui pa abajo es 
+            '(seguimiento)Estado',
+            '(seguimiento)Fecha de consulta',
+            '(seguimiento)Peso en kilos y un decimal',
+            '(seguimiento)Talla en centimetros',
+            '(seguimiento)Puntaje z(peso/talla)',
+            '(seguimiento)Calificacion',
+            '(seguimiento)Requerimiento de energia FTLC',
+            '(seguimiento)Fecha de entrega FTLC',
+            '(seguimiento)Medicamento',
+            '(seguimiento)Recomendacion de manejo',
+            '(seguimiento)Resultados seguimiento',
+            '(seguimiento)Ips que realiza el seguimiento',
+            '(seguimiento)Obvservaciones',
+            '(seguimiento)Fecha del proximo seguimiento'
         
          
         ];
@@ -108,7 +123,7 @@ class GeneralExport implements  FromCollection, WithHeadings, ShouldAutoSize, Wi
                 // $cellRange3 = 'A2:AT2'; //RANGO PARA LOS FILTROS
                 // $cellRange1 = 'AO1:AP1'; // All headers
                 // $cellRange2 = 'AQ1:AT1';
-                 $cellRange = 'A1:AT1'; // All headers
+                 $cellRange = 'A1:BI1'; // All headers
                 
                 //  $event->sheet->getDelegate()->mergeCells($cellRange2);
                 //  $event->sheet->getDelegate()->mergeCells($cellRange1);//ojo debes buscar la
