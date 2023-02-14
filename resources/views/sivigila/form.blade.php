@@ -338,7 +338,7 @@
                             <div class="col-sm-4">
                                 <div class="form-group">
                                     <label for="Nombre"> Fecha en la que recibe tratamiento f75 </label> {{-- el isset pregunta si el archivo esta seleccionado lo muestre sino no muestra nada por eso las comillas vacias al final --}}
-                                    <input class="form-control" type="date" name="fecha_recibio_tratf75" id = 'fecha_recibio_tratf75'
+                                    <input class="form-control" type="date" name="fecha_recibio_tratf75" id = 'input_oculto'
                                     value="">
                                 </div>
                                 </div>

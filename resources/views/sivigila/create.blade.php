@@ -33,6 +33,15 @@
     
     @section('js')
     
- 
+    <script type="text/javascript">
+        $(document).ready(function(){
+            $('#tratamiento_f75').on('change', function() {
+                if ( this.value == 'SI')
+                $("#input_oculto").show();
+                else
+                $("#input_oculto").hide();
+            });
+        });
+    </script>
     @stop
     

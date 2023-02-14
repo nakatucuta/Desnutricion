@@ -201,7 +201,7 @@ class SivigilaController extends Controller
             'Atecion_primocion_y_mantenimiento_res3280_2018' => 'required',
             'est_act_menor' => 'required',
             'tratamiento_f75' => 'required',
-            'fecha_recibio_tratf75' => 'required',
+            
             'nombreips_manejo_hospita' => 'required',
             
 
