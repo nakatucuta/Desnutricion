@@ -10,6 +10,7 @@ use App\Exports\IngresoExport;
 use App\Http\Middleware\Admin_ingreso;
 use PDF;
 use Storage;
+use Illuminate\Support\Facades\Auth;
 class IngresoController extends Controller
 {
 
@@ -40,12 +41,31 @@ class IngresoController extends Controller
      */
     public function index(Request $request)
     {
-        $busqueda = $request->busqueda;
 
-        $students2 = Ingreso::select('pri_nom_','ingresos.id','seg_nom_','pri_ape_','Fecha_ingreso_ingres','num_ide_','Nom_ips_at_prim')
-        ->orderBy('ingresos.created_at', 'desc')
-        ->join('sivigilas as m', 'ingresos.sivigilas_id', '=', 'm.id' )
-        ->paginate(5);
+
+        $busqueda = $request->busqueda;
+        $user_id = Auth::User()->usertype;
+        $user_id1 = Auth::User()->id == '2';
+
+
+        if (Auth::User()->usertype == 2) {
+            $students2 = Ingreso::select('pri_nom_','ingresos.id','seg_nom_','pri_ape_','Fecha_ingreso_ingres','num_ide_','Nom_ips_at_prim')
+                ->orderBy('ingresos.created_at', 'desc')
+                
+                ->join('sivigilas as m', 'ingresos.sivigilas_id', '=', 'm.id' )
+                ->join('users as u', 'ingresos.user_id', '=', 'u.id' )
+                ->where('ingresos.user_id', Auth::User()->id )
+                // ->where('u.id', '=', DB::raw('ingresos.user_id'))
+                ->paginate(5);
+        } else {
+
+            $students2 = Ingreso::select('pri_nom_','ingresos.id','seg_nom_','pri_ape_','Fecha_ingreso_ingres','num_ide_','Nom_ips_at_prim')
+                ->orderBy('ingresos.created_at', 'desc')
+                
+                ->join('sivigilas as m', 'ingresos.sivigilas_id', '=', 'm.id' )
+                ->paginate(5);
+            //$students2 = collect(); // Colección vacía si el usuario no es el usuario con id 2
+        }
      
 
         $datos['ingreso']=Ingreso::paginate(20); //aqui estoy guardando enla variable datos 
