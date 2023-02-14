@@ -21,7 +21,7 @@
   right: 0;"><i class="fas fa-book"></i>   REPORTE</a>
  
   <br>
-  <strong>Total {{ $master->total() }} </strong> <br>
+  <strong>Total {{ $master->total() }} </strong> <br> 
     
     {{-- <section class="content-header">
       
