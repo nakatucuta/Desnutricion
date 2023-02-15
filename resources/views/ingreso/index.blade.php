@@ -103,7 +103,7 @@
                 </tbody>
                 
               </table>
-               {{ $master->links() }} 
+               {{-- {{ $master->links() }}  --}}
             
           
              
