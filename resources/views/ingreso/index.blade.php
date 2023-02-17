@@ -34,10 +34,10 @@
             
         </h1>
         </section> --}}
-
+{{-- 
         <div>
           <input type="text" class="form-control" id="search" placeholder="Buscar...">
-        </div>
+        </div> --}}
         
 @stop
 
@@ -45,7 +45,7 @@
             
 
 
-            <table class="table table-hover table-striped">
+            <table class="table table-hover table-striped" id="ingreso">
                 <thead class="table table-hover table-dark">
                   <tr>
                     <th scope="col">ID</th>
@@ -103,7 +103,7 @@
                 </tbody>
                 
               </table>
-               {{ $master->links() }} 
+               {{-- {{ $master->links() }}  --}}
             
           
              
@@ -111,11 +111,70 @@
             
 
 @section('css')
-    <link rel="stylesheet" href="/css/admin_custom.css">
+<link rel="stylesheet" href="{{ asset('vendor/DataTables/css/dataTables.bootstrap.css') }}">
+<link rel="stylesheet" href="{{ asset('vendor/DataTables/css/jquery.dataTables.css') }}">
+<style>
+ .dataTables_filter input {
+    width: 500px !important;
+    height: 100%;
+    background-color: #555 ;
+    border: solid 3px !important;
+    border-radius: 20px !important;
+    color: rgb(64, 125, 232);
+    padding: 10px !important;
+    font-weight: bold !important;
+  }
+  
+  .dataTables_filter label {
+    font-weight: bold !important;
+  }
+  
+  /* .dataTables_length label {
+    
+    font-weight: bold !important;
+  } */
+  
+  .dataTables_length select {
+    display: flex ;
+    border: solid 3px !important;
+    border-radius: 20px !important;
+    align-items: center !important;
+    margin-bottom: 10px !important;
+    color: rgb(64, 125, 232) !important;
+  }
+ </style>
 @stop
 
 @section('js')
-<script type="text/javascript"> 
+<script src="{{ asset('vendor/jquery/jquery.min.js') }}"></script>
+<script src="{{ asset('vendor/DataTables/js/jquery.dataTables.min.js') }}"></script>
+<script src="{{ asset('vendor/DataTables/js/dataTables.bootstrap5.min.js') }}"></script>
+
+
+<script>
+  $(document).ready(function () {
+    $('#ingreso').DataTable({
+
+      "language":{
+
+        "search": "BUSCAR",
+              "lengthMenu": "Mostrar _MENU_ registros",
+              "info": "Mostrando pagina _PAGE_ de _PAGES_",
+              "paginate": {
+              "first": "Primero",
+              "last": "Último",
+              "next": "Siguiente",
+              "previous": "Anterior"
+      }
+
+              }
+
+    });
+});
+</script>
+
+
+{{-- <script type="text/javascript"> 
   $(document).ready(function(){
       $("#search").on("keyup", function() {
           var value = $(this).val().toLowerCase();
@@ -124,7 +183,7 @@
           });
       });
   });
-</script>
+</script> --}}
 @stop
 
 

@@ -34,7 +34,7 @@ right: 0;"><i class="fas fa-book"></i>   REPORTE</a>
         </h1>
         </section> --}}
 
-        <form action="{{ route('BUSCADOR')}}" method="GET" role="search">
+        {{-- <form action="{{ route('BUSCADOR')}}" method="GET" role="search">
           <div class="input-group">
             <input type="text" name="q" id="q" class="form-control" placeholder="Search..."> <span class="input-group-btn">
                   <button type="submit" class="btn btn-primary">
@@ -46,12 +46,12 @@ right: 0;"><i class="fas fa-book"></i>   REPORTE</a>
               
           </div>
          
-        </form>
+        </form> --}}
 @stop
 
             @section('content')
             
-             <table class="table table-hover table-striped {{-- table-responsive--}}"> 
+             <table class="table table-hover table-striped {{-- table-responsive--}}" id="sivigila"> 
                 <thead class="table table-hover table-dark">
                   <tr>
                     {{-- <th scope="col">#</th> --}}
@@ -104,7 +104,7 @@ right: 0;"><i class="fas fa-book"></i>   REPORTE</a>
                 </tbody>
                  
               </table>
-               {{ $sivigilas->links() }} 
+               {{-- {{ $sivigilas->links() }}  --}}
               
             
           
@@ -113,12 +113,50 @@ right: 0;"><i class="fas fa-book"></i>   REPORTE</a>
             
 
 @section('css')
-    <link rel="stylesheet" href="/css/admin_custom.css">
+<link rel="stylesheet" href="{{ asset('vendor/DataTables/css/dataTables.bootstrap.css') }}">
+<link rel="stylesheet" href="{{ asset('vendor/DataTables/css/jquery.dataTables.css') }}">
 @stop
 
 @section('js')
+<script src="{{ asset('vendor/jquery/jquery.min.js') }}"></script>
+<script src="{{ asset('vendor/DataTables/js/jquery.dataTables.min.js') }}"></script>
+<script src="{{ asset('vendor/DataTables/js/dataTables.bootstrap5.min.js') }}"></script>
+<style> 
 
-<script type="text/javascript"> 
+.dataTables_filter input {
+  width: 500px !important;
+  height: 100%;
+  background-color: #555 ;
+  border: solid 3px !important;
+  border-radius: 20px !important;
+  color: rgb(64, 125, 232);
+  padding: 10px !important;
+  font-weight: bold !important;
+}
+
+.dataTables_filter label {
+  font-weight: bold !important;
+}
+
+/* .dataTables_length label {
+  
+  font-weight: bold !important;
+} */
+
+.dataTables_length select {
+  display: flex ;
+  border: solid 3px !important;
+  border-radius: 20px !important;
+  align-items: center !important;
+  margin-bottom: 10px !important;
+  color: rgb(64, 125, 232) !important;
+}
+
+</style>
+
+
+{{-- <script src="{{ asset('vendor/bootstrap/js/bootstrap.bundle.min.js') }}"></script> --}}
+{{-- <script type="text/javascript"> 
   $(document).ready(function(){
       $("#q").on("keyup", function() {
           var value = $(this).val().toLowerCase();
@@ -127,6 +165,29 @@ right: 0;"><i class="fas fa-book"></i>   REPORTE</a>
           });
       });
   });
+</script> --}}
+
+<script>
+  $(document).ready(function () {
+    $('#sivigila').DataTable({
+
+      "language":{
+
+            "search": "BUSCAR",
+            "lengthMenu": "Mostrar _MENU_ registros",
+            "info": "Mostrando pagina _PAGE_ de _PAGES_",
+            "paginate": {
+            "first": "Primero",
+            "last": "Último",
+            "next": "Siguiente",
+            "previous": "Anterior"
+                           }
+
+
+              }
+
+    });
+});
 </script>
 @stop
 
