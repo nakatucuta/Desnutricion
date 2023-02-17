@@ -129,10 +129,10 @@
     font-weight: bold !important;
   }
   
-  /* .dataTables_length label {
+   .dataTables_length label {
     
     font-weight: bold !important;
-  } */
+  } 
   
   .dataTables_length select {
     display: flex ;
