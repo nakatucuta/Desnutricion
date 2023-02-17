@@ -7,6 +7,7 @@
 
 @include('seguimiento.mensajes')
 
+
 <h1>Listado De Seguimientos</h1>
 <br>
 {{-- <form action="{{ route('BUSCADOR1')}}" method="GET" role="search">
@@ -31,6 +32,7 @@
   <span class="icon-zoom-in" ></span> NUEVO SEGUIMIENTO</a>
   {{-- <strong>Total {{ $incomeedit->total() }} </strong> --}}
 {{-- secion del reporte general --}}
+
 <a href="{{route('export3')}}" class="btn  btn-success " style="
 float: right:;
 margin-right: 0;
@@ -43,7 +45,7 @@ right: 0;"><i class="fas fa-book"></i>  </a>
   width: 14%;
   position: relative;
   right: 0;"><i class="fas fa-book"></i>   REPORTE</a>
-  <br> <br>
+  <br> <strong>Total {{ $incomeedit->total() }} </strong><br>
     {{-- <section class="content-header">
       
         <h1 class="pull-right">
@@ -58,17 +60,20 @@ right: 0;"><i class="fas fa-book"></i>  </a>
 
 
 
-        <div>
+        {{-- <div>
           <input type="text" class="form-control" id="search" placeholder="Buscar...">
         </div>
-        
+         --}}
 @stop
 
             @section('content')
             
 
-
-            <table class="table table-hover table-striped">
+            <div class="content">
+              <div class="clearfix">
+              <div class="box box-primary">
+                <div class="box-body">
+            <table class="table table-hover table-striped" id="seguimiento">
                 <thead class="table table-hover table-dark">
                   <tr>
                     <th scope="col">Identificacion</th>
@@ -119,40 +124,104 @@ right: 0;"><i class="fas fa-book"></i>  </a>
                 </tbody>
                 
               </table>
-               {{-- {{ $incomeedit->links() }}  --}}
+               {{ $incomeedit->links() }} 
             
-          
-             
+              </div>
+              </div>
+            </div>
+          </div>
             @stop
             
 
 @section('css')
-    <link rel="stylesheet" href="/css/admin_custom.css">
-    <style>
-      .sidebar-dark-blue{
-        background: #455279 !important;
-      }
- </style>
+<link rel="stylesheet" href="{{ asset('vendor/DataTables/css/dataTables.bootstrap.css') }}">
+<link rel="stylesheet" href="{{ asset('vendor/DataTables/css/jquery.dataTables.css') }}">
+<style>
+ .dataTables_filter input {
+  width: 500px !important;
+  height: 100%;
+  background-color: #555 ;
+  border: solid 3px !important;
+  border-radius: 20px !important;
+  color: rgb(64, 125, 232);
+  padding: 10px !important;
+}
+</style>
 @stop
 
 @section('js')
-<script type="text/javascript"> 
-  $(document).ready(function(){
-      $("#search").on("keyup", function() {
-          var value = $(this).val().toLowerCase();
-          $("#table tr").filter(function() {
-              $(this).toggle($(this).text().toLowerCase().indexOf(value) > -1)
-          });
+<script src="{{ asset('vendor/jquery/jquery.min.js') }}"></script>
+<script src="{{ asset('vendor/DataTables/js/jquery.dataTables.min.js') }}"></script>
+<script src="{{ asset('vendor/DataTables/js/dataTables.bootstrap5.min.js') }}"></script>
+
+<style> 
+
+  .dataTables_filter input {
+    width: 500px !important;
+    height: 100%;
+    background-color: #555 ;
+    border: solid 3px !important;
+    border-radius: 20px !important;
+    color: rgb(64, 125, 232);
+    padding: 10px !important;
+    font-weight: bold !important;
+  }
+  
+  .dataTables_filter label {
+    font-weight: bold !important;
+  }
+  
+  /* .dataTables_length label {
+    
+    font-weight: bold !important;
+  } */
+  
+  .dataTables_length select {
+    display: flex ;
+    border: solid 3px !important;
+    border-radius: 20px !important;
+    align-items: center !important;
+    margin-bottom: 10px !important;
+    color: rgb(64, 125, 232) !important;
+  }
+  
+  </style>
+  
+  
+  {{-- <script src="{{ asset('vendor/bootstrap/js/bootstrap.bundle.min.js') }}"></script> --}}
+  {{-- <script type="text/javascript"> 
+    $(document).ready(function(){
+        $("#q").on("keyup", function() {
+            var value = $(this).val().toLowerCase();
+            $("#table tr").filter(function() {
+                $(this).toggle($(this).text().toLowerCase().indexOf(value) > -1)
+            });
+        });
+    });
+  </script> --}}
+  
+  <script>
+    $(document).ready(function () {
+      $('#seguimiento').DataTable({
+  
+        "language":{
+  
+              "search": "BUSCAR",
+              "lengthMenu": "Mostrar _MENU_ registros",
+              "info": "Mostrando pagina _PAGE_ de _PAGES_",
+              "paginate": {
+              "first": "Primero",
+              "last": "Último",
+              "next": "Siguiente",
+              "previous": "Anterior"
+                             }
+  
+  
+                }
+  
       });
   });
-
-
-//   Swal.fire(
-//   'Good job!',
-//   'You clicked the button!',
-//   'success'
-// )
-</script>
+  </script>
 @stop
 
 

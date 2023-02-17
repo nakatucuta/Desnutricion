@@ -47,7 +47,7 @@ class SeguimientoController extends Controller
         ->join('ingresos', 'sivigilas.id', '=', 'ingresos.sivigilas_id')
         ->join('seguimientos', 'ingresos.id', '=', 'seguimientos.ingresos_id')
         ->where('seguimientos.estado',1)
-        ->get();
+        ->paginate(3000);
         
         return view('seguimiento.index',compact('incomeedit'));
     }
