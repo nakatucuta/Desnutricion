@@ -134,7 +134,7 @@
     font-weight: bold !important;
   } 
   
-  .dataTables_length select {
+  .dataTables_length select  {
     display: flex ;
     border: solid 3px !important;
     border-radius: 20px !important;
