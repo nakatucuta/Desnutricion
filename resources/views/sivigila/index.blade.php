@@ -138,10 +138,10 @@ right: 0;"><i class="fas fa-book"></i>   REPORTE</a>
   font-weight: bold !important ;
 }
 
-/* .dataTables_length label {
+ .dataTables_length label {
   
   font-weight: bold !important;
-} */
+} 
 
 .dataTables_length select {
   display: flex ;
