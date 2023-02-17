@@ -135,7 +135,7 @@ right: 0;"><i class="fas fa-book"></i>   REPORTE</a>
 }
 
 .dataTables_filter label {
-  font-weight: bold !important;
+  font-weight: bold !important ;
 }
 
 /* .dataTables_length label {
