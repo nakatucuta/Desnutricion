@@ -69,8 +69,8 @@
                     $count = DB::table('ingresos')->where('user_id', $user_id)->count(); // Contar los registros de ingresos del usuario activo
                 @endphp
                     
-                    @if($count < 1  && auth()->user()->usertype == 2)
-                     <th style="display:none;"></th>
+                    @if($count < 1 && (auth()->user()->usertype == 2 || auth()->user()->usertype == 3)) 
+                    <th style="display:none;"></th>
                           <th style="display:none;"></th>
                           <th style="display:none;"></th>
                           <th style="display:none;"></th>
