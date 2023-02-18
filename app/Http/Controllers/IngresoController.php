@@ -285,7 +285,7 @@ class IngresoController extends Controller
         $url = Storage::url('public/img/logo.jpg');
         
         // return $pdf->stream('ingreso.pdf',compact('url')); para que lo cargue ne lugar de descragar 
-        return $pdf->stream('ingreso.pdf',compact('url'));
+        return $pdf->download('ingreso.pdf',compact('url'));
 
         // $students2 = Ingreso::paginate();
         // return view('ingreso.pdf');
