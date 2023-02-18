@@ -43,7 +43,7 @@
 
             @section('content')
             
-
+            {{-- @if(auth()->user()->usertype == 2  ) --}}
 
             <table class="table table-hover table-striped" id="ingreso">
                 <thead class="table table-hover table-dark">
@@ -54,12 +54,29 @@
                     <th scope="col">NOMBRE</th>
                     
                      <th scope="col">IPS ATENCION</th>
-                    
+                     @if(auth()->user()->usertype == 2  )
+                     <th scope="col">#</th>
+                     @else
                     <th scope="col">ACCIONES</th>
+                    @endif
                   </tr>
                 </thead>
                 <tbody id="table">
                   <tr>
+                    {{-- @if(auth()->user()->usertype = 2  ) --}}
+                    @php
+                    $user_id = Auth::id(); // Obtener el ID del usuario activo
+                    $count = DB::table('ingresos')->where('user_id', $user_id)->count(); // Contar los registros de ingresos del usuario activo
+                @endphp
+                    
+                    @if($count < 1  && auth()->user()->usertype == 2)
+                     <th style="display:none;"></th>
+                          <th style="display:none;"></th>
+                          <th style="display:none;"></th>
+                          <th style="display:none;"></th>
+                          <th style="display:none;"></th>
+                          <th style="display:none;"></th> 
+                          @endif
                     @foreach($master as $student2)
                     <th scope="row">{{ $student2->id }}</th>
                     <td>{{$student2->Fecha_ingreso_ingres}}</td>
@@ -71,7 +88,13 @@
                     
                     
                         
-                      <td>  <a class="btn  btn-warning" href="{{url('/Ingreso/'.$student2->id. '/edit')}}" class="ref" >
+                      <td>  
+                       
+                        
+                        @if(auth()->user()->usertype == 2  )
+
+                        @else
+                        <a class="btn  btn-warning" href="{{url('/Ingreso/'.$student2->id. '/edit')}}" class="ref" >
                         <i class="fas fa-edit"></i>
                     </a>
                   
@@ -89,6 +112,11 @@
                 @method('DELETE')
                 @csrf
             </form>
+                
+
+                {{-- <h5><strong aling = "center">NO SE PUEDE ELMINAR FACTURA YA QUE AUN TIENE PRODUCTOS CARGADOS DEBE DEVOLVER TODOS LOS PRODUCTOS CARGADOS PARA ELIMINAR UNA FACTURA</strong></h5>
+            --}}
+            @endif
                   </td>
                    
                             
@@ -103,7 +131,11 @@
                 </tbody>
                 
               </table>
-               {{-- {{ $master->links() }}  --}}
+
+              
+
+
+              
             
           
              
@@ -167,7 +199,15 @@
               "previous": "Anterior"
       }
 
-              }
+              },
+
+
+              "columnDefs": [
+      {
+        "targets": [0],
+        "visible": false
+      }
+    ],
 
     });
 });

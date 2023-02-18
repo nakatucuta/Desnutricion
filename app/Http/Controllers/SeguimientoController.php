@@ -42,7 +42,7 @@ class SeguimientoController extends Controller
 
         $incomeedit = Sivigila::select('sivigilas.num_ide_','sivigilas.pri_nom_','sivigilas.seg_nom_',
         'sivigilas.pri_ape_','sivigilas.seg_ape_','ingresos.id as idin','sivigilas.Ips_at_inicial',
-        'ingresos.Fecha_ingreso_ingres','seguimientos.id')
+        'ingresos.Fecha_ingreso_ingres','seguimientos.id','seguimientos.fecha_proximo_control')
         ->orderBy('seguimientos.created_at', 'desc')
         ->join('ingresos', 'sivigilas.id', '=', 'ingresos.sivigilas_id')
         ->join('seguimientos', 'ingresos.id', '=', 'seguimientos.ingresos_id')
@@ -66,7 +66,7 @@ class SeguimientoController extends Controller
         //->join('seguimientos', 'ingresos.id', '=', 'seguimientos.ingresos_id') ojo arregla esto por algo no funciona el select 2 de esta relacion y por es
         ->where('ingresos.estado',1)
         
-        ->paginate(5);
+        ->get();
 
         $income12 =  DB::connection('sqlsrv_1')->table('refIps')->select('descrip')
         ->where('refIps.codigoDepartamento', 44)

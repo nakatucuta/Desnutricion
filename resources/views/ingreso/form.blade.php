@@ -7,9 +7,19 @@
     <div class="col-lg-12">
         <div class="card card-info card-outline card-tabs">
             <div class="card-header">
+                <a style="position: absolute;
+                        top: 55%;
+                        left: 70%;
+                        transform: translate(-50%, -50%);" class="btn btn-primary" href="{{route('pdfcertificado')}}" class="btn  btn-success"> 
+                           DESCARGUE AQUI SU CERTIFICADO</a>
                 <h2 class="card-title text-center">
+                    
                       <i class="far fa-hospital" style="font-size: 45px; color: #3333ff; "></i>
+                        
+                      
                       DATOS PRIMER INGRESO
+                      
+                        
                       <i class="bi bi-plus"></i>
                       <i class="fas fa-user-md" style="font-size: 45px; color: #3333ff;"></i>
                 </h2>
