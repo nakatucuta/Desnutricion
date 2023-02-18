@@ -86,6 +86,21 @@ right: 0;"><i class="fas fa-book"></i>  </a>
                 </thead>
                 <tbody id="table">
                   <tr>
+
+                    @php
+                    $user_id = Auth::id(); // Obtener el ID del usuario activo
+                    $count = DB::table('seguimientos')->where('user_id', $user_id)->count(); // Contar los registros de ingresos del usuario activo
+                @endphp
+                    
+                    @if($count < 1 && auth()->user()->usertype == 3 )
+                         <th style="display:none;"></th>
+                          <th style="display:none;"></th>
+                          <th style="display:none;"></th>
+                          <th style="display:none;"></th>
+                          <th style="display:none;"></th>
+                          <th style="display:none;"></th> 
+                          @endif
+
                     @foreach($incomeedit as $student2)
                     <th scope="row">{{ $student2->num_ide_ }}</th>
                     <td>{{ $student2->pri_nom_.' '.$student2->seg_nom_.' '.$student2->pri_ape_.' '.$student2->seg_ape_ }}</td>
@@ -219,11 +234,19 @@ right: 0;"><i class="fas fa-book"></i>  </a>
                              }
   
   
-                }
-  
-      });
-  });
-  </script>
+                            },
+
+
+"columnDefs": [
+{
+"targets": [0],
+"visible": false
+}
+],
+
+});
+});
+</script>
 @stop
 
 
