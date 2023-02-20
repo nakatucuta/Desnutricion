@@ -89,16 +89,19 @@ right: 0;"><i class="fas fa-book"></i>  </a>
 
                     @php
                     $user_id = Auth::id(); // Obtener el ID del usuario activo
-                    $count = DB::table('seguimientos')->where('user_id', $user_id)->count(); // Contar los registros de ingresos del usuario activo
-                @endphp
+                    $count = DB::table('seguimientos')->where('user_id', $user_id)->count();
+                    $count1 = DB::table('seguimientos')->count(); // Contar los registros de ingresos del usuario activo
+                    @endphp
                     
-                    @if($count < 1 && auth()->user()->usertype == 3 )
-                         <th style="display:none;"></th>
+                    @if($count < 1 && (auth()->user()->usertype == 2) ) 
+                    <th style="display:none;"></th>
                           <th style="display:none;"></th>
                           <th style="display:none;"></th>
                           <th style="display:none;"></th>
                           <th style="display:none;"></th>
                           <th style="display:none;"></th> 
+
+                          {{-- @elseif($count >= 1 && auth()->user()->usertype == 1) --}}
                           @endif
 
                     @foreach($incomeedit as $student2)
@@ -123,24 +126,26 @@ right: 0;"><i class="fas fa-book"></i>  </a>
                    </a>
                    <form id="delete-form-{{$student2->id}}" action="{{route('Seguimiento.destroy', $student2->id)}}"
                     method="POST" style="display: none;">
-                  @method('DELETE')
-                  @csrf
-              </form>
+                    @method('DELETE')
+                    @csrf
+                    </form>
                   
-                  </td>
+                    </td>
                 
                             
-                </td>
+                    </td>
                   </tr>
                 
                  
              
                   
                   @endforeach 
-            
+                 
                 </tbody>
                 
               </table>
+           
+              
                {{ $incomeedit->links() }} 
             
               </div>
@@ -219,32 +224,20 @@ right: 0;"><i class="fas fa-book"></i>  </a>
   
   <script>
     $(document).ready(function () {
-      $('#seguimiento').DataTable({
-  
+    $('#seguimiento').DataTable({
         "language":{
-  
-              "search": "BUSCAR",
-              "lengthMenu": "Mostrar _MENU_ registros",
-              "info": "Mostrando pagina _PAGE_ de _PAGES_",
-              "paginate": {
-              "first": "Primero",
-              "last": "Último",
-              "next": "Siguiente",
-              "previous": "Anterior"
-                             }
-  
-  
-                            },
-
-
-"columnDefs": [
-{
-"targets": [0],
-"visible": false
-}
-],
-
-});
+            "search": "BUSCAR",
+            "lengthMenu": "Mostrar _MENU_ registros",
+            "info": "Mostrando pagina _PAGE_ de _PAGES_",
+            "paginate": {
+                "first": "Primero",
+                "last": "Último",
+                "next": "Siguiente",
+                "previous": "Anterior"
+            }
+        },
+        "autoWidth": true
+    });
 });
 </script>
 @stop

@@ -63,6 +63,7 @@ class IngresoController extends Controller
                 ->orderBy('ingresos.created_at', 'desc')
                 
                 ->join('sivigilas as m', 'ingresos.sivigilas_id', '=', 'm.id' )
+                
                 ->paginate(3000);
             //$students2 = collect(); // Colección vacía si el usuario no es el usuario con id 2
         }

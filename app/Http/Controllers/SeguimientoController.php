@@ -11,15 +11,16 @@ use Maatwebsite\Excel\Facades\Excel;
 use App\Exports\SeguimientoExport;
 use App\Exports\GeneralExport;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\Auth;
 class SeguimientoController extends Controller
 {
 
     public function __construct(){/*3.se crea este contruct en el controlador a trabajar*/
 
         $this->middleware('auth');
-        $this->middleware('Admin_seguimiento', ['only' =>'create']);
-        $this->middleware('Admin_seguimiento', ['only' =>'index']);
-        $this->middleware('Admin_seguimiento', ['only' =>'alerta']);
+        // $this->middleware('Admin_seguimiento', ['only' =>'create']);
+        //  $this->middleware('Admin_seguimiento', ['only' =>'index']);
+        //  $this->middleware('Admin_seguimiento', ['only' =>'alerta']);
         $this->middleware('Admin_nutric_seguimiento', ['only' =>'edit']);
         $this->middleware('Admin_nutric_seguimiento', ['only' =>'destroy']);
         
@@ -39,7 +40,12 @@ class SeguimientoController extends Controller
     public function index(Request $request)
     {
         $busqueda = $request->busqueda;
+        $busqueda = $request->busqueda;
+        $user_id = Auth::User()->usertype;
+        $user_id1 = Auth::User()->id == '2';
+        //pra mostrar lo que cada usuario ingrese 
 
+        if (Auth::User()->usertype == 2) {
         $incomeedit = Sivigila::select('sivigilas.num_ide_','sivigilas.pri_nom_','sivigilas.seg_nom_',
         'sivigilas.pri_ape_','sivigilas.seg_ape_','ingresos.id as idin','sivigilas.Ips_at_inicial',
         'ingresos.Fecha_ingreso_ingres','seguimientos.id','seguimientos.fecha_proximo_control')
@@ -47,8 +53,23 @@ class SeguimientoController extends Controller
         ->join('ingresos', 'sivigilas.id', '=', 'ingresos.sivigilas_id')
         ->join('seguimientos', 'ingresos.id', '=', 'seguimientos.ingresos_id')
         ->where('seguimientos.estado',1)
+        ->where('seguimientos.user_id', Auth::User()->id )
         ->paginate(3000);
-        
+        } else {  
+
+            $incomeedit = Sivigila::select('sivigilas.num_ide_','sivigilas.pri_nom_','sivigilas.seg_nom_',
+            'sivigilas.pri_ape_','sivigilas.seg_ape_','ingresos.id as idin','sivigilas.Ips_at_inicial',
+            'ingresos.Fecha_ingreso_ingres','seguimientos.id','seguimientos.fecha_proximo_control')
+            ->orderBy('seguimientos.created_at', 'desc')
+            ->join('ingresos', 'sivigilas.id', '=', 'ingresos.sivigilas_id')
+            ->join('seguimientos', 'ingresos.id', '=', 'seguimientos.ingresos_id')
+            ->where('seguimientos.estado',1)
+            
+            ->paginate(3000);
+
+        }
+
+
         return view('seguimiento.index',compact('incomeedit'));
     }
 

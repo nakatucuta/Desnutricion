@@ -89,8 +89,8 @@ class GeneralExport implements  FromCollection, WithHeadings, ShouldAutoSize, Wi
             //los de ingreso
             'Fecha_Ingreso','(ingreso)Peso en Kilos','(ingreso)Talla en cms y un decimal',
             '(ingreso)Puntaje z peso/talla','(ingreso)Clasificacion','(ingreso)Edema','(ingreso)Emaciacion',
-            '(ingreso)Perimetro del brazo','(ingreso)Interpretacion perimetro o braqueal','(ingreso)Requerimiento de nergia para cubrir ftlc',
-            '(ingreso)Mes','(ingreso)Fecha en la que se entrega ftlc','(ingreso)Menor de 5 añños desnutrcion aguda',
+            '(ingreso)Perimetro del brazo','(ingreso)Interpretacion perimetro o braqueal','(ingreso)Requerimiento de energia para cubrir ftlc',
+            '(ingreso)Mes','(ingreso)Fecha en la que se entrega ftlc','(ingreso)Menor de 5 años desnutrcion aguda',
             '(ingreso)Ips Atencion primaria','(ingreso) Se remite a alguna institucion para el apoyo ','(ingreso)Medicamentos',
 
             // de aqui pa abajo es 
