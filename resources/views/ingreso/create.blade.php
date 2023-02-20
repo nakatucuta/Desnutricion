@@ -7,13 +7,15 @@
 
 @stop
 @section('content')
-
+<br>
 <form action="{{url('/Ingreso')}}" method="post" enctype="multipart/form-data">
+    
     @csrf
 
 
     
     @include('ingreso.form', ['modo'=>'Crear']);
+
 
     </form>
 

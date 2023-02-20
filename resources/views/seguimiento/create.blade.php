@@ -4,10 +4,10 @@
 @section('title', 'Dashboard')
 
 @section('content_header')
-formulario de creacion ingreso uuu
+
 @stop
 @section('content')
-
+<br>
 <form action="{{url('/Seguimiento')}}" method="post" enctype="multipart/form-data">
     @csrf
 

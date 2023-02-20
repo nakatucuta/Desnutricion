@@ -69,13 +69,15 @@
                     $count = DB::table('ingresos')->where('user_id', $user_id)->count(); // Contar los registros de ingresos del usuario activo
                 @endphp
                     
-                    @if($count < 1 && (auth()->user()->usertype == 2 || auth()->user()->usertype == 3)) 
+                    @if($count < 1 && (auth()->user()->usertype == 2) ) 
                     <th style="display:none;"></th>
                           <th style="display:none;"></th>
                           <th style="display:none;"></th>
                           <th style="display:none;"></th>
                           <th style="display:none;"></th>
                           <th style="display:none;"></th> 
+
+                          {{-- @elseif($count >= 1 && auth()->user()->usertype == 1) --}}
                           @endif
                     @foreach($master as $student2)
                     <th scope="row">{{ $student2->id }}</th>
@@ -116,11 +118,11 @@
 
                 {{-- <h5><strong aling = "center">NO SE PUEDE ELMINAR FACTURA YA QUE AUN TIENE PRODUCTOS CARGADOS DEBE DEVOLVER TODOS LOS PRODUCTOS CARGADOS PARA ELIMINAR UNA FACTURA</strong></h5>
             --}}
-            @endif
+          @endif
                   </td>
                    
                             
-                </td>
+                
                   </tr>
                 
                  
