@@ -143,6 +143,10 @@
                   <td  class="text-center">No hay registros disponibles</td>
                   <td  class="text-center">No hay registros disponibles</td>
                   <td  class="text-center">No hay registros disponibles</td>
+                  @if($count1 < 1 &&  auth()->user()->usertype == 3)
+                  <td  class="text-center">No hay registros disponibles</td>
+                  
+                  @endif
                  @elseif($count1 >= 1 && (auth()->user()->usertype == 1 ||  auth()->user()->usertype == 3))
                  @foreach($master as $student2)
                     <th scope="row">{{ $student2->id }}</th>
