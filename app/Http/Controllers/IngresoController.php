@@ -59,11 +59,12 @@ class IngresoController extends Controller
                 ->paginate(3000);
         } else {
 
-            $students2 = Ingreso::select('pri_nom_','ingresos.id','seg_nom_','pri_ape_','Fecha_ingreso_ingres','num_ide_','Nom_ips_at_prim')
+            $students2 = Ingreso::select('pri_nom_','ingresos.id',
+            'seg_nom_','pri_ape_','Fecha_ingreso_ingres','num_ide_','Nom_ips_at_prim','u.name as usu')
                 ->orderBy('ingresos.created_at', 'desc')
                 
                 ->join('sivigilas as m', 'ingresos.sivigilas_id', '=', 'm.id' )
-                
+                ->join('users as u', 'ingresos.user_id', '=', 'u.id' )
                 ->paginate(3000);
             //$students2 = collect(); // Colección vacía si el usuario no es el usuario con id 2
         }

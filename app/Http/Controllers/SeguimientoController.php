@@ -12,6 +12,7 @@ use App\Exports\SeguimientoExport;
 use App\Exports\GeneralExport;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Redirect;
 class SeguimientoController extends Controller
 {
 
@@ -38,7 +39,8 @@ class SeguimientoController extends Controller
      * @return \Illuminate\Http\Response
      */
     public function index(Request $request)
-    {
+    { 
+        
         $busqueda = $request->busqueda;
         $busqueda = $request->busqueda;
         $user_id = Auth::User()->usertype;
@@ -67,10 +69,11 @@ class SeguimientoController extends Controller
             
             ->paginate(3000);
 
-        }
-
-
+        } 
         return view('seguimiento.index',compact('incomeedit'));
+
+       
+            
     }
 
     /**
