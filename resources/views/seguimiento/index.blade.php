@@ -76,12 +76,12 @@ right: 0;"><i class="fas fa-book"></i>  </a>
             <table class="table table-hover table-striped" id="seguimiento">
                 <thead class="table table-hover table-dark">
                   <tr>
-                    <th scope="col">Identificacion</th>
-                    <th scope="col">Nombre</th>
-                    <th scope="col">Fecha Reporte</th>
-                    <th scope="col">Ips</th>
-                    <th scope="col">Fecha proximo control</th>
-                    <th scope="col">Acciones</th>
+                    <th >Identificacion</th>
+                    <th >Nombre</th>
+                    <th >Fecha Reporte</th>
+                    <th >Ips</th>
+                    <th >Fecha proximo control</th>
+                    <th >Acciones</th>
                   </tr>
                 </thead>
                 <tbody id="table">
@@ -93,19 +93,28 @@ right: 0;"><i class="fas fa-book"></i>  </a>
                     $count1 = DB::table('seguimientos')->count(); // Contar los registros de ingresos del usuario activo
                     @endphp
                     
-                    @if($count < 1 && (auth()->user()->usertype == 2) ) 
-                    <th style="display:none;"></th>
-                          <th style="display:none;"></th>
-                          <th style="display:none;"></th>
-                          <th style="display:none;"></th>
-                          <th style="display:none;"></th>
-                          <th style="display:none;"></th> 
+                    @if($count < 1 && auth()->user()->usertype == 2) 
+                    
+                      <td  class="text-center">No hay registros disponibles</td>
+                      <td  class="text-center">No hay registros disponibles</td>
+                      <td  class="text-center">No hay registros disponibles</td>
+                      <td  class="text-center">No hay registros disponibles</td>
+                      <td  class="text-center">No hay registros disponibles</td>
+                      <td  class="text-center">No hay registros disponibles</td>
+                        @elseif($count >= 1 && (auth()->user()->usertype == 2))
+                          
 
+                          {{-- @if($count == 0)
+                          
+                          @endif --}}
                           {{-- @elseif($count >= 1 && auth()->user()->usertype == 1) --}}
-                          @endif
-
+                         
+                    {{-- @elseif($count1 >= 1 && auth()->user()->usertype == 1) 
+                     --}}
+                     
                     @foreach($incomeedit as $student2)
-                    <th scope="row">{{ $student2->num_ide_ }}</th>
+                        
+                    <th >{{ $student2->num_ide_ }}</th>
                     <td>{{ $student2->pri_nom_.' '.$student2->seg_nom_.' '.$student2->pri_ape_.' '.$student2->seg_ape_ }}</td>
                     <td>{{$student2->Fecha_ingreso_ingres}}</td>
                     <td>{{$student2->Ips_at_inicial}}</td>
@@ -140,7 +149,56 @@ right: 0;"><i class="fas fa-book"></i>  </a>
              
                   
                   @endforeach 
+                  @endif
+                  
+                  @if($count1 < 1 && (auth()->user()->usertype == 1 ||  auth()->user()->usertype == 3)) 
+                  <td  class="text-center">No hay registros disponibles</td>
+                  <td  class="text-center">No hay registros disponibles</td>
+                  <td  class="text-center">No hay registros disponibles</td>
+                  <td  class="text-center">No hay registros disponibles</td>
+                  <td  class="text-center">No hay registros disponibles</td>
+                  <td  class="text-center">No hay registros disponibles</td>
+                 @elseif($count1 >= 1 && (auth()->user()->usertype == 1 ||  auth()->user()->usertype == 3))
+                 @foreach($incomeedit as $student2)
+                        
+                 <th >{{ $student2->num_ide_ }}</th>
+                 <td>{{ $student2->pri_nom_.' '.$student2->seg_nom_.' '.$student2->pri_ape_.' '.$student2->seg_ape_ }}</td>
+                 <td>{{$student2->Fecha_ingreso_ingres}}</td>
+                 <td>{{$student2->Ips_at_inicial}}</td>
+                 <td>{{$student2->fecha_proximo_control}}</td>
                  
+                   <td>  <a class="btn  btn-warning" href="{{url('/Seguimiento/'.$student2->id. '/edit')}}" class="ref" >
+                     <i class="fas fa-edit"></i>
+                 </a>
+               
+                 
+               
+                 <a href="{{route('Seguimiento.destroy', $student2->id)}}"
+                   onclick="event.preventDefault();
+                   if(confirm('¿Está seguro de que desea eliminar el producto?')) {
+                   document.getElementById('delete-form-{{$student2->id}}').submit();
+                   }" class="btn  btn-danger">
+                  <i class="fas fa-trash"></i>
+                </a>
+                <form id="delete-form-{{$student2->id}}" action="{{route('Seguimiento.destroy', $student2->id)}}"
+                 method="POST" style="display: none;">
+                 @method('DELETE')
+                 @csrf
+                 </form>
+               
+                 </td>
+             
+                         
+                 </td>
+               </tr>
+             
+              
+          
+               
+               @endforeach 
+                  @endif
+
+
                 </tbody>
                 
               </table>

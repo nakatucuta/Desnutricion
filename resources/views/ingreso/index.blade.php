@@ -54,8 +54,9 @@
                     <th scope="col">NOMBRE</th>
                     
                      <th scope="col">IPS ATENCION</th>
-                     @if(auth()->user()->usertype == 2  )
-                     <th scope="col">#</th>
+                     @if(auth()->user()->usertype == 3  )
+                     <th scope="col">usuario</th>
+                     <th scope="col">ACCIONES</th>
                      @else
                     <th scope="col">ACCIONES</th>
                     @endif
@@ -67,18 +68,22 @@
                     @php
                     $user_id = Auth::id(); // Obtener el ID del usuario activo
                     $count = DB::table('ingresos')->where('user_id', $user_id)->count(); // Contar los registros de ingresos del usuario activo
+                    $count1 = DB::table('ingresos')->count(); // Contar los registros de ingresos del usuario activo
+                   
                 @endphp
                     
-                    @if($count < 1 && (auth()->user()->usertype == 2) ) 
-                    <th style="display:none;"></th>
-                          <th style="display:none;"></th>
-                          <th style="display:none;"></th>
-                          <th style="display:none;"></th>
-                          <th style="display:none;"></th>
-                          <th style="display:none;"></th> 
+                    @if($count < 1 && auth()->user()->usertype == 2) 
+                    <td  class="text-center">No hay registros disponibles</td>
+                    <td  class="text-center">No hay registros disponibles</td>
+                    <td  class="text-center">No hay registros disponibles</td>
+                    <td  class="text-center">No hay registros disponibles</td>
+                    <td  class="text-center">No hay registros disponibles</td>
+                    <td  class="text-center">No hay registros disponibles</td>
+                    @elseif($count >= 1 && (auth()->user()->usertype == 2))
+                       
 
                           {{-- @elseif($count >= 1 && auth()->user()->usertype == 1) --}}
-                          @endif
+                          
                     @foreach($master as $student2)
                     <th scope="row">{{ $student2->id }}</th>
                     <td>{{$student2->Fecha_ingreso_ingres}}</td>
@@ -129,7 +134,93 @@
              
                   
                   @endforeach 
+                  @endif
+
+                  @if($count1 < 1 && (auth()->user()->usertype == 1 ||  auth()->user()->usertype == 3)) 
+                  <td  class="text-center">No hay registros disponibles</td>
+                  <td  class="text-center">No hay registros disponibles</td>
+                  <td  class="text-center">No hay registros disponibles</td>
+                  <td  class="text-center">No hay registros disponibles</td>
+                  <td  class="text-center">No hay registros disponibles</td>
+                  <td  class="text-center">No hay registros disponibles</td>
+                 @elseif($count1 >= 1 && (auth()->user()->usertype == 1 ||  auth()->user()->usertype == 3))
+                 @foreach($master as $student2)
+                    <th scope="row">{{ $student2->id }}</th>
+                    <td>{{$student2->Fecha_ingreso_ingres}}</td>
+                    <td>{{$student2->num_ide_}}</td>
+                    <td>{{ $student2->pri_nom_.' '.$student2->seg_nom_.' '.$student2->pri_ape_ }}</td>
+                    <td>{{$student2->Nom_ips_at_prim}}</td>
+                    
+                  
+                    
+                    
+                        
+                       
+                       
+                        
+                        @if(auth()->user()->usertype == 3  )
+                        <td>{{$student2->usu}}</td>
+                        <td> 
+                          <a class="btn  btn-warning" href="{{url('/Ingreso/'.$student2->id. '/edit')}}" class="ref" >
+                          <i class="fas fa-edit"></i>
+                      </a>
+                    
+                      
+  
+                    <a href="{{route('Ingreso.destroy', $student2->id)}}"
+                      onclick="event.preventDefault();
+                      if(confirm('¿Está seguro de que desea eliminar el producto?')) {
+                      document.getElementById('delete-form-{{$student2->id}}').submit();
+                      }" class="btn  btn-danger">
+                     <i class="fas fa-trash"></i>
+                   </a>
+                   <form id="delete-form-{{$student2->id}}" action="{{route('Ingreso.destroy', $student2->id)}}"
+                    method="POST" style="display: none;">
+                  @method('DELETE')
+                  @csrf
+              </form>
+                  
+  
+                  {{-- <h5><strong aling = "center">NO SE PUEDE ELMINAR FACTURA YA QUE AUN TIENE PRODUCTOS CARGADOS DEBE DEVOLVER TODOS LOS PRODUCTOS CARGADOS PARA ELIMINAR UNA FACTURA</strong></h5>
+              --}}
             
+                    </td>
+                        @else
+                        <td> 
+                        <a class="btn  btn-warning" href="{{url('/Ingreso/'.$student2->id. '/edit')}}" class="ref" >
+                        <i class="fas fa-edit"></i>
+                    </a>
+                  
+                    
+
+                  <a href="{{route('Ingreso.destroy', $student2->id)}}"
+                    onclick="event.preventDefault();
+                    if(confirm('¿Está seguro de que desea eliminar el producto?')) {
+                    document.getElementById('delete-form-{{$student2->id}}').submit();
+                    }" class="btn  btn-danger">
+                   <i class="fas fa-trash"></i>
+                 </a>
+                 <form id="delete-form-{{$student2->id}}" action="{{route('Ingreso.destroy', $student2->id)}}"
+                  method="POST" style="display: none;">
+                @method('DELETE')
+                @csrf
+            </form>
+                
+
+                {{-- <h5><strong aling = "center">NO SE PUEDE ELMINAR FACTURA YA QUE AUN TIENE PRODUCTOS CARGADOS DEBE DEVOLVER TODOS LOS PRODUCTOS CARGADOS PARA ELIMINAR UNA FACTURA</strong></h5>
+            --}}
+          @endif
+                  </td>
+                   
+                            
+                
+                  </tr>
+                
+                 
+             
+                  
+                  @endforeach 
+                  @endif
                 </tbody>
                 
               </table>
