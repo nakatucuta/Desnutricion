@@ -69,7 +69,7 @@ class SeguimientoController extends Controller
             ->orderBy('seguimientos.created_at', 'desc')
             ->join('ingresos', 'sivigilas.id', '=', 'ingresos.sivigilas_id')
             ->join('seguimientos', 'ingresos.id', '=', 'seguimientos.ingresos_id')
-            ->where('seguimientos.estado',1)
+            // ->where('seguimientos.estado',1)
             
             ->paginate(3000);
 
@@ -167,6 +167,9 @@ class SeguimientoController extends Controller
            ->update(['estado' => '0',]);
            }
            $entytistore->save();
+
+           if ( $entytistore->estado == 1) {
+
            //para enviarle un consulta al correo 
            $results = DB::table('sivigilas')->select('sivigilas.num_ide_','sivigilas.pri_nom_','sivigilas.seg_nom_',
            'sivigilas.pri_ape_','sivigilas.seg_ape_','seguimientos.id as idseg','seguimientos.fecha_proximo_control as fec')
@@ -200,18 +203,23 @@ class SeguimientoController extends Controller
            
            $email = (new Email())
                    ->from(new Address(env('MAIL_FROM_ADDRESS'), env('MAIL_FROM_NAME')))
-                   ->to(new Address('juancamilosuarezcantero@gmail.com'))
+                   ->to(new Address(Auth::user()->email))
                    ->subject('Recordatorio de control')
                    ->html('Hola, acabas de realizarle un seguimiento a'.$bodyText);
-           
+            
            if ($mailer->send($email)) {
                return redirect()->route('Seguimiento.index')
                   ->with('mensaje', 'El seguimiento fue guardado exitosamente');
            } else {
             
                return redirect()->route('Seguimiento.index')
-                  ->with('mensaje', 'Error al enviar el correo electrónico');
+                  ->with('mensaje', 'El seguimiento fue guardado exitosamente');
            }
+        } else  {
+
+            return redirect()->route('Seguimiento.index')
+                  ->with('mensaje', 'El seguimiento fue guardado exitosamente');
+        }
            //para enviarle un consulta al correo 
            //$results = DB::table('mi_tabla')->where('condicion', '=', 'valor')->get();
             // $bodyText = 'La lista de resultados es:<br>';
