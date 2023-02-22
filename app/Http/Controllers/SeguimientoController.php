@@ -208,6 +208,7 @@ class SeguimientoController extends Controller
                return redirect()->route('Seguimiento.index')
                   ->with('mensaje', 'El seguimiento fue guardado exitosamente');
            } else {
+            
                return redirect()->route('Seguimiento.index')
                   ->with('mensaje', 'Error al enviar el correo electrónico');
            }
