@@ -13,6 +13,10 @@ use App\Exports\GeneralExport;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Redirect;
+use Symfony\Component\Mailer\Mailer;
+use Symfony\Component\Mailer\Transport\Smtp\EsmtpTransport;
+use Symfony\Component\Mime\Address;
+use Symfony\Component\Mime\Email;
 class SeguimientoController extends Controller
 {
 
@@ -163,8 +167,36 @@ class SeguimientoController extends Controller
            ->update(['estado' => '0',]);
            }
            $entytistore->save();
-           return redirect()->route('Seguimiento.index')
-           ->with('mensaje',' El seguimiento fue guardado Exitosamente..!');
+           $transport = new EsmtpTransport(env('MAIL_HOST'), env('MAIL_PORT'), env('MAIL_ENCRYPTION'));
+           $transport->setUsername(env('MAIL_USERNAME'))
+                     ->setPassword(env('MAIL_PASSWORD'));
+           
+           $mailer = new Mailer($transport);
+           
+           $email = (new Email())
+                   ->from(new Address(env('MAIL_FROM_ADDRESS'), env('MAIL_FROM_NAME')))
+                   ->to(new Address('juancamilosuarezcantero@gmail.com'))
+                   ->subject('Recordatorio de control')
+                   ->html('Hola, recuerde que la próxima fecha de control es '.$entytistore->fecha_proximo_control.'el id del seguimiento es '.$entytistore->id);
+           
+           if ($mailer->send($email)) {
+               return redirect()->route('Seguimiento.index')
+                  ->with('mensaje', 'El seguimiento fue guardado exitosamente');
+           } else {
+               return redirect()->route('Seguimiento.index')
+                  ->with('mensaje', 'Error al enviar el correo electrónico');
+           }
+           //para enviarle un consulta al correo 
+           //$results = DB::table('mi_tabla')->where('condicion', '=', 'valor')->get();
+            // $bodyText = 'La lista de resultados es:<br>';
+            // foreach ($results as $result) {
+            //     $bodyText .= $result->atributo . '<br>';
+            // }
+            // $email = (new Email())
+            //     ->from(new Address(env('MAIL_FROM_ADDRESS'), env('MAIL_FROM_NAME')))
+            //     ->to(new Address('juancamilosuarezcantero@gmail.com'))
+            //     ->subject('Recordatorio de control')
+            //     ->html($bodyText);
     }
 
     /**
