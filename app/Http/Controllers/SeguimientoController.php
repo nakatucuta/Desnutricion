@@ -167,6 +167,31 @@ class SeguimientoController extends Controller
            ->update(['estado' => '0',]);
            }
            $entytistore->save();
+           //para enviarle un consulta al correo 
+           $results = DB::table('sivigilas')->select('sivigilas.num_ide_','sivigilas.pri_nom_','sivigilas.seg_nom_',
+           'sivigilas.pri_ape_','sivigilas.seg_ape_','seguimientos.id as idseg','seguimientos.fecha_proximo_control as fec')
+          
+           ->where('seguimientos.estado',1)
+           ->where('seguimientos.id', $entytistore->id)
+           ->where('seguimientos.user_id', Auth::User()->id )
+           ->join('ingresos', 'sivigilas.id', '=', 'ingresos.sivigilas_id')
+            ->join('seguimientos', 'ingresos.id', '=', 'seguimientos.ingresos_id')
+            ->get();
+             $bodyText = ':<br>';
+            foreach ($results as $result) {
+                $bodyText .= 'ID: ' .'<strong>' . $result->idseg . '</strong><br>';
+    $bodyText .= 'Identificación: ' .'<strong>' . $result->num_ide_ . '</strong><br>';
+    $bodyText .= 'Primer nombre: ' .'<strong>' . $result->pri_nom_ . '</strong><br>';
+    $bodyText .= 'Segundo nombre: ' .'<strong>' . $result->seg_nom_ . '</strong><br>';
+    $bodyText .= 'Primer apellido: ' .'<strong>' . $result->pri_ape_ . '</strong><br>';
+    $bodyText .= 'Segundo apellido: ' .'<strong>' . $result->seg_ape_ . '</strong><br>';
+    $bodyText .= 'Recuerde que la próxima fecha de control es: ' .'<strong>' . $result->fec . '</strong><br>';
+             }
+
+
+             
+
+
            $transport = new EsmtpTransport(env('MAIL_HOST'), env('MAIL_PORT'), env('MAIL_ENCRYPTION'));
            $transport->setUsername(env('MAIL_USERNAME'))
                      ->setPassword(env('MAIL_PASSWORD'));
@@ -177,7 +202,7 @@ class SeguimientoController extends Controller
                    ->from(new Address(env('MAIL_FROM_ADDRESS'), env('MAIL_FROM_NAME')))
                    ->to(new Address('juancamilosuarezcantero@gmail.com'))
                    ->subject('Recordatorio de control')
-                   ->html('Hola, recuerde que la próxima fecha de control es '.$entytistore->fecha_proximo_control.'el id del seguimiento es '.$entytistore->id);
+                   ->html('Hola, acabas de realizarle un seguimiento a'.$bodyText);
            
            if ($mailer->send($email)) {
                return redirect()->route('Seguimiento.index')
