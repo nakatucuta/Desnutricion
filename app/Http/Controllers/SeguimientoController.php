@@ -74,7 +74,19 @@ class SeguimientoController extends Controller
             ->paginate(3000);
 
         } 
-        return view('seguimiento.index',compact('incomeedit'));
+
+        $conteo = Seguimiento::where('estado', 1)->count('id');
+
+        $seguimientos = Seguimiento::all()->where('estado',1);
+        $otro = Sivigila::select('sivigilas.num_ide_','sivigilas.pri_nom_','sivigilas.seg_nom_',
+        'sivigilas.pri_ape_','sivigilas.seg_ape_','ingresos.id as idin','sivigilas.Ips_at_inicial',
+        'ingresos.Fecha_ingreso_ingres','seguimientos.id','seguimientos.fecha_proximo_control')
+        ->orderBy('seguimientos.created_at', 'desc')
+        ->join('ingresos', 'sivigilas.id', '=', 'ingresos.sivigilas_id')
+        ->join('seguimientos', 'ingresos.id', '=', 'seguimientos.ingresos_id')
+        ->where('seguimientos.estado',1)
+        ->get();
+        return view('seguimiento.index',compact('incomeedit','seguimientos','conteo','otro'));
 
        
             
@@ -139,38 +151,41 @@ class SeguimientoController extends Controller
         // $datosEmpleado = request()->except('_token');
         // Seguimiento::insert($datosEmpleado);
 
-        $entytistore = new Seguimiento;
-        $entytistore->estado = $request->estado;
-        $entytistore->fecha_consulta = $request->fecha_consulta;
-        $entytistore->peso_kilos = $request->peso_kilos;
-        $entytistore->talla_cm = $request->talla_cm;
-        $entytistore->puntajez = $request->puntajez;
-        $entytistore->clasificacion = $request->clasificacion;
-        $entytistore->requerimiento_energia_ftlc = $request->requerimiento_energia_ftlc;
-        $entytistore->fecha_entrega_ftlc = $request->fecha_entrega_ftlc;
-        $entytistore->medicamento = $request->medicamento;
-        $entytistore->recomendaciones_manejo = $request->recomendaciones_manejo;
-        $entytistore->resultados_seguimientos = $request->resultados_seguimientos;
-        $entytistore->ips_realiza_seguuimiento = $request->ips_realiza_seguuimiento;
-        $entytistore->observaciones = $request->observaciones;
-        $entytistore->fecha_proximo_control = $request->fecha_proximo_control;
-        $entytistore->ingresos_id = $request->ingresos_id;
-        $entytistore->user_id = auth()->user()->id;
+                $entytistore = new Seguimiento;
+                $entytistore->estado = $request->estado;
+                $entytistore->fecha_consulta = $request->fecha_consulta;
+                $entytistore->peso_kilos = $request->peso_kilos;
+                $entytistore->talla_cm = $request->talla_cm;
+                $entytistore->puntajez = $request->puntajez;
+                $entytistore->clasificacion = $request->clasificacion;
+                $entytistore->requerimiento_energia_ftlc = $request->requerimiento_energia_ftlc;
+                $entytistore->fecha_entrega_ftlc = $request->fecha_entrega_ftlc;
+                $entytistore->medicamento = $request->medicamento;
+                $entytistore->recomendaciones_manejo = $request->recomendaciones_manejo;
+                $entytistore->resultados_seguimientos = $request->resultados_seguimientos;
+                $entytistore->ips_realiza_seguuimiento = $request->ips_realiza_seguuimiento;
+                $entytistore->observaciones = $request->observaciones;
+                $entytistore->fecha_proximo_control = $request->fecha_proximo_control;
+                $entytistore->ingresos_id = $request->ingresos_id;
+                $entytistore->user_id = auth()->user()->id;
         
        
         if ( $entytistore->estado == 0) {
-            DB::table('ingresos')->where('ingresos.id',  $entytistore->ingresos_id)
-           ->update(['estado' => '0',]);
+            DB::table('ingresos')
+            ->where('ingresos.id',  $entytistore->ingresos_id)
+            ->update(['estado' => '0',]);
            DB::table('seguimientos')
-           ->join('ingresos', 'seguimientos.ingresos_id', '=', 'ingresos.id')
-           ->where('ingresos.id',  $entytistore->ingresos_id)
-           ->update(['estado' => '0',]);
+            ->join('ingresos', 'seguimientos.ingresos_id', '=', 'ingresos.id')
+            ->where('ingresos.id',  $entytistore->ingresos_id)
+            ->update(['estado' => '0',]);
            }
            $entytistore->save();
 
            if ( $entytistore->estado == 1) {
 
            //para enviarle un consulta al correo 
+            // aqui empieza el tema de envio de correos entonces si el estado es 1
+            //creamos una consulta
            $results = DB::table('sivigilas')->select('sivigilas.num_ide_','sivigilas.pri_nom_','sivigilas.seg_nom_',
            'sivigilas.pri_ape_','sivigilas.seg_ape_','seguimientos.id as idseg','seguimientos.fecha_proximo_control as fec')
           
@@ -180,21 +195,23 @@ class SeguimientoController extends Controller
            ->join('ingresos', 'sivigilas.id', '=', 'ingresos.sivigilas_id')
             ->join('seguimientos', 'ingresos.id', '=', 'seguimientos.ingresos_id')
             ->get();
+            
              $bodyText = ':<br>';
+             
             foreach ($results as $result) {
-                $bodyText .= 'ID: ' .'<strong>' . $result->idseg . '</strong><br>';
-    $bodyText .= 'Identificación: ' .'<strong>' . $result->num_ide_ . '</strong><br>';
-    $bodyText .= 'Primer nombre: ' .'<strong>' . $result->pri_nom_ . '</strong><br>';
-    $bodyText .= 'Segundo nombre: ' .'<strong>' . $result->seg_nom_ . '</strong><br>';
-    $bodyText .= 'Primer apellido: ' .'<strong>' . $result->pri_ape_ . '</strong><br>';
-    $bodyText .= 'Segundo apellido: ' .'<strong>' . $result->seg_ape_ . '</strong><br>';
-    $bodyText .= 'Recuerde que la próxima fecha de control es: ' .'<strong>' . $result->fec . '</strong><br>';
+            $bodyText .= 'ID: ' .'<strong>' . $result->idseg . '</strong><br>';
+            $bodyText .= 'Identificación: ' .'<strong>' . $result->num_ide_ . '</strong><br>';
+            $bodyText .= 'Primer nombre: ' .'<strong>' . $result->pri_nom_ . '</strong><br>';
+            $bodyText .= 'Segundo nombre: ' .'<strong>' . $result->seg_nom_ . '</strong><br>';
+            $bodyText .= 'Primer apellido: ' .'<strong>' . $result->pri_ape_ . '</strong><br>';
+            $bodyText .= 'Segundo apellido: ' .'<strong>' . $result->seg_ape_ . '</strong><br>';
+            $bodyText .= 'Recuerde que la próxima fecha de control es: ' .'<strong>' . $result->fec . '</strong><br>';
              }
-
+            //aqui termina la consulta que enviaremos al cuerpo del correo
 
              
 
-
+             
            $transport = new EsmtpTransport(env('MAIL_HOST'), env('MAIL_PORT'), env('MAIL_ENCRYPTION'));
            $transport->setUsername(env('MAIL_USERNAME'))
                      ->setPassword(env('MAIL_PASSWORD'));
@@ -342,7 +359,14 @@ class SeguimientoController extends Controller
             //    $incomeedit = Seguimiento::
             //    where('fecha_proximo_control', Carbon::now()->addDays(2)->format('Y-m-d'));
             
-            $seguimientos = Seguimiento::all()->where('estado',1);
+            $seguimientos = Sivigila::select('sivigilas.num_ide_','sivigilas.pri_nom_','sivigilas.seg_nom_',
+            'sivigilas.pri_ape_','sivigilas.seg_ape_','ingresos.id as idin','sivigilas.Ips_at_inicial',
+            'ingresos.Fecha_ingreso_ingres','seguimientos.id','seguimientos.fecha_proximo_control')
+            ->orderBy('seguimientos.created_at', 'desc')
+            ->join('ingresos', 'sivigilas.id', '=', 'ingresos.sivigilas_id')
+            ->join('seguimientos', 'ingresos.id', '=', 'seguimientos.ingresos_id')
+            ->where('seguimientos.estado',1)
+            ->get();
             // foreach ($seguimientos as $seguimiento) {
             //     if (Carbon::now() > $seguimiento->fecha_proximo_control) {
             //         DB::table('seguimientos')
