@@ -58,7 +58,7 @@ class SeguimientoController extends Controller
         ->orderBy('seguimientos.created_at', 'desc')
         ->join('ingresos', 'sivigilas.id', '=', 'ingresos.sivigilas_id')
         ->join('seguimientos', 'ingresos.id', '=', 'seguimientos.ingresos_id')
-        ->where('seguimientos.estado',1)
+        // ->where('seguimientos.estado',1)
         ->where('seguimientos.user_id', Auth::User()->id )
         ->paginate(3000);
         } else {  
@@ -165,7 +165,11 @@ class SeguimientoController extends Controller
                 $entytistore->resultados_seguimientos = $request->resultados_seguimientos;
                 $entytistore->ips_realiza_seguuimiento = $request->ips_realiza_seguuimiento;
                 $entytistore->observaciones = $request->observaciones;
-                $entytistore->fecha_proximo_control = $request->fecha_proximo_control;
+                // if (empty($request->fecha_proximo_control)) { cod para saber cuando un campo esta vacio haga esto
+                    // $entytistore->fecha_proximo_control = date('Y-m-d');
+                // } else {
+                    $entytistore->fecha_proximo_control = $request->fecha_proximo_control;
+                // }
                 $entytistore->ingresos_id = $request->ingresos_id;
                 $entytistore->user_id = auth()->user()->id;
         
@@ -297,7 +301,8 @@ class SeguimientoController extends Controller
         ->join('seguimientos', 'ingresos.id', '=', 'seguimientos.ingresos_id')
         ->where('seguimientos.estado',1)
         ->get();
-        return view('seguimiento.index', compact('empleado'),["incomeedit"=>$incomeedit]);
+        return redirect()->route('Seguimiento.index');
+        // return view('seguimiento.index', compact('empleado'),["incomeedit"=>$incomeedit]);
     }
 
     /**

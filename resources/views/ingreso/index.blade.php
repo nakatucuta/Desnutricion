@@ -6,11 +6,91 @@
 @section('content_header')
 @include('ingreso.mensajes')
 
-  
+{{-- boton para abrir la modal --}}
+<button type="button" class="btn {{$conteo > 0 ? 'btn-danger' : 'btn-primary'}}" data-toggle="modal" data-target="#exampleModal" style="float: right;
+  margin-right: 0;
+  width: 7%;
+  position: relative;
+  right: 0;">
+  <i class="fas fa-bell"> {{$conteo}}</i>
+</button>
+
+{{-- aqui termina el boton --}}
 
 
+<div class="modal fade" id="exampleModal" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="exampleModalLabel">NOTIFICACIONES</h5>
+        <button type="button" class="close" data-dismiss="modal" aria-label="Cerrar">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <div class="modal-body">
+        
+@foreach($otro as $seguimiento)
 
+   
+        
+        @if(Carbon\Carbon::now()->format('Y-m-d') > Carbon\Carbon::parse($seguimiento->fecha_proximo_control))
+        <div class="alert alert-danger">
+            EL SEGUIMIENTO CON ID {{$seguimiento->idin}} Y NUMERO DE IDENTIFICACION: {{$seguimiento->num_ide_}} HA SOBREPASADO SU  FECHA LIMITE. 
+            {{$seguimiento->fecha_proximo_control}} FALLO POR 
+            {{Carbon\Carbon::now()->diffInDays($seguimiento->fecha_proximo_control)}} 
+            DIAS <a href="{{route('Seguimiento.create')}}">CLICK AQUI PARA GESTIONAR 
+            </a> </div>
+        @else
+        @if(Carbon\Carbon::now()->diffInDays($seguimiento->fecha_proximo_control) == 1)
+        <div class="alert alert-warning">
+          EL SEGUIMIENTO CON ID {{$seguimiento->idin}} Y NUMERO DE IDENTIFICACION: <strong>{{$seguimiento->num_ide_}}</strong>  HA SOBREPASADO SU  FECHA LIMITE. 
+          {{$seguimiento->fecha_proximo_control}} FALTAN  
+          {{Carbon\Carbon::now()->diffInDays($seguimiento->fecha_proximo_control)}} 
+          DIAS PARA SU VENCIMIENTO <a href="{{route('Seguimiento.create')}}">  CLICK AQUI PARA GESTIONAR 
+          </a> </div>
+        @else
+        @if(Carbon\Carbon::now()->diffInDays($seguimiento->fecha_proximo_control) == 2)
+        <div class="alert alert-warning">
+          EL SEGUIMIENTO CON ID {{$seguimiento->idin}} Y NUMERO DE IDENTIFICACION: {{$seguimiento->num_ide_}} HA SOBREPASADO SU  FECHA LIMITE. 
+          {{$seguimiento->fecha_proximo_control}} FALTAN 
+          {{Carbon\Carbon::now()->diffInDays($seguimiento->fecha_proximo_control)}} 
+          DIAS PARA SU VENCIMIENTO <a href="{{route('Seguimiento.create')}}"> CLICK AQUI PARA GESTIONAR 
+          </a> </div>
+        @else
+        @if(Carbon\Carbon::now()->diffInDays($seguimiento->fecha_proximo_control) == 0)
+        <div class="alert alert-warning">
+          EL SEGUIMIENTO CON ID {{$seguimiento->idin}} Y NUMERO DE IDENTIFICACION: {{$seguimiento->num_ide_}} HA SOBREPASADO SU  FECHA LIMITE. 
+          {{$seguimiento->fecha_proximo_control}} FALTAN 
+          {{Carbon\Carbon::now()->diffInDays($seguimiento->fecha_proximo_control)}} 
+          DIAS PARA SU VENCIMIENTO <a href="{{route('Seguimiento.create')}}">CLICK AQUI PARA GESTIONAR 
+          </a> </div>
+        @endif
+        @endif
+      
+        
+       
+        
+    @endif
+    
+@endif
+@endforeach
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-dismiss="modal">Cerrar</button>
+        {{-- <button type="button" class="btn btn-primary">Guardar cambios</button> --}}
+      </div>
+    </div>
+  </div>
+
+
+</div>
+  {{-- aqui finliza la modal --}}
+
+
+<div>
 <h1>Listado De Ingresos</h1>
+</div>
+<br>
 <a href="{{route('Ingreso.create')}}" title="DETALLE" class="btn  btn-primary">
   <span class="icon-zoom-in" ></span> NUEVO INGRESO</a>
   

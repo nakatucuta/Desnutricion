@@ -134,7 +134,7 @@
           <strong style="font-size: 10;" >ANAS WAYUU <br> Nit: 839.000.495-6 <br> Regimen:simplificado</strong> <br> <p align="center"></p>
           <p style="text-align: center;"> 
             
-            EMPRESA PROMOTORA DE SALUD SUBSIDIADA 
+            EMPRESA PROMOTORA DE SALUD 
             
             
          </p>
