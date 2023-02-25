@@ -63,7 +63,8 @@
           {{$seguimiento->fecha_proximo_control}} FALTAN 
           {{Carbon\Carbon::now()->diffInDays($seguimiento->fecha_proximo_control)}} 
           DIAS PARA SU VENCIMIENTO <a href="{{route('Seguimiento.create')}}">CLICK AQUI PARA GESTIONAR 
-          </a> </div>
+          </a> 
+        </div>
         @endif
         @endif
         @endif
