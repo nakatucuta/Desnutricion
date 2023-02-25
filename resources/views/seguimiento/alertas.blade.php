@@ -18,7 +18,8 @@
             {{$seguimiento->fecha_proximo_control}} FALLO POR 
             {{Carbon\Carbon::now()->diffInDays($seguimiento->fecha_proximo_control)}} 
             DIAS <a href="{{route('Seguimiento.create')}}">CLICK AQUI PARA GESTIONAR 
-            </a> </div>
+            </a>
+           </div>
         @else
         @if(Carbon\Carbon::now()->diffInDays($seguimiento->fecha_proximo_control) == 1)
         <div class="alert alert-warning">

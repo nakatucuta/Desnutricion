@@ -199,8 +199,13 @@ right: 0;"><i class="fas fa-book"></i>  </a>
                     <td>{{ $student2->pri_nom_.' '.$student2->seg_nom_.' '.$student2->pri_ape_.' '.$student2->seg_ape_ }}</td>
                     <td>{{$student2->Fecha_ingreso_ingres}}</td>
                     <td>{{$student2->Ips_at_inicial}}</td>
-                    <td>{{$student2->fecha_proximo_control}}</td>
-                    
+                    @if(!empty($student2->fecha_proximo_control))
+                    <td>{{ $student2->fecha_proximo_control }}</td>
+                @elseif(!empty($student2->created_at))
+                    <td>{{ $student2->created_at }}</td>
+                @else
+                    <td>finalizado</td>
+                @endif
                       <td>  <a class="btn  btn-warning" href="{{url('/Seguimiento/'.$student2->id. '/edit')}}" class="ref" >
                         <i class="fas fa-edit"></i>
                     </a>
@@ -246,7 +251,13 @@ right: 0;"><i class="fas fa-book"></i>  </a>
                  <td>{{ $student2->pri_nom_.' '.$student2->seg_nom_.' '.$student2->pri_ape_.' '.$student2->seg_ape_ }}</td>
                  <td>{{$student2->Fecha_ingreso_ingres}}</td>
                  <td>{{$student2->Ips_at_inicial}}</td>
-                 <td>{{$student2->fecha_proximo_control}}</td>
+                 @if(!empty($student2->fecha_proximo_control))
+                 <td>{{ $student2->fecha_proximo_control }}</td>
+             @elseif(!empty($student2->created_at))
+                 <td>{{ $student2->created_at }}</td>
+             @else
+                 <td>finalizado</td>
+             @endif
                  
                    <td>  <a class="btn  btn-warning" href="{{url('/Seguimiento/'.$student2->id. '/edit')}}" class="ref" >
                      <i class="fas fa-edit"></i>

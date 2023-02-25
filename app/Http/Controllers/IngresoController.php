@@ -8,6 +8,7 @@ use App\Models\Sivigila;
 use Maatwebsite\Excel\Facades\Excel;
 use App\Exports\IngresoExport;
 use App\Http\Middleware\Admin_ingreso;
+use App\Models\Seguimiento;
 use PDF;
 use Storage;
 use Illuminate\Support\Facades\Auth;
@@ -68,10 +69,21 @@ class IngresoController extends Controller
                 ->paginate(3000);
             //$students2 = collect(); // Colección vacía si el usuario no es el usuario con id 2
         }
-     
+        
+        //consulta para la modal
+        $otro = Sivigila::select('sivigilas.num_ide_','sivigilas.pri_nom_','sivigilas.seg_nom_',
+        'sivigilas.pri_ape_','sivigilas.seg_ape_','ingresos.id as idin','sivigilas.Ips_at_inicial',
+        'ingresos.Fecha_ingreso_ingres','seguimientos.id','seguimientos.fecha_proximo_control')
+        ->orderBy('seguimientos.created_at', 'desc')
+        ->join('ingresos', 'sivigilas.id', '=', 'ingresos.sivigilas_id')
+        ->join('seguimientos', 'ingresos.id', '=', 'seguimientos.ingresos_id')
+        ->where('seguimientos.estado',1)
+        ->get();
 
+        //consulta para que muestre el numerito en las notificaciones
+        $conteo = Seguimiento::where('estado', 1)->count('id');
         $datos['ingreso']=Ingreso::paginate(20); //aqui estoy guardando enla variable datos 
-        return view('ingreso.index',$datos,["master"=>$students2]);
+        return view('ingreso.index',$datos,["master"=>$students2,"conteo"=>$conteo,"otro"=>$otro]);
     }
 
     /**
