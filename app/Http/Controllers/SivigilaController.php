@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use App\Models\MaestroSiv113;
 use App\Models\Sivigila;
+use App\Models\Seguimiento;
 use Maatwebsite\Excel\Facades\Excel;
 use App\Exports\SivigilaExport;
 use Illuminate\Support\Facades\Auth;
@@ -61,9 +62,20 @@ class SivigilaController extends Controller
         
        // $students2 = DB::select('SELECT pri_nom_ , count(cod_sub) as hola FROM sga..maestroSiv113 WHERE estrato = 2 
         //GROUP BY pri_nom_ ' );
-        //$students2 = Student::on('mysql2')->get();   
+        //$students2 = Student::on('mysql2')->get();  
         
-        return view('sivigila.index', compact('sivigilas','sivi'));
+        
+        $conteo = Seguimiento::where('estado', 1)->count('id');
+        $otro = Sivigila::select('sivigilas.num_ide_','sivigilas.pri_nom_','sivigilas.seg_nom_',
+        'sivigilas.pri_ape_','sivigilas.seg_ape_','ingresos.id as idin','sivigilas.Ips_at_inicial',
+        'ingresos.Fecha_ingreso_ingres','seguimientos.id','seguimientos.fecha_proximo_control')
+        ->orderBy('seguimientos.created_at', 'desc')
+        ->join('ingresos', 'sivigilas.id', '=', 'ingresos.sivigilas_id')
+        ->join('seguimientos', 'ingresos.id', '=', 'seguimientos.ingresos_id')
+        ->where('seguimientos.estado',1)
+        ->get();
+        
+        return view('sivigila.index', compact('sivigilas','sivi','conteo','otro'));
 
 
        
