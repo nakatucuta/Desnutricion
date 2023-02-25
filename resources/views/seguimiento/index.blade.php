@@ -30,7 +30,7 @@
       <div class="modal-body">
         
 @foreach($otro as $seguimiento)
-@if($seguimiento->fecha_proximo_control)
+
    
         
         @if(Carbon\Carbon::now()->format('Y-m-d') > Carbon\Carbon::parse($seguimiento->fecha_proximo_control))
@@ -70,7 +70,7 @@
         
        
         
-    @endif
+  
     
 @endif
 @endforeach
