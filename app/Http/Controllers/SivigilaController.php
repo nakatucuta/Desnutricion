@@ -65,10 +65,18 @@ class SivigilaController extends Controller
         //$students2 = Student::on('mysql2')->get();  
         
         
-        $conteo = Seguimiento::where('estado', 1)->count('id');
-        $otro = Sivigila::select('sivigilas.num_ide_','sivigilas.pri_nom_','sivigilas.seg_nom_',
+        if (Auth::User()->usertype == 2) {
+            $conteo = Seguimiento::where('estado', 1)
+                        ->where('user_id', Auth::user()->id)
+                        ->count('id');
+            }else{
+                $conteo = Seguimiento::where('estado', 1)->count('id');
+    
+            }
+             $otro = Sivigila::select('sivigilas.num_ide_','sivigilas.pri_nom_','sivigilas.seg_nom_',
         'sivigilas.pri_ape_','sivigilas.seg_ape_','ingresos.id as idin','sivigilas.Ips_at_inicial',
-        'ingresos.Fecha_ingreso_ingres','seguimientos.id','seguimientos.fecha_proximo_control')
+        'ingresos.Fecha_ingreso_ingres','seguimientos.id','seguimientos.fecha_proximo_control','seguimientos.estado as est',
+        'sivigilas.user_id as usr')
         ->orderBy('seguimientos.created_at', 'desc')
         ->join('ingresos', 'sivigilas.id', '=', 'ingresos.sivigilas_id')
         ->join('seguimientos', 'ingresos.id', '=', 'seguimientos.ingresos_id')

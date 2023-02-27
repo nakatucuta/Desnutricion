@@ -30,20 +30,19 @@
       <div class="modal-body">
         
 @foreach($otro as $seguimiento)
-
-   
-        
+@if( $seguimiento->usr == Auth::user()->id && Auth::user()->usertype == 2 && $seguimiento->fecha_proximo_control)
         @if(Carbon\Carbon::now()->format('Y-m-d') > Carbon\Carbon::parse($seguimiento->fecha_proximo_control))
         <div class="alert alert-danger">
-            EL SEGUIMIENTO CON ID {{$seguimiento->idin}} Y NUMERO DE IDENTIFICACION: {{$seguimiento->num_ide_}} HA SOBREPASADO SU  FECHA LIMITE. 
+            EL SEGUIMIENTO CON ID {{$seguimiento->idin}} Y NUMERO DE IDENTIFICACION: <strong>{{$seguimiento->num_ide_}} </strong>  HA SOBREPASADO SU  FECHA LIMITE. 
             {{$seguimiento->fecha_proximo_control}} FALLO POR 
             {{Carbon\Carbon::now()->diffInDays($seguimiento->fecha_proximo_control)}} 
             DIAS <a href="{{route('Seguimiento.create')}}">CLICK AQUI PARA GESTIONAR 
-            </a> </div>
+            </a>
+           </div>
         @else
         @if(Carbon\Carbon::now()->diffInDays($seguimiento->fecha_proximo_control) == 1)
         <div class="alert alert-warning">
-          EL SEGUIMIENTO CON ID {{$seguimiento->idin}} Y NUMERO DE IDENTIFICACION: <strong>{{$seguimiento->num_ide_}}</strong>  HA SOBREPASADO SU  FECHA LIMITE. 
+          EL SEGUIMIENTO CON ID {{$seguimiento->idin}} Y NUMERO DE IDENTIFICACION: <strong>{{$seguimiento->num_ide_}}</strong> FECHA DE PROXIMO CONTROL:    
           {{$seguimiento->fecha_proximo_control}} FALTAN  
           {{Carbon\Carbon::now()->diffInDays($seguimiento->fecha_proximo_control)}} 
           DIAS PARA SU VENCIMIENTO <a href="{{route('Seguimiento.create')}}">  CLICK AQUI PARA GESTIONAR 
@@ -51,28 +50,77 @@
         @else
         @if(Carbon\Carbon::now()->diffInDays($seguimiento->fecha_proximo_control) == 2)
         <div class="alert alert-warning">
-          EL SEGUIMIENTO CON ID {{$seguimiento->idin}} Y NUMERO DE IDENTIFICACION: {{$seguimiento->num_ide_}} HA SOBREPASADO SU  FECHA LIMITE. 
+          EL SEGUIMIENTO CON ID {{$seguimiento->idin}} Y NUMERO DE IDENTIFICACION: <strong>{{$seguimiento->num_ide_}} </strong> FECHA DE PROXIMO CONTROL:
           {{$seguimiento->fecha_proximo_control}} FALTAN 
           {{Carbon\Carbon::now()->diffInDays($seguimiento->fecha_proximo_control)}} 
           DIAS PARA SU VENCIMIENTO <a href="{{route('Seguimiento.create')}}"> CLICK AQUI PARA GESTIONAR 
           </a> </div>
         @else
         @if(Carbon\Carbon::now()->diffInDays($seguimiento->fecha_proximo_control) == 0)
-        <div class="alert alert-warning">
-          EL SEGUIMIENTO CON ID {{$seguimiento->idin}} Y NUMERO DE IDENTIFICACION: {{$seguimiento->num_ide_}} HA SOBREPASADO SU  FECHA LIMITE. 
+        <div class="alert alert-success">
+          EL SEGUIMIENTO CON ID {{$seguimiento->idin}} Y NUMERO DE IDENTIFICACION: <strong>{{$seguimiento->num_ide_}} </strong> FECHA DE PROXIMO CONTROL:
           {{$seguimiento->fecha_proximo_control}} FALTAN 
           {{Carbon\Carbon::now()->diffInDays($seguimiento->fecha_proximo_control)}} 
-          DIAS PARA SU VENCIMIENTO <a href="{{route('Seguimiento.create')}}">CLICK AQUI PARA GESTIONAR 
+          DIAS PARA SU VENCIMIENTO, <strong>DESDE HOY PUEDES AGREGAR OTRO SEGUIMIENTO</strong> <a href="{{route('Seguimiento.create')}}">CLICK AQUI PARA GESTIONAR 
           </a> </div>
         @endif
         @endif
-      
-        
+        @endif
+        @endif
        
         
-    @endif
     
+    
+
 @endif
+
+
+
+@if( Auth::user()->usertype == 1 || Auth::user()->usertype == 3)
+@if(Carbon\Carbon::now()->format('Y-m-d') > Carbon\Carbon::parse($seguimiento->fecha_proximo_control))
+<div class="alert alert-danger">
+    EL SEGUIMIENTO CON ID {{$seguimiento->idin}} Y NUMERO DE IDENTIFICACION: <strong>{{$seguimiento->num_ide_}} </strong>  HA SOBREPASADO SU  FECHA LIMITE. 
+    {{$seguimiento->fecha_proximo_control}} FALLO POR 
+    {{Carbon\Carbon::now()->diffInDays($seguimiento->fecha_proximo_control)}} 
+    DIAS <a href="{{route('Seguimiento.create')}}">CLICK AQUI PARA GESTIONAR 
+    </a>
+   </div>
+@else
+@if(Carbon\Carbon::now()->diffInDays($seguimiento->fecha_proximo_control) == 1)
+<div class="alert alert-warning">
+  EL SEGUIMIENTO CON ID {{$seguimiento->idin}} Y NUMERO DE IDENTIFICACION: <strong>{{$seguimiento->num_ide_}}</strong> FECHA DE PROXIMO CONTROL:    
+  {{$seguimiento->fecha_proximo_control}} FALTAN  
+  {{Carbon\Carbon::now()->diffInDays($seguimiento->fecha_proximo_control)}} 
+  DIAS PARA SU VENCIMIENTO <a href="{{route('Seguimiento.create')}}">  CLICK AQUI PARA GESTIONAR 
+  </a> </div>
+@else
+@if(Carbon\Carbon::now()->diffInDays($seguimiento->fecha_proximo_control) == 2)
+<div class="alert alert-warning">
+  EL SEGUIMIENTO CON ID {{$seguimiento->idin}} Y NUMERO DE IDENTIFICACION: <strong>{{$seguimiento->num_ide_}} </strong> FECHA DE PROXIMO CONTROL:
+  {{$seguimiento->fecha_proximo_control}} FALTAN 
+  {{Carbon\Carbon::now()->diffInDays($seguimiento->fecha_proximo_control)}} 
+  DIAS PARA SU VENCIMIENTO <a href="{{route('Seguimiento.create')}}"> CLICK AQUI PARA GESTIONAR 
+  </a> </div>
+@else
+@if(Carbon\Carbon::now()->diffInDays($seguimiento->fecha_proximo_control) == 0)
+<div class="alert alert-success">
+  EL SEGUIMIENTO CON ID {{$seguimiento->idin}} Y NUMERO DE IDENTIFICACION: <strong>{{$seguimiento->num_ide_}} </strong> FECHA DE PROXIMO CONTROL:
+  {{$seguimiento->fecha_proximo_control}} FALTAN 
+  {{Carbon\Carbon::now()->diffInDays($seguimiento->fecha_proximo_control)}} 
+  DIAS PARA SU VENCIMIENTO, <strong>DESDE HOY PUEDES AGREGAR OTRO SEGUIMIENTO</strong> <a href="{{route('Seguimiento.create')}}">CLICK AQUI PARA GESTIONAR 
+  </a> </div>
+@endif
+@endif
+@endif
+
+
+
+
+
+
+@endif
+@endif
+
 @endforeach
       </div>
       <div class="modal-footer">
