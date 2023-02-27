@@ -75,12 +75,19 @@ class SeguimientoController extends Controller
 
         } 
 
-        $conteo = Seguimiento::where('estado', 1)->count('id');
+        if (Auth::User()->usertype == 2) {
+        $conteo = Seguimiento::where('estado', 1)
+                    ->where('user_id', Auth::user()->id)
+                    ->count('id');
+        }else{
+            $conteo = Seguimiento::where('estado', 1)->count('id');
 
+        }
         $seguimientos = Seguimiento::all()->where('estado',1);
         $otro = Sivigila::select('sivigilas.num_ide_','sivigilas.pri_nom_','sivigilas.seg_nom_',
         'sivigilas.pri_ape_','sivigilas.seg_ape_','ingresos.id as idin','sivigilas.Ips_at_inicial',
-        'ingresos.Fecha_ingreso_ingres','seguimientos.id','seguimientos.fecha_proximo_control')
+        'ingresos.Fecha_ingreso_ingres','seguimientos.id','seguimientos.fecha_proximo_control','seguimientos.estado as est',
+        'seguimientos.user_id as usr')
         ->orderBy('seguimientos.created_at', 'desc')
         ->join('ingresos', 'sivigilas.id', '=', 'ingresos.sivigilas_id')
         ->join('seguimientos', 'ingresos.id', '=', 'seguimientos.ingresos_id')
@@ -150,6 +157,12 @@ class SeguimientoController extends Controller
 
         // $datosEmpleado = request()->except('_token');
         // Seguimiento::insert($datosEmpleado);
+        
+        $seguimientoExistente = Seguimiento::where('ingresos_id', $request->ingresos_id)
+        ->where('fecha_proximo_control', '>', Carbon::now())
+        ->first();
+
+        if (!$seguimientoExistente) {
 
                 $entytistore = new Seguimiento;
                 $entytistore->estado = $request->estado;
@@ -172,9 +185,12 @@ class SeguimientoController extends Controller
                 // }
                 $entytistore->ingresos_id = $request->ingresos_id;
                 $entytistore->user_id = auth()->user()->id;
-        
+                
+               
+
+               
        
-        if ( $entytistore->estado == 0) {
+        if ( $request->estado == 0) {
             DB::table('ingresos')
             ->where('ingresos.id',  $entytistore->ingresos_id)
             ->update(['estado' => '0',]);
@@ -182,9 +198,23 @@ class SeguimientoController extends Controller
             ->join('ingresos', 'seguimientos.ingresos_id', '=', 'ingresos.id')
             ->where('ingresos.id',  $entytistore->ingresos_id)
             ->update(['estado' => '0',]);
-           }
+           } 
+           
            $entytistore->save();
 
+            //obtener id anterior
+            $registroAnterior = DB::table('seguimientos')
+->where('ingresos_id', $request->ingresos_id)
+    ->where('id', '<', $entytistore->id)
+    ->orderBy('id', 'desc')
+    ->first();
+
+// Actualizar el estado del registro anterior
+if ($registroAnterior) {
+    DB::table('seguimientos')
+        ->where('id', $registroAnterior->id)
+        ->update(['estado' => '0',]);
+}
            if ( $entytistore->estado == 1) {
 
            //para enviarle un consulta al correo 
@@ -241,6 +271,12 @@ class SeguimientoController extends Controller
             return redirect()->route('Seguimiento.index')
                   ->with('mensaje', 'El seguimiento fue guardado exitosamente');
         }
+    } else{
+
+        return redirect()->route('Seguimiento.index')
+        ->with('error1', 'No puedes hacer un seguimiento porque la fecha de control no se ha cumplido');
+
+    }
            //para enviarle un consulta al correo 
            //$results = DB::table('mi_tabla')->where('condicion', '=', 'valor')->get();
             // $bodyText = 'La lista de resultados es:<br>';
@@ -366,7 +402,8 @@ class SeguimientoController extends Controller
             
             $seguimientos = Sivigila::select('sivigilas.num_ide_','sivigilas.pri_nom_','sivigilas.seg_nom_',
             'sivigilas.pri_ape_','sivigilas.seg_ape_','ingresos.id as idin','sivigilas.Ips_at_inicial',
-            'ingresos.Fecha_ingreso_ingres','seguimientos.id','seguimientos.fecha_proximo_control')
+            'ingresos.Fecha_ingreso_ingres','seguimientos.id','seguimientos.fecha_proximo_control','seguimientos.estado as est',
+            'seguimientos.user_id as usr')
             ->orderBy('seguimientos.created_at', 'desc')
             ->join('ingresos', 'sivigilas.id', '=', 'ingresos.sivigilas_id')
             ->join('seguimientos', 'ingresos.id', '=', 'seguimientos.ingresos_id')
