@@ -73,7 +73,8 @@ class IngresoController extends Controller
         //consulta para la modal
         $otro = Sivigila::select('sivigilas.num_ide_','sivigilas.pri_nom_','sivigilas.seg_nom_',
         'sivigilas.pri_ape_','sivigilas.seg_ape_','ingresos.id as idin','sivigilas.Ips_at_inicial',
-        'ingresos.Fecha_ingreso_ingres','seguimientos.id','seguimientos.fecha_proximo_control')
+        'ingresos.Fecha_ingreso_ingres','seguimientos.id','seguimientos.fecha_proximo_control','seguimientos.estado as est',
+        'seguimientos.user_id as usr')
         ->orderBy('seguimientos.created_at', 'desc')
         ->join('ingresos', 'sivigilas.id', '=', 'ingresos.sivigilas_id')
         ->join('seguimientos', 'ingresos.id', '=', 'seguimientos.ingresos_id')
@@ -81,8 +82,16 @@ class IngresoController extends Controller
         ->get();
 
         //consulta para que muestre el numerito en las notificaciones
-        $conteo = Seguimiento::where('estado', 1)->count('id');
-        $datos['ingreso']=Ingreso::paginate(20); //aqui estoy guardando enla variable datos 
+        if (Auth::User()->usertype == 2) {
+            $conteo = Seguimiento::where('estado', 1)
+                        ->where('user_id', Auth::user()->id)
+                        ->count('id');
+            }else{
+                $conteo = Seguimiento::where('estado', 1)->count('id');
+    
+            }
+            
+            $datos['ingreso']=Ingreso::paginate(20); //aqui estoy guardando enla variable datos 
         return view('ingreso.index',$datos,["master"=>$students2,"conteo"=>$conteo,"otro"=>$otro]);
     }
 
