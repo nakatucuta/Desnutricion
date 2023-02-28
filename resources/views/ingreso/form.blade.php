@@ -17,7 +17,7 @@
                       <i class="far fa-hospital" style="font-size: 45px; color: #3333ff; "></i>
                         
                       
-                      DATOS PRIMER INGRESO
+                       INGRESO
                       
                         
                       <i class="bi bi-plus"></i>
