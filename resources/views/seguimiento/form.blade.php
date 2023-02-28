@@ -188,8 +188,7 @@
                                                 <div class="col-sm-6 ">
                                                     <div class="form-group" id="input_oculto" style="display: none;">
                                                         <label for="Nombre"> Fecha Proximo Seguimiento </label> {{-- el isset pregunta si el archivo esta seleccionado lo muestre sino no muestra nada por eso las comillas vacias al final --}}
-                                                        <input class="form-control" type="date" name="fecha_proximo_control" id = 'fecha_proximo_control'
-                                                        value="">
+                                                        <input class="form-control" type="date" name="fecha_proximo_control" id="fecha_proximo_control" value="{{ isset($empleado->fecha_proximo_control) ? $empleado->fecha_proximo_control : old('fecha_proximo_control') }}" min="{{ date('Y-m-d') }}">
                                                     </div>
                                                     </div>
                                             

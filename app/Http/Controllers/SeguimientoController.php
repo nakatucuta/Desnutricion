@@ -143,13 +143,15 @@ class SeguimientoController extends Controller
             'resultados_seguimientos' => 'required',
             'ips_realiza_seguuimiento' => 'required',
             'observaciones' => 'required',
-            // 'fecha_proximo_control' => 'required',
+            // 'fecha_proximo_control' => 'nullable|date|after_or_equal:today',
             'ingresos_id' => 'required',
+
 
         ];
 
         $mensajes=[
             'required'=>'El :attribute es requerido',
+            'fecha_proximo_control.after_or_equal' => 'La fecha de ingreso no puede ser anterior a la fecha actual.',
       
         ];
 
