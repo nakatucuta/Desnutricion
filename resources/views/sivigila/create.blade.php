@@ -34,14 +34,26 @@
     @section('js')
     
     <script type="text/javascript">
-        $(document).ready(function(){
-            $('#tratamiento_f75').on('change', function() {
-                if ( this.value == 'SI')
-                $("#input_oculto").show();
-                else
-                $("#input_oculto").hide();
-            });
-        });
+                    $(document).ready(function() {
+                $('#nombreips_manejo_hospita').on('change', function() {
+                    if ($(this).val() == 'SI') {
+                    $('.col-sm-4').show();
+                    $('.col-sm-7').show();
+                    } else {
+                    $('.col-sm-4').hide();
+                    $('.col-sm-7').hide();
+                    }
+                });
+                });
+        // $(document).ready(function(){
+        //     $('#tratamiento_f75').on('change', function() {
+        //         if ( this.value == 'SI')
+        //         $("#input_oculto").show();
+        //         else
+        //         $("#input_oculto").hide();
+        //     });
+            
+        // });
     </script>
     @stop
     

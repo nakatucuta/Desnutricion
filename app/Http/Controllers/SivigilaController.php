@@ -74,13 +74,13 @@ class SivigilaController extends Controller
     
             }
              $otro = Sivigila::select('sivigilas.num_ide_','sivigilas.pri_nom_','sivigilas.seg_nom_',
-        'sivigilas.pri_ape_','sivigilas.seg_ape_','ingresos.id as idin','sivigilas.Ips_at_inicial',
-        'ingresos.Fecha_ingreso_ingres','seguimientos.id','seguimientos.fecha_proximo_control','seguimientos.estado as est',
+        'sivigilas.pri_ape_','sivigilas.seg_ape_','seguimientos.id as idin','sivigilas.Ips_at_inicial',
+        'seguimientos.fecha_consulta','seguimientos.id','seguimientos.fecha_proximo_control','seguimientos.estado as est',
         'sivigilas.user_id as usr')
         ->orderBy('seguimientos.created_at', 'desc')
-        ->join('ingresos', 'sivigilas.id', '=', 'ingresos.sivigilas_id')
-        ->join('seguimientos', 'ingresos.id', '=', 'seguimientos.ingresos_id')
-        ->where('seguimientos.estado',1)
+      
+        ->join('seguimientos', 'seguimientos.id', '=', 'seguimientos.sivigilas_id')
+       ->where('seguimientos.estado',1)
         ->get();
         
         return view('sivigila.index', compact('sivigilas','sivi','conteo','otro'));
@@ -173,8 +173,8 @@ class SivigilaController extends Controller
         
         ->value('nombrepres');
 
-        $income12 =  DB::connection('sqlsrv_1')->table('refIps')->select('descrip')
-        ->where('refIps.codigoDepartamento', 44)
+        $income12 =  DB::table('users')->select('name','id')
+       
         ->get();
 
         $incomeedit13 = DB::connection('sqlsrv_1')->table('maestroAfiliados')
@@ -218,15 +218,15 @@ class SivigilaController extends Controller
             'telefono_' => 'required',
            
             
-            'Ips_seguimiento_Ambulatorio' => 'required',
+            'User_id' => 'required',
             'Caso_confirmada_desnutricion_etiologia_primaria' => 'required',
-            'Tipo_ajuste' => 'required',
-            'Promedio_dias_oportuna_remision' => 'required',
+            
+           
             'Esquemq_complrto_pai_edad' => 'required',
 
             'Atecion_primocion_y_mantenimiento_res3280_2018' => 'required',
-            'est_act_menor' => 'required',
-            'tratamiento_f75' => 'required',
+            
+            
             
             'nombreips_manejo_hospita' => 'required',
             
@@ -265,17 +265,15 @@ class SivigilaController extends Controller
             $entytistore->estado = 1;
             $entytistore->fecha_aten_inicial = $request->fecha_aten_inicial;
             
-            $entytistore->Ips_seguimiento_Ambulatorio = $request->Ips_seguimiento_Ambulatorio;
+            // $entytistore->Ips_seguimiento_Ambulatorio = $request->Ips_seguimiento_Ambulatorio;
             $entytistore->Caso_confirmada_desnutricion_etiologia_primaria = $request->Caso_confirmada_desnutricion_etiologia_primaria;
-            $entytistore->Tipo_ajuste = $request->Tipo_ajuste;
-            $entytistore->Promedio_dias_oportuna_remision = $request->Promedio_dias_oportuna_remision;
-            $entytistore->Esquemq_complrto_pai_edad = $request->Esquemq_complrto_pai_edad;
+            $entytistore->Ips_manejo_hospitalario = $request->Ips_manejo_hospitalario;
+             $entytistore->Esquemq_complrto_pai_edad = $request->Esquemq_complrto_pai_edad;
+
             $entytistore->Atecion_primocion_y_mantenimiento_res3280_2018 = $request->Atecion_primocion_y_mantenimiento_res3280_2018;
-            $entytistore->est_act_menor = $request->est_act_menor;
-            $entytistore->tratamiento_f75 = $request->tratamiento_f75;
-            $entytistore->fecha_recibio_tratf75 = $request->fecha_recibio_tratf75;
-            $entytistore->nombreips_manejo_hospita = $request->nombreips_manejo_hospita;
-            $entytistore->user_id = auth()->user()->id;
+           
+            $entytistore->Ips_manejo_hospitalario = $request->Ips_manejo_hospitalario;
+            $entytistore->user_id = $request->User_id;
         
             $entytistore->save();
             return redirect()->route('sivigila.index')

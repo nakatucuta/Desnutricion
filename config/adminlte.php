@@ -337,20 +337,21 @@ return [
             // 'icon_color'  => 'red'
         ],
 
-        [
-            'text'        => 'Ingreso',
-            'url'         => 'Ingreso',
-            'icon'        => 'fas fa-fw fa-book',
-            'label'       => 'ZONA PARA IPS', 
-            'label_color' => 'warning ',
-            'icon_color'  => 'yellow'
-        ],
+        // [
+        //     'text'        => 'Ingreso',
+        //     'url'         => 'Ingreso',
+        //     'icon'        => 'fas fa-fw fa-book',
+        //     'label'       => 'ZONA PARA IPS', 
+        //     'label_color' => 'warning ',
+        //     'icon_color'  => 'yellow'
+        // ],
         [
             'text'        => 'Seguimiento',
             'url'         => 'Seguimiento',
              'icon'        => 'fas fa-fw fa-user',
-             'label'       => '',  
-             'label_color' => 'success',
+             'label'       => 'ZONA PARA IPS',
+             'label_color' => 'warning',
+             'icon_color'  => 'yellow',
             //  'icon_color'  => 'green'
         ],
         ['header' => 'account_settings'],

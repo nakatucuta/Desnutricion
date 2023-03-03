@@ -53,22 +53,22 @@ class SeguimientoController extends Controller
 
         if (Auth::User()->usertype == 2) {
         $incomeedit = Sivigila::select('sivigilas.num_ide_','sivigilas.pri_nom_','sivigilas.seg_nom_',
-        'sivigilas.pri_ape_','sivigilas.seg_ape_','ingresos.id as idin','sivigilas.Ips_at_inicial',
-        'ingresos.Fecha_ingreso_ingres','seguimientos.id','seguimientos.fecha_proximo_control')
+        'sivigilas.pri_ape_','sivigilas.seg_ape_','seguimientos.id as idin','sivigilas.Ips_at_inicial',
+        'seguimientos.fecha_consulta','seguimientos.id','seguimientos.fecha_proximo_control')
         ->orderBy('seguimientos.created_at', 'desc')
-        ->join('ingresos', 'sivigilas.id', '=', 'ingresos.sivigilas_id')
-        ->join('seguimientos', 'ingresos.id', '=', 'seguimientos.ingresos_id')
+        
+        ->join('seguimientos', 'seguimientos.id', '=', 'seguimientos.sivigilas_id')
         // ->where('seguimientos.estado',1)
         ->where('seguimientos.user_id', Auth::User()->id )
         ->paginate(3000);
         } else {  
 
             $incomeedit = Sivigila::select('sivigilas.num_ide_','sivigilas.pri_nom_','sivigilas.seg_nom_',
-            'sivigilas.pri_ape_','sivigilas.seg_ape_','ingresos.id as idin','sivigilas.Ips_at_inicial',
-            'ingresos.Fecha_ingreso_ingres','seguimientos.id','seguimientos.fecha_proximo_control')
+            'sivigilas.pri_ape_','sivigilas.seg_ape_','seguimientos.id as idin','sivigilas.Ips_at_inicial',
+            'seguimientos.fecha_consulta','seguimientos.id','seguimientos.fecha_proximo_control')
             ->orderBy('seguimientos.created_at', 'desc')
-            ->join('ingresos', 'sivigilas.id', '=', 'ingresos.sivigilas_id')
-            ->join('seguimientos', 'ingresos.id', '=', 'seguimientos.ingresos_id')
+          
+            ->join('seguimientos', 'seguimientos.id', '=', 'seguimientos.sivigilas_id')
             // ->where('seguimientos.estado',1)
             
             ->paginate(3000);
@@ -85,12 +85,12 @@ class SeguimientoController extends Controller
         }
         $seguimientos = Seguimiento::all()->where('estado',1);
         $otro = Sivigila::select('sivigilas.num_ide_','sivigilas.pri_nom_','sivigilas.seg_nom_',
-        'sivigilas.pri_ape_','sivigilas.seg_ape_','ingresos.id as idin','sivigilas.Ips_at_inicial',
-        'ingresos.Fecha_ingreso_ingres','seguimientos.id','seguimientos.fecha_proximo_control','seguimientos.estado as est',
+        'sivigilas.pri_ape_','sivigilas.seg_ape_','seguimientos.id as idin','sivigilas.Ips_at_inicial',
+        'seguimientos.fecha_consulta','seguimientos.id','seguimientos.fecha_proximo_control','seguimientos.estado as est',
         'seguimientos.user_id as usr')
         ->orderBy('seguimientos.created_at', 'desc')
-        ->join('ingresos', 'sivigilas.id', '=', 'ingresos.sivigilas_id')
-        ->join('seguimientos', 'ingresos.id', '=', 'seguimientos.ingresos_id')
+       
+        ->join('seguimientos', 'seguimientos.id', '=', 'seguimientos.sivigilas_id')
         ->where('seguimientos.estado',1)
         ->get();
         return view('seguimiento.index',compact('incomeedit','seguimientos','conteo','otro'));
@@ -107,12 +107,12 @@ class SeguimientoController extends Controller
     public function create()
     {
 
-        $incomeedit = DB::table('sivigilas')->select('sivigilas.num_ide_','sivigilas.pri_nom_','sivigilas.seg_nom_',
-        'sivigilas.pri_ape_','sivigilas.seg_ape_','ingresos.id as idin')
-        ->join('ingresos', 'sivigilas.id', '=', 'ingresos.sivigilas_id')// ojo en la alerta es el id del ingreso
-        //->join('seguimientos', 'ingresos.id', '=', 'seguimientos.ingresos_id') ojo arregla esto por algo no funciona el select 2 de esta relacion y por es
-        ->where('ingresos.estado',1)
-        
+        $incomeedit = DB::table('sivigilas')
+        ->select('sivigilas.num_ide_','sivigilas.pri_nom_','sivigilas.seg_nom_',
+        'sivigilas.pri_ape_','sivigilas.seg_ape_','sivigilas.id as idin')
+        // ->join('seguimientos', 'sivigilas.id', '=', 'seguimientos.sivigilas_id')
+        // // ->where('sivigilas.estado', '=', 1)
+        ->where('user_id', Auth::user()->id)
         ->get();
 
         $income12 =  DB::connection('sqlsrv_1')->table('refIps')->select('descrip')
@@ -141,10 +141,10 @@ class SeguimientoController extends Controller
             'medicamento' => 'required',
             'recomendaciones_manejo' => 'required',
             'resultados_seguimientos' => 'required',
-            'ips_realiza_seguuimiento' => 'required',
+            // 'ips_realiza_seguuimiento' => 'required',
             'observaciones' => 'required',
             // 'fecha_proximo_control' => 'nullable|date|after_or_equal:today',
-            'ingresos_id' => 'required',
+            'sivigilas_id' => 'required',
 
 
         ];
@@ -160,7 +160,7 @@ class SeguimientoController extends Controller
         // $datosEmpleado = request()->except('_token');
         // Seguimiento::insert($datosEmpleado);
         
-        $seguimientoExistente = Seguimiento::where('ingresos_id', $request->ingresos_id)
+        $seguimientoExistente = Seguimiento::where('sivigilas_id', $request->sivigilas_id)
         ->where('fecha_proximo_control', '>', Carbon::now())
         ->first();
 
@@ -178,14 +178,18 @@ class SeguimientoController extends Controller
                 $entytistore->medicamento = $request->medicamento;
                 $entytistore->recomendaciones_manejo = $request->recomendaciones_manejo;
                 $entytistore->resultados_seguimientos = $request->resultados_seguimientos;
-                $entytistore->ips_realiza_seguuimiento = $request->ips_realiza_seguuimiento;
+                // $entytistore->ips_realiza_seguuimiento = $request->ips_realiza_seguuimiento;
                 $entytistore->observaciones = $request->observaciones;
                 // if (empty($request->fecha_proximo_control)) { cod para saber cuando un campo esta vacio haga esto
                     // $entytistore->fecha_proximo_control = date('Y-m-d');
                 // } else {
+                    $entytistore->est_act_menor = $request->est_act_menor;
+                    $entytistore->tratamiento_f75 = $request->tratamiento_f75;
+                    $entytistore->fecha_recibio_tratf75 = $request->fecha_recibio_tratf75;
+                    
                     $entytistore->fecha_proximo_control = $request->fecha_proximo_control;
                 // }
-                $entytistore->ingresos_id = $request->ingresos_id;
+                $entytistore->sivigilas_id = $request->sivigilas_id;
                 $entytistore->user_id = auth()->user()->id;
                 
                
@@ -193,12 +197,12 @@ class SeguimientoController extends Controller
                
        
         if ( $request->estado == 0) {
-            DB::table('ingresos')
-            ->where('ingresos.id',  $entytistore->ingresos_id)
+            DB::table('seguimientos')
+            ->where('seguimientos.id',  $entytistore->sivigilas_id)
             ->update(['estado' => '0',]);
            DB::table('seguimientos')
-            ->join('ingresos', 'seguimientos.ingresos_id', '=', 'ingresos.id')
-            ->where('ingresos.id',  $entytistore->ingresos_id)
+            ->join('seguimientos', 'seguimientos.sivigilas_id', '=', 'seguimientos.id')
+            ->where('seguimientos.id',  $entytistore->sivigilas_id)
             ->update(['estado' => '0',]);
            } 
            
@@ -206,7 +210,7 @@ class SeguimientoController extends Controller
 
             //obtener id anterior
             $registroAnterior = DB::table('seguimientos')
-->where('ingresos_id', $request->ingresos_id)
+->where('sivigilas_id', $request->sivigilas_id)
     ->where('id', '<', $entytistore->id)
     ->orderBy('id', 'desc')
     ->first();
@@ -228,8 +232,8 @@ if ($registroAnterior) {
            ->where('seguimientos.estado',1)
            ->where('seguimientos.id', $entytistore->id)
            ->where('seguimientos.user_id', Auth::User()->id )
-           ->join('ingresos', 'sivigilas.id', '=', 'ingresos.sivigilas_id')
-            ->join('seguimientos', 'ingresos.id', '=', 'seguimientos.ingresos_id')
+           ->join('seguimientos', 'sivigilas.id', '=', 'seguimientos.sivigilas_id')
+            // ->join('seguimientos', 'seguimientos.id', '=', 'seguimientos.sivigilas_id')
             ->get();
             
              $bodyText = ':<br>';
@@ -312,9 +316,9 @@ if ($registroAnterior) {
     public function edit(Seguimiento $seguimiento , $id)
     {   
         $incomeedit = DB::table('sivigilas')->select('sivigilas.num_ide_','sivigilas.pri_nom_','sivigilas.seg_nom_',
-        'sivigilas.pri_ape_','sivigilas.seg_ape_','ingresos.id as idin')
-        ->join('ingresos', 'sivigilas.id', '=', 'ingresos.sivigilas_id')
-        // ->where('ingresos.estado',1)
+        'sivigilas.pri_ape_','sivigilas.seg_ape_','seguimientos.id as idin')
+        ->join('seguimientos', 'sivigilas.id', '=', 'seguimientos.sivigilas_id')
+        // ->where('seguimientos.estado',1)
         ->get();
         $empleado = Seguimiento::findOrFail($id); 
         return view('seguimiento.edit',compact('empleado','incomeedit'));
@@ -333,10 +337,10 @@ if ($registroAnterior) {
         Seguimiento::where('id','=',$id )->update($datosEmpleado);
         $empleado = Seguimiento::findOrFail($id);
         $incomeedit = Sivigila::select('sivigilas.num_ide_','sivigilas.pri_nom_','sivigilas.seg_nom_',
-        'sivigilas.pri_ape_','sivigilas.seg_ape_','ingresos.id as idin','sivigilas.Ips_at_inicial',
-        'ingresos.Fecha_ingreso_ingres','seguimientos.id')
-        ->join('ingresos', 'sivigilas.id', '=', 'ingresos.sivigilas_id')
-        ->join('seguimientos', 'ingresos.id', '=', 'seguimientos.ingresos_id')
+        'sivigilas.pri_ape_','sivigilas.seg_ape_','seguimientos.id as idin','sivigilas.Ips_at_inicial',
+        'seguimientos.Fecha_ingreso_ingres','seguimientos.id')
+        ->join('seguimientos', 'sivigilas.id', '=', 'seguimientos.sivigilas_id')
+        ->join('seguimientos', 'seguimientos.id', '=', 'seguimientos.sivigilas_id')
         ->where('seguimientos.estado',1)
         ->get();
         return redirect()->route('Seguimiento.index');
@@ -364,10 +368,10 @@ if ($registroAnterior) {
     
 
         $incomeedit = Sivigila::select('sivigilas.num_ide_','sivigilas.pri_nom_','sivigilas.seg_nom_',
-        'sivigilas.pri_ape_','sivigilas.seg_ape_','ingresos.id as idin','sivigilas.Ips_at_inicial',
-        'ingresos.Fecha_ingreso_ingres','seguimientos.id')
-        ->join('ingresos', 'sivigilas.id', '=', 'ingresos.sivigilas_id')
-        ->join('seguimientos', 'ingresos.id', '=', 'seguimientos.ingresos_id')
+        'sivigilas.pri_ape_','sivigilas.seg_ape_','seguimientos.id as idin','sivigilas.Ips_at_inicial',
+        'seguimientos.Fecha_ingreso_ingres','seguimientos.id')
+        ->join('seguimientos', 'sivigilas.id', '=', 'seguimientos.sivigilas_id')
+        ->join('seguimientos', 'seguimientos.id', '=', 'seguimientos.sivigilas_id')
         ->where('seguimientos.estado',1)
         ->where('sivigilas.num_ide_', 'LIKE', '%'.$query.'%')
         ->get();
@@ -403,12 +407,12 @@ if ($registroAnterior) {
             //    where('fecha_proximo_control', Carbon::now()->addDays(2)->format('Y-m-d'));
             
             $seguimientos = Sivigila::select('sivigilas.num_ide_','sivigilas.pri_nom_','sivigilas.seg_nom_',
-            'sivigilas.pri_ape_','sivigilas.seg_ape_','ingresos.id as idin','sivigilas.Ips_at_inicial',
-            'ingresos.Fecha_ingreso_ingres','seguimientos.id','seguimientos.fecha_proximo_control','seguimientos.estado as est',
+            'sivigilas.pri_ape_','sivigilas.seg_ape_','seguimientos.id as idin','sivigilas.Ips_at_inicial',
+            'seguimientos.id','seguimientos.fecha_proximo_control','seguimientos.estado as est',
             'seguimientos.user_id as usr')
             ->orderBy('seguimientos.created_at', 'desc')
-            ->join('ingresos', 'sivigilas.id', '=', 'ingresos.sivigilas_id')
-            ->join('seguimientos', 'ingresos.id', '=', 'seguimientos.ingresos_id')
+            ->join('seguimientos', 'sivigilas.id', '=', 'seguimientos.sivigilas_id')
+            // ->join('seguimientos', 'seguimientos.id', '=', 'seguimientos.sivigilas_id')
             ->where('seguimientos.estado',1)
             ->get();
             // foreach ($seguimientos as $seguimiento) {
