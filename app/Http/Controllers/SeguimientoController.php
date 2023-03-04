@@ -318,7 +318,7 @@ if ($registroAnterior) {
         $incomeedit = DB::table('sivigilas')->select('sivigilas.num_ide_','sivigilas.pri_nom_','sivigilas.seg_nom_',
         'sivigilas.pri_ape_','sivigilas.seg_ape_','seguimientos.id as idin')
         ->join('seguimientos', 'sivigilas.id', '=', 'seguimientos.sivigilas_id')
-        // ->where('seguimientos.estado',1)
+        ->where('seguimientos.id', $id)
         ->get();
         $empleado = Seguimiento::findOrFail($id); 
         return view('seguimiento.edit',compact('empleado','incomeedit'));
@@ -335,14 +335,7 @@ if ($registroAnterior) {
     {
         $datosEmpleado = request()->except(['_token','_method']);
         Seguimiento::where('id','=',$id )->update($datosEmpleado);
-        $empleado = Seguimiento::findOrFail($id);
-        $incomeedit = Sivigila::select('sivigilas.num_ide_','sivigilas.pri_nom_','sivigilas.seg_nom_',
-        'sivigilas.pri_ape_','sivigilas.seg_ape_','seguimientos.id as idin','sivigilas.Ips_at_inicial',
-        'seguimientos.Fecha_ingreso_ingres','seguimientos.id')
-        ->join('seguimientos', 'sivigilas.id', '=', 'seguimientos.sivigilas_id')
-        // ->join('seguimientos', 'seguimientos.id', '=', 'seguimientos.sivigilas_id')
-        ->where('seguimientos.estado',1)
-        ->get();
+        
         return redirect()->route('Seguimiento.index');
         // return view('seguimiento.index', compact('empleado'),["incomeedit"=>$incomeedit]);
     }
