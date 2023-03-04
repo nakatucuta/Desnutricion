@@ -24,7 +24,7 @@ Auth::routes();
 Route::get('/home', [App\Http\Controllers\HomeController::class, 'index'])->name('home');
 
 Route::resource('sivigila', SivigilaController::class)->middleware('auth');
-Route::resource('Ingreso', IngresoController::class)->middleware('auth');
+
 Route::resource('Seguimiento', SeguimientoController::class)->middleware('auth');
 Route::get('/search1', 'App\Http\Controllers\SeguimientoController@search')->name('BUSCADOR1');
 Route::get('/sivigila/{num_ide_}/{fec_not}/create', 'App\Http\Controllers\SivigilaController@create')->name('detalle_sivigila');

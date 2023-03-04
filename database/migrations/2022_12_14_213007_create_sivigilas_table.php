@@ -38,15 +38,13 @@ return new class extends Migration
             $table->integer('estado');
             $table->date('fecha_aten_inicial')->nullable();
 
-            $table->string('Ips_seguimiento_Ambulatorio')->nullable();
+           
             $table->string('Caso_confirmada_desnutricion_etiologia_primaria')->nullable();
-            $table->integer('Tipo_ajuste')->nullable();
-            $table->integer('Promedio_dias_oportuna_remision')->nullable();
+            $table->integer('Ips_manejo_hospitalario')->nullable();
+         
             $table->string('Esquemq_complrto_pai_edad')->nullable();
             $table->string('Atecion_primocion_y_mantenimiento_res3280_2018')->nullable();
-            $table->string('est_act_menor')->nullable();
-            $table->string('tratamiento_f75')->nullable();
-            $table->date('fecha_recibio_tratf75')->nullable();
+           
             $table->string('nombreips_manejo_hospita')->nullable();
             $table->integer('user_id')->unsigned();
             $table->foreign('user_id')->references('id')->on('users');
