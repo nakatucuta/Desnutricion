@@ -13,28 +13,29 @@ return new class extends Migration
     {
         Schema::create('revisions', function (Blueprint $table) {
             $table->increments('id');
-            $table->integer('estado');
-            $table->date('fecha_consulta');
-            $table->float('peso_kilos');
-            $table->float('talla_cm');
-            $table->float('puntajez');
-            $table->string('clasificacion');
-            $table->string('requerimiento_energia_ftlc');
-            $table->date('fecha_entrega_ftlc');
-            $table->string('medicamento');
-            $table->string('recomendaciones_manejo');
-            $table->string('resultados_seguimientos');
+            // $table->integer('estado');
+            // $table->date('fecha_consulta');
+            // $table->float('peso_kilos');
+            // $table->float('talla_cm');
+            // $table->float('puntajez');
+            // $table->string('clasificacion');
+            // $table->string('requerimiento_energia_ftlc');
+            // $table->date('fecha_entrega_ftlc');
+            // $table->string('medicamento');
+            // $table->string('recomendaciones_manejo');
+            // $table->string('resultados_seguimientos');
             // $table->string('ips_realiza_seguuimiento');
-            $table->string('observaciones');
+            // $table->string('observaciones');
             
             // esto son lo que movi de  sivigilas
-            $table->string('est_act_menor')->nullable();
-            $table->string('tratamiento_f75')->nullable();
-            $table->date('fecha_recibio_tratf75')->nullable();
+            // $table->string('est_act_menor')->nullable();
+            // $table->string('tratamiento_f75')->nullable();
+            // $table->date('fecha_recibio_tratf75')->nullable();
 
-            $table->date('fecha_proximo_control')->nullable();
-            $table->integer('sivigilas_id');//relacion uno a uno 
-            $table->foreign('sivigilas_id')->references('id')->on('sivigilas')->onDelete('cascade')->onUpdate('cascade');
+            // $table->date('fecha_proximo_control');
+            $table->integer('estado');
+            $table->integer('seguimientos_id');//relacion uno a uno 
+            $table->foreign('seguimientos_id')->references('id')->on('seguimientos')->onDelete('cascade')->onUpdate('cascade');
             
             $table->integer('user_id')->unsigned();
             $table->foreign('user_id')->references('id')->on('users');
