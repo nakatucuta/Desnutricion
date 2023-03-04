@@ -195,10 +195,10 @@
     <div class="col-sm-6">
             <div class="form-group">
                 <label for="Nombre">Ips seguimiento Ambulatorio</label>
-                <select class="person2 " name="Ips_seguimiento_Ambulatorio" id="Ips_seguimiento_Ambulatorio"  style="width: 100% ">
+                <select class="person2 " name="User_id" id="User_id"  style="width: 100% ">
                     <option  value="0">SELECCIONAR</option>
                     @foreach($income12 as $developer)
-                    <option  value="{{$developer->descrip}}">{{$developer->descrip}}</option>
+                    <option  value="{{$developer->id}}">{{$developer->name}}</option>
                     @endforeach
     
                 </select>
@@ -223,18 +223,13 @@
 
              <div class="row">
                 <div class="col-sm-6">
-                    <div class="form-group">
-                            <label for="Nombre"> Promedio en  dias para hacerse efectiva la remisión </label> {{-- el isset pregunta si el archivo esta seleccionado lo muestre sino no muestra nada por eso las comillas vacias al final --}}
-                            <input class="form-control" type="number" name="Promedio_dias_oportuna_remision" id = 'Promedio_dias_oportuna_remision'
-                                        value="">
-                    </div>
+                    {{-- espacio para colocar otro input --}}
                 </div>
                             
                 <div class="col-sm-6">
-                    <div class="form-group">
-                            <label for="Nombre">Tipo de ajuste</label> {{-- el isset pregunta si el archivo esta seleccionado lo muestre sino no muestra nada por eso las comillas vacias al final --}}
-                            <input class="form-control" type="number" name="Tipo_ajuste" id = 'Tipo_ajuste'value="">
-                    </div>
+                   
+                        {{-- espacio para colocar otro input --}}
+
                 </div> 
             </div>
         </div>
@@ -293,75 +288,45 @@
                         <div class="card card-info card-outline ">
                     <center><h6 class=""> <strong>INFORME NOMINAL</strong></h6></center>
                 
+                    
                 </div>
                     </div>
                         </div>
                 
-                
-                <div class="row">
-                    <div class="col-sm-4">
-                        <div class="form-group">
-                        <label for="Nombre">Estado actual del menor</label>
-                        <select class="person2 " name="est_act_menor" id="est_act_menor"  style="width: 100% ">
-                        <option  value="">SELECCIONAR</option>
-                        <option  value="BUSQUEDA FALLIDA - MENORES QUE NO SE ENCUENTRAN EN EL TERRITORIO">BUSQUEDA FALLIDA - MENORES QUE NO SE ENCUENTRAN EN EL TERRITORIO</option>
-                        <option  value="BUSQUEDA FALLIDA-MANIFIESTA QUIEN FUE SU MADRE SUSTITUTA , QUE LA MENOR FUE ENTREGADA A SU MADRE BIOLÓGICA,
-                        HACE 3 MESES Y SE ENCUENTRAN RESIDIENDO EN LA CIUDAD DE PEREIRA">BUSQUEDA FALLIDA-MANIFIESTA QUIEN FUE SU MADRE SUSTITUTA , QUE LA MENOR FUE ENTREGADA A SU MADRE BIOLÓGICA,
-                            HACE 3 MESES Y SE ENCUENTRAN RESIDIENDO EN LA CIUDAD DE PEREIRA</option>
-                        <option  value="EN PROCESO DE BUSQUEDA">EN PROCESO DE BUSQUEDA</option>
-                        <option  value="EN PROCESO DE RECUPERACION ">EN PROCESO DE RECUPERACION </option>
-                        <option  value="PROCESO DE RECUPERACION">PROCESO DE RECUPERACION</option>
-                        <option  value="RECUPERADO">RECUPERADO</option>
-                        <option  value="REINGRESO -PROCESO DE RECUPERACION">REINGRESO -PROCESO DE RECUPERACION</option>
                         
-                        
-                        
-                      </select>
-                </div>
-                        </div>
-                
-                
-                        <div class="col-sm-4">
-                            <div class="form-group">
-                                <label for="Nombre">Tratamiento f75</label>
-                                <select class="person2 " name="tratamiento_f75" id="tratamiento_f75"  style="width: 100% ">
-                                <option  value="">SELECCIONAR</option>
-                                <option  value="SI">SI</option>
-                                <option  value="NO">NO</option>
-                                
-                                
-                              </select>
-                        </div>
-                            </div>
-                
-                
-                            <div class="col-sm-4">
+                        <div class="row">
+                            <div class="col-sm-5">
                                 <div class="form-group">
-                                    <label for="Nombre"> Fecha en la que recibe tratamiento f75 </label> {{-- el isset pregunta si el archivo esta seleccionado lo muestre sino no muestra nada por eso las comillas vacias al final --}}
-                                    <input class="form-control" type="date" name="fecha_recibio_tratf75" id = 'input_oculto'
-                                    value="">
-                                </div>
-                                </div>
-                
-                
-                               
-                
-                    </div>
-                
-                    <div class="row">
-                    <div class="col-sm-12">
-                        <div class="form-group">
-                            <label for="Nombre">Ips manejo hospitalario</label>
-                            <select class="person2 " name="nombreips_manejo_hospita" id="nombreips_manejo_hospita"  style="width: 100% ">
-                                <option  value="0">SELECCIONAR</option>
-                                @foreach($income12 as $developer)
-                                <option  value="{{$developer->descrip}}">{{$developer->descrip}}</option>
-                                @endforeach
-                
-                            </select>
+                                     <label for="Nombre"> manejo hospitalario</label>
+                                
+                                    <select class="person2 " name="nombreips_manejo_hospita" id="nombreips_manejo_hospita"  style="width: 100% ">
+                                        <option  value="">SELECCIONAR</option>
+                                        <option  value="SI">SI</option>
+                                        <option  value="NO">NO</option>
+                                        
+                                      
+                                    </select>
+                            </div>
+                            </div>
+
+                      
+                                <div class="col-sm-7">
+                                        <div class="form-group">
+                                            <label for="Nombre">Ips manejo Hospitalario</label>
+                                            <select class="person2 " name="Ips_manejo_hospitalario" id="Ips_manejo_hospitalario"  style="width: 100% ">
+                                                <option  value="0">SELECCIONAR</option>
+                                                @foreach($income12 as $developer)
+                                                <option  value="{{$developer->id}}">{{$developer->name}}</option>
+                                                @endforeach
+                                
+                                            </select>
+                                        </div>
+                                     </div>
+
+
                         </div>
-                        </div>
-                    </div>
+               
+                   
                     <input class="btn btn-success" type="submit" value="enviar">
             <a  class="btn btn-primary" href="{{url('sivigila')}}" class="btn  btn-success"> REGRESAR</a>
                 </div>
