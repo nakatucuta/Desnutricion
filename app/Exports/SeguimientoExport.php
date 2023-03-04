@@ -19,14 +19,20 @@ class SeguimientoExport implements FromCollection, WithHeadings, ShouldAutoSize,
     public function collection()
     {
         return DB::table('sivigilas')
-        ->Join('ingresos', 'sivigilas.id', '=', 'ingresos.sivigilas_id')
-        ->Join('seguimientos', 'ingresos.id', '=', 'seguimientos.ingresos_id')
-        ->select(DB::raw("sivigilas.num_ide_,sivigilas.pri_nom_,sivigilas.seg_nom_,sivigilas.pri_ape_,sivigilas.seg_ape_,
-        ingresos.Fecha_ingreso_ingres,
-         IIF(seguimientos.estado = 1, 'Activo', 'Inactivo') as Estado, seguimientos.fecha_consulta,
-          seguimientos.peso_kilos,seguimientos.talla_cm,seguimientos.puntajez,seguimientos.clasificacion,
-          seguimientos.requerimiento_energia_ftlc,seguimientos.fecha_entrega_ftlc,seguimientos.medicamento,seguimientos.recomendaciones_manejo,
-          seguimientos.resultados_seguimientos,seguimientos.ips_realiza_seguuimiento,seguimientos.observaciones,
+        
+        ->Join('seguimientos', 'sivigilas.id', '=', 'seguimientos.sivigilas_id')
+        ->select(DB::raw("sivigilas.num_ide_,sivigilas.pri_nom_,sivigilas.seg_nom_,
+        sivigilas.pri_ape_,sivigilas.seg_ape_,
+        
+         IIF(seguimientos.estado = 1, 'Activo', 'Inactivo') as Estado, 
+         seguimientos.fecha_consulta,
+          seguimientos.peso_kilos,seguimientos.talla_cm,seguimientos.puntajez,
+          seguimientos.clasificacion,
+          seguimientos.requerimiento_energia_ftlc,seguimientos.fecha_entrega_ftlc,
+          seguimientos.medicamento,seguimientos.recomendaciones_manejo,
+          seguimientos.resultados_seguimientos,seguimientos.observaciones,
+          seguimientos.est_act_menor,seguimientos.tratamiento_f75,
+          seguimientos.fecha_recibio_tratf75,
           seguimientos.fecha_proximo_control"))
         ->get();
     }
@@ -39,21 +45,26 @@ class SeguimientoExport implements FromCollection, WithHeadings, ShouldAutoSize,
             'Segundo Nombre',
             'Apellido',
             'Segundo apellido',
-            'Fecha_Ingreso',
+            
             'Estado',
             'Fecha de consulta',
             'Peso en kilos y un decimal',
             'Talla en centimetros',
+
             'Puntaje z(peso/talla)',
             'Calificacion',
             'Requerimiento de energia FTLC',
             'Fecha de entrega FTLC',
             'Medicamento',
             'Recomendacion de manejo',
+
             'Resultados seguimiento',
-            'Ips que realiza el seguimiento',
-            'Obvservaciones',
-            'Fecha del proeximo seguimiento'
+            'Observaciones',
+            'Estado actual del menor',
+            'Tratamiento f75',
+            'Fecha recibio trat f75',
+           
+            'Fecha del proximo seguimiento'
          
         ];
     
