@@ -39,14 +39,41 @@
     @section('js')
        
     <script type="text/javascript">
-        $(document).ready(function(){
-            $('#estado').on('change', function() {
-                if ( this.value == '1')
-                $("#input_oculto").show();
-                else
-                $("#input_oculto").hide();
-            });
-        });
+           $(document).ready(function() {
+                $('#est_act_menor').on('change', function() {
+                    if ($(this).val() == 'RECUPERADO') {
+                        $('.col-sm-4').hide();
+                        $('.col-md-6').hide();
+                    
+                    } else {
+                    
+                    $('.col-sm-4').show();
+                    $('.col-md-6').show();
+                    }
+                });
+                });
+
+             $(document).ready(function(){
+             $('#estado').on('change', function() {
+                 if ( this.value == '1')
+                 $("#input_oculto").show();
+                 else
+                 $("#input_oculto").hide();
+             });
+            
+                });
+
+
+
+                 $(document).ready(function(){
+             $('#tratamiento_f75').on('change', function() {
+                 if ( this.value == 'SI')
+                 $("#input_oculto1").show();
+                 else
+                 $("#input_oculto1").hide();
+             });
+            
+         });
     </script>
     @stop
     

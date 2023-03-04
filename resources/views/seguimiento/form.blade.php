@@ -66,7 +66,7 @@
         <div class="col-sm-6">
             <div class="form-group">
                 <label for="Nombre">Peso En Kilos y un decimal</label> {{-- el isset pregunta si el archivo esta seleccionado lo muestre sino no muestra nada por eso las comillas vacias al final --}}
-                <input class="form-control" type="number" step="0.01" name="peso_kilos" id = 'peso_kilos'
+                <input class="form-control" type="number" step="0.0001" name="peso_kilos" id = 'peso_kilos'
                 value="">
             </div>
             </div>
@@ -165,7 +165,7 @@
                                             </div>
 
                                             <div class="row">
-                                                <div class="col-sm-4">
+                                                <div class="col-sm-3">
                                                     <div class="form-group">
                                                     <label for="Nombre">Estado actual del menor</label>
                                                     <select class="person2 " name="est_act_menor" id="est_act_menor"  style="width: 100% ">
@@ -202,7 +202,7 @@
                                             
                                             
                                                         <div class="col-sm-4">
-                                                            <div class="form-group">
+                                                            <div class="form-group" id="input_oculto1">
                                                                 <label for="Nombre"> Fecha en la que recibe tratamiento f75 </label> {{-- el isset pregunta si el archivo esta seleccionado lo muestre sino no muestra nada por eso las comillas vacias al final --}}
                                                                 <input class="form-control" type="date" name="fecha_recibio_tratf75" id = 'fecha_recibio_tratf75'
                                                                 value="">
@@ -222,20 +222,19 @@
 
                                             <div class="row">
                                                 <div class="col-md-6">
-                                                    <div class="form-group">
+                                                    <div class="form-group" >
                                                         <label for="Nombre">Desea cerrar el caso ?</label>
                                                         <select class="person2 " name="estado" id="estado"  style="width: 100% ">
                                                         <option  value="">SELECCIONAR</option>
                                                         <option  value="1">ABIERTO</option>
                                                         <option  value="0">CERRADO</option>
                                                         
-                                                        
                                                       </select>
                                                 </div>
                                                
                                                 </div>
-                                                <div class="col-sm-6 ">
-                                                    <div class="form-group" id="input_oculto" style="display: none;">
+                                                    <div class="col-md-6 " >
+                                                    <div class="form-group" id="input_oculto">
                                                         <label for="Nombre"> Fecha Proximo Seguimiento </label> {{-- el isset pregunta si el archivo esta seleccionado lo muestre sino no muestra nada por eso las comillas vacias al final --}}
                                                         <input class="form-control" type="date" name="fecha_proximo_control" id="fecha_proximo_control" value="{{ isset($empleado->fecha_proximo_control) ? $empleado->fecha_proximo_control : old('fecha_proximo_control') }}" min="{{ date('Y-m-d') }}">
                                                     </div>

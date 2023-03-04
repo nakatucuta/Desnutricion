@@ -235,7 +235,7 @@ right: 0;"><i class="fas fa-book"></i>  </a>
                   <tr>
                     <th >Identificacion</th>
                     <th >Nombre</th>
-                    <th >Fecha Reporte</th>
+                    <th >Estado</th>
                     <th >Ips</th>
                     <th >Fecha proximo control</th>
                     <th >Acciones</th>
@@ -273,7 +273,12 @@ right: 0;"><i class="fas fa-book"></i>  </a>
                         
                     <th >{{ $student2->num_ide_ }}</th>
                     <td>{{ $student2->pri_nom_.' '.$student2->seg_nom_.' '.$student2->pri_ape_.' '.$student2->seg_ape_ }}</td>
-                    <td>{{$student2->Fecha_ingreso_ingres}}</td>
+                    
+                    <td> @if ($student2->estado == 1)
+                     Abierto
+                   @else
+                     Cerrado
+                   @endif</td>
                     <td>{{$student2->Ips_at_inicial}}</td>
                     @if(!empty($student2->fecha_proximo_control))
                     <td>{{ $student2->fecha_proximo_control }}</td>
@@ -325,7 +330,12 @@ right: 0;"><i class="fas fa-book"></i>  </a>
                         
                  <th >{{ $student2->num_ide_ }}</th>
                  <td>{{ $student2->pri_nom_.' '.$student2->seg_nom_.' '.$student2->pri_ape_.' '.$student2->seg_ape_ }}</td>
-                 <td>{{$student2->Fecha_ingreso_ingres}}</td>
+                 
+                 <td> @if ($student2->estado == 1)
+                  Abierto
+                @else
+                  Cerrado
+                @endif</td>
                  <td>{{$student2->Ips_at_inicial}}</td>
                  @if(!empty($student2->fecha_proximo_control))
                  <td>{{ $student2->fecha_proximo_control }}</td>
