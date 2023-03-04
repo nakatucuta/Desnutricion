@@ -26,14 +26,11 @@ class SeguimientoController extends Controller
         // $this->middleware('Admin_seguimiento', ['only' =>'create']);
         //  $this->middleware('Admin_seguimiento', ['only' =>'index']);
         //  $this->middleware('Admin_seguimiento', ['only' =>'alerta']);
+        $this->middleware('Admin_seguimiento', ['only' =>'reporte2']);
+        $this->middleware('Admin_seguimiento', ['only' =>'resporte']);
         $this->middleware('Admin_nutric_seguimiento', ['only' =>'edit']);
         $this->middleware('Admin_nutric_seguimiento', ['only' =>'destroy']);
-        
-
-        
-        // $this->middleware('Admin_nutric_ingres', ['only' =>'edit','only' =>'destroy']);
-        // $this->middleware('Admin_nutric_ingres', ['only' =>'destroy','only' =>'edit']);
-        
+    
        
 
     }
@@ -54,7 +51,8 @@ class SeguimientoController extends Controller
         if (Auth::User()->usertype == 2) {
         $incomeedit = Sivigila::select('sivigilas.num_ide_','sivigilas.pri_nom_','sivigilas.seg_nom_',
         'sivigilas.pri_ape_','sivigilas.seg_ape_','seguimientos.id as idin','sivigilas.Ips_at_inicial',
-        'seguimientos.fecha_consulta','seguimientos.id','seguimientos.fecha_proximo_control','seguimientos.estado')
+        'seguimientos.fecha_consulta','seguimientos.id',
+        'seguimientos.fecha_proximo_control','seguimientos.estado','seguimientos.id')
         ->orderBy('seguimientos.created_at', 'desc')
         
         ->join('seguimientos', 'sivigilas.id', '=', 'seguimientos.sivigilas_id')

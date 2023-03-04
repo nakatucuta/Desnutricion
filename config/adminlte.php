@@ -337,14 +337,14 @@ return [
             // 'icon_color'  => 'red'
         ],
 
-        // [
-        //     'text'        => 'Ingreso',
-        //     'url'         => 'Ingreso',
-        //     'icon'        => 'fas fa-fw fa-book',
-        //     'label'       => 'ZONA PARA IPS', 
-        //     'label_color' => 'warning ',
-        //     'icon_color'  => 'yellow'
-        // ],
+         [
+             'text'        => 'Control',
+             'url'         => 'revision',
+             'icon'        => 'fas fa-fw fa-eye',
+            'label'       => 'REVISAR', 
+            'label_color' => 'danger ',
+            //  'icon_color'  => 'red'
+         ],
         [
             'text'        => 'Seguimiento',
             'url'         => 'Seguimiento',

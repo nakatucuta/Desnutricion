@@ -233,6 +233,7 @@ right: 0;"><i class="fas fa-book"></i>  </a>
             <table class="table table-hover table-striped" id="seguimiento">
                 <thead class="table table-hover table-dark">
                   <tr>
+                    <th>ID</th>
                     <th >Identificacion</th>
                     <th >Nombre</th>
                     <th >Estado</th>
@@ -258,6 +259,7 @@ right: 0;"><i class="fas fa-book"></i>  </a>
                       <td  class="text-center">No hay registros disponibles</td>
                       <td  class="text-center">No hay registros disponibles</td>
                       <td  class="text-center">No hay registros disponibles</td>
+                      <td  class="text-center">No hay registros disponibles</td>
                         @elseif($count >= 1 && (auth()->user()->usertype == 2))
                           
 
@@ -270,7 +272,8 @@ right: 0;"><i class="fas fa-book"></i>  </a>
                      --}}
                      
                     @foreach($incomeedit as $student2)
-                        
+                    
+                    <th >{{ $student2->id }}</th>
                     <th >{{ $student2->num_ide_ }}</th>
                     <td>{{ $student2->pri_nom_.' '.$student2->seg_nom_.' '.$student2->pri_ape_.' '.$student2->seg_ape_ }}</td>
                     
@@ -325,9 +328,11 @@ right: 0;"><i class="fas fa-book"></i>  </a>
                   <td  class="text-center">No hay registros disponibles</td>
                   <td  class="text-center">No hay registros disponibles</td>
                   <td  class="text-center">No hay registros disponibles</td>
+                  <td  class="text-center">No hay registros disponibles</td>
                  @elseif($count1 >= 1 && (auth()->user()->usertype == 1 ||  auth()->user()->usertype == 3))
                  @foreach($incomeedit as $student2)
                         
+                 <th >{{ $student2->id }}</th>
                  <th >{{ $student2->num_ide_ }}</th>
                  <td>{{ $student2->pri_nom_.' '.$student2->seg_nom_.' '.$student2->pri_ape_.' '.$student2->seg_ape_ }}</td>
                  

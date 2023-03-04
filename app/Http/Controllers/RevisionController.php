@@ -4,7 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Revision;
 use Illuminate\Http\Request;
-use App\Models\Ingreso;
+
 use App\Models\Sivigila;
 use App\Models\Seguimiento;
 
@@ -23,6 +23,19 @@ use Symfony\Component\Mime\Email;
 
 class RevisionController extends Controller
 {
+
+    public function __construct(){/*3.se crea este contruct en el controlador a trabajar*/
+
+        $this->middleware('auth');
+        $this->middleware('adminrevision', ['only' =>'index']);
+        // $this->middleware('adminrevision', ['only' =>'destroy']);
+        
+
+       
+       
+
+    }
+
     /**
      * Display a listing of the resource.
      */
@@ -32,8 +45,8 @@ class RevisionController extends Controller
         'sivigilas.pri_ape_','sivigilas.seg_ape_','seguimientos.id as idin','sivigilas.Ips_at_inicial',
         'seguimientos.fecha_consulta','seguimientos.id','seguimientos.fecha_proximo_control')
         ->orderBy('seguimientos.created_at', 'desc')
-      
-        ->join('seguimientos', 'seguimientos.id', '=', 'seguimientos.sivigilas_id')
+        ->where('seguimientos.estado', 0)
+        ->join('seguimientos', 'sivigilas.id', '=', 'seguimientos.sivigilas_id')
         // ->where('seguimientos.estado',1)
         
         ->paginate(3000);
@@ -46,8 +59,30 @@ class RevisionController extends Controller
      */
     public function create($id)
     {
+
+        $segene = DB::table('seguimientos')
+        // ->where('seguimientos.estado',1)
+        ->where('id', $id)
+        ->first();
+
+
+        $segene1 = DB::table('sivigilas')
+        ->select(DB::raw("CONCAT( sivigilas.pri_nom_, ' ', sivigilas.seg_nom_, ' ', sivigilas.pri_ape_,' ',sivigilas.seg_ape_) AS nombre_completo"))
+        ->join('seguimientos', 'sivigilas.id', '=', 'seguimientos.sivigilas_id')
+        ->where('seguimientos.id', $id)
+        ->value('nombre_completo');
+
+        $segene2 = DB::table('sivigilas')
+        ->select(DB::raw("sivigilas.num_ide_ as identifiqui"))
+        ->join('seguimientos', 'sivigilas.id', '=', 'seguimientos.sivigilas_id')
+        ->where('seguimientos.id', $id)
+        ->value('identifiqui');
+
+       
         
-        return view('revision.create');
+        return view('revision.create',["segene"=>$segene,"segene1"=>$segene1,"segene2"=>$segene2]);
+
+ 
     }
 
     /**
@@ -55,7 +90,14 @@ class RevisionController extends Controller
      */
     public function store(Request $request)
     {
-        //
+            $entytistore = new Revision;
+            $entytistore->estado = 1 ;
+            $entytistore->seguimientos_id = $request->seguimientos_id;
+            $entytistore->user_id = auth()->user()->id;
+            $entytistore->save();
+
+            return redirect()->route('revision.index');
+          
     }
 
     /**
