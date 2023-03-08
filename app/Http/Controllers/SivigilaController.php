@@ -73,15 +73,15 @@ class SivigilaController extends Controller
                 $conteo = Seguimiento::where('estado', 1)->count('id');
     
             }
-             $otro = Sivigila::select('sivigilas.num_ide_','sivigilas.pri_nom_','sivigilas.seg_nom_',
-        'sivigilas.pri_ape_','sivigilas.seg_ape_','seguimientos.id as idin','sivigilas.Ips_at_inicial',
-        'seguimientos.fecha_consulta','seguimientos.id','seguimientos.fecha_proximo_control','seguimientos.estado as est',
-        'sivigilas.user_id as usr')
-        ->orderBy('seguimientos.created_at', 'desc')
-      
-        ->join('seguimientos', 'seguimientos.id', '=', 'seguimientos.sivigilas_id')
-       ->where('seguimientos.estado',1)
-        ->get();
+            $otro =  Sivigila::select('sivigilas.num_ide_','sivigilas.pri_nom_','sivigilas.seg_nom_',
+            'sivigilas.pri_ape_','sivigilas.seg_ape_','seguimientos.id as idin','sivigilas.Ips_at_inicial',
+            'seguimientos.id','seguimientos.fecha_proximo_control','seguimientos.estado as est',
+            'seguimientos.user_id as usr')
+            ->orderBy('seguimientos.created_at', 'desc')
+            ->join('seguimientos', 'sivigilas.id', '=', 'seguimientos.sivigilas_id')
+            // ->join('seguimientos', 'seguimientos.id', '=', 'seguimientos.sivigilas_id')
+            ->where('seguimientos.estado',1)
+            ->get();
         
         return view('sivigila.index', compact('sivigilas','sivi','conteo','otro'));
 
@@ -173,21 +173,46 @@ class SivigilaController extends Controller
         
         ->value('nombrepres');
 
-        $income12 =  DB::table('users')->select('name','id')
-       
-        ->get();
+      
 
         $incomeedit13 = DB::connection('sqlsrv_1')->table('maestroAfiliados')
         ->select(DB::raw("IIF(codigoAgente = 'EPSI04', 'subsidiado', 'contributivo') as tipo_afiliacion"))
         ->where('identificacion', $num_ide_)
         ->value('tipo_afiliacion');
+
+        $incomeedit14 = DB::connection('sqlsrv_1')->table('maestroAfiliados as a')
+        ->join('maestroips as b', 'a.numeroCarnet', '=', 'b.numeroCarnet')
+        ->join('maestroIpsGru as c', 'b.idGrupoIps', '=', 'c.id')
+        ->join('maestroIpsGruDet as d', function($join) {
+            $join->on('c.id', '=', 'd.idd')
+                 ->where('d.servicio', '=', 1);
+        })
+        ->join('refIps as e', 'd.idIps', '=', 'e.idIps')
+        ->select(DB::raw('CAST(e.codigo AS BIGINT) as codigo_habilitacion'))
+        ->where('a.identificacion', $num_ide_)
+        ->first(); // Obtener el primer registro de la consulta
+    
+    $income12 =  DB::table('users')->select('name', 'id','codigohabilitacion')
+        ->where('codigohabilitacion', $incomeedit14->codigo_habilitacion)
+        ->get();
+
+        $incomeedit15 =  DB::table('users')->select('name', 'id','codigohabilitacion')
         
+        ->get();
+        // $incomeedit15 = DB::connection('sqlsrv_1')->table('maestroIpsGru as a')
+        // ->join('maestroIpsGruDet as b', function ($join) {
+        //     $join->on('a.id', '=', 'b.idd')
+        //          ->where('b.servicio', '=', 1);
+        // })
+        // ->join('refIps as c', 'b.idIps', '=', 'c.idIps')
+        // ->select('c.codigo as cod1', 'a.descrip as nomipsprim')
+        // ->get(); // Obtener solo las ips  primaria 
 
         return view('sivigila.create',["incomeedit"=>$incomeedit,"incomeedit1"=>$incomeedit1,"incomeedit2"=>$incomeedit2,
          "incomeedit3"=>$incomeedit3,"incomeedit4"=>$incomeedit4,"incomeedit5"=>$incomeedit5,
          "incomeedit6"=>$incomeedit6,"incomeedit7"=>$incomeedit7,"incomeedit8"=>$incomeedit8,
          "incomeedit9"=>$incomeedit9, "incomeedit10"=>$incomeedit10, "income11"=>$income11,"income12"=>$income12 
-         ,"incomeedit13"=>$incomeedit13]);
+         ,"incomeedit13"=>$incomeedit13,"incomeedit14"=>$incomeedit14,"incomeedit15"=>$incomeedit15]);
     }
 
     /**
