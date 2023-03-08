@@ -83,7 +83,7 @@ class SeguimientoController extends Controller
         }
         $seguimientos = Seguimiento::all()->where('estado',1);
         $otro =  Sivigila::select('sivigilas.num_ide_','sivigilas.pri_nom_','sivigilas.seg_nom_',
-        'sivigilas.pri_ape_','sivigilas.seg_ape_','seguimientos.id as idin','sivigilas.Ips_at_inicial',
+        'sivigilas.pri_ape_','sivigilas.seg_ape_','sivigilas.id as idin','sivigilas.Ips_at_inicial',
         'seguimientos.id','seguimientos.fecha_proximo_control','seguimientos.estado as est',
         'seguimientos.user_id as usr')
         ->orderBy('seguimientos.created_at', 'desc')
@@ -143,6 +143,7 @@ class SeguimientoController extends Controller
             'observaciones' => 'required',
             // 'fecha_proximo_control' => 'nullable|date|after_or_equal:today',
             'sivigilas_id' => 'required',
+            // 'archivo_pdf' => 'required|mimes:pdf|max:2048',
 
 
         ];
@@ -398,7 +399,7 @@ if ($registroAnterior) {
             //    where('fecha_proximo_control', Carbon::now()->addDays(2)->format('Y-m-d'));
             
             $seguimientos = Sivigila::select('sivigilas.num_ide_','sivigilas.pri_nom_','sivigilas.seg_nom_',
-            'sivigilas.pri_ape_','sivigilas.seg_ape_','seguimientos.id as idin','sivigilas.Ips_at_inicial',
+            'sivigilas.pri_ape_','sivigilas.seg_ape_','sivigilas.id as idin','sivigilas.Ips_at_inicial',
             'seguimientos.id','seguimientos.fecha_proximo_control','seguimientos.estado as est',
             'seguimientos.user_id as usr')
             ->orderBy('seguimientos.created_at', 'desc')

@@ -196,11 +196,14 @@
             <div class="form-group">
                 <label for="Nombre">Ips seguimiento Ambulatorio</label>
                 <select class="person2 " name="User_id" id="User_id"  style="width: 100% ">
-                    <option  value="0">SELECCIONAR</option>
+                    {{-- <option  value="0">SELECCIONAR</option> --}}
                     @foreach($income12 as $developer)
-                    <option  value="{{$developer->id}}">{{$developer->name}}</option>
+                    <option  value="{{$developer->id}}">{{$developer->codigohabilitacion.' '.$developer->name }}</option>
                     @endforeach
-    
+                    @foreach($incomeedit15 as $developer)
+                    <option  value="{{$developer->id}}">{{$developer->codigohabilitacion.' '.$developer->name}}</option>
+                    @endforeach
+                    
                 </select>
             </div>
          </div>
@@ -314,9 +317,12 @@
                                         <div class="form-group">
                                             <label for="Nombre">Ips manejo Hospitalario</label>
                                             <select class="person2 " name="Ips_manejo_hospitalario" id="Ips_manejo_hospitalario"  style="width: 100% ">
-                                                <option  value="0">SELECCIONAR</option>
+                                                {{-- <option  value="0">SELECCIONAR</option> --}}
                                                 @foreach($income12 as $developer)
-                                                <option  value="{{$developer->id}}">{{$developer->name}}</option>
+                                                <option  value="{{$developer->id}}">{{$developer->codigohabilitacion.' '.$developer->name }}</option>
+                                                @endforeach
+                                                @foreach($incomeedit15 as $developer)
+                                                <option  value="{{$developer->id}}">{{$developer->codigohabilitacion.' '.$developer->name}}</option>
                                                 @endforeach
                                 
                                             </select>
