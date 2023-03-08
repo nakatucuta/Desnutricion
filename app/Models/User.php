@@ -10,6 +10,14 @@ use Laravel\Sanctum\HasApiTokens;
 
 class User extends Authenticatable
 {
+    use HasApiTokens, Notifiable;
+
+    public function getUsername()
+    {
+        return $this->codigohabilitacion;
+    } //4. agregar esto en el modelo 
+
+
 
     use HasFactory;
     public function getDateFormat(){

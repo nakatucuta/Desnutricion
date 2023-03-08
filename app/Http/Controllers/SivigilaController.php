@@ -192,9 +192,11 @@ class SivigilaController extends Controller
         ->where('a.identificacion', $num_ide_)
         ->first(); // Obtener el primer registro de la consulta
     
-    $income12 =  DB::table('users')->select('name', 'id','codigohabilitacion')
+$income12 =  DB::table('users')->select('name', 'id','codigohabilitacion')
         ->where('codigohabilitacion', $incomeedit14->codigo_habilitacion)
-        ->get();
+        ->get(); 
+
+
 
         $incomeedit15 =  DB::table('users')->select('name', 'id','codigohabilitacion')
         
@@ -208,11 +210,20 @@ class SivigilaController extends Controller
         // ->select('c.codigo as cod1', 'a.descrip as nomipsprim')
         // ->get(); // Obtener solo las ips  primaria 
 
+        $incomeedit16 = DB::connection('sqlsrv_1')
+                ->table('refIps')
+                ->select('refIps.descrip as nombrepres', 'refIps.codigo as cod')
+                ->where('codigoDepartamento', 44)
+                ->orWhere('codigoDepartamento', 47)
+                ->orWhere('codigoDepartamento', 8)
+                ->get();
+
+
         return view('sivigila.create',["incomeedit"=>$incomeedit,"incomeedit1"=>$incomeedit1,"incomeedit2"=>$incomeedit2,
          "incomeedit3"=>$incomeedit3,"incomeedit4"=>$incomeedit4,"incomeedit5"=>$incomeedit5,
          "incomeedit6"=>$incomeedit6,"incomeedit7"=>$incomeedit7,"incomeedit8"=>$incomeedit8,
          "incomeedit9"=>$incomeedit9, "incomeedit10"=>$incomeedit10, "income11"=>$income11,"income12"=>$income12 
-         ,"incomeedit13"=>$incomeedit13,"incomeedit14"=>$incomeedit14,"incomeedit15"=>$incomeedit15]);
+         ,"incomeedit13"=>$incomeedit13,"incomeedit14"=>$incomeedit14,"incomeedit15"=>$incomeedit15 ,"incomeedit16"=>$incomeedit16]);
     }
 
     /**
@@ -301,6 +312,8 @@ class SivigilaController extends Controller
             $entytistore->user_id = $request->User_id;
         
             $entytistore->save();
+
+            
             return redirect()->route('sivigila.index')
            ->with('mensaje',' El dato fue agregado a la base de datos Exitosamente..!');
     }

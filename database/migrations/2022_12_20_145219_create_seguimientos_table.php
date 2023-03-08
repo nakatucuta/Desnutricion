@@ -24,8 +24,8 @@ return new class extends Migration
             $table->string('requerimiento_energia_ftlc');
             $table->date('fecha_entrega_ftlc');
             $table->string('medicamento');
-            $table->string('recomendaciones_manejo');
-            $table->string('resultados_seguimientos');
+            // $table->string('recomendaciones_manejo');
+            // $table->string('resultados_seguimientos');
             // $table->string('ips_realiza_seguuimiento');
             $table->string('observaciones');
             
