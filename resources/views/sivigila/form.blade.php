@@ -1,4 +1,19 @@
 @include('seguimiento.mensajes')
+@if(count($income12) == 0)
+           
+
+<div class="alert alert-danger">
+
+<button type="button" class="close" data-dismiss="alert">
+&times;
+	
+</button>
+	EL PRESTADOR NO ESTA REGISTRADO: COMUNIQUESE CON EL ADMINISTRADOR PARA RESOLVER EL PROBLEMA
+</div>
+
+
+        @else
+        @endif
 <div class="row">
     <div class="col-lg-12">
         <div class="card card-info card-outline card-tabs">
@@ -9,7 +24,7 @@
                       <i class="fas fa-user-md" style="font-size: 45px; color: #3333ff;"></i>
                 </h2>
             </div>
-
+           
 <div class="card-body">
     <div class="row">
             <div class="col-sm-3">
@@ -197,9 +212,18 @@
                 <label for="Nombre">Ips seguimiento Ambulatorio</label>
                 <select class="person2 " name="User_id" id="User_id"  style="width: 100% ">
                     {{-- <option  value="0">SELECCIONAR</option> --}}
+                    
+                  
                     @foreach($income12 as $developer)
-                    <option  value="{{$developer->id}}">{{$developer->codigohabilitacion.' '.$developer->name }}</option>
+                        <option value="{{$developer->id}}">{{$developer->codigohabilitacion.' '.$developer->name }}</option>
                     @endforeach
+                
+                
+                
+                
+                
+                
+                    
                     @foreach($incomeedit15 as $developer)
                     <option  value="{{$developer->id}}">{{$developer->codigohabilitacion.' '.$developer->name}}</option>
                     @endforeach
@@ -317,12 +341,10 @@
                                         <div class="form-group">
                                             <label for="Nombre">Ips manejo Hospitalario</label>
                                             <select class="person2 " name="Ips_manejo_hospitalario" id="Ips_manejo_hospitalario"  style="width: 100% ">
-                                                {{-- <option  value="0">SELECCIONAR</option> --}}
-                                                @foreach($income12 as $developer)
-                                                <option  value="{{$developer->id}}">{{$developer->codigohabilitacion.' '.$developer->name }}</option>
-                                                @endforeach
-                                                @foreach($incomeedit15 as $developer)
-                                                <option  value="{{$developer->id}}">{{$developer->codigohabilitacion.' '.$developer->name}}</option>
+                                                <option  value="0"></option> 
+                                                
+                                                @foreach($incomeedit16 as $developer)
+                                                <option  value="{{$developer->cod}}">{{$developer->nombrepres}}</option>
                                                 @endforeach
                                 
                                             </select>
