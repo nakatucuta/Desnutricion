@@ -221,7 +221,7 @@
                                             
 
                                             <div class="row">
-                                                <div class="col-md-6">
+                                                <div class="col-md-7">
                                                     <div class="form-group" >
                                                         <label for="Nombre">Desea cerrar el caso ?</label>
                                                         <select class="person2 " name="estado" id="estado"  style="width: 100% ">
@@ -233,7 +233,7 @@
                                                 </div>
                                                
                                                 </div>
-                                                    <div class="col-md-6 " >
+                                                    <div class="col-md-5 " >
                                                     <div class="form-group" id="input_oculto">
                                                         <label for="Nombre"> Fecha Proximo Seguimiento </label> {{-- el isset pregunta si el archivo esta seleccionado lo muestre sino no muestra nada por eso las comillas vacias al final --}}
                                                         <input class="form-control" type="date" name="fecha_proximo_control" id="fecha_proximo_control" value="{{ isset($empleado->fecha_proximo_control) ? $empleado->fecha_proximo_control : old('fecha_proximo_control') }}" min="{{ date('Y-m-d') }}">

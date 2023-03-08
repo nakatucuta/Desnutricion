@@ -89,6 +89,11 @@
                 </span>
             @enderror
         </div>
+        <div class="form-group">
+            <label for="Nombre">Cod Habilitacion</label> {{-- el isset pregunta si el archivo esta seleccionado lo muestre sino no muestra nada por eso las comillas vacias al final --}}
+            <input class="form-control" type="text" name="codigohabilitacion" id = 'codigohabilitacion' value="" >
+        </div>
+
         <div class="input-group mb-3">
 
             <label  class="input-group mb-3">Tipo de Usuario</label>
