@@ -137,8 +137,8 @@ class SeguimientoController extends Controller
             'requerimiento_energia_ftlc' => 'required',
             'fecha_entrega_ftlc' => 'required',
             'medicamento' => 'required',
-            'recomendaciones_manejo' => 'required',
-            'resultados_seguimientos' => 'required',
+            // 'recomendaciones_manejo' => 'required',
+            // 'resultados_seguimientos' => 'required',
             // 'ips_realiza_seguuimiento' => 'required',
             'observaciones' => 'required',
             // 'fecha_proximo_control' => 'nullable|date|after_or_equal:today',
@@ -175,8 +175,8 @@ class SeguimientoController extends Controller
                 $entytistore->requerimiento_energia_ftlc = $request->requerimiento_energia_ftlc;
                 $entytistore->fecha_entrega_ftlc = $request->fecha_entrega_ftlc;
                 $entytistore->medicamento = $request->medicamento;
-                $entytistore->recomendaciones_manejo = $request->recomendaciones_manejo;
-                $entytistore->resultados_seguimientos = $request->resultados_seguimientos;
+                // $entytistore->recomendaciones_manejo = $request->recomendaciones_manejo;
+                // $entytistore->resultados_seguimientos = $request->resultados_seguimientos;
                 // $entytistore->ips_realiza_seguuimiento = $request->ips_realiza_seguuimiento;
                 $entytistore->observaciones = $request->observaciones;
                 // if (empty($request->fecha_proximo_control)) { cod para saber cuando un campo esta vacio haga esto

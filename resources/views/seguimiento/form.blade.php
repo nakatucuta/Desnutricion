@@ -81,7 +81,11 @@
                     <option  value="DESNUTRICION AGUDA MODERADA">DESNUTRICION AGUDA MODERADA</option>
                     <option  value="DESNUTRICION AGUDA SEVERA">DESNUTRICION AGUDA SEVERA</option>
                     <option  value="DESNUTRICION AGUDA SEVERA TIPO KWASHIORKOR">DESNUTRICION AGUDA SEVERA TIPO KWASHIORKOR</option>
-                    <option  value="DESNUTRICION AGUDA SEVERA TIPO KWWASHIORKOR">DESNUTRICION AGUDA SEVERA TIPO KWWASHIORKOR</option>
+                    <option  value="DESNUTRICION AGUDA SEVERA TIPO MARASMO">DESNUTRICION AGUDA SEVERA TIPO MARASMO</option>
+                    <option  value="DESNUTRICION AGUDA SEVERA MIXTA">DESNUTRICION AGUDA SEVERA MIXTA</option>
+                    <option  value="RIESGO DE DESNUTRICION">RIESGO DE DESNUTRICION</option>
+                    
+                    <option  value="PESO ADECUADO PARA LA TALLA">PESO ADECUADO PARA LA TALLA</option>
                     
                   </select>
             </div>
@@ -119,15 +123,15 @@
                         </div>
                         <div class="row">
 
-                            <div class="col-sm-6">
+                            {{-- <div class="col-sm-6">
                                 <div class="form-group">
-                                    <label for="Nombre"> Recomendacion De Manejo </label> {{-- el isset pregunta si el archivo esta seleccionado lo muestre sino no muestra nada por eso las comillas vacias al final --}}
+                                    <label for="Nombre"> Recomendacion De Manejo </label> 
                                     
 
                                     <textarea name="recomendaciones_manejo" id="recomendaciones_manejo" value="{{ isset($empleado->recomendaciones_manejo)?$empleado->recomendaciones_manejo:old('recomendaciones_manejo')}}" class="form-control" rows="5" maxlength="600"></textarea>
                          
                                 </div>
-                                </div>
+                                </div> --}}
 
                                 <div class="col-sm-6">
                                     <div class="form-group">
@@ -152,15 +156,14 @@
                          
                                             </div>
                                             </div>
-                                            <div class="col-sm-6">
+                                            {{-- <div class="col-sm-6">
                                                 <div class="form-group">
-                                                    <label for="Nombre"> Resultados de Seguimientos </label> {{-- el isset pregunta si el archivo esta seleccionado lo muestre sino no muestra nada por eso las comillas vacias al final --}}
-                                                    
+                                                    <label for="Nombre"> Resultados de Seguimientos </label> 
                 
                                                     <textarea name="resultados_seguimientos" id="resultados_seguimientos" value="{{ isset($empleado->resultados_seguimientos)?$empleado->resultados_seguimientos:old('resultados_seguimientos')}}" class="form-control" rows="5" maxlength="600"></textarea>
                                          
                                                 </div>
-                                                </div>
+                                                </div> --}}
                                            
                                             </div>
 

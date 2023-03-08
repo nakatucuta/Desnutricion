@@ -5,9 +5,37 @@ namespace App\Http\Controllers\Auth;
 use App\Http\Controllers\Controller;
 use App\Providers\RouteServiceProvider;
 use Illuminate\Foundation\Auth\AuthenticatesUsers;
-
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Validation\ValidationException;
 class LoginController extends Controller
 {
+
+     public function username()   //1.coloca esta funcion para cambiar el login
+ {
+     return 'codigohabilitacion';
+  }
+
+
+
+
+// public function login(Request $request)
+// {
+//     $this->validateLogin($request);
+
+//     // Se usa el campo "codigohabilitacion" en lugar de "email" o "username"
+//     $credentials = [$this->username() => $request->codigohabilitacion, 'password' => $request->password];
+
+//     if (Auth::attempt($credentials, $request->filled('remember'))) {
+//         $request->session()->regenerate();
+
+//         return redirect()->intended('/');
+//     }
+
+//     throw ValidationException::withMessages([
+//         $this->username() => [trans('auth.failed')],
+//     ]);
+// }
     /*
     |--------------------------------------------------------------------------
     | Login Controller
@@ -33,8 +61,8 @@ class LoginController extends Controller
      *
      * @return void
      */
-    public function __construct()
-    {
-        $this->middleware('guest')->except('logout');
-    }
+    // public function __construct()
+    // {
+    //     $this->middleware('guest')->except('logout');
+    // }
 }
