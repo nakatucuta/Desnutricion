@@ -44,7 +44,7 @@ class RevisionController extends Controller
         $incomeedit = Sivigila::select('sivigilas.id', 'sivigilas.num_ide_', 
         'sivigilas.pri_nom_', 'sivigilas.seg_nom_', 'sivigilas.pri_ape_',
          'sivigilas.seg_ape_', 'users.name as hospi')
-    ->where('seguimientos.estado', 0)
+    ->where('sivigilas.estado', 0)
     ->join('seguimientos', 'sivigilas.id', '=', 'seguimientos.sivigilas_id')
     ->join('users', 'sivigilas.user_id', '=', 'users.id')
     ->groupBy('sivigilas.id', 'sivigilas.num_ide_', 
