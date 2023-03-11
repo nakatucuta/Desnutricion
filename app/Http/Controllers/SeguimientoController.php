@@ -315,7 +315,7 @@ if ($registroAnterior) {
     public function edit(Seguimiento $seguimiento , $id)
     {   
         $incomeedit = DB::table('sivigilas')->select('sivigilas.num_ide_','sivigilas.pri_nom_','sivigilas.seg_nom_',
-        'sivigilas.pri_ape_','sivigilas.seg_ape_','seguimientos.id as idin')
+        'sivigilas.pri_ape_','sivigilas.seg_ape_','sivigilas.id as idin')
         ->join('seguimientos', 'sivigilas.id', '=', 'seguimientos.sivigilas_id')
         ->where('seguimientos.id', $id)
         ->get();

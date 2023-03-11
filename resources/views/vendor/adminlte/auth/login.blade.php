@@ -24,10 +24,16 @@
     <form action="{{ $login_url }}" method="post">
         @csrf
 
-        {{-- Email field --}}
+
+        {{-- Email field  OJO VALIDAR PARA CUANDO META UN TEXTO O UN CORREO EL SE EXPLOTA--}}
+
         <div class="input-group mb-3">
-            <input type="text" name="codigohabilitacion" class="form-control "
-                    value="" placeholder="" autofocus>  {{-- 2.) aqui se cambia la configuaracion del input asi como esta --}}
+            <input type="text" name="codigohabilitacion" class="form-control @error('codigohabilitacion') is-invalid @enderror"
+                    value="{{ old('codigohabilitacion') }}" placeholder="" autofocus>
+
+        {{-- <div class="input-group mb-3">
+            <input type="email" name="email" class="form-control @error('email') is-invalid @enderror"
+                   value="{{ old('email') }}" placeholder="{{ __('adminlte::adminlte.email') }}" autofocus> --}}
 
             <div class="input-group-append">
                 <div class="input-group-text">
