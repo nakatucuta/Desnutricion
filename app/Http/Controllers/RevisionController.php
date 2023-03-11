@@ -41,15 +41,17 @@ class RevisionController extends Controller
      */
     public function index()
     {
-        $incomeedit = Sivigila::select('sivigilas.num_ide_','sivigilas.pri_nom_','sivigilas.seg_nom_',
-        'sivigilas.pri_ape_','sivigilas.seg_ape_','seguimientos.id as idin','sivigilas.Ips_at_inicial',
-        'seguimientos.fecha_consulta','seguimientos.id','seguimientos.fecha_proximo_control')
-        ->orderBy('seguimientos.created_at', 'desc')
-        ->where('seguimientos.estado', 0)
-        ->join('seguimientos', 'sivigilas.id', '=', 'seguimientos.sivigilas_id')
-        // ->where('seguimientos.estado',1)
-        
-        ->paginate(3000);
+        $incomeedit = Sivigila::select('sivigilas.id', 'sivigilas.num_ide_', 
+        'sivigilas.pri_nom_', 'sivigilas.seg_nom_', 'sivigilas.pri_ape_',
+         'sivigilas.seg_ape_', 'users.name as hospi')
+    ->where('seguimientos.estado', 0)
+    ->join('seguimientos', 'sivigilas.id', '=', 'seguimientos.sivigilas_id')
+    ->join('users', 'sivigilas.user_id', '=', 'users.id')
+    ->groupBy('sivigilas.id', 'sivigilas.num_ide_', 
+    'sivigilas.pri_nom_', 'sivigilas.seg_nom_', 
+    'sivigilas.pri_ape_', 'sivigilas.seg_ape_',
+     'users.name')
+    ->paginate(3000);
 
         return view('revision.index',compact('incomeedit'));
     }
@@ -60,27 +62,25 @@ class RevisionController extends Controller
     public function create($id)
     {
 
-        $segene = DB::table('seguimientos')
-        // ->where('seguimientos.estado',1)
-        ->where('id', $id)
-        ->first();
+        $segene = DB::table('seguimientos')->select('seguimientos.id','sivigilas.num_ide_','sivigilas.pri_nom_','sivigilas.seg_nom_',
+        'sivigilas.pri_ape_','sivigilas.seg_ape_', 'seguimientos.fecha_consulta','seguimientos.peso_kilos',
+        'seguimientos.talla_cm','seguimientos.puntajez','seguimientos.clasificacion','seguimientos.requerimiento_energia_ftlc',
+        'seguimientos.fecha_entrega_ftlc','seguimientos.medicamento','seguimientos.observaciones',
+        'seguimientos.est_act_menor','seguimientos.tratamiento_f75','seguimientos.fecha_recibio_tratf75',
+        'seguimientos.fecha_proximo_control')
+        ->join('sivigilas', 'seguimientos.sivigilas_id', '=', 'sivigilas.id')
+        ->where('seguimientos.sivigilas_id', $id)
+        ->get();
 
+      
 
-        $segene1 = DB::table('sivigilas')
-        ->select(DB::raw("CONCAT( sivigilas.pri_nom_, ' ', sivigilas.seg_nom_, ' ', sivigilas.pri_ape_,' ',sivigilas.seg_ape_) AS nombre_completo"))
-        ->join('seguimientos', 'sivigilas.id', '=', 'seguimientos.sivigilas_id')
-        ->where('seguimientos.id', $id)
-        ->value('nombre_completo');
-
-        $segene2 = DB::table('sivigilas')
-        ->select(DB::raw("sivigilas.num_ide_ as identifiqui"))
-        ->join('seguimientos', 'sivigilas.id', '=', 'seguimientos.sivigilas_id')
-        ->where('seguimientos.id', $id)
-        ->value('identifiqui');
+  
+        
 
        
+       
         
-        return view('revision.create',["segene"=>$segene,"segene1"=>$segene1,"segene2"=>$segene2]);
+        return view('revision.create',["segene"=>$segene]);
 
  
     }

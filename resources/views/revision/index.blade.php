@@ -193,8 +193,8 @@ right: 0;"><i class="fas fa-book"></i>   REPORTE</a>
                     <th >Nombre</th>
                    
                     <th >Ips</th>
-                    <th>Fecha dato</th>
-                    <th >Fecha proximo control</th>
+                    
+                    {{-- <th >Fecha proximo control</th> --}}
                     <th >Revisar</th>
                   </tr>
                 </thead>
@@ -204,10 +204,13 @@ right: 0;"><i class="fas fa-book"></i>   REPORTE</a>
                 <th> {{ $student2->id }}</th>   
                 <th >{{ $student2->num_ide_ }}</th>
                  <td>{{ $student2->pri_nom_.' '.$student2->seg_nom_.' '.$student2->pri_ape_.' '.$student2->seg_ape_ }}</td>
+                 <td>{{$student2->hospi}}</td>
+                 
+                 
+
+                 
                
-                 <td>{{$student2->Ips_at_inicial}}</td>
-                    <td>{{ date('Y-m-d',$student2->created_at) }}</td>
-                 @if(!empty($student2->fecha_proximo_control))
+                 {{-- @if(!empty($student2->fecha_proximo_control))
                  <td>{{ $student2->fecha_proximo_control }}</td>
              @elseif(!empty($student2->created_at))
                  <td>{{ $student2->created_at }}</td>
@@ -217,30 +220,27 @@ right: 0;"><i class="fas fa-book"></i>   REPORTE</a>
            
                  
                     
-                    <td> 
-                        
-                      @if (DB::connection('sqlsrv')->table('seguimientos')
-                      ->where('id', $student2->id)
-                      // ->where('fec_not', Carbon\Carbon::parse($student2->fec_noti)->format('d/m/Y'))->exists() 
-                      &&
-                      DB::connection('sqlsrv')->table('revisions')
-                      ->where('seguimientos_id', $student2->id)
-                      
-                      ->exists())
-                      <div>
-                        <a href="" onclick="return false;" title="DETALLE" class="btn  btn-primary">
-                          <span class="icon-zoom-in" ></span> <i class="fas fa-check"></i></a>
-                      </div>
-                      
-                 
-                      @else
-
-                      
-                      <a href="{{route('detalle_revisiones', [$student2->id])}}" title="DETALLE" class="btn btn-danger">
-                        <span class="icon-zoom-in"></span><i class="fas fa-times"></i>
-                    </a>
-
-                      @endif
+                       --}}
+                       <td>
+                        @if (DB::table('seguimientos')
+    ->join('sivigilas', 'seguimientos.sivigilas_id', '=', 'sivigilas.id')
+    ->where('sivigilas.id', '=', $student2->id)
+    ->whereExists(function ($query) {
+        $query->select(DB::raw(1))
+              ->from('revisions')
+              ->whereRaw('revisions.seguimientos_id = seguimientos.id');
+    })
+    ->exists())
+    <div>
+        <a href="" onclick="return false;" title="DETALLE" class="btn  btn-primary">
+            <span class="icon-zoom-in" ></span> <i class="fas fa-check"></i>
+        </a>
+    </div>
+@else
+    <a href="{{route('detalle_revisiones', [$student2->id])}}" title="DETALLE" class="btn btn-danger">
+        <span class="icon-zoom-in"></span><i class="fas fa-times"></i>
+    </a>
+@endif
                 </td>
                   </tr>
                     
