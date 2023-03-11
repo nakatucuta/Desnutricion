@@ -1,19 +1,5 @@
 @include('seguimiento.mensajes')
-@if(count($income12) == 0)
-           
 
-<div class="alert alert-danger">
-
-<button type="button" class="close" data-dismiss="alert">
-&times;
-	
-</button>
-	EL PRESTADOR NO ESTA REGISTRADO: COMUNIQUESE CON EL ADMINISTRADOR PARA RESOLVER EL PROBLEMA
-</div>
-
-
-        @else
-        @endif
 <div class="row">
     <div class="col-lg-12">
         <div class="card card-info card-outline card-tabs">
@@ -206,30 +192,48 @@
 
         </div>
         </div>
-<div class="row">   
+<div class="row">  
+    
+    {{-- el mensaje inicia aqui --}}
     <div class="col-sm-6">
-            <div class="form-group">
-                <label for="Nombre">Ips seguimiento Ambulatorio</label>
-                <select class="person2 " name="User_id" id="User_id"  style="width: 100% ">
-                    {{-- <option  value="0">SELECCIONAR</option> --}}
-                    
-                  
-                    @foreach($income12 as $developer)
-                        <option value="{{$developer->id}}">{{$developer->codigohabilitacion.' '.$developer->name }}</option>
-                    @endforeach
+        @if(count($income12) == 0)
+        <div class="alert alert-danger">
+        <button type="button" class="close" data-dismiss="alert">
+            &times;
+        </button>
+	EL PRESTADOR NO ESTA REGISTRADO: DEBE REGISTRARLO PRIMERO PARA PODER CONTINUAR 
+    </div>
+   {{-- el mensaje termina aqui  --}}
+
+   {{-- este es el select que mostrara en caso que no encuentre el cod habilitacin de este usuario --}}
+<div class="form-group">
+    <label for="Nombre">Ips seguimiento Ambulatorio</label>
+    <select class="person2 " name="User_id" id="User_id"  style="width: 100% ">
+         <option  value="0">REGISTRAR USUARIO</option>  
+    </select>
+</div>
+{{-- aqui termina el select en caso de error --}}
+        @else
+      
+        {{-- si encuentra el el prestador muestre este  --}}
+         <div class="form-group">
+            <label for="Nombre">Ips seguimiento Ambulatorio</label>
+            <select class="person2 " name="User_id" id="User_id"  style="width: 100% ">
+                {{-- <option  value="0">SELECCIONAR</option> --}}
                 
+              
+                @foreach($income12 as $developer)
+                    <option value="{{$developer->id}}">{{$developer->codigohabilitacion.' '.$developer->name }}</option>
+                @endforeach
+                @foreach($incomeedit15 as $developer)
+                <option  value="{{$developer->id}}">{{$developer->codigohabilitacion.' '.$developer->name}}</option>
+                @endforeach
                 
-                
-                
-                
-                
-                    
-                    @foreach($incomeedit15 as $developer)
-                    <option  value="{{$developer->id}}">{{$developer->codigohabilitacion.' '.$developer->name}}</option>
-                    @endforeach
-                    
-                </select>
-            </div>
+            </select>
+        </div>
+        @endif
+
+       
          </div>
         
             <div class="col-sm-6">

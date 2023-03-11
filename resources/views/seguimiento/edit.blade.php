@@ -137,15 +137,7 @@
                             <div class="row">
     
                                 <div class="col-sm-6">
-                                    <div class="form-group">
-                                        <label for="Nombre"> Recomendacion De Manejo </label> {{-- el isset pregunta si el archivo esta seleccionado lo muestre sino no muestra nada por eso las comillas vacias al final --}}
-                                        
-    
-                                        <textarea name="recomendaciones_manejo" id="recomendaciones_manejo" 
-                                          class="form-control"
-                                          rows="5" maxlength="600">{{$empleado->recomendaciones_manejo}}</textarea>
-                             
-                                    </div>
+                                    
                                     </div>
     
                                     <div class="col-sm-6">
@@ -173,14 +165,7 @@
                                                 </div>
                                                 </div>
                                                 <div class="col-sm-6">
-                                                    <div class="form-group">
-                                                        <label for="Nombre"> Resultados de Seguimientos </label> {{-- el isset pregunta si el archivo esta seleccionado lo muestre sino no muestra nada por eso las comillas vacias al final --}}
-                                                        
-                    
-                                                        <textarea name="resultados_seguimientos" id="resultados_seguimientos" 
-                                                         class="form-control" rows="5" maxlength="600">{{$empleado->resultados_seguimientos}}</textarea>
-                                             
-                                                    </div>
+                                                    
                                                     </div>
                                                
                                                 </div>
