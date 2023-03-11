@@ -333,7 +333,13 @@ if ($registroAnterior) {
     public function update(Request $request, Seguimiento $seguimiento,$id)
     {
         $datosEmpleado = request()->except(['_token','_method']);
-        Seguimiento::where('id','=',$id )->update($datosEmpleado);
+      $seg =  Seguimiento::where('id','=',$id )->update($datosEmpleado);
+
+        if ($seg) {
+            DB::table('sivigilas')
+                ->where('id', $request->sivigilas_id)
+                ->update(['estado' => '1',]);
+        }
         
         return redirect()->route('Seguimiento.index');
         // return view('seguimiento.index', compact('empleado'),["incomeedit"=>$incomeedit]);
