@@ -254,7 +254,7 @@ $income12 =  DB::table('users')->select('name', 'id','codigohabilitacion')
             'telefono_' => 'required',
            
             
-            'User_id' => 'required',
+            'user_id' => 'required',
             'Caso_confirmada_desnutricion_etiologia_primaria' => 'required',
             
            
@@ -309,7 +309,7 @@ $income12 =  DB::table('users')->select('name', 'id','codigohabilitacion')
             $entytistore->Atecion_primocion_y_mantenimiento_res3280_2018 = $request->Atecion_primocion_y_mantenimiento_res3280_2018;
            
             $entytistore->Ips_manejo_hospitalario = $request->Ips_manejo_hospitalario;
-            $entytistore->user_id = $request->User_id;
+            $entytistore->user_id = $request->user_id;
         
             $entytistore->save();
 

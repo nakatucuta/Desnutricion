@@ -201,15 +201,18 @@
         <button type="button" class="close" data-dismiss="alert">
             &times;
         </button>
-	EL PRESTADOR NO ESTA REGISTRADO: DEBE REGISTRARLO PRIMERO PARA PODER CONTINUAR 
+	La ips primaria del afiliado no se encuentra registrada, por favor  registrarla o escoger otro prestador para realizar el seguimiento
     </div>
    {{-- el mensaje termina aqui  --}}
 
    {{-- este es el select que mostrara en caso que no encuentre el cod habilitacin de este usuario --}}
 <div class="form-group">
     <label for="Nombre">Ips seguimiento Ambulatorio</label>
-    <select class="person2 " name="User_id" id="User_id"  style="width: 100% ">
-         <option  value="0">REGISTRAR USUARIO</option>  
+    <select class="person2 " name="user_id" id="user_id"  style="width: 100% ">
+          <option  value="0">{{--REGISTRAR USUARIO--}}</option>  
+         @foreach($incomeedit15 as $developer)
+         <option  value="{{$developer->id}}">{{$developer->codigohabilitacion.' '.$developer->name}}</option>
+         @endforeach 
     </select>
 </div>
 {{-- aqui termina el select en caso de error --}}
@@ -218,7 +221,7 @@
         {{-- si encuentra el el prestador muestre este  --}}
          <div class="form-group">
             <label for="Nombre">Ips seguimiento Ambulatorio</label>
-            <select class="person2 " name="User_id" id="User_id"  style="width: 100% ">
+            <select class="person2 " name="user_id" id="user_id"  style="width: 100% ">
                 {{-- <option  value="0">SELECCIONAR</option> --}}
                 
               
