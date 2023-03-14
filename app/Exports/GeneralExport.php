@@ -22,29 +22,25 @@ class GeneralExport implements  FromCollection, WithHeadings, ShouldAutoSize, Wi
     public function collection()
     {
         return DB::table('sivigilas')
-        ->Join('ingresos', 'sivigilas.id', '=', 'ingresos.sivigilas_id')
-        ->Join('seguimientos', 'ingresos.id', '=', 'seguimientos.ingresos_id')
+        
+      
+        ->Join('seguimientos', 'sivigilas.id', '=', 'seguimientos.sivigilas_id')
+        ->Join('users', 'sivigilas.user_id', '=', 'users.id')
+
         ->select(DB::raw("sivigilas.id,sivigilas.cod_eve,sivigilas.semana,sivigilas.fec_not,sivigilas.year,sivigilas.dpto,sivigilas.mun,sivigilas.tip_ide_
         
         ,sivigilas.num_ide_,sivigilas.pri_nom_,sivigilas.seg_nom_,sivigilas.pri_ape_,sivigilas.seg_ape_,
         sivigilas.sexo_,sivigilas.fecha_nto_,sivigilas.edad_ges,sivigilas.telefono_,sivigilas.nom_grupo_,sivigilas.regimen,sivigilas.Ips_at_inicial,
-        sivigilas.fecha_aten_inicial,sivigilas.Ips_seguimiento_Ambulatorio,sivigilas.Caso_confirmada_desnutricion_etiologia_primaria,
-        sivigilas.Tipo_ajuste,sivigilas.Promedio_dias_oportuna_remision,sivigilas.Esquemq_complrto_pai_edad,sivigilas.Atecion_primocion_y_mantenimiento_res3280_2018,
-        sivigilas.est_act_menor,sivigilas.tratamiento_f75,sivigilas.fecha_recibio_tratf75,sivigilas.nombreips_manejo_hospita,
+        sivigilas.fecha_aten_inicial,users.name,sivigilas.Caso_confirmada_desnutricion_etiologia_primaria,sivigilas.Ips_manejo_hospitalario,
+        sivigilas.Esquemq_complrto_pai_edad,sivigilas.Atecion_primocion_y_mantenimiento_res3280_2018,
+        sivigilas.nombreips_manejo_hospita,
 
 
-        ingresos.Fecha_ingreso_ingres,ingresos.peso_ingres,ingresos.talla_ingres,
-        ingresos.puntaje_z,ingresos.calificacion,ingresos.Edema,ingresos.Emaciacion,ingresos.perimetro_brazo,
-        ingresos.interpretacion_p_braqueal,ingresos.requ_energia_dia,ingresos.mes_entrega_FTLC,ingresos.fecha_entrega_FTLC,
-        ingresos.Menor_anos_des_aguda,ingresos.medicamentos,ingresos.remite_alguna_inst_apoyo,ingresos.Nom_ips_at_prim,
-        
-
-
-         IIF(seguimientos.estado = 1, 'Activo', 'Inactivo') as Estado, seguimientos.fecha_consulta,
-          seguimientos.peso_kilos,seguimientos.talla_cm,seguimientos.puntajez,seguimientos.clasificacion,
-          seguimientos.requerimiento_energia_ftlc,seguimientos.fecha_entrega_ftlc,seguimientos.medicamento,seguimientos.recomendaciones_manejo,
-          seguimientos.resultados_seguimientos,seguimientos.ips_realiza_seguuimiento,seguimientos.observaciones,
-          seguimientos.fecha_proximo_control"))
+         IIF(seguimientos.estado = 1, 'Activo', 'Inactivo') as Estado, seguimientos.fecha_consulta,seguimientos.peso_kilos,
+         seguimientos.talla_cm, seguimientos.puntajez,seguimientos.clasificacion,seguimientos.requerimiento_energia_ftlc,
+         seguimientos.fecha_entrega_ftlc,seguimientos.medicamento,seguimientos.observaciones,
+         seguimientos.est_act_menor,seguimientos.tratamiento_f75,seguimientos.fecha_recibio_tratf75,
+         seguimientos.fecha_proximo_control"))
         ->get();
     }
 
@@ -75,39 +71,31 @@ class GeneralExport implements  FromCollection, WithHeadings, ShouldAutoSize, Wi
             'Regimen de afiliacion',
             'Entidad - APB',
             'Fecha de antencion inicial',
-            'Ips que realiza el seguimiento ambulatorio',
-            'Caso confiamda de desnutricion de etiologia primaria',
-            'Tipo de ajuste',
-            'Promedio en dias en hacerse efectiva y oportuna la remision',
-            'Esquema pai completo para la edad',
-            'Atencion en la ruta de promocion y mantenimieto de acuerdo a la  -RESOLUCION 3280 /2018 PRIMERA INFANCIA',
-            'ESTADO ACTUAL DEL MENOR(RECUPERADO, EN PROCESO DE RECUPERCAION, RECAIDA, FALLECIDO, BUSQUEDA FALLIDA)',
-            'RECIBE  TRATAMIENTO CON F75 (DURANTE LAS PRIMERAS 48 HORAS)',
-            'FECHA EN QUE RECIBIO EL TRATAMIENTO CON F75',
-            'NOMBRE IPS DE MANEJO HOSPITALARIO ',
+            'Ips seguimiento ambulatorio',
+           'Caso confirmada desnutricion etiologia_primaria',
+           'Ips manejo  hosptalario',
+           'Esquema pai completo para la edad',
+           'Atecion primocion_mantenimiento_res3280_2018',
+           'nombreips_manejo_hospita',
 
-            //los de ingreso
-            'Fecha_Ingreso','(ingreso)Peso en Kilos','(ingreso)Talla en cms y un decimal',
-            '(ingreso)Puntaje z peso/talla','(ingreso)Clasificacion','(ingreso)Edema','(ingreso)Emaciacion',
-            '(ingreso)Perimetro del brazo','(ingreso)Interpretacion perimetro o braqueal','(ingreso)Requerimiento de energia para cubrir ftlc',
-            '(ingreso)Mes','(ingreso)Fecha en la que se entrega ftlc','(ingreso)Menor de 5 años desnutrcion aguda',
-            '(ingreso)Ips Atencion primaria','(ingreso) Se remite a alguna institucion para el apoyo ','(ingreso)Medicamentos',
 
-            // de aqui pa abajo es 
             '(seguimiento)Estado',
-            '(seguimiento)Fecha de consulta',
-            '(seguimiento)Peso en kilos y un decimal',
-            '(seguimiento)Talla en centimetros',
-            '(seguimiento)Puntaje z(peso/talla)',
-            '(seguimiento)Calificacion',
-            '(seguimiento)Requerimiento de energia FTLC',
-            '(seguimiento)Fecha de entrega FTLC',
-            '(seguimiento)Medicamento',
-            '(seguimiento)Recomendacion de manejo',
-            '(seguimiento)Resultados seguimiento',
-            '(seguimiento)Ips que realiza el seguimiento',
-            '(seguimiento)Obvservaciones',
-            '(seguimiento)Fecha del proximo seguimiento'
+
+             '(seguimiento)Fecha de consulta',
+             '(seguimiento)Peso en kilos y un decimal',
+             '(seguimiento)Talla en centimetros',
+             '(seguimiento)Puntaje z(peso/talla)',
+             '(seguimiento)Calificacion',
+             '(seguimiento)Requerimiento de energia FTLC',
+             '(seguimiento)Fecha de entrega FTLC',
+             '(seguimiento)Medicamento',
+             '(seguimiento)Obvservaciones',
+
+             '(seguimientos)estado actual del menor',
+               '(seguimientos)tratmiento f75',
+               '(seguimientos)fecha en la que recibe tratmiento f75',
+               
+             '(seguimiento)Fecha del proximo seguimiento'
         
          
         ];
