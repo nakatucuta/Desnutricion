@@ -238,7 +238,7 @@ right: 0;"><i class="fas fa-book"></i>   REPORTE</a>
     </div>
 @else
     <a href="{{route('detalle_revisiones', [$student2->id])}}" title="DETALLE" class="btn btn-danger">
-        <span class="icon-zoom-in"></span><i class="fas fa-times"></i>
+        <span class="icon-zoom-in"></span><i class="fas fa-exclamation"></i>
     </a>
 @endif
                 </td>
