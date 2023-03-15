@@ -62,7 +62,8 @@ class RevisionController extends Controller
     public function create($id)
     {
 
-        $segene = DB::table('seguimientos')->select('seguimientos.id','sivigilas.num_ide_','sivigilas.pri_nom_','sivigilas.seg_nom_',
+        $segene = DB::table('seguimientos')
+        ->select('seguimientos.id','sivigilas.num_ide_','sivigilas.pri_nom_','sivigilas.seg_nom_',
         'sivigilas.pri_ape_','sivigilas.seg_ape_', 'seguimientos.fecha_consulta','seguimientos.peso_kilos',
         'seguimientos.talla_cm','seguimientos.puntajez','seguimientos.clasificacion','seguimientos.requerimiento_energia_ftlc',
         'seguimientos.fecha_entrega_ftlc','seguimientos.medicamento','seguimientos.observaciones',
@@ -70,6 +71,8 @@ class RevisionController extends Controller
         'seguimientos.fecha_proximo_control')
         ->join('sivigilas', 'seguimientos.sivigilas_id', '=', 'sivigilas.id')
         ->where('seguimientos.sivigilas_id', $id)
+        ->orderBy('seguimientos.id', 'desc')
+        // ->limit(1)
         ->get();
 
       
