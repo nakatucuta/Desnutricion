@@ -133,14 +133,7 @@
                                 </div>
                                 </div> --}}
 
-                                <div class="col-sm-6">
-                                    <div class="form-group">
-                                        <label for="Nombre"> Medicamento </label> {{-- el isset pregunta si el archivo esta seleccionado lo muestre sino no muestra nada por eso las comillas vacias al final --}}
-                                        <textarea name="medicamento" id="medicamento" value=""
-                                         class="form-control" rows="5" maxlength="600"></textarea>
-                                                           
-                                    </div>
-                                    </div>
+                              
                                 
                                     </div>
 
@@ -164,6 +157,15 @@
                                          
                                                 </div>
                                                 </div> --}}
+
+                                                <div class="col-sm-6">
+                                                    <div class="form-group">
+                                                        <label for="Nombre"> Medicamento </label> {{-- el isset pregunta si el archivo esta seleccionado lo muestre sino no muestra nada por eso las comillas vacias al final --}}
+                                                        <textarea name="medicamento" id="medicamento" value=""
+                                                         class="form-control" rows="5" maxlength="600"></textarea>
+                                                                           
+                                                    </div>
+                                                    </div>
                                            
                                             </div>
 
