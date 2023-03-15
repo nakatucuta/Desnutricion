@@ -120,7 +120,7 @@
             id="seguimientos_id" value="{{$student2->id}}" readonly>
         </div>
     
-        <input class="btn btn-success" type="submit" value="enviar" onclick="return confirm('¿Estás seguro de que deseas enviar el formulario?');">
+        <input class="btn btn-success" type="submit" value="Revisado" onclick="return confirm('¿Estás seguro de que deseas enviar el formulario?');">
         <a  class="btn btn-primary" href="{{route('revision.index')}}" class="btn  btn-success"> REGRESAR</a>
     
         </form>
