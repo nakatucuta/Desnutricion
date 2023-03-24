@@ -135,8 +135,7 @@ return [
     'usermenu_header_class' => 'bg-primary',
     'usermenu_image' => false,
     'usermenu_desc' => false,
-    'usermenu_profile_url' => false,
-
+    'usermenu_profile_url' => false,   
     /*
     |--------------------------------------------------------------------------
     | Layout
@@ -154,10 +153,6 @@ return [
     'layout_fixed_sidebar' => null,
     'layout_fixed_navbar' => null,
     'layout_fixed_footer' => null, 
-    'layout_fixed_sidebar' => true,
-    'layout_fixed_navbar' => true,
-    'layout_fixed_footer' => true,
-
     'layout_dark_mode' => null,
 
     /*
