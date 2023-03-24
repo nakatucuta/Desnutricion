@@ -16,7 +16,7 @@ return [
     */
 
     'title' => 'Anas Wayuu',
-    'title_prefix' => '',
+    'title_prefix' => 'Anas Wayuu',
     'title_postfix' => '',
     
     /*
@@ -31,7 +31,7 @@ return [
     |
     */
 
-    'use_ico_only' => false,
+    'use_ico_only' => true,
     'use_full_favicon' => false,
 
     /*
@@ -69,7 +69,7 @@ return [
     'logo_img_class' => 'brand-image img-circle elevation-3',
     'logo_img_xl' => null,
     'logo_img_xl_class' => 'brand-image-xs',
-    'logo_img_alt' => 'Admin Logo',
+    'logo_img_alt' => 'Anas Wayuu',
 
     /*
     |--------------------------------------------------------------------------
@@ -131,7 +131,7 @@ return [
     */
 
     'usermenu_enabled' => true,
-    'usermenu_header' => false,
+    'usermenu_header' => true,
     'usermenu_header_class' => 'bg-primary',
     'usermenu_image' => false,
     'usermenu_desc' => false,
@@ -153,7 +153,7 @@ return [
     'layout_boxed' => null,
     'layout_fixed_sidebar' => null,
     'layout_fixed_navbar' => null,
-    'layout_fixed_footer' => null,
+    'layout_fixed_footer' => null, 
     'layout_dark_mode' => null,
 
     /*
@@ -169,11 +169,11 @@ return [
     */
 
     'classes_auth_card' => '',
-    'classes_auth_header' => 'bg-gradient-info',
+    'classes_auth_header' => 'bg-gradient-green',
     'classes_auth_body' => '',
     'classes_auth_footer' => 'text-center',
-    'classes_auth_icon' => 'fa-lg text-info',
-    'classes_auth_btn' => 'btn-flat btn-primary',
+    'classes_auth_icon' => 'fa-lg text-success ',
+    'classes_auth_btn' => 'btn-flat btn-success ',
 
 
 
@@ -204,14 +204,14 @@ return [
     */
 
     'classes_body' => '',   //agrega un cale a todo el contenido en general
-    'classes_brand' => ' ',  //bg-success  le da u estailo a la pparte superior izquierda
+    'classes_brand' => '',  //bg-success  le da u estailo a la pparte superior izquierda
     'classes_brand_text' => '', //text-primary  le cambia el color al textu superior izquierdo
     'classes_content_wrapper' => '', //es todo el contenindo dentro de la plantilla ojo
     'classes_content_header' => '',  //estilos al header de la pgina 
     'classes_content' => '',
-    'classes_sidebar' => 'sidebar-dark-primary elevation-4',
+    'classes_sidebar' => 'sidebar-dark-success elevation-4',
     'classes_sidebar_nav' => '',
-    'classes_topnav' => 'navbar-dark-info elevation-4',
+    'classes_topnav' => 'navbar-dark-info ', //AQUI CAMBIAS  DE COLOR LAS LESTRAS AZULES DEL LOGIN navbar-white navbar-light
     'classes_topnav_nav' => 'navbar-expand',
     'classes_topnav_container' => 'container',
 
@@ -308,11 +308,11 @@ return [
 
     'menu' => [
         // Navbar items:
-        [
-            'type'         => 'navbar-search',
-            'text'         => 'search',
-            'topnav_right' => true,
-        ],
+        // [
+        //     'type'         => 'navbar-search',
+        //     'text'         => 'search',
+        //     'topnav_right' => true,
+        // ],
         [
             'type'         => 'fullscreen-widget',
             'topnav_right' => true,
