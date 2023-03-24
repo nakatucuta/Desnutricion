@@ -248,7 +248,7 @@ right: 0;"><i class="fas fa-book"></i>   REPORTE</a>
                       @else
 
                       
-                      <a href="{{route('detalle_sivigila', [$student2->num_ide_, $student2->fec_noti])}}" title="DETALLE" class="btn  btn-success">
+                      <a href="{{route('detalle_sivigila', [$student2->num_ide_, $student2->fec_noti])}}" title="DETALLE" class="btn  btn-warning">
                         <span class="icon-zoom-in" ></span>Seguimiento</a>
 
                       @endif
