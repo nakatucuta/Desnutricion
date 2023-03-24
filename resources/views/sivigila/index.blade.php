@@ -209,8 +209,8 @@ right: 0;"><i class="fas fa-book"></i>   REPORTE</a>
 
             @section('content')
             
-             <table class="table table-hover table-striped {{-- table-responsive--}}" id="sivigila"> 
-                <thead class="table table-hover table-dark">
+             <table class="table table-hover table-striped table-bordered  {{-- table-responsive--}}" style="border: 1px solid #000000;" id="sivigila"> 
+              <thead class="table table-hover table-info table-bordered " style="background-color: #d9f2e6 ;border: 1px solid #000000;">
                   <tr>
                     {{-- <th scope="col">#</th> --}}
                     <th scope="col">Fecha Notificacion</th>

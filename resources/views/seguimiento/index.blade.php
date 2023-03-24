@@ -230,9 +230,9 @@ right: 0;"><i class="fas fa-book"></i>  </a>
               <div class="clearfix">
               <div class="box box-primary">
                 <div class="box-body">
-            <table class="table table-hover table-striped" id="seguimiento">
-                <thead class="table table-hover table-dark">
-                  <tr>
+                  <table class="table table-hover table-striped table-bordered  {{-- table-responsive--}}" id="seguimiento"> 
+                    <thead class="table table-hover table-info table-bordered " style="background-color: #d9f2e6 ;border: 1px solid #000000;">
+              <tr>
                     <th>ID</th>
                     <th >Identificacion</th>
                     <th >Nombre</th>
@@ -350,7 +350,7 @@ right: 0;"><i class="fas fa-book"></i>  </a>
                  <td>finalizado</td>
              @endif
                  
-                   <td>  <a class="btn  btn-warning" href="{{url('/Seguimiento/'.$student2->id. '/edit')}}" class="ref" >
+                   <td>  <a class="btn  btn-success" href="{{url('/Seguimiento/'.$student2->id. '/edit')}}" class="ref" >
                      <i class="fas fa-edit"></i>
                  </a>
                
