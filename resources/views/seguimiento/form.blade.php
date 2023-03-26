@@ -160,12 +160,15 @@
 
                                                 <div class="col-sm-6">
                                                     <div class="form-group">
-                                                        <label for="Nombre"> Medicamento </label> {{-- el isset pregunta si el archivo esta seleccionado lo muestre sino no muestra nada por eso las comillas vacias al final --}}
-                                                        <textarea name="medicamento" id="medicamento" value=""
-                                                         class="form-control" rows="5" maxlength="600"></textarea>
-                                                                           
+                                                      <label for="medicamento">Medicamento</label>
+                                                      <select class="js-example-basic-multiple" name="medicamento[]" multiple="multiple" style="width: 100%">
+                                                        <option value="Medicamento 1">Medicamento 1</option>
+                                                        <option value="Medicamento 2">Medicamento 2</option>
+                                                        <option value="Medicamento 3">Medicamento 3</option>
+                                                        <!-- Agrega más opciones aquí -->
+                                                      </select>
                                                     </div>
-                                                    </div>
+                                                  </div>
                                            
                                             </div>
 

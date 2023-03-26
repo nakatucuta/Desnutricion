@@ -78,7 +78,7 @@ class SivigilaController extends Controller
     
             }
             $otro =  Sivigila::select('sivigilas.num_ide_','sivigilas.pri_nom_','sivigilas.seg_nom_',
-            'sivigilas.pri_ape_','sivigilas.seg_ape_','seguimientos.id as idin','sivigilas.Ips_at_inicial',
+            'sivigilas.pri_ape_','sivigilas.seg_ape_','sivigilas.id as idin','sivigilas.Ips_at_inicial',
             'seguimientos.id','seguimientos.fecha_proximo_control','seguimientos.estado as est',
             'seguimientos.user_id as usr')
             ->orderBy('seguimientos.created_at', 'desc')

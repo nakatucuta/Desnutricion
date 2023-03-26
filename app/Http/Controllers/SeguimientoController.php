@@ -176,7 +176,7 @@ class SeguimientoController extends Controller
                 $entytistore->clasificacion = $request->clasificacion;
                 $entytistore->requerimiento_energia_ftlc = $request->requerimiento_energia_ftlc;
                 $entytistore->fecha_entrega_ftlc = $request->fecha_entrega_ftlc;
-                $entytistore->medicamento = $request->medicamento;
+                $entytistore->medicamento = implode(',', $request->input('medicamento'));
                 // $entytistore->recomendaciones_manejo = $request->recomendaciones_manejo;
                 // $entytistore->resultados_seguimientos = $request->resultados_seguimientos;
                 // $entytistore->ips_realiza_seguuimiento = $request->ips_realiza_seguuimiento;
