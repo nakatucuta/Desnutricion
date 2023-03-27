@@ -240,7 +240,7 @@ right: 0;"><i class="fas fa-book"></i>  </a>
                     <th >Estado</th>
                     <th >Ips</th>
                     <th >Fecha proximo controccclya</th>
-                    <th >Acciones</th>
+                    <th >Accionesc</th>
                   </tr>
                 </thead>
                 <tbody id="table">
