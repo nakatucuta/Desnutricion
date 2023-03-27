@@ -13,7 +13,7 @@
   width: 7%;
   position: relative;
   right: 0;">
-  <i class="fas fa-bell"> {{$conteo}}</i>
+  <i class="fas fa-bell"> {{$conteo}}  </i>
 </button>
 {{-- aqui termina el boton --}}
 
@@ -239,7 +239,7 @@ right: 0;"><i class="fas fa-book"></i>  </a>
                     <th >Nombre</th>
                     <th >Estado</th>
                     <th >Ips</th>
-                    <th >Fecha proximo control</th>
+                    <th >Fecha proximo controll</th>
                     <th >Acciones</th>
                   </tr>
                 </thead>
