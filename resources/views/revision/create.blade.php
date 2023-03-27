@@ -13,7 +13,7 @@
 @foreach($segene as $student2)
     <br> <br>
     <div class="card border-info mb-3" >
-        <div class="card-header bg-primary">Revisar seguimientos</div>
+        <div class="card-header bg-success">Revisar seguimientos</div>
         <div class="card-body">
             <h6 class="card-title">Detalle de seguimiento:</h6>
             <p class="card-text">

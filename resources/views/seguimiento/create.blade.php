@@ -34,6 +34,12 @@
         eso es ahora porque remplasaste la svista por la de la plantilla anteriormente 
         estaba en public vendor/adminlte/dist/js/select2.min.js--}}
         
+        <style>
+            
+    .js-example-basic-multiple {
+      color: black;
+    }
+  </style>
     @stop
     
     @section('js')
@@ -74,6 +80,10 @@
              });
             
          });
+
+         $(document).ready(function() {
+    $('.js-example-basic-multiple').select2();
+});
     </script>
     @stop
     
