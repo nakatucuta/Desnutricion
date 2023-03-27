@@ -228,7 +228,7 @@ right: 0;"><i class="fas fa-book"></i>   REPORTE</a>
                     <td>{{ $student2->tip_ide_ }}</td>
                     <td>{{ $student2->num_ide_ }}</td>
                     <td>{{ $student2->pri_nom_.' '.$student2->seg_nom_.' '.$student2->pri_ape_.' '.
-                    $student2->seg_ape_ }}</td>
+                    $student2->seg_ape_ }} </td>
                     {{-- <td>{{ $student2->cod_eve }}</td> --}}
                     <td> 
                         
