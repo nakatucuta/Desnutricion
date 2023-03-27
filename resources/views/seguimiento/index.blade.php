@@ -239,7 +239,7 @@ right: 0;"><i class="fas fa-book"></i>  </a>
                     <th >Nombre</th>
                     <th >Estado</th>
                     <th >Ips</th>
-                    <th >Fecha proximo controls</th>
+                    <th >Fecha proximo controlpos</th>
                     <th >Acciones</th>
                   </tr>
                 </thead>
