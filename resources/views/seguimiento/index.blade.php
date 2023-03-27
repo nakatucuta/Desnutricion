@@ -13,7 +13,7 @@
   width: 7%;
   position: relative;
   right: 0;">
-  <i class="fas fa-bell"> {{$conteo}}</i>
+  <i class="fas fa-bell"> {{$conteo}} </i>
 </button>
 {{-- aqui termina el boton --}}
 
