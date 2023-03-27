@@ -217,7 +217,7 @@ right: 0;"><i class="fas fa-book"></i>   REPORTE</a>
                     <th scope="col">Tipo ID</th>
                     <th scope="col">Identificacion</th>
                     <th scope="col">Nombre</th>
-                    <th scope="col">Acciones</th>
+                    <th scope="col">Acciones </th>
                   </tr>
                 </thead>
                 <tbody id="table">
