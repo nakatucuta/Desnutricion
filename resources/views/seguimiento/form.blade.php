@@ -8,7 +8,7 @@
             <div class="card-header">
                 <h2 class="card-title text-center">
                       <i class="far fa-hospital" style="font-size: 45px; color: #3333ff; "></i>
-                      Seguimiento
+                      Seguimientodddddd
                       <i class="bi bi-plus"></i>
                       <i class="fas fa-user-md" style="font-size: 45px; color: #3333ff;"></i>
                 </h2>
