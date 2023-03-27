@@ -232,7 +232,7 @@ right: 0;"><i class="fas fa-book"></i>   REPORTE</a>
     })
     ->exists())
     <div>
-        <a href="" onclick="return false;" title="DETALLE" class="btn  btn-primary">
+        <a href="" onclick="return false;" title="DETALLE" class="btn  btn-success">
             <span class="icon-zoom-in" ></span> <i class="fas fa-check"></i>
         </a>
     </div>
