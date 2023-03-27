@@ -177,7 +177,7 @@ width: 14%;
 position: relative;
 right: 0;"><i class="fas fa-book"></i>   REPORTE</a>
 </div> --}}
-    <h1>Datos Revision</h1>
+    <h1>Datos Revisioni</h1>
    
  
 
