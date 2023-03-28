@@ -20,6 +20,8 @@ use Symfony\Component\Mailer\Mailer;
 use Symfony\Component\Mailer\Transport\Smtp\EsmtpTransport;
 use Symfony\Component\Mime\Address;
 use Symfony\Component\Mime\Email;
+use PDF;
+use Storage;
 
 class RevisionController extends Controller
 {
@@ -133,5 +135,30 @@ class RevisionController extends Controller
     public function destroy(Revision $revision)
     {
         //
+    }
+
+
+    public function reportepdf($id)
+    {
+        $pdfvar = Revision::find($id);
+        $pdf = PDF::loadView('revision.reporte');
+        // $pdf->loadHTML('<h1>Test</h1>');
+        // $url = Storage::url('public/img/logo.jpg');
+
+  
+        $segene = DB::table('seguimientos')
+        ->select('seguimientos.id')
+        ->join('sivigilas', 'seguimientos.sivigilas_id', '=', 'sivigilas.id')
+        ->where('seguimientos.sivigilas_id', $id)
+        ->orderBy('seguimientos.id', 'desc')
+        // ->limit(1)
+        ->get();
+        
+        return $pdf->stream('revision.reporte', compact('pdfvar'));
+        //return $pdf->download('reporte.pdf',compact('url'));
+
+        // $students2 = Ingreso::paginate();
+        // return view('ingreso.pdf');
+
     }
 }
