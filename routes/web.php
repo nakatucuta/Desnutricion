@@ -41,7 +41,7 @@ Route::get('/report2', [SivigilaController::class,'reporte1'])->name('export2');
 Route::get('/report3', [SeguimientoController::class,'reporte2'])->name('export3');
 
 //RUTAS PDF
-Route::get('libros/{id}','App\Http\Controllers\RevisionController@reportepdf')->name('pdfcertificado');
+Route::get('revision/reporte/{id}','App\Http\Controllers\RevisionController@reportepdf')->name('pdfcertificado');
 
 //RUTAS PARA JALAR DATOS DE SEGUIMIENTOS Y HACER EL VISTO BUENO
 Route::get('/revision/{id}/create', 'App\Http\Controllers\RevisionController@create')->name('detalle_revisiones');

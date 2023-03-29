@@ -337,11 +337,16 @@ if ($registroAnterior) {
         $datosEmpleado = request()->except(['_token','_method']);
       $seg =  Seguimiento::where('id','=',$id )->update($datosEmpleado);
 
-        if ($seg) {
+         if ($request->estado == 1) {
             DB::table('sivigilas')
-                ->where('id', $request->sivigilas_id)
+                
                 ->update(['estado' => '1',]);
-        }
+         } else {
+            DB::table('sivigilas')
+                
+            ->update(['estado' => '0',]);
+            
+         }
         
         return redirect()->route('Seguimiento.index');
         // return view('seguimiento.index', compact('empleado'),["incomeedit"=>$incomeedit]);

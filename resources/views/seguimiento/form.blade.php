@@ -162,9 +162,11 @@
                                                     <div class="form-group">
                                                       <label for="medicamento">Medicamento</label>
                                                       <select class="js-example-basic-multiple" name="medicamento[]" multiple="multiple" style="width: 100%">
-                                                        <option value="Medicamento 1">Medicamento 1</option>
-                                                        <option value="Medicamento 2">Medicamento 2</option>
-                                                        <option value="Medicamento 3">Medicamento 3</option>
+                                                        <option value="23072-2">albendazol 200MG</option>
+                                                        <option value="54114-1">albendazol 400MG</option>
+                                                        <option value="35662-18">Acido folico</option>
+                                                        <option value="31063-1">Vitamina A</option>
+                                                        <option value="27440-3">Hierro</option>
                                                         <!-- Agrega más opciones aquí -->
                                                       </select>
                                                     </div>
