@@ -242,9 +242,9 @@ right: 0;"><i class="fas fa-book"></i>   REPORTE</a>
     </a>
 @endif
 
-{{-- <a href="{{route('pdfcertificado', [$student2->id])}}" title="REPORTE" class="btn  btn-primary">
+ <a href="{{route('pdfcertificado', [$student2->id])}}" title="REPORTE" class="btn  btn-primary">
   <span class="icon-zoom-in" ></span> <i class="fas fa-file-alt"></i>
-</a> --}}
+</a> 
                 </td>
                   </tr>
                     

@@ -36,7 +36,7 @@
       top: 0px ;/*abajo*/
       bottom: 0px ;
       right: 0px ;
-      left: 170px;
+      left: 300px;
       
     
       width: 240px;
@@ -113,7 +113,7 @@
     
     
  
-      <img src="img/logo.jpg" alt="" style=" float: left; width: 100px" >
+    <img src="img/logo.jpg" alt="" style="float: left; width: 50px; margin-left: 40px;">
     
       <div   style="width: 140px; height: 30px;  float: right; border: groove; font-size: 9; ">
             <strong >Fecha:{{Carbon\Carbon::now()->format('d-m-Y')}}</strong> 
@@ -131,13 +131,12 @@
            
     
     
-          <strong style="font-size: 10;" >ANAS WAYUU <br> Nit: 839.000.495-6 <br> Regimen:simplificado</strong> <br> <p align="center"></p>
-          <p style="text-align: center;"> 
+          <strong style="font-size: 10;" >ANAS WAYUU <br> Nit: 839.000.495-6 <br> Regimen:simplificado  </strong>  <br>
+         
             
-            EMPRESA PROMOTORA DE SALUD 
+       
             
             
-         </p>
          
          
         </div>
@@ -152,7 +151,10 @@
     
     
     <p style="text-align: center;">
-        <strong >Vigilado Supersalud Resolución No 15-10 de Julio de 2001
+        <strong > 
+            EMPRESA PROMOTORA DE SALUD
+            <br>
+            Vigilado Supersalud Resolución No 15-10 de Julio de 2001
             Nit: 839.000.495-6
             </strong> 
     </p>
@@ -172,7 +174,7 @@
                             <tr>
                                 
                               
-                                <br>
+                                
                                 <br>
                                 
                                
@@ -181,7 +183,7 @@
 
     
                                     Hola <strong> {{ auth()->user()->name }}</strong> la <strong>  E.P.S.I ANAS WAYUU</strong> <br> <br>
-                                     Ha Recepcionado la informacion de manera exitosa los datos ingresados son los siguientes: {{--el dia: <strong>{{Carbon\Carbon::now()->format('d-m-Y')}}</strong><br> --}}
+                                     REPORTE PARA REVISION DE SEGUIMIENTOS: {{--el dia: <strong>{{Carbon\Carbon::now()->format('d-m-Y')}}</strong><br> --}}
 
 
 
@@ -192,14 +194,25 @@
                 <th>ID</th>
                 <th>Nombre</th>
                 <th>Identificacion</th>
-                <th>Fecha de guardado</th>
+                <th>Fecha consulta</th>
+                <th>Est actual</th>
+                {{-- <th>Medicamento</th> --}}
+                <th>Fecha de proximo control</th>
             </tr>
         </thead>
         <tbody>
-             
-             <tr>
-                <td>{{$pdfvar->id}}</td>
-            </tr> 
+             @foreach($segene as $ingreso)
+                <tr>
+                    <td>{{ $ingreso->id }}</td>
+                    <td>{{ $ingreso->pri_nom_.' '.$ingreso->seg_nom_.' '.$ingreso->pri_ape_.' '.$ingreso->seg_ape_ }}</td>
+                    <td>{{ $ingreso->num_ide_ }}</td>
+                    <td>{{ $ingreso->fecha_consulta }}</td>
+                    <td>{{$ingreso->est_act_menor}}</td>
+                    {{-- <td>{{ $ingreso->medicamento }}</td> --}}
+                    <td>{{$ingreso->fecha_proximo_control}}</td>
+                 
+                </tr>
+            @endforeach 
         </tbody>
     </table>
 

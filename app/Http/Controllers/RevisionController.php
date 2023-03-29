@@ -140,25 +140,21 @@ class RevisionController extends Controller
 
     public function reportepdf($id)
     {
-        $pdfvar = Revision::find($id);
-        $pdf = PDF::loadView('revision.reporte');
-        // $pdf->loadHTML('<h1>Test</h1>');
-        // $url = Storage::url('public/img/logo.jpg');
-
-  
         $segene = DB::table('seguimientos')
-        ->select('seguimientos.id')
-        ->join('sivigilas', 'seguimientos.sivigilas_id', '=', 'sivigilas.id')
-        ->where('seguimientos.sivigilas_id', $id)
-        ->orderBy('seguimientos.id', 'desc')
-        // ->limit(1)
-        ->get();
-        
-        return $pdf->stream('revision.reporte', compact('pdfvar'));
-        //return $pdf->download('reporte.pdf',compact('url'));
-
-        // $students2 = Ingreso::paginate();
-        // return view('ingreso.pdf');
-
+            ->select('seguimientos.id', 'sivigilas.num_ide_', 'sivigilas.pri_nom_', 'sivigilas.seg_nom_',
+                'sivigilas.pri_ape_', 'sivigilas.seg_ape_', 'seguimientos.fecha_consulta', 'seguimientos.peso_kilos',
+                'seguimientos.talla_cm', 'seguimientos.puntajez', 'seguimientos.clasificacion', 'seguimientos.requerimiento_energia_ftlc',
+                'seguimientos.fecha_entrega_ftlc', 'seguimientos.medicamento', 'seguimientos.observaciones',
+                'seguimientos.est_act_menor', 'seguimientos.tratamiento_f75', 'seguimientos.fecha_recibio_tratf75',
+                'seguimientos.fecha_proximo_control')
+            ->join('sivigilas', 'seguimientos.sivigilas_id', '=', 'sivigilas.id')
+            ->where('seguimientos.sivigilas_id', $id)
+            ->orderBy('seguimientos.id', 'desc')
+            ->get();
+    
+        $pdf = PDF::loadView('revision.reporte', compact('segene')) //OJO RECUERDAS AQUI LE MANDAS LAS VARIABLES 
+        ->setPaper('letter', 'landscape'); // establece el tamaño de papel como Legal y la orientación como horizontal
+    
+        return $pdf->stream('revision.reporte.pdf');
     }
 }
