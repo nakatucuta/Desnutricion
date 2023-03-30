@@ -269,10 +269,10 @@ right: 0;"><i class="fas fa-book"></i>  </a>
                           @endif --}}
                           {{-- @elseif($count >= 1 && auth()->user()->usertype == 1) --}}
                          
-                    {{-- @elseif($count1 >= 1 && auth()->user()->usertype == 1) 
-                     --}}
+                      {{-- @elseif($count1 >= 1 && auth()->user()->usertype == 1) 
+                        --}}
                      
-                    @foreach($incomeedit as $student2)
+                       @foreach($incomeedit as $student2)
                     
                     <th >{{ $student2->id }}</th>
                     <th >{{ $student2->num_ide_ }}</th>

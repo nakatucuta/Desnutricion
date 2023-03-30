@@ -200,6 +200,26 @@ right: 0;"><i class="fas fa-book"></i>   REPORTE</a>
                 </thead>
                 <tbody id="table">
                   <tr>
+
+                    @php
+                   
+                    $count = DB::table('revisions')->count();
+                    
+                    @endphp
+                    
+                    @if($count < 1 ) 
+                    
+                      <td  class="text-center">No hay registros disponibles</td>
+                      <td  class="text-center">No hay registros disponibles</td>
+                      <td  class="text-center">No hay registros disponibles</td>
+                      <td  class="text-center">No hay registros disponibles</td>
+                      <td  class="text-center">No hay registros disponibles</td>
+
+                        @elseif($count >= 1 )
+
+
+
+
                     @foreach($incomeedit as $student2)
                 <th> {{ $student2->id }}</th>   
                 <th >{{ $student2->num_ide_ }}</th>
@@ -251,7 +271,7 @@ right: 0;"><i class="fas fa-book"></i>   REPORTE</a>
              
               
                   @endforeach 
-                 
+                 @endif
                 </tbody>
                  
               </table>
