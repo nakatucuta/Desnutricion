@@ -359,7 +359,8 @@ right: 0;"><i class="fas fa-book"></i>  </a>
                  </a>
                
                  
-               
+                 @if( auth()->user()->usertype == 3) 
+                 @else
                  <a href="{{route('Seguimiento.destroy', $student2->id)}}"
                    onclick="event.preventDefault();
                    if(confirm('¿Está seguro de que desea eliminar el producto?')) {
@@ -374,7 +375,7 @@ right: 0;"><i class="fas fa-book"></i>  </a>
                  @method('DELETE')
                  @csrf
                  </form>
-                 
+               @endif
                  </td>
              
                          

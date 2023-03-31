@@ -203,7 +203,8 @@ right: 0;"><i class="fas fa-book"></i>   REPORTE</a>
 
                     @php
                    
-                    $count = DB::table('revisions')->count();
+                    $count = DB::table('seguimientos')->select('estado')
+                    ->where('estado', '=', '0')->count();
                     
                     @endphp
                     
@@ -215,7 +216,7 @@ right: 0;"><i class="fas fa-book"></i>   REPORTE</a>
                       <td  class="text-center">No hay registros disponibles</td>
                       <td  class="text-center">No hay registros disponibles</td>
 
-                        @elseif($count >= 1 )
+                        @elseif($count > 0 )
 
 
 
