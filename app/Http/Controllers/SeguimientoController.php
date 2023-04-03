@@ -30,7 +30,7 @@ class SeguimientoController extends Controller
         $this->middleware('Admin_seguimiento', ['only' =>'resporte']);
         // $this->middleware('Admin_seguimiento', ['only' =>'edit']);
         $this->middleware('Admin_seguimiento', ['only' =>'destroy']);
-        $this->middleware('Admin_nutric_seguimiento', ['only' =>'edit']);
+        // $this->middleware('Admin_nutric_seguimiento', ['only' =>'edit']);
         $this->middleware('Admin_nutric_seguimiento', ['only' =>'destroy']);
     
        
