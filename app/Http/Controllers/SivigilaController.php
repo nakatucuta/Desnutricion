@@ -203,7 +203,7 @@ $income12 =  DB::table('users')->select('name', 'id','codigohabilitacion')
 
 
         $incomeedit15 =  DB::table('users')->select('name', 'id','codigohabilitacion')
-        
+        ->where('usertype', 2)
         ->get();
         // $incomeedit15 = DB::connection('sqlsrv_1')->table('maestroIpsGru as a')
         // ->join('maestroIpsGruDet as b', function ($join) {
