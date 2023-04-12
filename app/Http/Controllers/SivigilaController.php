@@ -312,7 +312,7 @@ $income12 =  DB::table('users')->select('name', 'id','codigohabilitacion')
 
             $entytistore->Atecion_primocion_y_mantenimiento_res3280_2018 = $request->Atecion_primocion_y_mantenimiento_res3280_2018;
            
-            $entytistore->Ips_manejo_hospitalario = $request->Ips_manejo_hospitalario;
+            $entytistore->nombreips_manejo_hospita = $request->nombreips_manejo_hospita;
             $entytistore->user_id = $request->user_id;
         
             $entytistore->save();
