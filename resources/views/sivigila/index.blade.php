@@ -178,7 +178,7 @@ position: relative;
 right: 0;"><i class="fas fa-book"></i>   REPORTE</a>
 </div>
     <h1>Datos Sivigila</h1>
-    <strong>Total {{ $sivigilas->total() }} </strong>
+    <strong>Total {{ $sivigilas->total() - $sivigilasconteo}} </strong>
  
     {{-- <section class="content-header">
       

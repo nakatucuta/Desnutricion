@@ -345,7 +345,7 @@ right: 0;"><i class="fas fa-book"></i>  </a>
                 @else
                   Cerrado
                 @endif</td>
-                 <td>{{$student2->Ips_at_inicial}}</td>
+                 <td>{{$student2->name}}</td>
                  @if(!empty($student2->fecha_proximo_control))
                  <td>{{ $student2->fecha_proximo_control }}</td>
              @elseif(!empty($student2->created_at))
@@ -368,8 +368,11 @@ right: 0;"><i class="fas fa-book"></i>  </a>
                    }" class="btn  btn-danger">
                   <i class="fas fa-trash"></i>
                 </a>
-               
-              
+                @if($student2->motivo_reapuertura )
+                    <a class="btn btn-primary" href="{{route('detalleseguimiento', $student2->id)}}" class="ref">
+                        <i class="far fa-eye"></i>
+                    </a>
+                @endif
                 <form id="delete-form-{{$student2->id}}" action="{{route('Seguimiento.destroy', $student2->id)}}"
                  method="POST" style="display: none;">
                  @method('DELETE')

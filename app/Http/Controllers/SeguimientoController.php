@@ -63,15 +63,14 @@ class SeguimientoController extends Controller
         ->paginate(3000);
         } else {  
 
-            $incomeedit = Sivigila::select('sivigilas.num_ide_','sivigilas.pri_nom_','sivigilas.seg_nom_',
-            'sivigilas.pri_ape_','sivigilas.seg_ape_','seguimientos.id as idin','sivigilas.Ips_at_inicial',
-            'seguimientos.fecha_consulta','seguimientos.id','seguimientos.fecha_proximo_control','seguimientos.estado')
-            ->orderBy('seguimientos.created_at', 'desc')
-          
-            ->join('seguimientos', 'sivigilas.id', '=', 'seguimientos.sivigilas_id')
-            // ->where('seguimientos.estado',1)
-            
-            ->paginate(3000);
+            $incomeedit = Seguimiento::select('s.num_ide_','s.pri_nom_','s.seg_nom_',
+        's.pri_ape_','s.seg_ape_','seguimientos.id as idin','users.name',
+        'seguimientos.fecha_consulta','seguimientos.fecha_proximo_control','seguimientos.estado','seguimientos.id',
+        'seguimientos.motivo_reapuertura')
+        ->orderBy('seguimientos.created_at', 'desc')
+        ->join('sivigilas as s', 's.id', '=', 'seguimientos.sivigilas_id')
+        ->join('users', 'users.id', '=', 's.user_id')
+        ->paginate(3000);
 
         } 
 
@@ -139,7 +138,7 @@ class SeguimientoController extends Controller
             'requerimiento_energia_ftlc' => 'required',
             'fecha_entrega_ftlc' => 'required',
             'medicamento' => 'required',
-            // 'recomendaciones_manejo' => 'required',
+            //  'motivo_reapuertura' => 'required',
             // 'resultados_seguimientos' => 'required',
             // 'ips_realiza_seguuimiento' => 'required',
             'observaciones' => 'required',
@@ -177,7 +176,7 @@ class SeguimientoController extends Controller
                 $entytistore->requerimiento_energia_ftlc = $request->requerimiento_energia_ftlc;
                 $entytistore->fecha_entrega_ftlc = $request->fecha_entrega_ftlc;
                 $entytistore->medicamento = implode(',', $request->input('medicamento'));
-                // $entytistore->recomendaciones_manejo = $request->recomendaciones_manejo;
+                 $entytistore->motivo_reapuertura = $request->motivo_reapuertura;
                 // $entytistore->resultados_seguimientos = $request->resultados_seguimientos;
                 // $entytistore->ips_realiza_seguuimiento = $request->ips_realiza_seguuimiento;
                 $entytistore->observaciones = $request->observaciones;
@@ -439,6 +438,23 @@ if ($registroAnterior) {
 
 
     }
+
+
+    public function detail ($id){
+
+        $seguimientodetail = Seguimiento::find($id);
+    $seguimientoshow = DB::table('sivigilas')
+        
+        ->Join('seguimientos', 'sivigilas.id', '=', 'seguimientos.sivigilas_id')
+        ->select(DB::raw("sivigilas.num_ide_,sivigilas.pri_nom_,sivigilas.seg_nom_,
+        sivigilas.pri_ape_,sivigilas.seg_ape_,seguimientos.motivo_reapuertura"))
+        ->first();
+
+   
+    return view('seguimiento.detail',["seguimientoshow"=>$seguimientoshow,"seguimientodetail"=>$seguimientodetail]);
+
+}
+
         
 
 

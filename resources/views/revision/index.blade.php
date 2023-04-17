@@ -208,7 +208,7 @@ right: 0;"><i class="fas fa-book"></i>   REPORTE</a>
                     
                     @endphp
                     
-                    @if($count < 1 ) 
+                    @if($count < 0 ) 
                     
                       <td  class="text-center">No hay registros disponibles</td>
                       <td  class="text-center">No hay registros disponibles</td>

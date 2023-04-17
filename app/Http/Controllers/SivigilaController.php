@@ -10,6 +10,12 @@ use App\Models\Seguimiento;
 use Maatwebsite\Excel\Facades\Excel;
 use App\Exports\SivigilaExport;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Redirect;
+use Symfony\Component\Mailer\Mailer;
+use Symfony\Component\Mailer\Transport\Smtp\EsmtpTransport;
+use Symfony\Component\Mime\Address;
+use Symfony\Component\Mime\Email;
+use App\Models\User;
 
 class SivigilaController extends Controller
 {
@@ -49,6 +55,13 @@ class SivigilaController extends Controller
     //    ->orderBy('fec_noti', 'desc')
        ->paginate(10000);  //recuerda debes poner get y buscar la forma de contar todos los registros
 
+
+       $sivigilasconteo = DB::
+       table('sivigilas')
+       ->select('id')
+       ->count();
+
+        
         $sivi = Sivigila::all();
       
         
@@ -87,7 +100,7 @@ class SivigilaController extends Controller
             ->where('seguimientos.estado',1)
             ->get();
         
-        return view('sivigila.index', compact('sivigilas','sivi','conteo','otro'));
+        return view('sivigila.index', compact('sivigilas','sivi','conteo','otro','sivigilasconteo'));
 
 
        
@@ -196,14 +209,22 @@ class SivigilaController extends Controller
         ->where('a.identificacion', $num_ide_)
         ->first(); // Obtener el primer registro de la consulta
     
-$income12 =  DB::table('users')->select('name', 'id','codigohabilitacion')
-        ->where('codigohabilitacion', $incomeedit14->codigo_habilitacion)
-        ->get(); 
+        if ($incomeedit14 !== null) {
+            $income12 = DB::table('users')
+                ->select('name', 'id', 'codigohabilitacion')
+                ->where('codigohabilitacion', $incomeedit14->codigo_habilitacion)
+                
+                ->get();
+            // Resto del código que maneja el resultado de la segunda consulta...
+        } else {
+            // Asignar un valor predeterminado a $income12 si $incomeedit14 es null
+            $income12 = [];
+        }
 
 
 
         $incomeedit15 =  DB::table('users')->select('name', 'id','codigohabilitacion')
-        ->where('usertype', 2)
+        // ->where('usertype', 2)
         ->get();
         // $incomeedit15 = DB::connection('sqlsrv_1')->table('maestroIpsGru as a')
         // ->join('maestroIpsGruDet as b', function ($join) {
@@ -317,9 +338,47 @@ $income12 =  DB::table('users')->select('name', 'id','codigohabilitacion')
         
             $entytistore->save();
 
+            //para enviarle un consulta al correo 
+            // aqui empieza el tema de envio de correos entonces si el estado es 1
+            //creamos una consulta
+            $results = DB::table('sivigilas')
+            ->select('num_ide_', 'pri_nom_')
+            ->where('num_ide_', $request->num_ide_)
+            ->where('fec_not', $request->fec_not)
+            ->get();
             
+             $bodyText = ':<br>';
+             
+            foreach ($results as $result) {
+        
+            $bodyText .= 'Identificación: ' .'<strong>' . $result->num_ide_ . '</strong><br>';
+            $bodyText .= 'Identificación: ' .'<strong>' . $result->pri_nom_ . '</strong><br>';
+              }
+            //aqui termina la consulta que enviaremos al cuerpo del correo
+
+             
+
+             
+           $transport = new EsmtpTransport(env('MAIL_HOST'), env('MAIL_PORT'), env('MAIL_ENCRYPTION'));
+           $transport->setUsername(env('MAIL_USERNAME'))
+                     ->setPassword(env('MAIL_PASSWORD'));
+           
+           $mailer = new Mailer($transport);
+           
+           $email = (new Email())
+                   ->from(new Address(env('MAIL_FROM_ADDRESS'), env('MAIL_FROM_NAME')))
+                   ->to(new Address(User::find($request->user_id)->email))
+                   ->subject('Recordatorio de control')
+                   ->html('Hola, te acaban de asignar un paciente de desnutricion por parte de la
+                   EPSI anas wayuu, se solicita gestionarlo lo antes posible'.$bodyText);
+                   if ($mailer->send($email)) {
             return redirect()->route('sivigila.index')
            ->with('mensaje',' El dato fue agregado a la base de datos Exitosamente..!');
+                   }else{
+                    return redirect()->route('sivigila.index')
+           ->with('mensaje',' El dato fue agregado a la base de datos Exitosamente..!');
+            
+                   }
     }
 
     /**

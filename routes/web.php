@@ -45,3 +45,6 @@ Route::get('revision/{id}/reporte','App\Http\Controllers\RevisionController@repo
 
 //RUTAS PARA JALAR DATOS DE SEGUIMIENTOS Y HACER EL VISTO BUENO
 Route::get('/revision/{id}/create', 'App\Http\Controllers\RevisionController@create')->name('detalle_revisiones');
+
+//RUTA PARA VER UN DETALLE DE SEGUIMIENTO
+Route::get('/Seguimiento/{id}/detail', 'App\Http\Controllers\SeguimientoController@detail')->name('detalleseguimiento');

@@ -220,7 +220,7 @@
                                                 <div class="row">
                                                     <div class="col-md-6">
                                                         <div class="form-group" >
-                                                            <label for="Nombre">Desea cerrar el caso ?</label>
+                                                            <label for="Nombre">Desea modificar el estado del caso ?</label>
                                                             <select class="person2 " name="estado" id="estado"  style="width: 100% ">
                                                             <option  value="{{$empleado->estado}}"></option>
                                                             <option  value="1">ABIERTO</option>
@@ -239,6 +239,21 @@
                                                         </div>
                                                 
                                         
+                                             </div>
+
+
+                                             <div class="row">
+
+                                                <div class="col-sm-12">
+                                                    <div class="form-group">
+                                                        <label for="Nombre"> Motivo de reapuertura </label> {{-- el isset pregunta si el archivo esta seleccionado lo muestre sino no muestra nada por eso las comillas vacias al final --}}
+                                                        
+                
+                                                        <textarea name="motivo_reapuertura" id="motivo_reapuertura" 
+                                                         class="form-control" rows="5" maxlength="1000">{{$empleado->motivo_reapuertura}}</textarea>
+                                 
+                                                    </div>
+                                                    </div>
                                              </div>
                                                
     
