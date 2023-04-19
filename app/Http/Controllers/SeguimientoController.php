@@ -17,6 +17,7 @@ use Symfony\Component\Mailer\Mailer;
 use Symfony\Component\Mailer\Transport\Smtp\EsmtpTransport;
 use Symfony\Component\Mime\Address;
 use Symfony\Component\Mime\Email;
+use App\Models\User;
 class SeguimientoController extends Controller
 {
 
@@ -54,7 +55,8 @@ class SeguimientoController extends Controller
         $incomeedit = Sivigila::select('sivigilas.num_ide_','sivigilas.pri_nom_','sivigilas.seg_nom_',
         'sivigilas.pri_ape_','sivigilas.seg_ape_','seguimientos.id as idin','sivigilas.Ips_at_inicial',
         'seguimientos.fecha_consulta','seguimientos.id',
-        'seguimientos.fecha_proximo_control','seguimientos.estado','seguimientos.id')
+        'seguimientos.fecha_proximo_control','seguimientos.estado','seguimientos.id',
+        'seguimientos.motivo_reapuertura')
         ->orderBy('seguimientos.created_at', 'desc')
         
         ->join('seguimientos', 'sivigilas.id', '=', 'seguimientos.sivigilas_id')
@@ -191,8 +193,25 @@ class SeguimientoController extends Controller
                 // }
                 $entytistore->sivigilas_id = $request->sivigilas_id;
                 $entytistore->user_id = auth()->user()->id;
+                //codigo para subir pdf
+                $file = $request->file('pdf');
+                $request->validate([
+                    'pdf' => [
+                        'required',
+                        'mimes:pdf',
+                        'max:1048', // Maximo 2 MB (2048 KB)
+                    ],
+                ], [
+                    'pdf.required' => 'El archivo PDF es requerido.',
+                    'pdf.mimes' => 'El archivo debe ser un PDF válido.',
+                    'pdf.max' => 'El tamaño del archivo PDF no puede ser mayor a :max kilobytes.',
+                ]);
+                $filename = time() . '_' . $file->getClientOriginalName();
+                $file->storeAs('public/pdf', $filename);//ojo esto se guarda en 
+                //la carpeta storage/public/pdf
                 
-               
+                $entytistore->pdf = $filename;
+               //aqui termina codigo para subir pdf
 
                
        
@@ -346,6 +365,56 @@ if ($registroAnterior) {
             ->update(['estado' => '0',]);
             
          }
+
+         //para enviarle un consulta al correo 
+            // aqui empieza el tema de envio de correos entonces si el estado es 1
+            //creamos una consulta
+            $results = DB::table('seguimientos')
+             ->select('motivo_reapuertura', 'seguimientos.id','sivigilas.pri_nom_','sivigilas.seg_nom_',
+             'sivigilas.pri_ape_','sivigilas.seg_ape_')
+             ->where('seguimientos.id', $id)
+             ->join('sivigilas', 'seguimientos.sivigilas_id', '=', 'sivigilas.id')
+             ->get();
+            
+             $bodyText = ':<br>';
+             
+             foreach ($results as $result) {
+
+            $bodyText .= 'Id de seguimiento: ' .'<strong>' . $result->id . '</strong><br>';
+
+             $bodyText .= 'Motivo de reapuertura: ' .'<strong>' . $result->motivo_reapuertura . '</strong><br>';
+             $bodyText .= 'Primer nombre: ' .'<strong>' . $result->pri_nom_ . '</strong><br>';
+             $bodyText .= 'Segundo nombre: ' .'<strong>' . $result->seg_nom_ . '</strong><br>';
+             $bodyText .= 'Primer apellido: ' .'<strong>' . $result->pri_ape_ . '</strong><br>';
+             $bodyText .= 'Segundo apellido: ' .'<strong>' . $result->seg_ape_ . '</strong><br>';
+
+               }
+            //aqui termina la consulta que enviaremos al cuerpo del correo
+
+             
+            $sivigila = Sivigila::find($datosEmpleado['sivigilas_id']);
+            $user = User::find($sivigila->user_id);
+             
+           $transport = new EsmtpTransport(env('MAIL_HOST'), env('MAIL_PORT'), env('MAIL_ENCRYPTION'));
+           $transport->setUsername(env('MAIL_USERNAME'))
+                     ->setPassword(env('MAIL_PASSWORD'));
+           
+           $mailer = new Mailer($transport);
+           
+           $email = (new Email())
+                   ->from(new Address(env('MAIL_FROM_ADDRESS'), env('MAIL_FROM_NAME')))
+                   ->to(new Address($user->email))
+                   ->subject('Recordatorio de control')
+                   ->html('Hola, tu seguimiento acaba de ser actualizado por el administrador debido a  algun inconveniente comunicate
+                   con la EPSI'.$bodyText);
+                   if ($mailer->send($email)) {
+            return redirect()->route('Seguimiento.index')
+           ->with('mensaje',' El dato fue agregado a la base de datos Exitosamente..!');
+                   }else{
+                    return redirect()->route('Seguimiento.index')
+           ->with('mensaje',' El dato fue agregado a la base de datos Exitosamente..!');
+            
+                   }
         
         return redirect()->route('Seguimiento.index');
         // return view('seguimiento.index', compact('empleado'),["incomeedit"=>$incomeedit]);
@@ -453,6 +522,18 @@ if ($registroAnterior) {
    
     return view('seguimiento.detail',["seguimientoshow"=>$seguimientoshow,"seguimientodetail"=>$seguimientodetail]);
 
+}
+
+
+
+
+// Método para ver el PDF
+public function viewPDF($id)
+{
+    $seguimiento = Seguimiento::findOrFail($id);
+    $filePath = storage_path('app/public/pdf/' . $seguimiento->pdf);
+
+    return response()->file($filePath);
 }
 
         

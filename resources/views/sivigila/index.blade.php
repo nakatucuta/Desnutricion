@@ -6,7 +6,7 @@
 @section('content_header')
 @include('seguimiento.mensajes')
 {{-- boton para abrir la modal --}}
-<button type="button" class="btn {{$conteo > 0 ? 'btn-danger' : 'btn-primary'}}" data-toggle="modal" data-target="#exampleModal" style="float: right;
+<button type="button" class="btn {{$conteo > 0 ? 'btn-danger btn-sm' : 'btn-primary btn-sm'}}" data-toggle="modal" data-target="#exampleModal" style="float: right;
   margin-right: 0;
   width: 7%;
   position: relative;
@@ -154,7 +154,7 @@ PARA, <strong> AGREGAR OTRO SEGUIMIENTO O CERRAR EL CASO</strong> <a href="{{rou
 @endforeach
       </div>
       <div class="modal-footer">
-        <button type="button" class="btn btn-secondary" data-dismiss="modal">Cerrar</button>
+        <button type="button" class="btn btn-secondary btn-sm" data-dismiss="modal">Cerrar</button>
         {{-- <button type="button" class="btn btn-primary">Guardar cambios</button> --}}
       </div>
     </div>
@@ -171,9 +171,9 @@ PARA, <strong> AGREGAR OTRO SEGUIMIENTO O CERRAR EL CASO</strong> <a href="{{rou
 <br>
 
 <div>
-<a href="{{route('export2')}}" class="btn  btn-success " style="float: right;
+<a href="{{route('export2')}}" class="btn  btn-success btn-sm" style="float: right;
 margin-right: 0;
-width: 14%;
+
 position: relative;
 right: 0;"><i class="fas fa-book"></i>   REPORTE</a>
 </div>
@@ -241,14 +241,14 @@ right: 0;"><i class="fas fa-book"></i>   REPORTE</a>
                       ->where('fec_not', $student2->fec_noti)
                       ->exists())
                       <div>
-                        <a href="" onclick="return false;" title="DETALLE" class="btn  btn-secondary">
+                        <a href="" onclick="return false;" title="DETALLE" class="btn  btn-secondary btn-sm">
                           <span class="icon-zoom-in" ></span>Procesado <i class="fas fa-stop"></i></a>
                       </div>
                  
                       @else
 
                       
-                      <a href="{{route('detalle_sivigila', [$student2->num_ide_, $student2->fec_noti])}}" title="DETALLE" class="btn  btn-success">
+                      <a href="{{route('detalle_sivigila', [$student2->num_ide_, $student2->fec_noti])}}" title="DETALLE" class="btn  btn-success btn-sm">
                         <span class="icon-zoom-in" ></span>Seguimiento</a>
 
                       @endif

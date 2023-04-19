@@ -48,3 +48,8 @@ Route::get('/revision/{id}/create', 'App\Http\Controllers\RevisionController@cre
 
 //RUTA PARA VER UN DETALLE DE SEGUIMIENTO
 Route::get('/Seguimiento/{id}/detail', 'App\Http\Controllers\SeguimientoController@detail')->name('detalleseguimiento');
+
+
+
+// Ruta para ver el PDF
+Route::get('/seguimiento/view-pdf/{id}', 'App\Http\Controllers\SeguimientoController@viewPDF')->name('seguimiento.view-pdf');

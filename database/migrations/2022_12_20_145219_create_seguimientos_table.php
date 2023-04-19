@@ -35,6 +35,7 @@ return new class extends Migration
             $table->date('fecha_recibio_tratf75')->nullable();
 
             $table->date('fecha_proximo_control')->nullable();
+            $table->string('pdf')->nullable();
             $table->integer('sivigilas_id');//relacion uno a uno 
             $table->foreign('sivigilas_id')->references('id')->on('sivigilas')->onDelete('cascade')->onUpdate('cascade');
             

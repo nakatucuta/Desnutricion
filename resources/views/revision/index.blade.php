@@ -253,17 +253,17 @@ right: 0;"><i class="fas fa-book"></i>   REPORTE</a>
     })
     ->exists())
     
-        <a href="" onclick="return false;" title="DETALLE" class="btn  btn-success">
+        <a href="" onclick="return false;" title="DETALLE" class="btn  btn-success btn-sm">
             <span class="icon-zoom-in" ></span> <i class="fas fa-check"></i>
         </a>
     
 @else
-    <a href="{{route('detalle_revisiones', [$student2->id])}}" title="DETALLE" class="btn btn-danger">
+    <a href="{{route('detalle_revisiones', [$student2->id])}}" title="DETALLE" class="btn btn-danger btn-sm">
         <span class="icon-zoom-in"></span><i class="fas fa-exclamation-triangle">  </i>
     </a>
 @endif
 
- <a href="{{route('pdfcertificado', [$student2->id])}}" title="REPORTE" class="btn  btn-primary">
+ <a href="{{route('pdfcertificado', [$student2->id])}}" title="REPORTE" class="btn  btn-primary btn-sm">
   <span class="icon-zoom-in" ></span> <i class="fas fa-file-alt"></i>
 </a> 
                 </td>

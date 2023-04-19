@@ -253,7 +253,11 @@
                                     
                                          </div>
                                            
-
+                                         <div class="form-group">
+                                            <label for="pdf">PDF:</label>
+                                            <input type="file" name="pdf" class="form-control-file" required>
+                                            
+                                        </div>
 
             
 

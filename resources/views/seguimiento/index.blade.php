@@ -8,7 +8,7 @@
 @include('seguimiento.mensajes')
 
 {{-- boton para abrir la modal --}}
-<button type="button" class="btn {{$conteo > 0 ? 'btn-danger' : 'btn-primary'}}" data-toggle="modal" data-target="#exampleModal" style="float: right;
+<button type="button" class="btn {{$conteo > 0 ? 'btn-danger btn-sm' : 'btn-primary btn-sm'}}" data-toggle="modal" data-target="#exampleModal" style="float: right;
   margin-right: 0;
   width: 7%;
   position: relative;
@@ -185,19 +185,19 @@
 
 
 
-<a href="{{route('Seguimiento.create')}}" title="DETALLE" class="btn  btn-primary">
+<a href="{{route('Seguimiento.create')}}" title="DETALLE" class="btn  btn-primary btn-sm">
   <span class="icon-zoom-in" ></span> NUEVO SEGUIMIENTO</a>
   {{-- <strong>Total {{ $incomeedit->total() }} </strong> --}}
 {{-- secion del reporte general --}}
 
-<a href="{{route('export3')}}" class="btn  btn-success " style="
+<a href="{{route('export3')}}" class="btn  btn-success btn-sm" style="
 float: right:;
 margin-right: 0;
-width: 6%;
+
 position: relative;
 right: 0;"><i class="fas fa-book"></i>  </a>
   {{-- seccion del primer reporte --}}
-  <a href="{{route('export')}}" class="btn  btn-success " style="float: right;
+  <a href="{{route('export')}}" class="btn  btn-success btn-sm" style="float: right;
   margin-right: 0;
   width: 14%;
   position: relative;
@@ -291,14 +291,18 @@ right: 0;"><i class="fas fa-book"></i>  </a>
                 @else
                     <td>finalizado</td>
                 @endif
-                      <td>  <a class="btn  btn-success" href="{{url('/Seguimiento/'.$student2->id. '/edit')}}" class="ref" >
+                      <td>  <a class="btn  btn-success btn-sm" href="{{url('/Seguimiento/'.$student2->id. '/edit')}}" class="ref" >
                         <i class="fas fa-edit"></i>
-
-                        
-                    </a>
-                  
-                    
-                    
+                        <a ></a>
+                  @if($student2->motivo_reapuertura )
+                  <a class="btn btn-primary btn-sm" href="{{route('detalleseguimiento', $student2->id)}}" class="ref">
+                      <i class="far fa-eye"></i>
+                  </a>
+                  @endif
+ 
+              
+                <a href="{{ route('seguimiento.view-pdf', $student2->id) }}" target="_blank" class="btn btn-info btn-sm">
+                  <i class="far fa-file-pdf"></i>
                     {{-- <a href="{{route('Seguimiento.destroy', $student2->id)}}"
                       onclick="event.preventDefault();
                       if(confirm('¿Está seguro de que desea eliminar el producto?')) {
@@ -354,33 +358,42 @@ right: 0;"><i class="fas fa-book"></i>  </a>
                  <td>finalizado</td>
              @endif
                  
-                   <td>  <a class="btn  btn-success" href="{{url('/Seguimiento/'.$student2->id. '/edit')}}" class="ref" >
+                   <td>  <a class="btn  btn-success btn-sm" href="{{url('/Seguimiento/'.$student2->id. '/edit')}}" class="ref" >
                      <i class="fas fa-edit"></i>
                  </a>
                
                  
                  @if( auth()->user()->usertype == 3) 
                  @else
-                 <a href="{{route('Seguimiento.destroy', $student2->id)}}"
-                   onclick="event.preventDefault();
-                   if(confirm('¿Está seguro de que desea eliminar el producto?')) {
-                   document.getElementById('delete-form-{{$student2->id}}').submit();
-                   }" class="btn  btn-danger">
-                  <i class="fas fa-trash"></i>
-                </a>
-                @if($student2->motivo_reapuertura )
-                    <a class="btn btn-primary" href="{{route('detalleseguimiento', $student2->id)}}" class="ref">
-                        <i class="far fa-eye"></i>
-                    </a>
-                @endif
-                <form id="delete-form-{{$student2->id}}" action="{{route('Seguimiento.destroy', $student2->id)}}"
-                 method="POST" style="display: none;">
-                 @method('DELETE')
-                 @csrf
-                 </form>
+                  <a href="{{route('Seguimiento.destroy', $student2->id)}}"
+                    onclick="event.preventDefault();
+                    if(confirm('¿Está seguro de que desea eliminar el producto?')) {
+                    document.getElementById('delete-form-{{$student2->id}}').submit();
+                    }" class="btn  btn-danger btn-sm">
+                    <i class="fas fa-trash"></i>
+                  </a>
+                
+              
+                    <form id="delete-form-{{$student2->id}}" action="{{route('Seguimiento.destroy', $student2->id)}}"
+                    method="POST" style="display: none;">
+                    @method('DELETE')
+                    @csrf
+                    </form>
                @endif
-                 </td>
+
+               @if($student2->motivo_reapuertura )
+                 <a class="btn btn-primary btn-sm" href="{{route('detalleseguimiento', $student2->id)}}" class="ref">
+                     <i class="far fa-eye"></i>
+                 </a>
+             @endif
+
              
+               <a href="{{ route('seguimiento.view-pdf', $student2->id) }}" target="_blank" class="btn btn-info btn-sm">
+                 <i class="far fa-file-pdf"></i>
+               </a>
+               
+                 </td>
+                 
                          
                  </td>
                </tr>
@@ -389,6 +402,7 @@ right: 0;"><i class="fas fa-book"></i>  </a>
           
                
                @endforeach 
+               
                   @endif
 
 
