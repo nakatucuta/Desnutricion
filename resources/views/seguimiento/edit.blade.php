@@ -224,7 +224,7 @@
                                                             <select class="person2 " name="estado" id="estado"  style="width: 100% ">
                                                             <option  value="{{$empleado->estado}}"></option>
                                                             <option  value="1">ABIERTO</option>
-                                                            {{-- <option  value="0">CERRADO</option> --}}
+                                                            <option  value="0">CERRADO</option>
                                                             
                                                           </select>
                                                     </div>
