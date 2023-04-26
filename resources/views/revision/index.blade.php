@@ -203,7 +203,7 @@ right: 0;"><i class="fas fa-book"></i>   REPORTE</a>
 
                     @php
                    
-                    $count = DB::table('seguimientos')->select('estado')
+                    $count = DB::table('seguimientos')
                     ->where('estado', '=', '0')->count();
                     
                     @endphp
