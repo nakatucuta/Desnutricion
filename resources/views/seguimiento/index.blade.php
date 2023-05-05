@@ -280,9 +280,9 @@ right: 0;"><i class="fas fa-book"></i>  </a>
                     
                     <td> @if ($student2->estado == 1)
                      Abierto
-                   @else
+                    @else
                      Cerrado
-                   @endif</td>
+                    @endif</td>
                     <td>{{$student2->Ips_at_inicial}}</td>
                     @if(!empty($student2->fecha_proximo_control))
                     <td>{{ $student2->fecha_proximo_control }}</td>
