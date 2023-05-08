@@ -1,5 +1,11 @@
 @extends('adminlte::auth.auth-page', ['auth_type' => 'login'])
-
+<style>
+    body {
+background-image: url('img/familia-anas-wayuu.png');
+background-repeat: no-repeat;
+background-size: cover;
+}
+</style>
 @section('adminlte_css_pre')
     <link rel="stylesheet" href="{{ asset('vendor/icheck-bootstrap/icheck-bootstrap.min.css') }}">
 @stop
