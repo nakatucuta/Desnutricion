@@ -22,7 +22,7 @@ return new class extends Migration
             $table->float('puntajez');
             $table->string('clasificacion');
             $table->string('requerimiento_energia_ftlc');
-            $table->date('fecha_entrega_ftlc');
+            $table->date('fecha_entrega_ftlc')->nullable();
             $table->string('medicamento');
              $table->string('motivo_reapuertura')->nullable();
             // $table->string('resultados_seguimientos');

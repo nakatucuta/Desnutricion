@@ -138,7 +138,7 @@ class SeguimientoController extends Controller
             'puntajez' => 'required',
             'clasificacion' => 'required',
             'requerimiento_energia_ftlc' => 'required',
-            'fecha_entrega_ftlc' => 'required',
+            // 'fecha_entrega_ftlc' => 'required',
             'medicamento' => 'required',
             //  'motivo_reapuertura' => 'required',
             // 'resultados_seguimientos' => 'required',

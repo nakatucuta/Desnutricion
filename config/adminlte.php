@@ -85,13 +85,13 @@ return [
     */
 
     'auth_logo' => [
-        'enabled' => false,
+        'enabled' => true,
         'img' => [
             'path' => 'vendor/adminlte/dist/img/logo.png',
             'alt' => 'Auth Logo',
             'class' => 'img-circle',
-            'width' => 250,
-            'height' => 250,
+            'width' => 130,
+            'height' => 130,
         ],
     ],
 
