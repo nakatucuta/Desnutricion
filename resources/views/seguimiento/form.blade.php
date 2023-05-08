@@ -104,7 +104,7 @@
 
         <div class="row">
             <div class="col-sm-6">
-                <div class="form-group">
+                <div class="form-group" id="inputsuperoculto">
                     <label for="Nombre"> Fecha de entrega FTLC </label> {{-- el isset pregunta si el archivo esta seleccionado lo muestre sino no muestra nada por eso las comillas vacias al final --}}
                     <input class="form-control" type="date" name="fecha_entrega_ftlc" id = 'fecha_entrega_ftlc'
                     value="">

@@ -50,11 +50,13 @@
                     if ($(this).val() == 'RECUPERADO') {
                         $('.col-sm-4').hide();
                         $('.col-md-6').hide();
+                        $('#inputsuperoculto').hide();
                     
                     } else {
                     
                     $('.col-sm-4').show();
                     $('.col-md-6').show();
+                    $('#inputsuperoculto').show();
                     }
                 });
                 });
