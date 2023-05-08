@@ -64,7 +64,7 @@ return [
     |
     */
 
-    'logo' => '<b>Anas</b>Wayuu',
+    'logo' => '<span style="color: #ffffff"><b>Anas</b>Wayuu</span>',
     'logo_img' => 'vendor/adminlte/dist/img/logo.jpg',
     'logo_img_class' => 'brand-image img-circle elevation-3',
     'logo_img_xl' => null,
