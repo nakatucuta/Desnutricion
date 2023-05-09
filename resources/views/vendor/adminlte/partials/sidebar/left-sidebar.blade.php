@@ -1,7 +1,7 @@
 <aside class="main-sidebar {{ config('adminlte.classes_sidebar', 'sidebar-dark-primary elevation-4') }}">
     {{-- <style>
         body {
-             background-image: url('img/familia-anas-wayuu.png');
+             background-image: url('img/baner.png');
              background-repeat: no-repeat;
              background-size: cover;
              transition: background-image 0.5s ease-in-out;
