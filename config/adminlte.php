@@ -412,6 +412,15 @@ return [
             'label_color' => 'danger',
             'icon_color'  => 'red'
         ],
+
+        [
+            'text'       => 'ESTADISTICAS',
+            'icon_color' => 'blue',
+            'url'        => 'grafica-barras',
+            'label'       => 'REVISAR',  
+            'label_color' => 'primary',
+            'icon_color'  => 'blue'
+        ],
         // [
         //     'text'       => 'warning',
         //     'icon_color' => 'yellow',

@@ -537,6 +537,42 @@ public function viewPDF($id)
 }
 
         
+public function graficaBarras()
+{
+    // Obtener los datos de la base de datos para la gráfica de barras
+    $estados = DB::table('seguimientos')
+        ->select('estado', DB::raw('count(*) as total'))
+        ->groupBy('estado')
+        ->get();
+
+    // Preparar los datos para la gráfica de barras
+    $estados_labels = [];
+    $estados_data = [];
+
+    foreach ($estados as $estado) {
+        $estados_labels[] = $estado->estado == 1 ? 'Abierto' : 'Cerrado';
+        $estados_data[] = $estado->total;
+    }
+
+    // Obtener los datos de la base de datos para la gráfica de torta
+    $clasificaciones = DB::table('seguimientos')
+        ->select('clasificacion', DB::raw('count(*) as total'))
+        ->groupBy('clasificacion')
+        ->get();
+
+    // Preparar los datos para la gráfica de torta
+    $clasificaciones_labels = [];
+    $clasificaciones_data = [];
+
+    foreach ($clasificaciones as $clasificacion) {
+        $clasificaciones_labels[] = $clasificacion->clasificacion;
+        $clasificaciones_data[] = $clasificacion->total;
+    }
+
+    // Pasar los datos a la vista
+    return view('seguimiento.grafica-barras', compact('estados_labels', 'estados_data', 'clasificaciones_labels', 'clasificaciones_data'));
+}
+
 
 
     
