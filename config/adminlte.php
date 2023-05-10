@@ -411,7 +411,7 @@ return [
             'label'       => '***',  
             'label_color' => 'danger',
             'icon_color'  => 'red',
-            'icon'        => 'fas fa-exclamation-triangle fa-3x ',
+            'icon'        => 'fas fa-exclamation-triangle fa-2x ',
             
         ],
 
@@ -419,7 +419,7 @@ return [
             'text'       => 'ESTADISTICAS',
             'icon_color' => 'blue',
             'url'        => 'grafica-barras',
-             'icon'        => 'fas fa-chart-line fa-3x ',
+             'icon'        => 'fas fa-chart-line fa-2x ',
             'label'       => '***',  
             'label_color' => 'primary',
             'icon_color'  => 'blue',

@@ -6,12 +6,9 @@
 @section('content_header')
 @include('seguimiento.mensajes')
 {{-- boton para abrir la modal --}}
-<button type="button" class="btn {{$conteo > 0 ? 'btn-danger btn-sm' : 'btn-primary btn-sm'}}" data-toggle="modal" data-target="#exampleModal" style="float: right;
-  margin-right: 0;
-  width: 7%;
-  position: relative;
-  right: 0;">
-  <i class="fas fa-bell"> {{$conteo}}</i>
+<button type="button" class="btn {{$conteo > 0 ? 'btn-danger btn-sm' : 'btn-primary btn-sm'}} rounded-circle p-0" data-toggle="modal" data-target="#exampleModal" style="float: right; width: 40px; height: 40px; position: relative; right: 0;">
+  <i class="fas fa-bell fa-2x text-white p-2" style="background-color: {{$conteo > 0 ? '#dc3545' : '#007bff'}}; border-radius: 75%;"></i>
+  <span class="badge badge-dark position-absolute" style="top: -10px; right: -10px; font-size: 0.8rem;">{{$conteo}}</span>
 </button>
 
 {{-- aqui termina el boton --}}
