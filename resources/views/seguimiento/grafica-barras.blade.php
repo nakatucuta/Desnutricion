@@ -4,7 +4,6 @@
 
 @section('content_header')
 
-<h1>Graficos</h1>
    
  
 
@@ -12,20 +11,38 @@
 
 @section('content')
 
+{{-- <i class="fas fa-chart-line fa-3x" style="color: #33cc33; border: 2px solid
+ #33cc33; border-radius: 5px; padding: 5px;"></i> --}}
 
 
-
+<br>
 <div class="row">
+    
     <div class="col-sm-5">
-        <canvas id="grafica-torta" width="300" height="200"></canvas>
+        
+      <canvas id="grafica-torta" width="300" height="200"></canvas>
+      <h3 class="estilo-h3"> Seguimientos por clasificación <i class="fas fa-chart-line "></i></h3>
     </div>
     <div class="col-sm-7">
-        <canvas id="grafica-barras" width="300" height="200"></canvas>
+        
+      <canvas id="grafica-barras" width="300" height="200"></canvas>
+      <h3 class="estilo-h3"> Seguimientos por estado <i class="fas fa-chart-line "></i></h3>
     </div>
-</div>
+  </div>
+  
 
 
 <style>
+.estilo-h3 {
+  text-align: center;
+  font-family: 'Copperplate', sans-serif;
+  font-size: 28px;
+  font-weight: bold;
+  color: #333;
+  margin-top: 30px;
+}
+
+
 .chart-container {
     position: relative;
     height: 300px;

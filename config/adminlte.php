@@ -408,18 +408,22 @@ return [
             'text'       => 'ALERTAS',
             'icon_color' => 'red',
             'url'        => 'alert',
-            'label'       => 'REVISAR',  
+            'label'       => '***',  
             'label_color' => 'danger',
-            'icon_color'  => 'red'
+            'icon_color'  => 'red',
+            'icon'        => 'fas fa-exclamation-triangle fa-3x ',
+            
         ],
 
         [
             'text'       => 'ESTADISTICAS',
             'icon_color' => 'blue',
             'url'        => 'grafica-barras',
-            'label'       => 'REVISAR',  
+             'icon'        => 'fas fa-chart-line fa-3x ',
+            'label'       => '***',  
             'label_color' => 'primary',
-            'icon_color'  => 'blue'
+            'icon_color'  => 'blue',
+           
         ],
         // [
         //     'text'       => 'warning',
