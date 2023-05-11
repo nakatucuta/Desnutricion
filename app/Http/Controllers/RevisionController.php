@@ -55,7 +55,18 @@ class RevisionController extends Controller
      'users.name')
     ->paginate(3000);
 
-        return view('revision.index',compact('incomeedit'));
+    $conteo = Seguimiento::where('estado', 1)->count('id');
+    $otro =  Sivigila::select('sivigilas.num_ide_','sivigilas.pri_nom_','sivigilas.seg_nom_',
+    'sivigilas.pri_ape_','sivigilas.seg_ape_','sivigilas.id as idin','sivigilas.Ips_at_inicial',
+    'seguimientos.id','seguimientos.fecha_proximo_control','seguimientos.estado as est',
+    'seguimientos.user_id as usr')
+    ->orderBy('seguimientos.created_at', 'desc')
+    ->join('seguimientos', 'sivigilas.id', '=', 'seguimientos.sivigilas_id')
+    // ->join('seguimientos', 'seguimientos.id', '=', 'seguimientos.sivigilas_id')
+    ->where('seguimientos.estado',1)
+    ->get();
+
+        return view('revision.index',compact('incomeedit','conteo','otro'));
     }
 
     /**

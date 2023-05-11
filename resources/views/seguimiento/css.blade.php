@@ -13,6 +13,11 @@
       box-shadow: 0 0 0 0 rgba(255, 99, 132, 0);
     }
   }
+
+  .btn-pulse {
+  animation: pulse 1s ease-in-out infinite;
+}
+
  .dataTables_filter input {
   width: 500px !important;
   height: 100%;

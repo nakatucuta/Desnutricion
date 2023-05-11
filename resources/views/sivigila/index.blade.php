@@ -5,9 +5,9 @@
 @section('content_header')
 @include('seguimiento.mensajes')
 {{-- boton para abrir la modal --}}
-<button type="button" class="btn {{$conteo > 0 ? 'btn-danger btn-sm' : 'btn-primary btn-sm'}} rounded-circle p-0" data-toggle="modal" data-target="#exampleModal" style="float: right; width: 40px; height: 40px; position: relative; right: 0;">
-  <i class="fas fa-bell fa-2x text-white p-2" style="background-color: {{$conteo > 0 ? '#dc3545' : '#007bff'}}; border-radius: 75%; animation: {{$conteo > 0 ? 'pulse 1s ease-in-out infinite' : 'none'}};"></i>
-  <span class="badge badge-light position-absolute" style="top: -10px; right: -10px; font-size: 0.8rem; {{$conteo > 0 ? 'animation: pulse 1s ease-in-out infinite' : 'none'}};">{{$conteo}}</span>
+<button type="button" class="btn {{$conteo > 0 ? 'btn-danger btn-sm btn-pulse' : 'btn-primary btn-sm btn-pulse'}} rounded-circle p-0" data-toggle="modal" data-target="#exampleModal" style="float: right; width: 40px; height: 40px; position: relative; right: 0;">
+  <i class="fas fa-bell fa-2x text-white p-2" style="background-color: {{$conteo > 0 ? '#dc3545' : '#007bff'}}; border-radius: 75%;"></i>
+  <span class="badge badge-light position-absolute" style="top: -10px; right: -10px; font-size: 0.8rem;">{{$conteo}}</span>
 </button>
 
 {{-- aqui termina el boton --}}
@@ -319,6 +319,10 @@ PARA, <strong> AGREGAR OTRO SEGUIMIENTO O CERRAR EL CASO</strong> <a href="{{rou
       box-shadow: 0 0 0 0 rgba(255, 99, 132, 0);
     }
   }
+
+  .btn-pulse {
+  animation: pulse 1s ease-in-out infinite;
+}
 
 
   
