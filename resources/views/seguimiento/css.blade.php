@@ -1,15 +1,6 @@
 <link rel="stylesheet" href="{{ asset('vendor/DataTables/css/dataTables.bootstrap.css') }}">
 <link rel="stylesheet" href="{{ asset('vendor/DataTables/css/jquery.dataTables.css') }}">
 <style>
- .dataTables_filter input {
-  width: 500px !important;
-  height: 100%;
-  background-color: #555 ;
-  border: solid 3px !important;
-  border-radius: 20px !important;
-  color: rgb(64, 125, 232);
-  padding: 10px !important;
-}
 
 @keyframes pulse {
     0% {
@@ -22,6 +13,17 @@
       box-shadow: 0 0 0 0 rgba(255, 99, 132, 0);
     }
   }
+ .dataTables_filter input {
+  width: 500px !important;
+  height: 100%;
+  background-color: #555 ;
+  border: solid 3px !important;
+  border-radius: 20px !important;
+  color: rgb(64, 125, 232);
+  padding: 10px !important;
+}
+
+
 
 
 
