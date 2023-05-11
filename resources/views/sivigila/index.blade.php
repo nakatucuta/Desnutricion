@@ -1,4 +1,3 @@
-
 @extends('adminlte::page')
 
 @section('title', 'Anas wayuu')
@@ -7,8 +6,8 @@
 @include('seguimiento.mensajes')
 {{-- boton para abrir la modal --}}
 <button type="button" class="btn {{$conteo > 0 ? 'btn-danger btn-sm' : 'btn-primary btn-sm'}} rounded-circle p-0" data-toggle="modal" data-target="#exampleModal" style="float: right; width: 40px; height: 40px; position: relative; right: 0;">
-  <i class="fas fa-bell fa-2x text-white p-2" style="background-color: {{$conteo > 0 ? '#dc3545' : '#007bff'}}; border-radius: 75%;"></i>
-  <span class="badge badge-dark position-absolute" style="top: -10px; right: -10px; font-size: 0.8rem;">{{$conteo}}</span>
+  <i class="fas fa-bell fa-2x text-white p-2" style="background-color: {{$conteo > 0 ? '#dc3545' : '#007bff'}}; border-radius: 75%; animation: {{$conteo > 0 ? 'pulse 1s ease-in-out infinite' : 'none'}};"></i>
+  <span class="badge badge-light position-absolute" style="top: -10px; right: -10px; font-size: 0.8rem; {{$conteo > 0 ? 'animation: pulse 1s ease-in-out infinite' : 'none'}};">{{$conteo}}</span>
 </button>
 
 {{-- aqui termina el boton --}}
@@ -168,13 +167,14 @@ PARA, <strong> AGREGAR OTRO SEGUIMIENTO O CERRAR EL CASO</strong> <a href="{{rou
 <br>
 
 <div>
-<a href="{{route('export2')}}" class="btn  btn-success btn-sm" style="float: right;
-margin-right: 0;
-
-position: relative;
-right: 0;"><i class="fas fa-book"></i>   REPORTE</a>
+  <a href="{{route('export2')}}" class="btn btn-success btn-sm" 
+  style="float: right; margin-right: 0; position: relative; right: 0; border-radius: 50px; padding: 10px 20px; font-weight: bold; letter-spacing: 1px; background-color: #28a745;">
+    <i class="fas fa-file-export mr-2"></i> EXPORTAR
+  </a>
+  
+  
 </div>
-    <h1>Datos Sivigila</h1>
+    <h1 style="font-family: 'Helvetica Neue', sans-serif; font-weight: 700; font-size: 2rem;">Datos Sivigila</h1>
     <strong>Total {{ $sivigilas->total() - $sivigilasconteo}} </strong>
  
     {{-- <section class="content-header">
@@ -307,6 +307,21 @@ right: 0;"><i class="fas fa-book"></i>   REPORTE</a>
   color: rgb(64, 125, 232) !important;
 }
 
+
+@keyframes pulse {
+    0% {
+      box-shadow: 0 0 0 0 rgba(255, 99, 132, 0.7);
+    }
+    70% {
+      box-shadow: 0 0 0 20px rgba(255, 99, 132, 0);
+    }
+    100% {
+      box-shadow: 0 0 0 0 rgba(255, 99, 132, 0);
+    }
+  }
+
+
+  
 </style>
 
 

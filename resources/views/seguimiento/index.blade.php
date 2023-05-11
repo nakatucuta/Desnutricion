@@ -9,8 +9,8 @@
 
 {{-- boton para abrir la modal --}}
 <button type="button" class="btn {{$conteo > 0 ? 'btn-danger btn-sm' : 'btn-primary btn-sm'}} rounded-circle p-0" data-toggle="modal" data-target="#exampleModal" style="float: right; width: 40px; height: 40px; position: relative; right: 0;">
-  <i class="fas fa-bell fa-2x text-white p-2" style="background-color: {{$conteo > 0 ? '#dc3545' : '#007bff'}}; border-radius: 75%;"></i>
-  <span class="badge badge-dark position-absolute" style="top: -10px; right: -10px; font-size: 0.8rem;">{{$conteo}}</span>
+  <i class="fas fa-bell fa-2x text-white p-2" style="background-color: {{$conteo > 0 ? '#dc3545' : '#007bff'}}; border-radius: 75%; animation: {{$conteo > 0 ? 'pulse 1s ease-in-out infinite' : 'none'}};"></i>
+  <span class="badge badge-light position-absolute" style="top: -10px; right: -10px; font-size: 0.8rem; {{$conteo > 0 ? 'animation: pulse 1s ease-in-out infinite' : 'none'}};">{{$conteo}}</span>
 </button>
 
 
@@ -162,7 +162,8 @@
 
   {{-- aqui finliza la modal --}}
 <div>
-<h1>Listado De Seguimientos</h1>
+  <h1 style="font-family: 'Helvetica Neue', sans-serif; font-weight: 700; font-size: 2rem;">Seguimientos</h1>
+
 </div>
 <br>
 
@@ -184,23 +185,28 @@
 
 
 
-<a href="{{route('Seguimiento.create')}}" title="DETALLE" class="btn  btn-primary btn-sm">
-  <span class="icon-zoom-in" ></span> NUEVO SEGUIMIENTO</a>
+<a href="{{route('Seguimiento.create')}}" title="DETALLE" 
+class="btn btn-primary btn-sm" style="border-radius: 50px; padding: 10px 20px; font-weight: bold; letter-spacing: 1px; background-color: #007bff;">
+  <i class="icon-zoom-in mr-2"></i> NUEVO SEGUIMIENTO
+</a>
+
   {{-- <strong>Total {{ $incomeedit->total() }} </strong> --}}
 {{-- secion del reporte general --}}
 
-<a href="{{route('export3')}}" class="btn  btn-success btn-sm" style="
-float: right:;
-margin-right: 0;
+<a href="{{route('export3')}}" 
+class="btn btn-success btn-sm"
+ style=" margin-right: 0; position: relative; right: 0;
+  border-radius: 50px; padding: 10px 20px; font-weight: bold; letter-spacing: 1px;
+   background-color: #28a745;">
+  <i class="fas fa-book mr-2"></i>
+</a>
 
-position: relative;
-right: 0;"><i class="fas fa-book"></i>  </a>
   {{-- seccion del primer reporte --}}
-  <a href="{{route('export')}}" class="btn  btn-success btn-sm" style="float: right;
-  margin-right: 0;
-  width: 14%;
-  position: relative;
-  right: 0;"><i class="fas fa-book"></i>   REPORTE</a>
+  <a href="{{route('export')}}" class="btn btn-success btn-sm 
+  rounded-pill py-2 px-3" 
+  style="float: right; margin-right: 0; position: relative; right: 0; 
+  border-radius: 50px; padding: 10px 20px; font-weight: bold; letter-spacing: 1px; 
+  background-color: #28a745;"><i class="fas fa-file-export mr-2"></i> EXPORTAR</a>
   <br> <strong>Total {{ $incomeedit->total() }} </strong><br>
     {{-- <section class="content-header">
       
@@ -442,6 +448,20 @@ right: 0;"><i class="fas fa-book"></i>  </a>
 
 <style> 
 
+
+  @keyframes pulse {
+    0% {
+      box-shadow: 0 0 0 0 rgba(255, 99, 132, 0.7);
+    }
+    70% {
+      box-shadow: 0 0 0 20px rgba(255, 99, 132, 0);
+    }
+    100% {
+      box-shadow: 0 0 0 0 rgba(255, 99, 132, 0);
+    }
+  }
+
+
   .dataTables_filter input {
     width: 500px !important;
     height: 100%;
@@ -485,7 +505,16 @@ right: 0;"><i class="fas fa-book"></i>  </a>
         });
     });
   </script> --}}
-  
+  {{-- <script>
+    setInterval(function() {
+      var icono = document.getElementById('icono-notificaciones');
+      var badge = document.getElementById('badge-notificaciones');
+      var colores = ['#dc3545', '#007bff', '#28a745', '#ffc107', '#17a2b8', '#6c757d'];
+      var colorAleatorio = colores[Math.floor(Math.random() * colores.length)];
+      icono.style.backgroundColor = colorAleatorio;
+      badge.style.backgroundColor = colorAleatorio;
+    }, 500);
+  </script> --}}
   <script>
     $(document).ready(function () {
     $('#seguimiento').DataTable({
