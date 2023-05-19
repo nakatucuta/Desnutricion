@@ -2,6 +2,25 @@
 <link rel="stylesheet" href="{{ asset('vendor/DataTables/css/jquery.dataTables.css') }}">
 <style>
 
+@keyframes explode {
+  0% {
+    transform: scale(0);
+  }
+  50% {
+    transform: scale(1.2);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+.custom-alert {
+  animation-name: explode;
+  animation-duration: 3s; /* Cambia la duración a 4 segundos */
+  animation-timing-function: ease-in-out;
+}
+
+
 @keyframes pulse {
     0% {
       box-shadow: 0 0 0 0 rgba(255, 99, 132, 0.7);
