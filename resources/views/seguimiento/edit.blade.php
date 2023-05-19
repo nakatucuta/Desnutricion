@@ -149,12 +149,20 @@
     
                                     <div class="col-sm-6">
                                         <div class="form-group">
-                                            <label for="Nombre"> Medicamento </label> {{-- el isset pregunta si el archivo esta seleccionado lo muestre sino no muestra nada por eso las comillas vacias al final --}}
-                                            <textarea name="medicamento" id="medicamento" value=""
-                                             class="form-control" rows="5" maxlength="600">{{$empleado->medicamento}}</textarea>
-                                                               
+                                            <label for="medicamento">Medicamento</label>
+                                            <select class="js-example-basic-multiple" name="medicamento[]" multiple="multiple" style="width: 100%">
+                                                <option value="23072-2" {{ in_array('23072-2', explode(',', $empleado->medicamento)) ? 'selected' : '' }}>albendazol 200MG</option>
+                                                <option value="54114-1" {{ in_array('54114-1', explode(',', $empleado->medicamento)) ? 'selected' : '' }}>albendazol 400MG</option>
+                                                <option value="35662-18" {{ in_array('35662-18', explode(',', $empleado->medicamento)) ? 'selected' : '' }}>Acido folico</option>
+                                                <option value="31063-1" {{ in_array('31063-1', explode(',', $empleado->medicamento)) ? 'selected' : '' }}>Vitamina A</option>
+                                                <option value="27440-3" {{ in_array('27440-3', explode(',', $empleado->medicamento)) ? 'selected' : '' }}>Hierro</option>
+                                                <!-- Agrega más opciones aquí -->
+                                            </select>
                                         </div>
-                                        </div>
+                                    </div>
+                                    
+                                    
+                                    
                                     
                                         </div>
     
@@ -291,6 +299,8 @@
     @stop
     
     @section('js')
-        <script> console.log('Hi!'); </script>
+        <script>   $(document).ready(function() {
+            $('.js-example-basic-multiple').select2();
+        }); </script>
     @stop
     

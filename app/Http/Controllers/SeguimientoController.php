@@ -353,6 +353,8 @@ if ($registroAnterior) {
     public function update(Request $request, Seguimiento $seguimiento,$id)
     {
         $datosEmpleado = request()->except(['_token','_method']);
+        $medicamentos = implode(',', $datosEmpleado['medicamento']);
+        $datosEmpleado['medicamento'] = $medicamentos;
       $seg =  Seguimiento::where('id','=',$id )->update($datosEmpleado);
 
          if ($request->estado == 1) {
