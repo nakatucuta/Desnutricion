@@ -20,7 +20,7 @@ return new class extends Migration
             $table->timestamp('email_verified_at')->nullable();
             $table->string('password');
             $table->integer('usertype');
-            $table->string('codigohabilitacion')->unique(); //ojo debes ponerlo en string asi valida cuando ingreses algo equivocado por ejemplo un correo en lugar del codigo
+            $table->string('codigohabilitacion'); //->unique() ojo debes ponerlo en string asi valida cuando ingreses algo equivocado por ejemplo un correo en lugar del codigo
             $table->rememberToken();
             $table->timestamps();
         });
