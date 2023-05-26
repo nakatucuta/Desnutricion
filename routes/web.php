@@ -58,3 +58,4 @@ Route::get('/seguimiento/view-pdf/{id}', 'App\Http\Controllers\SeguimientoContro
 Route::get('/grafica-barras', [SeguimientoController::class, 'graficaBarras'])->name('grafica.barras');
 
 Route::get('/grafica-torta-clasificacion', [SeguimientoController::class, 'graficaTortaClasificacion'])->name('grafica.torta.clasificacion');
+
