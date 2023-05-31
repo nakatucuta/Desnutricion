@@ -18,22 +18,25 @@ class SeguimientoExport implements FromCollection, WithHeadings, ShouldAutoSize,
     */
     public function collection()
     {
-        return DB::table('sivigilas')
-        
-        ->Join('seguimientos', 'sivigilas.id', '=', 'seguimientos.sivigilas_id')
-        ->select(DB::raw("sivigilas.num_ide_,sivigilas.pri_nom_,sivigilas.seg_nom_,
-        sivigilas.pri_ape_,sivigilas.seg_ape_,
-        
-         IIF(seguimientos.estado = 1, 'Activo', 'Inactivo') as Estado, 
-         seguimientos.fecha_consulta,
-          seguimientos.peso_kilos,seguimientos.talla_cm,seguimientos.puntajez,
-          seguimientos.clasificacion,
-          seguimientos.requerimiento_energia_ftlc,seguimientos.fecha_entrega_ftlc,
-          seguimientos.medicamento,seguimientos.observaciones,
-          seguimientos.est_act_menor,seguimientos.tratamiento_f75,
-          seguimientos.fecha_recibio_tratf75,
-          seguimientos.fecha_proximo_control"))
-        ->get();
+        $user = auth()->user(); // Obtener el usuario activo
+
+        $data = DB::table('sivigilas')
+            ->join('seguimientos', 'sivigilas.id', '=', 'seguimientos.sivigilas_id')
+            ->join('users', 'users.id', '=', 'sivigilas.user_id')
+            ->select('sivigilas.num_ide_', 'sivigilas.pri_nom_', 'sivigilas.seg_nom_',
+                     'sivigilas.pri_ape_', 'sivigilas.seg_ape_', 
+                     DB::raw("CASE WHEN seguimientos.estado = 1 THEN 'Activo' ELSE 'Inactivo' END as Estado"), 
+                     'seguimientos.fecha_consulta', 'seguimientos.peso_kilos',
+                     'seguimientos.talla_cm', 'seguimientos.puntajez',
+                     'seguimientos.clasificacion', 'seguimientos.requerimiento_energia_ftlc',
+                     'seguimientos.fecha_entrega_ftlc', 'seguimientos.medicamento',
+                     'seguimientos.observaciones', 'seguimientos.est_act_menor',
+                     'seguimientos.tratamiento_f75', 'seguimientos.fecha_recibio_tratf75',
+                     'seguimientos.fecha_proximo_control')
+            ->where('users.id', $user->id) // Filtrar por el usuario activo
+            ->get();
+    
+        return $data;
     }
 
     public function headings(): array

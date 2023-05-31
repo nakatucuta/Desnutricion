@@ -342,7 +342,7 @@ class SivigilaController extends Controller
             // aqui empieza el tema de envio de correos entonces si el estado es 1
             //creamos una consulta
             $results = DB::table('sivigilas')
-            ->select('num_ide_', 'pri_nom_')
+            ->select('num_ide_', 'pri_nom_','seg_nom_','pri_ape_','seg_ape_')
             ->where('num_ide_', $request->num_ide_)
             ->where('fec_not', $request->fec_not)
             ->get();
@@ -352,7 +352,10 @@ class SivigilaController extends Controller
             foreach ($results as $result) {
         
             $bodyText .= 'Identificación: ' .'<strong>' . $result->num_ide_ . '</strong><br>';
-            $bodyText .= 'Identificación: ' .'<strong>' . $result->pri_nom_ . '</strong><br>';
+            $bodyText .= 'Primer Nombre: ' .'<strong>' . $result->pri_nom_ . '</strong><br>';
+            $bodyText .= 'Segundo Nombre: ' .'<strong>' . $result->seg_nom_ . '</strong><br>';
+            $bodyText .= 'Primer Apellido: ' .'<strong>' . $result->pri_ape_ . '</strong><br>';
+            $bodyText .= 'Segundo Apellido: ' .'<strong>' . $result->seg_ape_ . '</strong><br>';
               }
             //aqui termina la consulta que enviaremos al cuerpo del correo
 
@@ -369,7 +372,8 @@ class SivigilaController extends Controller
                    ->from(new Address(env('MAIL_FROM_ADDRESS'), env('MAIL_FROM_NAME')))
                    ->to(new Address(User::find($request->user_id)->email))
                    ->subject('Recordatorio de control')
-                   ->html('Hola, te acaban de asignar un paciente de desnutricion por parte de la
+                   ->html('FAVOR NO CONTESTAR ESTE MENSAJE <br>
+                    Hola, te acaban de asignar un paciente de desnutricion por parte de la
                    EPSI anas wayuu, se solicita gestionarlo lo antes posible'.$bodyText);
                    if ($mailer->send($email)) {
             return redirect()->route('sivigila.index')
