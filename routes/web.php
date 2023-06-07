@@ -59,3 +59,4 @@ Route::get('/grafica-barras', [SeguimientoController::class, 'graficaBarras'])->
 
 Route::get('/grafica-torta-clasificacion', [SeguimientoController::class, 'graficaTortaClasificacion'])->name('grafica.torta.clasificacion');
 
+// Route::get('/import', 'App\Http\Controllers\SivigilaController@import');

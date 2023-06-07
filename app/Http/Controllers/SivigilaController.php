@@ -40,20 +40,30 @@ class SivigilaController extends Controller
 
     {  
 
+        // con max
+        // $sivigilas = DB::connection('sqlsrv_1')
+        // ->table('maestroSiv113 AS m')
+        // ->select(DB::raw("CAST(MAX(m.fec_not) AS DATE) as fec_noti, m.tip_ide_, m.num_ide_, m.pri_nom_, m.seg_nom_, m.pri_ape_, m.seg_ape_"))
+        // ->where('m.cod_eve', 113)
+ 
+        // ->whereBetween(DB::raw("YEAR(m.fec_not)"), [2022, 2023])
+ 
+        // ->whereBetween(DB::raw("YEAR(m.fec_not)"), [2023, 2023])
+ 
+        // ->groupBy('m.tip_ide_', 'm.num_ide_', 'm.pri_nom_', 'm.seg_nom_', 'm.pri_ape_', 'm.seg_ape_')
+        //  ->orderBy('fec_noti', 'desc')
+        // ->paginate(10000);
+
         
 
-       $sivigilas = DB::connection('sqlsrv_1')
-       ->table('maestroSiv113 AS m')
-       ->select(DB::raw("CAST(MAX(m.fec_not) AS DATE) as fec_noti, m.tip_ide_, m.num_ide_, m.pri_nom_, m.seg_nom_, m.pri_ape_, m.seg_ape_"))
-       ->where('m.cod_eve', 113)
-
-       ->whereBetween(DB::raw("YEAR(m.fec_not)"), [2022, 2023])
-
-       ->whereBetween(DB::raw("YEAR(m.fec_not)"), [2023, 2023])
-
-       ->groupBy('m.tip_ide_', 'm.num_ide_', 'm.pri_nom_', 'm.seg_nom_', 'm.pri_ape_', 'm.seg_ape_')
-    //    ->orderBy('fec_noti', 'desc')
-       ->paginate(10000);  //recuerda debes poner get y buscar la forma de contar todos los registros
+        $sivigilas = DB::connection('sqlsrv_1')
+        ->table('maestroSiv113 AS m')
+        ->select(DB::raw("CAST(m.fec_not AS DATE) as fec_noti, m.tip_ide_, m.num_ide_, m.pri_nom_, m.seg_nom_, m.pri_ape_, m.seg_ape_"))
+        ->where('m.cod_eve', 113)
+        ->whereBetween(DB::raw("YEAR(m.fec_not)"), [2023, 2023])
+        ->groupBy('m.fec_not', 'm.tip_ide_', 'm.num_ide_', 'm.pri_nom_', 'm.seg_nom_', 'm.pri_ape_', 'm.seg_ape_')
+        ->paginate(10000);
+       //recuerda debes poner get y buscar la forma de contar todos los registros
 
 
        $sivigilasconteo = DB::
@@ -469,5 +479,78 @@ class SivigilaController extends Controller
 
 
     }
+
+
+
+
+
+    // public function import()
+    // {
+    //     $filePath = 'C:\xampp\htdocs\Desnutricion\storage\app\sivigilas.txt';
+    //     $file = fopen($filePath, 'r');
+    
+    //     while (($data = fgetcsv($file, 0, "\t")) !== false) {
+    //         if (count($data) == 29) { // Verificar que el array tenga 29 elementos
+    //             $cod_eve = intval($data[0]); // Convertir a entero
+    
+    //             $fec_not = date_create($data[2]);
+    //             $fecha_aten_inicial = date_create($data[20]);
+    
+    //             $telefono = strval(trim($data[15], '"')); // Eliminar las comillas dobles
+    
+    //             if ($cod_eve && $fec_not && $fecha_aten_inicial && is_numeric($telefono)) {
+    //                 $record = [
+    //                     'cod_eve' => $cod_eve,
+    //                     'semana' => intval($data[1]),
+    //                     'fec_not' => date_format($fec_not, 'Y-m-d'),
+    //                     'year' => $data[3], // Mantener como nvarchar
+    //                     'dpto' => $data[4],
+    //                     'mun' => $data[5],
+    //                     'tip_ide_' => $data[6],
+    //                     'num_ide_' => $data[7],
+    //                     'pri_nom_' => $data[8],
+    //                     'seg_nom_' => $data[9],
+    //                     'pri_ape_' => $data[10],
+    //                     'seg_ape_' => $data[11],
+    //                     'edad_' => intval($data[13]), // Utilizar el índice correcto para el campo 'edad_'
+    //                     'sexo_' => $data[12],
+    //                     'fecha_nto_' => $data[14],
+    //                     'edad_ges' => intval($data[16]),
+    //                     'telefono_' => $telefono, // Usar el valor convertido
+    //                     'nom_grupo_' => $data[17],
+    //                     'regimen' => $data[18],
+    //                     'Ips_at_inicial' => $data[19],
+    //                     'estado' => intval($data[21]), // Convertir a entero
+    //                     'fecha_aten_inicial' => date_format($fecha_aten_inicial, 'Y-m-d'),
+    //                     'Caso_confirmada_desnutricion_etiologia_primaria' => $data[22],
+    //                     'Ips_manejo_hospitalario' => intval($data[23]), // Convertir a entero
+    //                     'Esquemq_complrto_pai_edad' => $data[24],
+    //                     'Atecion_primocion_y_mantenimiento_res3280_2018' => $data[25],
+    //                     'nombreips_manejo_hospita' => $data[26],
+    //                     'user_id' => intval($data[27]),
+    //                     'created_at' => date('Y-m-d H:i:s', strtotime($data[28])),
+    //                     'updated_at' => date('Y-m-d H:i:s', strtotime($data[29])),
+    //                 ];
+    
+    //                 // Insertar el registro en la base de datos
+    //                 Sivigila::create($record);
+    //             } else {
+    //                 // Manejar el caso en el que los datos no son válidos
+    //                 // Por ejemplo, puedes omitir la inserción o registrar un error
+    //             }
+    //         } else {
+    //             // Manejar el caso en el que el número de elementos no es el esperado
+    //             // Por ejemplo, puedes omitir la inserción o registrar un error
+    //         }
+    //     }
+    
+    //     fclose($file);
+    
+    //     return 'Datos importados exitosamente.';
+    // }
+    
+
+
+    
 
 }

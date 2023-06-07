@@ -15,7 +15,7 @@ return new class extends Migration
     {
         Schema::create('sivigilas', function (Blueprint $table) {
             $table->increments('id');
-            $table->bigInteger('cod_eve');
+            $table->integer('cod_eve');
             $table->integer('semana')->nullable();
             $table->date('fec_not');
             $table->string('year');
@@ -40,7 +40,7 @@ return new class extends Migration
 
            
             $table->string('Caso_confirmada_desnutricion_etiologia_primaria')->nullable();
-            $table->bigInteger('Ips_manejo_hospitalario')->nullable();
+            $table->string('Ips_manejo_hospitalario')->nullable();
          
             $table->string('Esquemq_complrto_pai_edad')->nullable();
             $table->string('Atecion_primocion_y_mantenimiento_res3280_2018')->nullable();
