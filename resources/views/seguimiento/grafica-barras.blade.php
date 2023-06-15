@@ -26,7 +26,7 @@
     <div class="col-sm-7">
         
       <canvas id="grafica-barras" width="300" height="200"></canvas>
-      <h3 class="estilo-h3"> Seguimientos por estado <i class="fas fa-chart-line "></i></h3>
+      <h3 class="estilo-h3"> Seguimientos por estadoiii <i class="fas fa-chart-line "></i></h3>
     </div>
   </div>
   
