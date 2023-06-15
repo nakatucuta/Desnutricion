@@ -111,7 +111,7 @@ class GeneralExport implements  FromCollection, WithHeadings, ShouldAutoSize, Wi
                 // $cellRange3 = 'A2:AT2'; //RANGO PARA LOS FILTROS
                 // $cellRange1 = 'AO1:AP1'; // All headers
                 // $cellRange2 = 'AQ1:AT1';
-                 $cellRange = 'A1:BI1'; // All headers
+                 $cellRange = 'A1:AO1'; // All headers
                 
                 //  $event->sheet->getDelegate()->mergeCells($cellRange2);
                 //  $event->sheet->getDelegate()->mergeCells($cellRange1);//ojo debes buscar la

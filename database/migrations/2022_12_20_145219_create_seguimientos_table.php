@@ -27,7 +27,8 @@ return new class extends Migration
              $table->string('motivo_reapuertura')->nullable();
             // $table->string('resultados_seguimientos');
             // $table->string('ips_realiza_seguuimiento');
-            $table->string('observaciones');
+            $table->string('observaciones', 1000); // Establece una longitud máxima de 500 caracteres
+
             
             // esto son lo que movi de  sivigilas
             $table->string('est_act_menor')->nullable();

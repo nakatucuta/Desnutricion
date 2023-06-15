@@ -384,7 +384,7 @@ class SivigilaController extends Controller
                    ->subject('Recordatorio de control')
                    ->html('FAVOR NO CONTESTAR ESTE MENSAJE <br>
                     Hola, te acaban de asignar un paciente de desnutricion por parte de la
-                   EPSI anas wayuu, se solicita gestionarlo lo antes posible ingresando a este enlacee <br>
+                   EPSI anas wayuu, se solicita gestionarlo lo antes posible ingresando a este enlace <br>
                    http://dnt.epsianaswayuu.com:58222/Desnutricion/public/'.$bodyText);
                    if ($mailer->send($email)) {
             return redirect()->route('sivigila.index')
