@@ -66,10 +66,26 @@ class SivigilaController extends Controller
        //recuerda debes poner get y buscar la forma de contar todos los registros
 
 
-       $sivigilasconteo = DB::
-       table('sivigilas')
-       ->select('id')
-       ->count();
+       $T1 = DB::connection('sqlsrv_1')->table('maestroSiv113 AS m')
+       ->select(DB::raw("CAST(m.fec_not AS DATE) AS fec_noti, m.tip_ide_, m.num_ide_, m.pri_nom_, m.seg_nom_, m.pri_ape_, m.seg_ape_"))
+       ->where('m.cod_eve', 113)
+       ->whereBetween(DB::raw("YEAR(m.fec_not)"), [2023, 2023])
+       ->groupBy('m.fec_not', 'm.tip_ide_', 'm.num_ide_', 'm.pri_nom_', 'm.seg_nom_', 'm.pri_ape_', 'm.seg_ape_');
+   
+   $results = DB::connection('sqlsrv_1')->table(DB::raw("({$T1->toSql()}) as A"))
+       ->mergeBindings($T1)
+       ->leftJoin('DESNUTRICION.dbo.sivigilas AS B', function ($join) {
+           $join->on('A.fec_noti', '=', 'B.fec_not')
+               ->on('A.num_ide_', '=', 'B.num_ide_');
+       })
+       ->whereNull('B.num_ide_')
+       ->get();
+   
+   $count123 = $results->count();
+   
+
+
+
 
         
         $sivi = Sivigila::all();
@@ -110,7 +126,7 @@ class SivigilaController extends Controller
             ->where('seguimientos.estado',1)
             ->get();
         
-        return view('sivigila.index', compact('sivigilas','sivi','conteo','otro','sivigilasconteo'));
+        return view('sivigila.index', compact('sivigilas','sivi','conteo','otro','count123'));
 
 
        

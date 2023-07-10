@@ -175,7 +175,7 @@ PARA, <strong> AGREGAR OTRO SEGUIMIENTO O CERRAR EL CASO</strong> <a href="{{rou
   
 </div>
     <h1 style="font-family: 'Helvetica Neue', sans-serif; font-weight: 700; font-size: 2rem;">Datos Sivigila</h1>
-    <strong>Total {{ $sivigilas->total() - $sivigilasconteo}} </strong>
+    <strong>Total {{ $count123}} </strong>
  
     {{-- <section class="content-header">
       
