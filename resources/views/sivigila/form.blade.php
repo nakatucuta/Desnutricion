@@ -168,7 +168,7 @@
     <div class="form-group">
     <label for="Nombre">IPS Atencion inicial</label> {{-- el isset pregunta si el archivo esta seleccionado lo muestre sino no muestra nada por eso las comillas vacias al final --}}
     <input class="form-control" type="text" name="Ips_at_inicial" id = 'Ips_at_inicial'
-    value="{{$income11}}" readonly>
+    value="{{$income11}}">
     </div>
 </div>
 
