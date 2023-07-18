@@ -207,11 +207,13 @@ class SivigilaController extends Controller
 
         $incomeedit10 = DB::connection('sqlsrv_1')->table('maestroSiv113')->selectRaw('CONCAT(trim(cod_pre),trim(cod_sub)) ')
         // ->join('refIps as r', 'CONCAT(trim(cod_pre),trim(cod_sub))', '=', 'r.codigo' )
+        ->whereRaw('CAST(fec_not AS DATE) = ?', [$fecha_casteada])
         ->where('num_ide_', $num_ide_)
         ->VALUE('ipspres');
 
         $income11 = DB::connection('sqlsrv_1')->table('refIps')->selectRaw('refIps.descrip as nombrepres ')
         // ->join('refIps as r', 'CONCAT(trim(cod_pre),trim(cod_sub))', '=', 'r.codigo' )
+      
         ->where('refIps.codigo', $incomeedit10)
         
         ->value('nombrepres');
