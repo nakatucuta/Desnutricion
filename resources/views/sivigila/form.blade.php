@@ -152,7 +152,7 @@
         <div class="form-group">
             <label for="Nombre">Telefono</label> {{-- el isset pregunta si el archivo esta seleccionado lo muestre sino no muestra nada por eso las comillas vacias al final --}}
             <input class="form-control" type="text" name="telefono_" id = 'telefono_'
-            value="{{$incomeedit1->telefono_}}" readonly>
+            value="{{$incomeedit1->telefono_}}" >
         </div>
     </div>
 
