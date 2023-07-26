@@ -135,6 +135,31 @@
     
                             </div>
                             <div class="row">
+                                <div class="col-sm-6">
+                                    <div class="form-group">
+                                        <label for="Nombre">Esquema pai completo para la edad</label>
+                                        <select class="person2 " name="Esquemq_complrto_pai_edad" id="Esquemq_complrto_pai_edad"  style="width: 100% ">
+                                            <option  value="{{$empleado->Esquemq_complrto_pai_edad}}">{{$empleado->Esquemq_complrto_pai_edad}}</option>
+                                        
+                                        
+                                      </select>
+                                </div>
+                                    </div>
+                                
+                                                               
+                                
+                                    <div class="col-sm-6">
+                                        <div class="form-group">
+                                            <label for="Nombre">Atencion en la ruta de promocion y mantenimieto </label>
+                                            <select class="person2 " name="Atecion_primocion_y_mantenimiento_res3280_2018" id="Atecion_primocion_y_mantenimiento_res3280_2018"  style="width: 100% ">
+                                                <option  value="{{$empleado->Atecion_primocion_y_mantenimiento_res3280_2018}}">{{$empleado->Atecion_primocion_y_mantenimiento_res3280_2018}}</option>
+                                            </select>
+                                        </div>
+                                        </div>
+                                
+                                
+                                </div>
+                            <div class="row">
     
                                 <div class="col-sm-6">
                                     <div class="form-group">

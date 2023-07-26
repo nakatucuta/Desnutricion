@@ -25,7 +25,24 @@ class GeneralExport implements  FromCollection, WithHeadings, ShouldAutoSize, Wi
     ->join('seguimientos', 'sivigilas.id', '=', 'seguimientos.sivigilas_id')
     ->join('users as users_sivigilas', 'sivigilas.user_id', '=', 'users_sivigilas.id')
     ->join('users as users_seguimientos', 'seguimientos.user_id', '=', 'users_seguimientos.id')
-    ->select(DB::raw("sivigilas.id, sivigilas.cod_eve, sivigilas.semana, sivigilas.fec_not, sivigilas.year, sivigilas.dpto, sivigilas.mun, sivigilas.tip_ide_, sivigilas.num_ide_, sivigilas.pri_nom_, sivigilas.seg_nom_, sivigilas.pri_ape_, sivigilas.seg_ape_, sivigilas.sexo_, sivigilas.fecha_nto_, sivigilas.edad_ges, sivigilas.telefono_, sivigilas.nom_grupo_, sivigilas.regimen, sivigilas.Ips_at_inicial, sivigilas.fecha_aten_inicial, users_sivigilas.name as user_sivigilas_name, sivigilas.Caso_confirmada_desnutricion_etiologia_primaria, sivigilas.Ips_manejo_hospitalario, sivigilas.Esquemq_complrto_pai_edad, sivigilas.Atecion_primocion_y_mantenimiento_res3280_2018, sivigilas.nombreips_manejo_hospita, IIF(seguimientos.estado = 1, 'Activo', 'Inactivo') as Estado, seguimientos.fecha_consulta, seguimientos.peso_kilos, seguimientos.talla_cm, seguimientos.puntajez, seguimientos.clasificacion, seguimientos.requerimiento_energia_ftlc, seguimientos.fecha_entrega_ftlc, seguimientos.medicamento, seguimientos.observaciones, seguimientos.est_act_menor, seguimientos.tratamiento_f75, seguimientos.fecha_recibio_tratf75, seguimientos.fecha_proximo_control, seguimientos.created_at, users_seguimientos.name as user_seguimientos_name"))
+    ->select(DB::raw("sivigilas.id, sivigilas.cod_eve, sivigilas.semana, sivigilas.fec_not, 
+    sivigilas.year, sivigilas.dpto, sivigilas.mun, sivigilas.tip_ide_, sivigilas.num_ide_, 
+    sivigilas.pri_nom_, sivigilas.seg_nom_, sivigilas.pri_ape_, sivigilas.seg_ape_, 
+    sivigilas.sexo_, sivigilas.fecha_nto_, sivigilas.edad_ges, sivigilas.telefono_,
+     sivigilas.nom_grupo_, sivigilas.regimen, sivigilas.Ips_at_inicial, 
+     sivigilas.fecha_aten_inicial, users_sivigilas.name as user_sivigilas_name, 
+     sivigilas.Caso_confirmada_desnutricion_etiologia_primaria, 
+     sivigilas.Ips_manejo_hospitalario,  
+     sivigilas.nombreips_manejo_hospita, 
+     IIF(seguimientos.estado = 1, 'Activo', 'Inactivo') as Estado, 
+     seguimientos.fecha_consulta, seguimientos.peso_kilos, seguimientos.talla_cm, 
+     seguimientos.puntajez, seguimientos.clasificacion, 
+     seguimientos.requerimiento_energia_ftlc, seguimientos.fecha_entrega_ftlc, 
+     seguimientos.medicamento, seguimientos.observaciones, seguimientos.est_act_menor, 
+     seguimientos.tratamiento_f75, seguimientos.fecha_recibio_tratf75, 
+     seguimientos.fecha_proximo_control,seguimientos.Esquemq_complrto_pai_edad, 
+     seguimientos.Atecion_primocion_y_mantenimiento_res3280_2018, seguimientos.created_at, 
+     users_seguimientos.name as user_seguimientos_name"))
     ->get();
 
     }
@@ -60,8 +77,7 @@ class GeneralExport implements  FromCollection, WithHeadings, ShouldAutoSize, Wi
             'Ips seguimiento ambulatorio',
            'Caso confirmada desnutricion etiologia_primaria',
            'Ips manejo  hosptalario',
-           'Esquema pai completo para la edad',
-           'Atecion primocion_mantenimiento_res3280_2018',
+         
            'nombreips_manejo_hospita',
 
 
@@ -82,6 +98,8 @@ class GeneralExport implements  FromCollection, WithHeadings, ShouldAutoSize, Wi
                '(seguimientos)fecha en la que recibe tratmiento f75',
                
              '(seguimiento)Fecha del proximo seguimiento',
+             'Esquema pai completo para la edad',
+             'Atecion primocion_mantenimiento_res3280_2018',
              '(seguimiento)Fecha de creacion del dato',
              '(seguimiento) Usuario que realizo seguimiento'
         
@@ -99,7 +117,7 @@ class GeneralExport implements  FromCollection, WithHeadings, ShouldAutoSize, Wi
                 // $cellRange3 = 'A2:AT2'; //RANGO PARA LOS FILTROS
                 // $cellRange1 = 'AO1:AP1'; // All headers
                 // $cellRange2 = 'AQ1:AT1';
-                 $cellRange = 'A1:AP1'; // All headers
+                 $cellRange = 'A1:AQ1'; // All headers
                 
                 //  $event->sheet->getDelegate()->mergeCells($cellRange2);
                 //  $event->sheet->getDelegate()->mergeCells($cellRange1);//ojo debes buscar la

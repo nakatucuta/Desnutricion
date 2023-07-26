@@ -39,7 +39,10 @@ return new class extends Migration
             $table->string('pdf')->nullable();
             $table->integer('sivigilas_id');//relacion uno a uno 
             $table->foreign('sivigilas_id')->references('id')->on('sivigilas')->onDelete('cascade')->onUpdate('cascade');
-            
+            //ESQUEMA PAI Y ATENCION Y PROM MANTENIMIENTO
+            $table->string('Esquemq_complrto_pai_edad')->nullable();
+            $table->string('Atecion_primocion_y_mantenimiento_res3280_2018')->nullable();
+            //AQUI TERMINA 
             $table->integer('user_id')->unsigned();
             $table->foreign('user_id')->references('id')->on('users');
             $table->timestamps();

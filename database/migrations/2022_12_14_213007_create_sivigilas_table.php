@@ -42,8 +42,7 @@ return new class extends Migration
             $table->string('Caso_confirmada_desnutricion_etiologia_primaria')->nullable();
             $table->string('Ips_manejo_hospitalario')->nullable();
          
-            $table->string('Esquemq_complrto_pai_edad')->nullable();
-            $table->string('Atecion_primocion_y_mantenimiento_res3280_2018')->nullable();
+           
            
             $table->string('nombreips_manejo_hospita')->nullable();
             $table->integer('user_id')->unsigned();

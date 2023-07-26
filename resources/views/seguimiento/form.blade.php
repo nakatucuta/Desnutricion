@@ -136,6 +136,7 @@
                               
                                 
                                     </div>
+                                    
 
                                     <div class="row">
                                         
@@ -229,7 +230,44 @@
                                                 </div>
                                             
                                             
-
+                                                <div class="row">
+                                                    <div class="col-lg-12 ">
+                                                        <div class="card card-info card-outline ">
+                                                    <center><h6 class=""> <strong>DEMANDA INDUCIDA</strong></h6></center>
+                                            
+                                                </div>
+                                                    </div>
+                                                        </div>
+            
+                                                <div class="row">
+                                                    <div class="col-sm-6">
+                                                        <div class="form-group">
+                                                            <label for="Nombre">Esquema pai completo para la edad</label>
+                                                            <select class="person2 " name="Esquemq_complrto_pai_edad" id="Esquemq_complrto_pai_edad"  style="width: 100% ">
+                                                            <option  value="">SELECCIONAR</option>
+                                                            <option  value="INCOMPLETO">INCOMPLETO</option>
+                                                            <option  value="INCOMPLETO">COMPLETO</option>
+                                                            
+                                                            
+                                                          </select>
+                                                    </div>
+                                                        </div>
+                                                    
+                                                                                   
+                                                    
+                                                        <div class="col-sm-6">
+                                                            <div class="form-group">
+                                                                <label for="Nombre">Atencion en la ruta de promocion y mantenimieto </label>
+                                                                <select class="person2 " name="Atecion_primocion_y_mantenimiento_res3280_2018" id="Atecion_primocion_y_mantenimiento_res3280_2018"  style="width: 100% ">
+                                                                    <option  value="0">SELECCIONAR</option>
+                                                                    <option  value="SI">SI</option>
+                                                                    <option  value="NO">NO</option>
+                                                                </select>
+                                                            </div>
+                                                            </div>
+                                                    
+                                                    
+                                                    </div>
                                             <div class="row">
                                                 <div class="col-md-7">
                                                     <div class="form-group" >

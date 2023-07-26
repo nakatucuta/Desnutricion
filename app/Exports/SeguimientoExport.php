@@ -32,7 +32,8 @@ class SeguimientoExport implements FromCollection, WithHeadings, ShouldAutoSize,
                      'seguimientos.fecha_entrega_ftlc', 'seguimientos.medicamento',
                      'seguimientos.observaciones', 'seguimientos.est_act_menor',
                      'seguimientos.tratamiento_f75', 'seguimientos.fecha_recibio_tratf75',
-                     'seguimientos.fecha_proximo_control')
+                     'seguimientos.fecha_proximo_control','seguimientos.Esquemq_complrto_pai_edad', 
+                     'seguimientos.Atecion_primocion_y_mantenimiento_res3280_2018')
             ->where('users.id', $user->id) // Filtrar por el usuario activo
             ->get();
     
@@ -64,7 +65,10 @@ class SeguimientoExport implements FromCollection, WithHeadings, ShouldAutoSize,
             'Tratamiento f75',
             'Fecha recibio trat f75',
            
-            'Fecha del proximo seguimiento'
+            'Fecha del proximo seguimiento',
+            'Esquema pai completo para la edad',
+            'Atecion primocion_mantenimiento_res3280_2018'
+
          
         ];
     

@@ -311,9 +311,7 @@ class SivigilaController extends Controller
             'Caso_confirmada_desnutricion_etiologia_primaria' => 'required',
             
            
-            'Esquemq_complrto_pai_edad' => 'required',
-
-            'Atecion_primocion_y_mantenimiento_res3280_2018' => 'required',
+            
             
             
             
@@ -357,10 +355,7 @@ class SivigilaController extends Controller
             // $entytistore->Ips_seguimiento_Ambulatorio = $request->Ips_seguimiento_Ambulatorio;
             $entytistore->Caso_confirmada_desnutricion_etiologia_primaria = $request->Caso_confirmada_desnutricion_etiologia_primaria;
             $entytistore->Ips_manejo_hospitalario = $request->Ips_manejo_hospitalario;
-             $entytistore->Esquemq_complrto_pai_edad = $request->Esquemq_complrto_pai_edad;
-
-            $entytistore->Atecion_primocion_y_mantenimiento_res3280_2018 = $request->Atecion_primocion_y_mantenimiento_res3280_2018;
-           
+            
             $entytistore->nombreips_manejo_hospita = $request->nombreips_manejo_hospita;
             $entytistore->user_id = $request->user_id;
         

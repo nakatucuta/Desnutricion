@@ -143,6 +143,9 @@ class SeguimientoController extends Controller
             //  'motivo_reapuertura' => 'required',
             // 'resultados_seguimientos' => 'required',
             // 'ips_realiza_seguuimiento' => 'required',
+            'Esquemq_complrto_pai_edad' => 'required',
+
+            'Atecion_primocion_y_mantenimiento_res3280_2018' => 'required',
             'observaciones' => 'required',
             // 'fecha_proximo_control' => 'nullable|date|after_or_equal:today',
             'sivigilas_id' => 'required',
@@ -167,7 +170,7 @@ class SeguimientoController extends Controller
         ->first();
 
         if (!$seguimientoExistente) {
-
+                
                 $entytistore = new Seguimiento;
                 $entytistore->estado = $request->estado;
                 $entytistore->fecha_consulta = $request->fecha_consulta;
@@ -181,6 +184,10 @@ class SeguimientoController extends Controller
                  $entytistore->motivo_reapuertura = $request->motivo_reapuertura;
                 // $entytistore->resultados_seguimientos = $request->resultados_seguimientos;
                 // $entytistore->ips_realiza_seguuimiento = $request->ips_realiza_seguuimiento;
+                $entytistore->Esquemq_complrto_pai_edad = $request->Esquemq_complrto_pai_edad;
+
+                $entytistore->Atecion_primocion_y_mantenimiento_res3280_2018 = $request->Atecion_primocion_y_mantenimiento_res3280_2018;
+               
                 $entytistore->observaciones = $request->observaciones;
                 // if (empty($request->fecha_proximo_control)) { cod para saber cuando un campo esta vacio haga esto
                     // $entytistore->fecha_proximo_control = date('Y-m-d');
