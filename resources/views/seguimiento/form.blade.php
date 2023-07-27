@@ -168,6 +168,7 @@
                                                         <option value="35662-18">Acido folico</option>
                                                         <option value="31063-1">Vitamina A</option>
                                                         <option value="27440-3">Hierro</option>
+                                                        <option value="NO APLICA">NO APLICA</option>
                                                         <!-- Agrega más opciones aquí -->
                                                       </select>
                                                     </div>
