@@ -279,6 +279,52 @@ class SivigilaController extends Controller
          ,"incomeedit13"=>$incomeedit13,"incomeedit14"=>$incomeedit14,"incomeedit15"=>$incomeedit15 ,"incomeedit16"=>$incomeedit16]);
     }
 
+
+    public function create1()
+    {
+        
+        $incomeedit14 = DB::connection('sqlsrv_1')->table('maestroAfiliados as a')
+        ->join('maestroips as b', 'a.numeroCarnet', '=', 'b.numeroCarnet')
+        ->join('maestroIpsGru as c', 'b.idGrupoIps', '=', 'c.id')
+        ->join('maestroIpsGruDet as d', function($join) {
+            $join->on('c.id', '=', 'd.idd')
+                 ->where('d.servicio', '=', 1);
+        })
+        ->join('refIps as e', 'd.idIps', '=', 'e.idIps')
+        ->select(DB::raw('CAST(e.codigo AS BIGINT) as codigo_habilitacion'))
+        // ->where('a.identificacion', $num_ide_)
+        ->first(); // Obtener el primer registro de la consulta
+    
+        if ($incomeedit14 !== null) {
+            $income12 = DB::table('users')
+                ->select('name', 'id', 'codigohabilitacion')
+                ->where('codigohabilitacion', $incomeedit14->codigo_habilitacion)
+                
+                ->get();
+            // Resto del código que maneja el resultado de la segunda consulta...
+        } else {
+            // Asignar un valor predeterminado a $income12 si $incomeedit14 es null
+            $income12 = [];
+        }
+
+
+
+        $incomeedit15 =  DB::table('users')->select('name', 'id','codigohabilitacion')
+        // ->where('usertype', 2)
+        ->get();
+
+        $incomeedit16 = DB::connection('sqlsrv_1')
+        ->table('refIps')
+        ->select('refIps.descrip as nombrepres', 'refIps.codigo as cod')
+        ->where('codigoDepartamento', 44)
+        ->orWhere('codigoDepartamento', 47)
+        ->orWhere('codigoDepartamento', 8)
+        ->get();
+        return view('sivigila.create1',["income12"=>$income12 
+        ,"incomeedit14"=>$incomeedit14,"incomeedit15"=>$incomeedit15,"incomeedit16"=>$incomeedit16]);
+
+    }
+
     /**
      * Store a newly created resource in storage.
      *
@@ -361,7 +407,7 @@ class SivigilaController extends Controller
         
             $entytistore->save();
 
-            //para enviarle un consulta al correo 
+            //para enviarle una consulta al correo 
             // aqui empieza el tema de envio de correos entonces si el estado es 1
             //creamos una consulta
             $results = DB::table('sivigilas')
