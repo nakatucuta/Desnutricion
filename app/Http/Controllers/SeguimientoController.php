@@ -363,18 +363,17 @@ if ($registroAnterior) {
         $datosEmpleado = request()->except(['_token','_method']);
         $medicamentos = implode(',', $datosEmpleado['medicamento']);
         $datosEmpleado['medicamento'] = $medicamentos;
-      $seg =  Seguimiento::where('id','=',$id )->update($datosEmpleado);
+        $seg =  Seguimiento::where('id', $id)->update($datosEmpleado);
 
-         if ($request->estado == 1) {
+        if ($request->estado == 1) {
             DB::table('sivigilas')
-                
-                ->update(['estado' => '1',]);
-         } else {
+                ->where('id', $id) // Agregar esta línea
+                ->update(['estado' => '1']);
+        } else {
             DB::table('sivigilas')
-                
-            ->update(['estado' => '0',]);
-            
-         }
+                ->where('id', $id) // Agregar esta línea
+                ->update(['estado' => '0']);
+        }
 
          //para enviarle un consulta al correo 
             // aqui empieza el tema de envio de correos entonces si el estado es 1
