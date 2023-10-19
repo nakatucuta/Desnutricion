@@ -81,9 +81,10 @@ class SivigilaController extends Controller
        ->whereNull('B.num_ide_')
        ->get();
    
-   $count123 = $results->count();
-   
-
+       
+   $count1234 = $results->count();
+   $sivi2 = DB::table('sivigilas')->count('id');
+       $count123 = $count1234 - $sivi2;
 
 
 
