@@ -67,26 +67,14 @@
  
               
                 <a href="{{ route('seguimiento.view-pdf', $student2->id) }}" target="_blank" class="btn btn-info btn-sm">
-                  <i class="far fa-file-pdf"></i>   </a> 
-
-                  
-                  @if ($student2->estado == 1)
-                  <a class="btn btn-primary btn-sm" href="{{ route('seguimiento_ocasional.create', ['id' => $student2->id]) }}" class="ref">
-                      <i class="fas fa-plus"></i>
-                  </a> 
-   
-                  @else 
-                  
-              @endif
-             
-
+                  <i class="far fa-file-pdf"></i>
                     {{-- <a href="{{route('Seguimiento.destroy', $student2->id)}}"
                       onclick="event.preventDefault();
                       if(confirm('¿Está seguro de que desea eliminar el producto?')) {
                       document.getElementById('delete-form-{{$student2->id}}').submit();
                       }" class="btn  btn-danger">
                      <i class="fas fa-trash"></i>
-                
+                   </a> 
                    
                    <form id="delete-form-{{$student2->id}}" action="{{route('Seguimiento.destroy', $student2->id)}}"
                     method="POST" style="display: none;">
@@ -135,11 +123,9 @@
                  <td>finalizado</td>
              @endif
                  
-                   <td>  
-                    
-                    <a class="btn  btn-success btn-sm" href="{{url('/Seguimiento/'.$student2->id. '/edit')}}" class="ref" >
+                   <td>  <a class="btn  btn-success btn-sm" href="{{url('/Seguimiento/'.$student2->id. '/edit')}}" class="ref" >
                      <i class="fas fa-edit"></i>
-                    </a>
+                 </a>
                
                  
                  @if( auth()->user()->usertype == 3) 
@@ -170,23 +156,7 @@
                <a href="{{ route('seguimiento.view-pdf', $student2->id) }}" target="_blank" class="btn btn-info btn-sm">
                  <i class="far fa-file-pdf"></i>
                </a>
-            
-               @if ($student2->estado == 1)
-               <a class="btn btn-primary btn-sm" href="{{ route('seguimiento_ocasional.create', ['id' => $student2->id]) }}" class="ref">
-                   <i class="fas fa-plus"></i>
-               </a> 
-
-               @else 
                
-           @endif
-           
-           
-           
-        
-                
-                   
-
-
                  </td>
                  
                          

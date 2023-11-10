@@ -5,6 +5,8 @@ use App\Http\Controllers\SivigilaController;
 use App\Http\Controllers\IngresoController;
 use App\Http\Controllers\SeguimientoController;
 use App\Http\Controllers\RevisionController;
+use App\Http\Controllers\SeguimientoOcasionalController;
+
 /*
 |--------------------------------------------------------------------------
 | Web Routes
@@ -27,6 +29,8 @@ Route::get('/home', [App\Http\Controllers\HomeController::class, 'index'])->name
 Route::resource('sivigila', SivigilaController::class)->middleware('auth');
 
 Route::resource('revision', RevisionController::class);
+
+Route::resource('seguimiento_ocasional', SeguimientoOcasionalController::class)->middleware('auth');
 
 Route::resource('Seguimiento', SeguimientoController::class)->middleware('auth');
 Route::get('/search1', 'App\Http\Controllers\SeguimientoController@search')->name('BUSCADOR1');
@@ -64,3 +68,6 @@ Route::get('/grafica-torta-clasificacion', [SeguimientoController::class, 'grafi
 
 
 Route::get('/nuevo', 'App\Http\Controllers\SivigilaController@create1')->name('create11');
+
+
+Route::get('seguimiento_ocasional/create/{id}', 'App\Http\Controllers\SeguimientoOcasionalController@create')->name('seguimiento_ocasional.create');

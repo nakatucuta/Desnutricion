@@ -82,9 +82,9 @@ class SivigilaController extends Controller
        ->get();
    
        
-   $count1234 = $results->count();
-   $sivi2 = DB::table('sivigilas')->count('id');
-       $count123 = $count1234 - $sivi2;
+        $count1234 = $results->count();
+        $sivi2 = DB::table('sivigilas')->count('id');
+        $count123 = $count1234 - $sivi2;
 
 
 
