@@ -365,13 +365,14 @@ if ($registroAnterior) {
         $datosEmpleado['medicamento'] = $medicamentos;
         $seg =  Seguimiento::where('id', $id)->update($datosEmpleado);
 
+        //OJO DEBES MODIFICAR ESTE PEDAZO PARAQUE CUANDO ACTUALIZE FUNCIONE
         if ($request->estado == 1) {
             DB::table('sivigilas')
-                ->where('id', $id) // Agregar esta línea
+                ->where('id', $request->sivigilas_id) // Agregar esta línea
                 ->update(['estado' => '1']);
         } else {
             DB::table('sivigilas')
-                ->where('id', $id) // Agregar esta línea
+            ->where('id', $request->sivigilas_id) // Agregar esta línea
                 ->update(['estado' => '0']);
         }
 
