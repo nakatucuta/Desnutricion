@@ -216,6 +216,7 @@ PARA, <strong> AGREGAR OTRO SEGUIMIENTO O CERRAR EL CASO</strong> <a href="{{rou
                   <tr>
                     {{-- <th scope="col">#</th> --}}
                     <th scope="col">Fecha Notificacion</th>
+                    <th scope="col">Semana</th>
                     <th scope="col">Tipo ID</th>
                     <th scope="col">Identificacion</th>
                     <th scope="col">Nombre</th>
@@ -225,12 +226,15 @@ PARA, <strong> AGREGAR OTRO SEGUIMIENTO O CERRAR EL CASO</strong> <a href="{{rou
                 <tbody id="table">
                   <tr>
                     @foreach($sivigilas as $student2)
+                    
                     {{-- <th scope="row">1</th> --}}
                     <td>{{ $student2->fec_noti }}</td>
+                    <td>{{ $student2->semana }}</td>
                     <td>{{ $student2->tip_ide_ }}</td>
                     <td>{{ $student2->num_ide_ }}</td>
+                    
                     <td>{{ $student2->pri_nom_.' '.$student2->seg_nom_.' '.$student2->pri_ape_.' '.
-                    $student2->seg_ape_ }}  </td>
+                          $student2->seg_ape_ }}  </td>
                     {{-- <td>{{ $student2->cod_eve }}</td> --}}
                     <td> 
                         
