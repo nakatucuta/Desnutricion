@@ -52,17 +52,17 @@ class SeguimientoController extends Controller
         //pra mostrar lo que cada usuario ingrese 
 
         if (Auth::User()->usertype == 2) {
-        $incomeedit = Sivigila::select('sivigilas.num_ide_','sivigilas.pri_nom_','sivigilas.seg_nom_',
-        'sivigilas.pri_ape_','sivigilas.seg_ape_','seguimientos.id as idin','sivigilas.Ips_at_inicial',
-        'seguimientos.fecha_consulta','seguimientos.id',
-        'seguimientos.fecha_proximo_control','seguimientos.estado','seguimientos.id',
-        'seguimientos.motivo_reapuertura')
-        ->orderBy('seguimientos.created_at', 'desc')
+            $incomeedit = Sivigila::select('sivigilas.num_ide_','sivigilas.pri_nom_','sivigilas.seg_nom_',
+            'sivigilas.pri_ape_','sivigilas.seg_ape_','seguimientos.id as idin','sivigilas.Ips_at_inicial',
+            'seguimientos.fecha_consulta','seguimientos.id',
+            'seguimientos.fecha_proximo_control','seguimientos.estado','seguimientos.id',
+            'seguimientos.motivo_reapuertura')
+            ->orderBy('seguimientos.created_at', 'desc')
+            ->join('seguimientos', 'sivigilas.id', '=', 'seguimientos.sivigilas_id')
+            ->where('seguimientos.user_id', Auth::user()->id)
+            ->whereYear('seguimientos.created_at', '>', 2023) // Agregar la condición para el año
+            ->paginate(3000);
         
-        ->join('seguimientos', 'sivigilas.id', '=', 'seguimientos.sivigilas_id')
-        // ->where('seguimientos.estado',1)
-        ->where('seguimientos.user_id', Auth::User()->id )
-        ->paginate(3000);
         } else {  
 
             $incomeedit = Seguimiento::select('s.num_ide_','s.pri_nom_','s.seg_nom_',
@@ -114,6 +114,7 @@ class SeguimientoController extends Controller
         // ->join('seguimientos', 'sivigilas.id', '=', 'seguimientos.sivigilas_id')
         ->where('sivigilas.estado', '=', 1)
         ->where('user_id', Auth::user()->id)
+        ->whereYear('sivigilas.created_at', '>', 2023) 
         ->get();
 
         $income12 =  DB::connection('sqlsrv_1')->table('refIps')->select('descrip')
@@ -289,7 +290,7 @@ if ($registroAnterior) {
                    ->to(new Address(Auth::user()->email))
                    ->subject('Recordatorio de control')
                    ->html('Hola, acabas de realizarle un seguimiento a'.$bodyText.'se solicita gestionarlo lo antes posible ingresando a este enlace <br>
-                   http://dnt.epsianaswayuu.com:58222/Desnutricion/public/');
+                   https://dnt.epsianaswayuu.com:58222/Desnutricion/public/');
             
            if ($mailer->send($email)) {
                return redirect()->route('Seguimiento.index')
@@ -417,7 +418,7 @@ if ($registroAnterior) {
                    ->subject('Recordatorio de control')
                    ->html('Hola, tu seguimiento acaba de ser actualizado por el administrador debido a  algun inconveniente comunicate
                    con la EPSI'.$bodyText.'se solicita gestionarlo lo antes posible ingresando a este enlace <br>
-                   http://dnt.epsianaswayuu.com:58222/Desnutricion/public/');
+                   https://dnt.epsianaswayuu.com:58222/Desnutricion/public/');
                    if ($mailer->send($email)) {
             return redirect()->route('Seguimiento.index')
            ->with('mensaje',' El dato fue agregado a la base de datos Exitosamente..!');
