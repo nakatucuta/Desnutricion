@@ -60,7 +60,7 @@ class SeguimientoController extends Controller
             ->orderBy('seguimientos.created_at', 'desc')
             ->join('seguimientos', 'sivigilas.id', '=', 'seguimientos.sivigilas_id')
             ->where('seguimientos.user_id', Auth::user()->id)
-          // ->whereYear('seguimientos.created_at', '>', 2023) // Agregar la condición para el año
+            ->whereYear('seguimientos.created_at', '>', 2023) // Agregar la condición para el año
             ->paginate(3000);
         
         } else {  
