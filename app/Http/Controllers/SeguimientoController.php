@@ -51,7 +51,7 @@ class SeguimientoController extends Controller
         $user_id1 = Auth::User()->id == '2';
         //pra mostrar lo que cada usuario ingrese 
 
-        if (Auth::User()->usertype == 2) {
+        if (Auth::User()->usertype == 1) {
             $incomeedit = Sivigila::select('sivigilas.num_ide_','sivigilas.pri_nom_','sivigilas.seg_nom_',
             'sivigilas.pri_ape_','sivigilas.seg_ape_','seguimientos.id as idin','sivigilas.Ips_at_inicial',
             'seguimientos.fecha_consulta','seguimientos.id',
