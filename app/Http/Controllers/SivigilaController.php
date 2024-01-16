@@ -79,12 +79,16 @@ class SivigilaController extends Controller
                ->on('A.num_ide_', '=', 'B.num_ide_');
        })
        ->whereNull('B.num_ide_')
+       ->whereYear('B.created_at', '>', 2023)
        ->get();
    
        
         $count1234 = $results->count();
-        $sivi2 = DB::table('sivigilas')->count('id');
-        $count123 = $count1234 - $sivi2;
+        $sivi2 = DB::table('sivigilas')
+        
+        ->whereYear('sivigilas.created_at', '>', 2023)
+        ->count('id');
+        $count123 = $sivi2  - $count1234;
 
 
 

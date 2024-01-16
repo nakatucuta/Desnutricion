@@ -82,7 +82,9 @@ class SeguimientoController extends Controller
                     ->where('user_id', Auth::user()->id)
                     ->count('id');
         }else{
-            $conteo = Seguimiento::where('estado', 1)->count('id');
+            $conteo = Seguimiento::where('estado', 1)
+            ->whereYear('seguimientos.created_at', '>', 2023)
+            ->count('id');
 
         }
         $seguimientos = Seguimiento::all()->where('estado',1);
