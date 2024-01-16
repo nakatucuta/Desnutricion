@@ -22,10 +22,13 @@
                     @php
                     $user_id = Auth::id(); // Obtener el ID del usuario activo
                     $count = DB::table('seguimientos')->where('user_id', $user_id)->count();
+                    $count2 = DB::table('seguimientos')
+                    ->whereYear('created_at', '>', 2023)
+                    ->count();
                     $count1 = DB::table('seguimientos')->count(); // Contar los registros de ingresos del usuario activo
                     @endphp
                     
-                    @if($count < 1 && auth()->user()->usertype == 2) 
+                    @if(($count < 1 && auth()->user()->usertype == 2) || ($count2 < 1 && auth()->user()->usertype == 2) )
                     
                       <td  class="text-center">No hay registros disponibles</td>
                       <td  class="text-center">No hay registros disponibles</td>
