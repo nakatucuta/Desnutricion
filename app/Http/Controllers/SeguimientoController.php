@@ -70,6 +70,7 @@ class SeguimientoController extends Controller
         'seguimientos.fecha_consulta','seguimientos.fecha_proximo_control','seguimientos.estado','seguimientos.id',
         'seguimientos.motivo_reapuertura')
         ->orderBy('seguimientos.created_at', 'desc')
+        ->whereYear('seguimientos.created_at', '>', 2023)
         ->join('sivigilas as s', 's.id', '=', 'seguimientos.sivigilas_id')
         ->join('users', 'users.id', '=', 's.user_id')
         ->paginate(3000);
