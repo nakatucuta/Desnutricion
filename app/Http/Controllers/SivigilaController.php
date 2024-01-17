@@ -88,7 +88,7 @@ class SivigilaController extends Controller
         
         ->whereYear('sivigilas.created_at', '>', 2023)
         ->count('id');
-        $count123 = $sivi2 ;
+        $count123 =  $sivi2 - $count1234;
 
         $cantidad = DB::connection('sqlsrv_1')
         ->table('maestroSiv113 AS m')
