@@ -90,6 +90,12 @@ class SivigilaController extends Controller
         ->count('id');
         $count123 = $sivi2 ;
 
+        $cantidad = DB::connection('sqlsrv_1')
+        ->table('maestroSiv113 AS m')
+        ->where('m.cod_eve', 113)
+        ->whereBetween(DB::raw('YEAR(m.fec_not)'), [2024, 2024])
+        ->count();
+
 
 
         
@@ -131,7 +137,7 @@ class SivigilaController extends Controller
             ->where('seguimientos.estado',1)
             ->get();
         
-        return view('sivigila.index', compact('sivigilas','sivi','conteo','otro','count123'));
+        return view('sivigila.index', compact('sivigilas','sivi','conteo','otro','count123','cantidad'));
 
 
        
