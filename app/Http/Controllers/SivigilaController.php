@@ -61,8 +61,7 @@ class SivigilaController extends Controller
         ->select(DB::raw("CAST(m.fec_not AS DATE) as fec_noti, m.tip_ide_, m.num_ide_, m.pri_nom_, m.seg_nom_, m.pri_ape_, m.seg_ape_, m.semana"))
         ->where('m.cod_eve', 113)
         ->whereBetween(DB::raw("YEAR(m.fec_not)"), [2024, 2024])
-        ->groupBy('m.fec_not', 'm.tip_ide_', 'm.num_ide_', 'm.pri_nom_', 'm.seg_nom_', 'm.pri_ape_', 'm.seg_ape_','m.semana')
-        ->paginate(10000);
+        ->paginate(100000);
        //recuerda debes poner get y buscar la forma de contar todos los registros
 
 
@@ -90,11 +89,18 @@ class SivigilaController extends Controller
         ->count('id');
         $count123 =  $sivi2 - $count1234;
 
-        $cantidad = DB::connection('sqlsrv_1')
-        ->table('maestroSiv113 AS m')
-        ->where('m.cod_eve', 113)
-        ->whereBetween(DB::raw('YEAR(m.fec_not)'), [2024, 2024])
-        ->count();
+        $totalFilas = DB::connection('sqlsrv_1')
+    ->table('maestroSiv113 AS m')
+    ->where('m.cod_eve', 113)
+    ->whereBetween(DB::raw('YEAR(m.fec_not)'), [2024, 2024])
+    ->count();
+    
+    
+    // Obtener el total de filas
+    $resultados = $totalFilas;
+    
+        
+        
 
 
 
@@ -137,7 +143,7 @@ class SivigilaController extends Controller
             ->where('seguimientos.estado',1)
             ->get();
         
-        return view('sivigila.index', compact('sivigilas','sivi','conteo','otro','count123','cantidad','sivi2'));
+        return view('sivigila.index', compact('sivigilas','sivi','conteo','otro','count123','sivi2','resultados','totalFilas'));
 
 
        
