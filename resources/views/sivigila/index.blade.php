@@ -217,12 +217,14 @@ PARA, <strong> AGREGAR OTRO SEGUIMIENTO O CERRAR EL CASO</strong> <a href="{{rou
               <thead class="table table-hover table-info table-bordered " style="background-color: #d9f2e6 ;border: 1px solid #000000;">
                   <tr>
                     {{-- <th scope="col">#</th> --}}
-                    <th scope="col">Fecha Notificacion</th>
-                    <th scope="col">Semana</th>
-                    <th scope="col">Tipo ID</th>
-                    <th scope="col">Identificacion</th>
-                    <th scope="col">Nombre</th>
-                    <th scope="col">Acciones</th>
+                    <th style="font-size: smaller;" scope="col">Fecha Notificación</th>
+                    <th style="font-size: smaller;" scope="col">Semana</th>
+                    <th style="font-size: smaller;" scope="col">Tipo ID</th>
+                    <th style="font-size: smaller;" scope="col">Identificación</th>
+                    <th style="font-size: smaller;" scope="col">Nombre</th>
+                    <th style="font-size: smaller;" scope="col">Upgd Notificadora</th>
+                    <th style="font-size: smaller;" scope="col">Acciones</th>
+                    
                   </tr>
                 </thead>
                 <tbody id="table">
@@ -230,14 +232,15 @@ PARA, <strong> AGREGAR OTRO SEGUIMIENTO O CERRAR EL CASO</strong> <a href="{{rou
                     @foreach($sivigilas as $student2)
                     
                     {{-- <th scope="row">1</th> --}}
-                    <td>{{ $student2->fec_noti }}</td>
-                    <td>{{ $student2->semana }}</td>
-                    <td>{{ $student2->tip_ide_ }}</td>
-                    <td>{{ $student2->num_ide_ }}</td>
+                    <td><small>{{ $student2->fec_noti }}</small></td>
+                    <td><small>{{ $student2->semana }}</small></td>
+                    <td><small>{{ $student2->tip_ide_ }}</small></td>
+                    <td><small>{{ $student2->num_ide_ }}</small></td>
                     
-                    <td>{{ $student2->pri_nom_.' '.$student2->seg_nom_.' '.$student2->pri_ape_.' '.
-                          $student2->seg_ape_ }}  </td>
-                    {{-- <td>{{ $student2->cod_eve }}</td> --}}
+                    <td><small>{{ $student2->pri_nom_.' '.$student2->seg_nom_.' '.$student2->pri_ape_.' '.
+                          $student2->seg_ape_ }} </small> </td>
+                    <td><small>{{ $student2->nom_upgd }}</small></td>
+
                     <td> 
                         
                       @if (DB::connection('sqlsrv_1')->table('maestroSiv113')
