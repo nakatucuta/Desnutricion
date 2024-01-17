@@ -180,7 +180,7 @@ PARA, <strong> AGREGAR OTRO SEGUIMIENTO O CERRAR EL CASO</strong> <a href="{{rou
   
 </div>
     <h1 style="font-family: 'Helvetica Neue', sans-serif; font-weight: 700; font-size: 2rem;">Datos Sivigila</h1>
-    {{-- <strong>Procesados = {{ $count123}} </strong> --}}
+     <strong>Procesados = {{ $sivi2}} </strong> 
 
     <strong>cantidad = {{ $cantidad}} </strong>
  

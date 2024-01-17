@@ -137,7 +137,7 @@ class SivigilaController extends Controller
             ->where('seguimientos.estado',1)
             ->get();
         
-        return view('sivigila.index', compact('sivigilas','sivi','conteo','otro','count123','cantidad'));
+        return view('sivigila.index', compact('sivigilas','sivi','conteo','otro','count123','cantidad','sivi2'));
 
 
        
