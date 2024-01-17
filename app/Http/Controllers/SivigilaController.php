@@ -86,7 +86,7 @@ class SivigilaController extends Controller
         $count1234 = $results->count();
         $sivi2 = DB::table('sivigilas')
         
-        ->whereYear('sivigilas.created_at', '>', 2023)
+        ->whereBetween(DB::raw('YEAR(fec_not)'), [2024, 2024])
         ->count('id');
         $count123 =  $sivi2 - $count1234;
 
