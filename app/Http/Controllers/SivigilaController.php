@@ -211,8 +211,15 @@ class SivigilaController extends Controller
         ->join('departamentos', 'maestroSiv113.cod_dpto_o', '=', 'departamentos.codigo' )
         ->where('num_ide_', $num_ide_)->value('dep'); // MUESTRA EL DEPARTAMENTO
 
-        $incomeedit8 = DB::connection('sqlsrv_1')->table('maestroSiv113')->selectRaw('CAST(fecha_nto_ AS DATE )')
-        ->where('num_ide_', $num_ide_)->VALUE('fecha_nto_'); //PARA FECHA DE NACIMIENTO
+        $incomeedit8 = DB::connection('sqlsrv_1')
+        ->table('maestroSiv113')
+        ->selectRaw('CAST(fecha_nto_ AS DATE )')
+        ->where('num_ide_', $num_ide_)
+        ->whereNotNull('fecha_nto_')
+        ->where('fecha_nto_', '<>', '')
+        ->whereRaw("ISDATE(fecha_nto_) = 1") // Agrega esta línea para filtrar solo valores válidos
+        ->value('fecha_nto_');
+    
 
         $incomeedit9 = DB::connection('sqlsrv_1')->table('maestroSiv113')->selectRaw('CAST(edad_ges AS INT )')
         ->where('num_ide_', $num_ide_)
