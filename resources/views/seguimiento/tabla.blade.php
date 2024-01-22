@@ -41,7 +41,7 @@
                       <td  class="text-center">No hay registros disponibles</td>
                       <td  class="text-center">No hay registros disponibles</td>
                         @elseif($count >= 1 && (auth()->user()->usertype == 2))
-                          {{$count2}}
+                       
                      
                        @foreach($incomeedit as $student2)
                     
