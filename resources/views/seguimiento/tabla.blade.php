@@ -28,7 +28,7 @@
                     $count1 = DB::table('seguimientos')->count(); // Contar los registros de ingresos del usuario activo
                     @endphp
                     
-                    @if(($count < 1 && auth()->user()->usertype == 2) || ($count2 < 1 && auth()->user()->usertype == 2) || ($count2 < 1 && auth()->user()->usertype == 1)|| ($count2 < 1 && auth()->user()->usertype == 3))
+                    @if(($count < 1 && auth()->user()->usertype == 2) || ($count2 < 1 && auth()->user()->usertype == 2) )
                     
                       <td  class="text-center">No hay registros disponibles</td>
                       <td  class="text-center">No hay registros disponibles</td>
