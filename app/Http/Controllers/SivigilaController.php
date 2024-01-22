@@ -40,6 +40,9 @@ class SivigilaController extends Controller
 
     {  
 
+
+        
+
         // con max
         // $sivigilas = DB::connection('sqlsrv_1')
         // ->table('maestroSiv113 AS m')
