@@ -20,10 +20,10 @@
               <tr>
 
                     @php
-                    $user_id = Auth::id(); // Obtener el ID del usuario activo
-                    $count = DB::table('seguimientos')->where('user_id', $user_id)->count();
                     $user = Auth::user();
                     $userId = $user->id;
+                    $user_id = Auth::id(); // Obtener el ID del usuario activo
+                    $count = DB::table('seguimientos')->where('user_id', $user_id)->count();
                     $count2 = DB::table('seguimientos')
                     ->where('user_id', $userId)  // Asume que hay una columna 'user_id' en la tabla 'seguimientos'
                     ->whereYear('created_at', '>', 2023)

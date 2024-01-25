@@ -223,6 +223,7 @@ PARA, <strong> AGREGAR OTRO SEGUIMIENTO O CERRAR EL CASO</strong> <a href="{{rou
                     <th style="font-size: smaller;" scope="col">Identificación</th>
                     <th style="font-size: smaller;" scope="col">Nombre</th>
                     <th style="font-size: smaller;" scope="col">Upgd Notificadora</th>
+                    <th style="font-size: smaller;" scope="col">Ips Primaria</th> 
                     <th style="font-size: smaller;" scope="col">Acciones</th>
                     
                   </tr>
@@ -230,6 +231,33 @@ PARA, <strong> AGREGAR OTRO SEGUIMIENTO O CERRAR EL CASO</strong> <a href="{{rou
                 <tbody id="table">
                   <tr>
                     @foreach($sivigilas as $student2)
+
+                    <?php
+                    $incomeedit14 = DB::connection('sqlsrv_1')
+                        ->table('maestroAfiliados as a')
+                        ->join('maestroips as b', 'a.numeroCarnet', '=', 'b.numeroCarnet')
+                        ->join('maestroIpsGru as c', 'b.idGrupoIps', '=', 'c.id')
+                        ->join('maestroIpsGruDet as d', function ($join) {
+                            $join->on('c.id', '=', 'd.idd')
+                                ->where('d.servicio', '=', 1);
+                        })
+                        ->join('refIps as e', 'd.idIps', '=', 'e.idIps')
+                        ->select(DB::raw('CAST(e.codigo AS BIGINT) as codigo_habilitacion'))
+                        ->where('a.identificacion', $student2->num_ide_)
+                        ->first();
+                
+                    if ($incomeedit14 !== null) {
+                        $income12 = DB::table('users')
+                            ->select('name', 'id', 'codigohabilitacion')
+                            ->where('codigohabilitacion', $incomeedit14->codigo_habilitacion)
+                            ->first();
+                    } else {
+                        // Si no se encuentra el prestador primario, asigna un valor predeterminado
+                        $income12 = (object) ['name' => 'Sin datos'];
+                    }
+                    ?>
+
+
                     
                     {{-- <th scope="row">1</th> --}}
                     <td><small>{{ $student2->fec_noti }}</small></td>
@@ -240,6 +268,18 @@ PARA, <strong> AGREGAR OTRO SEGUIMIENTO O CERRAR EL CASO</strong> <a href="{{rou
                     <td><small>{{ $student2->pri_nom_.' '.$student2->seg_nom_.' '.$student2->pri_ape_.' '.
                           $student2->seg_ape_ }} </small> </td>
                     <td><small>{{ $student2->nom_upgd }}</small></td>
+                    <td><small>{{ $income12->name }}</small></td>
+                    {{-- @if (DB::connection('sqlsrv_1')->table('maestroSiv113')
+                    ->where('num_ide_', $student2->num_ide_)
+                    ->exists())
+                    
+                    <td><small>{{ $income12->name}}</small></td>
+                   
+                @else
+                    {{-- Manejo si $income12 es nulo
+                    <td><small>Sin datos</small></td>
+                    
+                @endif --}}
 
                     <td> 
                         
