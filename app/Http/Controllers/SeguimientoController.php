@@ -210,7 +210,7 @@ class SeguimientoController extends Controller
                     'pdf' => [
                         'required',
                         'mimes:pdf',
-                        'max:1048', // Maximo 2 MB (2048 KB)
+                        'max:5048', // Maximo 2 MB (2048 KB)
                     ],
                 ], [
                     'pdf.required' => 'El archivo PDF es requerido.',
