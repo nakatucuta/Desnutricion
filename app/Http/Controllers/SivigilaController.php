@@ -9,6 +9,7 @@ use App\Models\Sivigila;
 use App\Models\Seguimiento;
 use Maatwebsite\Excel\Facades\Excel;
 use App\Exports\SivigilaExport;
+use App\Exports\sivigilaslpExport;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Redirect;
 use Symfony\Component\Mailer\Mailer;
@@ -568,6 +569,13 @@ class SivigilaController extends Controller
     public function reporte1()
     {   
         return Excel::download(new SivigilaExport, 'sivigila.xls');
+
+
+    }
+
+    public function reSporte2()
+    {   
+        return Excel::download(new sivigilaslpExport, 'sivigila.xls');
 
 
     }

@@ -172,6 +172,12 @@ PARA, <strong> AGREGAR OTRO SEGUIMIENTO O CERRAR EL CASO</strong> <a href="{{rou
       <i class="fas fa-file-export mr-2"></i> EXPORTAR
   </a>
   
+
+  <a href="{{route('export4')}}" class="btn btn-success btn-sm"
+  style="float: right; margin-right: 1rem; position: relative; right: 0; border-radius: 50px; padding: 10px 20px; font-weight: bold; letter-spacing: 1px; background-color: #28a745;">
+      <i class="fas fa-file-export mr-2"></i> S.publica
+  </a>
+
   <a href="{{route('create11')}}" class="btn btn-success btn-sm"
   style="float: right; margin-right: 1rem; position: relative; right: 0; border-radius: 50px; padding: 10px 20px; font-weight: bold; letter-spacing: 1px; background-color: #28a745;">
       <i class="fas fa-plus mr-2"></i> AGREGAR
@@ -251,11 +257,14 @@ PARA, <strong> AGREGAR OTRO SEGUIMIENTO O CERRAR EL CASO</strong> <a href="{{rou
                             ->select('name', 'id', 'codigohabilitacion')
                             ->where('codigohabilitacion', $incomeedit14->codigo_habilitacion)
                             ->first();
-                    } else {
-                        // Si no se encuentra el prestador primario, asigna un valor predeterminado
-                        $income12 = (object) ['name' => 'Sin datos'];
-                    }
-                    ?>
+                    // Verifica si $income12 es null después de la consulta
+                          if ($income12 === null) {
+                              $income12 = (object) ['name' => 'Sin datos'];
+                          }
+                          } else {
+                              $income12 = (object) ['name' => 'Sin datos'];
+                          }
+                                      ?>
 
 
                     
