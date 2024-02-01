@@ -53,6 +53,7 @@ class RevisionController extends Controller
     'sivigilas.pri_nom_', 'sivigilas.seg_nom_', 
     'sivigilas.pri_ape_', 'sivigilas.seg_ape_',
      'users.name')
+     ->whereBetween(DB::raw("YEAR(seguimientos.created_at)"), [2024, 2024])
     ->paginate(3000);
 
     $conteo = Seguimiento::where('estado', 1)->count('id');

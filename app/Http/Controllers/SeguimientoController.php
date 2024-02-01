@@ -558,6 +558,7 @@ public function graficaBarras()
     $estados = DB::table('seguimientos')
         ->select('estado', DB::raw('count(*) as total'))
         ->groupBy('estado')
+        ->whereYear('seguimientos.created_at', '>', 2023)
         ->get();
 
     // Preparar los datos para la gráfica de barras
@@ -573,6 +574,7 @@ public function graficaBarras()
     $clasificaciones = DB::table('seguimientos')
         ->select('clasificacion', DB::raw('count(*) as total'))
         ->groupBy('clasificacion')
+        ->whereYear('seguimientos.created_at', '>', 2023)
         ->get();
 
     // Preparar los datos para la gráfica de torta
