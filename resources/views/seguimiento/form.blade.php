@@ -182,15 +182,13 @@
                                                     <label for="Nombre">Estado actual del menor</label>
                                                     <select class="person2 " name="est_act_menor" id="est_act_menor"  style="width: 100% ">
                                                     <option  value="">SELECCIONAR</option>
-                                                    <option  value="BUSQUEDA FALLIDA - MENORES QUE NO SE ENCUENTRAN EN EL TERRITORIO">BUSQUEDA FALLIDA - MENORES QUE NO SE ENCUENTRAN EN EL TERRITORIO</option>
-                                                    <option  value="BUSQUEDA FALLIDA-MANIFIESTA QUIEN FUE SU MADRE SUSTITUTA , QUE LA MENOR FUE ENTREGADA A SU MADRE BIOLÓGICA,
-                                                    HACE 3 MESES Y SE ENCUENTRAN RESIDIENDO EN LA CIUDAD DE PEREIRA">BUSQUEDA FALLIDA-MANIFIESTA QUIEN FUE SU MADRE SUSTITUTA , QUE LA MENOR FUE ENTREGADA A SU MADRE BIOLÓGICA,
-                                                        HACE 3 MESES Y SE ENCUENTRAN RESIDIENDO EN LA CIUDAD DE PEREIRA</option>
-                                                    <option  value="EN PROCESO DE BUSQUEDA">EN PROCESO DE BUSQUEDA</option>
-                                                    <option  value="EN PROCESO DE RECUPERACION ">EN PROCESO DE RECUPERACION </option>
+                                                    <option  value="PESO ADECUADO PARA LA TALLA">PESO ADECUADO PARA LA TALLA</option>
+                                                    <option  value="RIESGO DE DESNUTRICIÓN AGUDA ">RIESGO DE DESNUTRICIÓN AGUDA</option>
+                                                    <option  value="EN PROCESO DE RECUPERACION">EN PROCESO DE RECUPERACION</option>
+                                                    <option  value="BUSQUEDA FALLIDA ">BUSQUEDA FALLIDA</option>
                                                     <option  value="PROCESO DE RECUPERACION">PROCESO DE RECUPERACION</option>
                                                     <option  value="RECUPERADO">RECUPERADO</option>
-                                                    <option  value="REINGRESO -PROCESO DE RECUPERACION">REINGRESO -PROCESO DE RECUPERACION</option>
+                                                    <option  value="FALLECIDO">FALLECIDO</option>
                                                     
                                                     
                                                     
