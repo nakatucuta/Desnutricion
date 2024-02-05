@@ -199,7 +199,7 @@ class SeguimientoController extends Controller
                     $entytistore->est_act_menor = $request->est_act_menor;
                     $entytistore->tratamiento_f75 = $request->tratamiento_f75;
                     $entytistore->fecha_recibio_tratf75 = $request->fecha_recibio_tratf75;
-                    
+                    $entytistore->perimetro_braqueal = $request->perimetro_braqueal;
                     $entytistore->fecha_proximo_control = $request->fecha_proximo_control;
                 // }
                 $entytistore->sivigilas_id = $request->sivigilas_id;
