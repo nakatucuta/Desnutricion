@@ -84,7 +84,7 @@
                     <option  value="DESNUTRICION AGUDA SEVERA TIPO MARASMO">DESNUTRICION AGUDA SEVERA TIPO MARASMO</option>
                     <option  value="DESNUTRICION AGUDA SEVERA MIXTA">DESNUTRICION AGUDA SEVERA MIXTA</option>
                     <option  value="RIESGO DE DESNUTRICION">RIESGO DE DESNUTRICION</option>
-                    
+                    <option  value="BUSQUEDA FALLIDA">BUSQUEDA FALLIDA</option>
                     <option  value="PESO ADECUADO PARA LA TALLA">PESO ADECUADO PARA LA TALLA</option>
                     
                   </select>
@@ -104,11 +104,12 @@
 
         <div class="row">
             <div class="col-sm-6">
-                <div class="form-group" id="inputsuperoculto">
-                    <label for="Nombre"> Fecha de entrega FTLC </label> {{-- el isset pregunta si el archivo esta seleccionado lo muestre sino no muestra nada por eso las comillas vacias al final --}}
-                    <input class="form-control" type="date" name="fecha_entrega_ftlc" id = 'fecha_entrega_ftlc'
-                    value="">
-                </div>
+                <div class="form-group">
+                    <label for="Nombre"> Perimetro Braqueal <br> </label> {{-- el isset pregunta si el archivo esta seleccionado lo muestre sino no muestra nada por eso las comillas vacias al final --}}
+                   <input class="form-control" type="text" name="perimetro_braqueal" id = 'perimetro_braqueal'
+                       value="">
+                       </div>
+                
                 </div>
         
         
@@ -295,11 +296,11 @@
                                                    
                                                     </div>
                                                     <div class="col-md-4">
-                                                        <div class="form-group">
-                                                            <label for="Nombre"> Perimetro Braqueal <br> </label> {{-- el isset pregunta si el archivo esta seleccionado lo muestre sino no muestra nada por eso las comillas vacias al final --}}
-                                                           <input class="form-control" type="text" name="perimetro_braqueal" id = 'perimetro_braqueal'
-                                                               value="">
-                                                               </div>
+                                                        <div class="form-group" id="inputsuperoculto">
+                                                            <label for="Nombre"> Fecha de entrega FTLC </label> {{-- el isset pregunta si el archivo esta seleccionado lo muestre sino no muestra nada por eso las comillas vacias al final --}}
+                                                            <input class="form-control" type="date" name="fecha_entrega_ftlc" id = 'fecha_entrega_ftlc'
+                                                            value="">
+                                                        </div>
                                                         </div>
                                     
                                          </div>
