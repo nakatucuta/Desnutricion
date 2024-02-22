@@ -327,33 +327,82 @@ return [
             'url'  => 'admin/blog',
             'can'  => 'manage-blog',
         ],
-        
+
+
+       
         [
-            'text'        => 'Sivigila',
-            'url'         => 'sivigila',
-            'icon'        => 'fas fa-fw fa-home',
-            'label'       => '',  
-            'label_color' => 'success',
-            // 'icon_color'  => 'red'
+            'text'    => 'Evento 113',
+            'icon'    => 'fas fa-fw fa-share',
+            'submenu' => [
+                [
+                    'text'        => 'Sivigila',
+                    'url'         => 'sivigila',
+                    'icon'        => 'fas fa-fw fa-home',
+                    'label'       => '',  
+                    'label_color' => 'success',
+                    // 'icon_color'  => 'red'
+                ],
+                [
+                    'text'        => 'Control',
+                    'url'         => 'revision',
+                    'icon'        => 'fas fa-fw fa-eye',
+                   'label'       => 'REVISAR', 
+                   'label_color' => 'danger ',
+                   //  'icon_color'  => 'red'
+                ],
+                [
+                    'text'        => 'Seguimiento',
+                    'url'         => 'Seguimiento',
+                     'icon'        => 'fas fa-fw fa-user',
+                     'label'       => 'ZONA PARA IPS',
+                     'label_color' => 'warning',
+                     'icon_color'  => 'yellow',
+                    //  'icon_color'  => 'green'
+                ],
+            ],
         ],
 
-         [
-             'text'        => 'Control',
-             'url'         => 'revision',
-             'icon'        => 'fas fa-fw fa-eye',
-            'label'       => 'REVISAR', 
-            'label_color' => 'danger ',
-            //  'icon_color'  => 'red'
-         ],
-        [
-            'text'        => 'Seguimiento',
-            'url'         => 'Seguimiento',
-             'icon'        => 'fas fa-fw fa-user',
-             'label'       => 'ZONA PARA IPS',
-             'label_color' => 'warning',
-             'icon_color'  => 'yellow',
-            //  'icon_color'  => 'green'
-        ],
+
+
+        // [
+        //     'text'    => 'Evento 412',
+        //     'icon'    => 'fas fa-clinic-medical',
+        //     'submenu' => [
+        //         [
+        //             'text'        => 'Cargue',
+        //             'url'         => 'import-excel',
+        //             'icon'        => 'fas fa-upload',
+        //             'label'       => '',  
+        //             'label_color' => 'success',
+        //             // 'icon_color'  => 'red'
+        //         ],
+        //          [
+        //             'text'        => 'seguimiento',
+        //              'url'         => 'revision',
+        //             'icon'        => 'fas fa-fw fa-eye',
+        //            'label'       => 'REVISAR', 
+        //             'label_color' => 'danger ',
+        //            //  'icon_color'  => 'red'
+        //          ],
+        //         // [
+        //         //     'text'        => 'Seguimiento',
+        //         //     'url'         => 'Seguimiento',
+        //         //      'icon'        => 'fas fa-fw fa-user',
+        //         //      'label'       => 'ZONA PARA IPS',
+        //         //      'label_color' => 'warning',
+        //         //      'icon_color'  => 'yellow',
+        //         //     //  'icon_color'  => 'green'
+        //         // ],
+        //     ],
+        // ],
+        
+
+
+        
+       
+
+         
+     
         ['header' => 'account_settings'],
         // [
         //     'text' => 'profile',

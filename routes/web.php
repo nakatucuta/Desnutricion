@@ -6,6 +6,7 @@ use App\Http\Controllers\IngresoController;
 use App\Http\Controllers\SeguimientoController;
 use App\Http\Controllers\RevisionController;
 use App\Http\Controllers\SeguimientoOcasionalController;
+use App\Http\Controllers\Cargue412Controller;
 
 /*
 |--------------------------------------------------------------------------
@@ -31,6 +32,11 @@ Route::resource('sivigila', SivigilaController::class)->middleware('auth');
 Route::resource('revision', RevisionController::class);
 
 Route::resource('seguimiento_ocasional', SeguimientoOcasionalController::class)->middleware('auth');
+Route::resource('new412', Cargue412Controller::class);
+Route::get('/new412/{id}/{numero_identificacion}/edit', [Cargue412Controller::class, 'edit'])->name('editvariables');
+
+
+
 
 Route::resource('Seguimiento', SeguimientoController::class)->middleware('auth');
 Route::get('/search1', 'App\Http\Controllers\SeguimientoController@search')->name('BUSCADOR1');
@@ -72,3 +78,8 @@ Route::get('/nuevo', 'App\Http\Controllers\SivigilaController@create1')->name('c
 
 
 Route::get('seguimiento_ocasional/create/{id}', 'App\Http\Controllers\SeguimientoOcasionalController@create')->name('seguimiento_ocasional.create');
+
+
+//RUTAS PARA EL CARGUE DE LA  INFORMACION
+Route::get('/import-excel', [Cargue412Controller::class, 'showImportForm'])->name('import-excel-form')->middleware('auth');
+Route::post('/import-excel', [Cargue412Controller::class, 'importExcel'])->name('import-excel')->middleware('auth');

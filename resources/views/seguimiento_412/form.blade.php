@@ -185,7 +185,6 @@
                                                     <option  value="">SELECCIONAR</option>
                                                     <option  value="PESO ADECUADO PARA LA TALLA">PESO ADECUADO PARA LA TALLA</option>
                                                     <option  value="RIESGO DE DESNUTRICIÓN AGUDA ">RIESGO DE DESNUTRICIÓN AGUDA</option>
-                                                    <option  value="DESNUTRICION AGUDA MODERADA">DESNUTRICION AGUDA MODERADA</option>
                                                     <option  value="RIESGO DE DESNUTRICIÓN AGUDA SEVERA">DESNUTRICIÓN AGUDA SEVERA</option>
                                                     <option  value="DESNUTRICIÓN AGUDA SEVERA TIPO MARASMO">DESNUTRICIÓN AGUDA SEVERA TIPO MARASMO</option>
                                                     <option  value="DESNUTRICIÓN AGUDA SEVERA TIPO KWASHIORKOR">DESNUTRICIÓN AGUDA SEVERA TIPO KWASHIORKOR</option>

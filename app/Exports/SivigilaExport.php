@@ -24,8 +24,13 @@ class SivigilaExport implements FromCollection, WithHeadings, ShouldAutoSize, Wi
         return Sivigila::
         select('*')
         ->where('cod_eve', 113)
-        
         ->get();
+
+        //CONSULTA OARA HACER LO QUE LA JEFE QUIERE
+        // return Sivigila::join('users as c', 'sivigilas.user_id', '=', 'c.id')
+       // ->select('c.name', DB::raw('COUNT(sivigilas.id) as total_asignados'))
+        //->groupBy('c.name')
+        //->get();
     }
 
     public function headings(): array
