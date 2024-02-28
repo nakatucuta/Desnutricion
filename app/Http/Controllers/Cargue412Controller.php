@@ -8,6 +8,7 @@ use Maatwebsite\Excel\Facades\Excel;
 use App\Exports\report412Export;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
+use Session;
 
 class Cargue412Controller extends Controller
 {
@@ -16,9 +17,16 @@ class Cargue412Controller extends Controller
     public function __construct(){/*3.se crea este contruct en el controlador a trabajar*/
 
         $this->middleware('auth');
-        $this->middleware('Admin_sivigila', ['only' =>'new412']);
-     
-        
+        // $this->middleware('Admin_seguimiento', ['only' =>'create']);
+        //  $this->middleware('Admin_seguimiento', ['only' =>'index']);
+        //  $this->middleware('Admin_seguimiento', ['only' =>'alerta']);
+        $this->middleware('Admin_seguimiento', ['only' =>'showImportForm']);
+        // $this->middleware('Admin_seguimiento', ['only' =>'resporte']);
+        // $this->middleware('Admin_seguimiento', ['only' =>'edit']);
+        $this->middleware('Admin_seguimiento', ['only' =>'importExcel']);
+        // $this->middleware('Admin_nutric_seguimiento', ['only' =>'edit']);
+        $this->middleware('Admin_nutric_seguimiento', ['only' =>'index']);
+    
        
 
     }

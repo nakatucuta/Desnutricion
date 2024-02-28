@@ -84,6 +84,7 @@
                     <option  value="DESNUTRICION AGUDA SEVERA TIPO MARASMO">DESNUTRICION AGUDA SEVERA TIPO MARASMO</option>
                     <option  value="DESNUTRICION AGUDA SEVERA MIXTA">DESNUTRICION AGUDA SEVERA MIXTA</option>
                     <option  value="RIESGO DE DESNUTRICION">RIESGO DE DESNUTRICION</option>
+                    <option  value="RIESGO DE DESNUTRICION AGUDA">RIESGO DE DESNUTRICION AGUDA</option>
                     <option  value="BUSQUEDA FALLIDA">BUSQUEDA FALLIDA</option>
                     <option  value="PESO ADECUADO PARA LA TALLA">PESO ADECUADO PARA LA TALLA</option>
                     

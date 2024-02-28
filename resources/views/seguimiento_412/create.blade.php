@@ -8,12 +8,12 @@
 @stop
 @section('content')
 <br>
-<form action="{{url('/Seguimiento')}}" method="post" enctype="multipart/form-data">
+<form action="{{url('/new412_seguimiento')}}" method="post" enctype="multipart/form-data">
     @csrf
 
 
     
-     @include('seguimiento.form', ['modo'=>'Crear']);
+     @include('seguimiento_412.form', ['modo'=>'Crear']);
 
     </form>
 

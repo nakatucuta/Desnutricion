@@ -22,10 +22,10 @@
                     <div class="col-md-6 ">
                         <div class="form-group">
                             <label for="Nombre">Paciente</label>
-                        <select class="person " name="sivigilas_id" id="sivigilas_id"  style="width: 100%">
+                        <select class="person " name="cargue412_id" id="cargue412_id"  style="width: 100%">
                             <option value="">SELECCIONE</option>
                             @foreach($incomeedit as $developer)
-                            <option  value="{{$developer->idin }}">{{$developer->idin.' '.$developer->num_ide_.' '.$developer->pri_nom_.' '.$developer->seg_nom_.' '.$developer->pri_ape_.' '.$developer->seg_ape_ }}</option>
+                            <option  value="{{$developer->idin }}">{{$developer->idin.' '.$developer->numero_identificacion.' '.$developer->primer_nombre.' '.$developer->segundo_nombre.' '.$developer->primer_apellido.' '.$developer->segundo_apellido }}</option>
                             @endforeach
                             
                           </select>
@@ -204,24 +204,14 @@
                                             
                                                     <div class="col-sm-4">
                                                         <div class="form-group">
-                                                            <label for="Nombre">Tratamiento f75</label>
-                                                            <select class="person2 " name="tratamiento_f75" id="tratamiento_f75"  style="width: 100% ">
-                                                            <option  value="">SELECCIONAR</option>
-                                                            <option  value="SI">SI</option>
-                                                            <option  value="NO">NO</option>
                                                             
-                                                            
-                                                          </select>
+                                                          
                                                         </div>
                                                     </div>
                                             
                                             
                                                         <div class="col-sm-4">
-                                                            <div class="form-group" id="input_oculto1">
-                                                                <label for="Nombre"> Fecha en la que recibe tratamiento f75 </label> {{-- el isset pregunta si el archivo esta seleccionado lo muestre sino no muestra nada por eso las comillas vacias al final --}}
-                                                                <input class="form-control" type="date" name="fecha_recibio_tratf75" id = 'fecha_recibio_tratf75'
-                                                                value="">
-                                                            </div>
+                                                            
                             
                                                             
                                                             </div>
@@ -297,9 +287,7 @@
                                                     </div>
                                                     <div class="col-md-4">
                                                         <div class="form-group" id="inputsuperoculto">
-                                                            <label for="Nombre"> Fecha de entrega FTLC </label> {{-- el isset pregunta si el archivo esta seleccionado lo muestre sino no muestra nada por eso las comillas vacias al final --}}
-                                                            <input class="form-control" type="date" name="fecha_entrega_ftlc" id = 'fecha_entrega_ftlc'
-                                                            value="">
+                                                          
                                                         </div>
                                                         </div>
                                     

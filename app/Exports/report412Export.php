@@ -54,6 +54,7 @@ class report412Export implements ToCollection, WithStartRow
             $item->sexosignos_desnutricion = $row[27];
             $item->puntaje_z = $row[28];
             $item->calsificacion_antropometrica = $row[29];
+            $item->estado = 1 ;
             // Asigna las demás columnas según corresponda
 
             // Guarda el modelo en la base de datos

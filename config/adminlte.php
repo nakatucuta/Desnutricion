@@ -364,37 +364,37 @@ return [
 
 
 
-        // [
-        //     'text'    => 'Evento 412',
-        //     'icon'    => 'fas fa-clinic-medical',
-        //     'submenu' => [
-        //         [
-        //             'text'        => 'Cargue',
-        //             'url'         => 'import-excel',
-        //             'icon'        => 'fas fa-upload',
-        //             'label'       => '',  
-        //             'label_color' => 'success',
-        //             // 'icon_color'  => 'red'
-        //         ],
-        //          [
-        //             'text'        => 'seguimiento',
-        //              'url'         => 'revision',
-        //             'icon'        => 'fas fa-fw fa-eye',
-        //            'label'       => 'REVISAR', 
-        //             'label_color' => 'danger ',
-        //            //  'icon_color'  => 'red'
-        //          ],
-        //         // [
-        //         //     'text'        => 'Seguimiento',
-        //         //     'url'         => 'Seguimiento',
-        //         //      'icon'        => 'fas fa-fw fa-user',
-        //         //      'label'       => 'ZONA PARA IPS',
-        //         //      'label_color' => 'warning',
-        //         //      'icon_color'  => 'yellow',
-        //         //     //  'icon_color'  => 'green'
-        //         // ],
-        //     ],
-        // ],
+        [
+            'text'    => 'Evento 412',
+            'icon'    => 'fas fa-clinic-medical',
+            'submenu' => [
+                [
+                    'text'        => 'Cargue',
+                    'url'         => 'import-excel',
+                    'icon'        => 'fas fa-upload',
+                    'label'       => '',  
+                    'label_color' => 'success',
+                    // 'icon_color'  => 'red'
+                ],
+                 [
+                    'text'        => 'seguimiento',
+                     'url'         => 'new412_seguimiento',
+                    'icon'        => 'fas fa-fw fa-eye',
+                   'label'       => 'REVISAR', 
+                    'label_color' => 'danger ',
+                   //  'icon_color'  => 'red'
+                 ],
+                // [
+                //     'text'        => 'Seguimiento',
+                //     'url'         => 'Seguimiento',
+                //      'icon'        => 'fas fa-fw fa-user',
+                //      'label'       => 'ZONA PARA IPS',
+                //      'label_color' => 'warning',
+                //      'icon_color'  => 'yellow',
+                //     //  'icon_color'  => 'green'
+                // ],
+            ],
+        ],
         
 
 

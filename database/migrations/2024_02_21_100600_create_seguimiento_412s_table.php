@@ -40,6 +40,7 @@ return new class extends Migration
             //ESQUEMA PAI Y ATENCION Y PROM MANTENIMIENTO
             $table->string('Esquemq_complrto_pai_edad')->nullable();
             $table->string('Atecion_primocion_y_mantenimiento_res3280_2018')->nullable();
+            $table->string('perimetro_braqueal')->nullable();
             //AQUI TERMINA 
             $table->integer('user_id')->unsigned();
             $table->foreign('user_id')->references('id')->on('users');

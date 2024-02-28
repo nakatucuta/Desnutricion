@@ -6,10 +6,10 @@
 @section('content_header')
 
   {{-- MENSAJES --}}
-@include('seguimiento.mensajes')
+@include('seguimiento_412.mensajes')
 
   {{-- MODAL NOTIFICACIONES --}}
-@include('seguimiento.modal_notificaciones')
+@include('seguimiento_412.modal_notificaciones')
 
 <div>
     <h1 style="font-family: 'Helvetica Neue', sans-serif; 
@@ -17,7 +17,7 @@
     font-size: 2rem;">Seguimientos</h1>
 </div>
   <br>
-<a href="{{route('Seguimiento.create')}}" title="DETALLE" 
+<a href="{{route('new412_seguimiento.create')}}" title="DETALLE" 
   class="btn btn-primary btn-sm" style="border-radius: 50px;
     padding: 10px 20px;
     font-weight: bold;
@@ -49,17 +49,17 @@ class="btn btn-success btn-sm"
 @section('content')
 
 {{-- TODO RESPECTO A LA TABLA --}}
-@include('seguimiento.tabla')   
+@include('seguimiento_412.tabla')   
 
  @stop
             
 
 @section('css')
-@include('seguimiento.css') 
+@include('seguimiento_412.css') 
 @stop
 
 @section('js')
-@include('seguimiento.javascript') 
+@include('seguimiento_412.javascript') 
 @stop
 
 

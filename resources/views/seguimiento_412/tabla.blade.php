@@ -23,12 +23,12 @@
                     $user = Auth::user();
                     $userId = $user->id;
                     $user_id = Auth::id(); // Obtener el ID del usuario activo
-                    $count = DB::table('seguimientos')->where('user_id', $user_id)->count();
-                    $count2 = DB::table('seguimientos')
+                    $count = DB::table('seguimiento_412s')->where('user_id', $user_id)->count();
+                    $count2 = DB::table('seguimiento_412s')
                     ->where('user_id', $userId)  // Asume que hay una columna 'user_id' en la tabla 'seguimientos'
                     ->whereYear('created_at', '>', 2023)
                     ->count();
-                    $count1 = DB::table('seguimientos')->count(); // Contar los registros de ingresos del usuario activo
+                    $count1 = DB::table('seguimiento_412s')->count(); // Contar los registros de ingresos del usuario activo
                     @endphp
                     
                     @if(($count < 1 && auth()->user()->usertype == 2) || ($count2 < 1 && auth()->user()->usertype == 2) )
@@ -46,15 +46,15 @@
                        @foreach($incomeedit as $student2)
                     
                     <th >{{ $student2->id }}</th>
-                    <th >{{ $student2->num_ide_ }}</th>
-                    <td>{{ $student2->pri_nom_.' '.$student2->seg_nom_.' '.$student2->pri_ape_.' '.$student2->seg_ape_ }}</td>
+                    <th >{{ $student2->numero_identificacion }}</th>
+                    <td>{{ $student2->primer_nombre.' '.$student2->segundo_nombre.' '.$student2->primer_apellido.' '.$student2->segundo_apellido }}</td>
                     
                     <td> @if ($student2->estado == 1)
                      Abierto
                     @else
                      Cerrado
                     @endif</td>
-                    <td>{{$student2->Ips_at_inicial}}</td>
+                    <td>{{$student2->nombre_coperante}}</td>
                     @if(!empty($student2->fecha_proximo_control))
                     <td>{{ $student2->fecha_proximo_control }}</td>
                 @elseif(!empty($student2->created_at))
@@ -62,7 +62,7 @@
                 @else
                     <td>finalizado</td>
                 @endif
-                      <td>  <a class="btn  btn-success btn-sm" href="{{url('/Seguimiento/'.$student2->id. '/edit')}}" class="ref" >
+                      <td>  <a class="btn  btn-success btn-sm" href="{{url('/new412_seguimiento/'.$student2->id. '/edit')}}" class="ref" >
                         <i class="fas fa-edit"></i>
                         <a ></a>
                   @if($student2->motivo_reapuertura )
@@ -72,7 +72,7 @@
                   @endif
  
               
-                <a href="{{ route('seguimiento.view-pdf', $student2->id) }}" target="_blank" class="btn btn-info btn-sm">
+                <a href="{{ route('seguimiento.view-pdf_412', $student2->id) }}" target="_blank" class="btn btn-info btn-sm">
                   <i class="far fa-file-pdf"></i>   </a> 
 
                   
@@ -124,15 +124,15 @@
                  @foreach($incomeedit as $student2)
                         
                  <th >{{ $student2->id }}</th>
-                 <th >{{ $student2->num_ide_ }}</th>
-                 <td>{{ $student2->pri_nom_.' '.$student2->seg_nom_.' '.$student2->pri_ape_.' '.$student2->seg_ape_ }}</td>
+                 <th >{{ $student2->numero_identificacion }}</th>
+                 <td>{{ $student2->primer_nombre.' '.$student2->segundo_nombre.' '.$student2->primer_apellido.' '.$student2->segundo_apellido }}</td>
                  
                  <td> @if ($student2->estado == 1)
                   Abierto
-                @else
+                 @else
                   Cerrado
-                @endif</td>
-                 <td>{{$student2->name}}</td>
+                 @endif</td>
+                 <td>{{$student2->nombre_coperante}}</td>
                  @if(!empty($student2->fecha_proximo_control))
                  <td>{{ $student2->fecha_proximo_control }}</td>
              @elseif(!empty($student2->created_at))
@@ -143,23 +143,24 @@
                  
                    <td>  
                     
-                    <a class="btn  btn-success btn-sm" href="{{url('/Seguimiento/'.$student2->id. '/edit')}}" class="ref" >
+                    <a class="btn  btn-success btn-sm" href="{{url('/new412_seguimiento/'.$student2->id. '/edit')}}" class="ref" >
                      <i class="fas fa-edit"></i>
                     </a>
                
                  
                  @if( auth()->user()->usertype == 3) 
                  @else
-                  <a href="{{route('Seguimiento.destroy', $student2->id)}}"
+                  <a href="{{route('new412_seguimiento.destroy', $student2->id)}}"
                     onclick="event.preventDefault();
                     if(confirm('¿Está seguro de que desea eliminar el producto?')) {
                     document.getElementById('delete-form-{{$student2->id}}').submit();
                     }" class="btn  btn-danger btn-sm">
                     <i class="fas fa-trash"></i>
+                      
                   </a>
                 
               
-                    <form id="delete-form-{{$student2->id}}" action="{{route('Seguimiento.destroy', $student2->id)}}"
+                    <form id="delete-form-{{$student2->id}}" action="{{route('new412_seguimiento.destroy', $student2->id)}}"
                     method="POST" style="display: none;">
                     @method('DELETE')
                     @csrf
@@ -173,9 +174,8 @@
              @endif
 
              
-               <a href="{{ route('seguimiento.view-pdf', $student2->id) }}" target="_blank" class="btn btn-info btn-sm">
-                 <i class="far fa-file-pdf"></i>
-               </a>
+             <a href="{{ route('seguimiento.view-pdf_412', $student2->id) }}" target="_blank" class="btn btn-info btn-sm">
+              <i class="far fa-file-pdf"></i>   </a>
             
                @if ($student2->estado == 1)
                <a class="btn btn-primary btn-sm" href="{{ route('seguimiento_ocasional.create', ['id' => $student2->id]) }}" class="ref">

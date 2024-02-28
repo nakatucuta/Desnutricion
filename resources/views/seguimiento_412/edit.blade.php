@@ -8,7 +8,7 @@
 @stop
 @section('content')
 
-<form action="{{url('/Seguimiento/'.$empleado->id)}}" method="post" enctype="multipart/form-data">
+<form action="{{url('/new412_seguimiento/'.$empleado->id)}}" method="post" enctype="multipart/form-data">
     @csrf
     {{method_field('PATCH')}}
     
@@ -19,7 +19,7 @@
 
 
     <br>
-    @include('seguimiento.mensajes')
+    @include('seguimiento_412.mensajes')
     
     
     <div class="row">
@@ -42,10 +42,10 @@
                         <div class="col-md-6 ">
                             <div class="form-group">
                                 <label for="Nombre">Paciente</label>
-                            <select class="person " name="sivigilas_id" id="sivigilas_id"  style="width: 100%">
+                            <select class="person " name="cargue412_id" id="cargue412_id"  style="width: 100%">
                                 
                                 @foreach($incomeedit as $developer)
-                                <option  value="{{$developer->idin }}">{{$developer->idin.' '.$developer->num_ide_.' '.$developer->pri_nom_.' '.$developer->seg_nom_.' '.$developer->pri_ape_.' '.$developer->seg_ape_ }}</option>
+                                <option  value="{{$developer->idin }}">{{$developer->idin.' '.$developer->numero_identificacion.' '.$developer->primer_nombre.' '.$developer->segundo_nombre.' '.$developer->primer_apellido.' '.$developer->segundo_apellido }}</option>
                                 @endforeach
                                 
                               </select>
@@ -118,9 +118,9 @@
             <div class="row">
                 <div class="col-sm-6">
                     <div class="form-group">
-                        <label for="Nombre"> Fecha de entrega FTLC </label> {{-- el isset pregunta si el archivo esta seleccionado lo muestre sino no muestra nada por eso las comillas vacias al final --}}
-                        <input class="form-control" type="date" name="fecha_entrega_ftlc" id = 'fecha_entrega_ftlc'
-                        value="{{$empleado->fecha_entrega_ftlc}}">
+                        <label for="Nombre"> Perimetro Braqueal </label> {{-- el isset pregunta si el archivo esta seleccionado lo muestre sino no muestra nada por eso las comillas vacias al final --}}
+                        <input class="form-control" type="date" name="perimetro_braqueal" id = 'perimetro_braqueal'
+                        value="{{$empleado->perimetro_braqueal}}">
                     </div>
                     </div>
             
@@ -144,17 +144,6 @@
                                         
                                       </select>
                                 </div>
-                                    </div>
-                                
-                                                               
-                                
-                                    <div class="col-sm-6">
-                                        <div class="form-group">
-                                            <label for="Nombre">Atencion en la ruta de promocion y mantenimieto </label>
-                                            <select class="person2 " name="Atecion_primocion_y_mantenimiento_res3280_2018" id="Atecion_primocion_y_mantenimiento_res3280_2018"  style="width: 100% ">
-                                                <option  value="{{$empleado->Atecion_primocion_y_mantenimiento_res3280_2018}}">{{$empleado->Atecion_primocion_y_mantenimiento_res3280_2018}}</option>
-                                            </select>
-                                        </div>
                                         </div>
                                 
                                 
@@ -217,25 +206,7 @@
                                                 
                                                 
                                                         <div class="col-sm-4">
-                                                            <div class="form-group">
-                                                                <label for="Nombre">Tratamiento f75</label>
-                                                                <select class="person2 " name="tratamiento_f75" id="tratamiento_f75"  style="width: 100% ">
-                                                                    <option  value="{{$empleado->tratamiento_f75}}">{{$empleado->tratamiento_f75}}</option>
-                                                       
-                                                                
-                                                                
-                                                              </select>
-                                                            </div>
-                                                        </div>
-                                                
-                                                
-                                                            <div class="col-sm-4">
-                                                                <div class="form-group" id="input_oculto1">
-                                                                    <label for="Nombre"> Fecha en la que recibe tratamiento f75 </label> {{-- el isset pregunta si el archivo esta seleccionado lo muestre sino no muestra nada por eso las comillas vacias al final --}}
-                                                                    <input class="form-control" type="date" name="fecha_recibio_tratf75" id = 'fecha_recibio_tratf75'
-                                                                    value="{{$empleado->fecha_recibio_tratf75}}">
-                                                                </div>
-                                
+                                                         
                                                                 
                                                                 </div>
                                                 

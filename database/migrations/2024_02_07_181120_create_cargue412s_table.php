@@ -43,6 +43,7 @@ return new class extends Migration
             $table->string('sexosignos_desnutricion')->nullable();
             $table->string('puntaje_z')->nullable();
             $table->string('calsificacion_antropometrica')->nullable();
+            $table->integer('estado')->nullable();
             $table->integer('user_id')->unsigned()->nullable();
             $table->foreign('user_id')->references('id')->on('users');
             $table->timestamps();

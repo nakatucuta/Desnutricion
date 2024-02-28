@@ -7,5 +7,11 @@ use Illuminate\Database\Eloquent\Model;
 
 class Seguimiento_412 extends Model
 {
+   
+
     use HasFactory;
+    public function getDateFormat(){
+        return 'Y-d-m h:m:s';
+      }
+
 }

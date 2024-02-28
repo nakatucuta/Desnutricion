@@ -6,6 +6,7 @@ use App\Http\Controllers\IngresoController;
 use App\Http\Controllers\SeguimientoController;
 use App\Http\Controllers\RevisionController;
 use App\Http\Controllers\SeguimientoOcasionalController;
+use App\Http\Controllers\Seguimiento412Controller;
 use App\Http\Controllers\Cargue412Controller;
 
 /*
@@ -33,6 +34,7 @@ Route::resource('revision', RevisionController::class);
 
 Route::resource('seguimiento_ocasional', SeguimientoOcasionalController::class)->middleware('auth');
 Route::resource('new412', Cargue412Controller::class);
+Route::resource('new412_seguimiento', Seguimiento412Controller::class);
 Route::get('/new412/{id}/{numero_identificacion}/edit', [Cargue412Controller::class, 'edit'])->name('editvariables');
 
 
@@ -64,6 +66,9 @@ Route::get('/Seguimiento/{id}/detail', 'App\Http\Controllers\SeguimientoControll
 
 // Ruta para ver el PDF
 Route::get('/seguimiento/view-pdf/{id}', 'App\Http\Controllers\SeguimientoController@viewPDF')->name('seguimiento.view-pdf');
+
+// Ruta para ver el PDF seguimiento 412
+Route::get('/seguimiento_412/view-pdf/{id}', 'App\Http\Controllers\Seguimiento412Controller@viewPDF')->name('seguimiento.view-pdf_412');
 
 //ruta para las graficas
 Route::get('/grafica-barras', [SeguimientoController::class, 'graficaBarras'])->name('grafica.barras');
