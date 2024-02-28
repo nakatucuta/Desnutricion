@@ -341,7 +341,7 @@ if ($registroAnterior) {
     {
         Seguimiento_412::destroy($id);
         // Session::flash('error','El registro se ha agregado correctamente');
-        return redirect('new412_seguimiento')->with('error', 'Empleado borrado con exito');
+        return redirect('new412_seguimiento')->with('error', 'Empleado borrado con exito .!');
     }
 
 
