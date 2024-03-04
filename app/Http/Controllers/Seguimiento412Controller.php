@@ -173,6 +173,7 @@ class Seguimiento412Controller extends Controller
                     // $entytistore->fecha_proximo_control = date('Y-m-d');
                 // } else {
                     $entytistore->est_act_menor = $request->est_act_menor;
+                    $entytistore->requerimiento_energia_ftlc = $request->requerimiento_energia_ftlc;
                     // $entytistore->tratamiento_f75 = $request->tratamiento_f75;
                     // $entytistore->fecha_recibio_tratf75 = $request->fecha_recibio_tratf75;
                     $entytistore->perimetro_braqueal = $request->perimetro_braqueal;
@@ -216,7 +217,7 @@ class Seguimiento412Controller extends Controller
 
             //obtener id anterior
             $registroAnterior = DB::table('seguimiento_412s')
-->where('cargue412_id', $request->sivigilas_id)
+->where('cargue412_id', $request->cargue412_id)
     ->where('id', '<', $entytistore->id)
     ->orderBy('id', 'desc')
     ->first();
@@ -329,9 +330,77 @@ if ($registroAnterior) {
     /**
      * Update the specified resource in storage.
      */
-    public function update(Request $request, Seguimiento_412 $seguimiento_412)
+    public function update(Request $request, Seguimiento_412 $seguimiento_412,$id)
     {
-        //
+        $datosEmpleado = request()->except(['_token','_method']);
+        $medicamentos = implode(',', $datosEmpleado['medicamento']);
+        $datosEmpleado['medicamento'] = $medicamentos;
+        $seg =  Seguimiento_412::where('id', $id)->update($datosEmpleado);
+
+        //OJO DEBES MODIFICAR ESTE PEDAZO PARAQUE CUANDO ACTUALIZE FUNCIONE
+        if ($request->estado == 1) {
+            DB::table('cargue412s')
+                ->where('id', $request->cargue412_id) // Agregar esta línea
+                ->update(['estado' => '1']);
+        } else {
+            DB::table('cargue412s')
+            ->where('id', $request->cargue412_id) // Agregar esta línea
+                ->update(['estado' => '0']);
+        }
+
+         //para enviarle un consulta al correo 
+            // aqui empieza el tema de envio de correos entonces si el estado es 1
+            //creamos una consulta
+            $results = DB::table('seguimiento_412s')
+             ->select('motivo_reapuertura', 'seguimiento_412s.id','cargue412s.primer_nombre','cargue412s.segundo_nombre',
+             'cargue412s.primer_apellido','cargue412s.segundo_apellido')
+             ->where('seguimiento_412s.id', $id)
+             ->join('cargue412s', 'seguimiento_412s.cargue412_id', '=', 'cargue412s.id')
+             ->get();
+            
+             $bodyText = ':<br>';
+             
+             foreach ($results as $result) {
+
+            $bodyText .= 'Id de seguimiento: ' .'<strong>' . $result->id . '</strong><br>';
+
+             $bodyText .= 'Motivo de reapuertura: ' .'<strong>' . $result->motivo_reapuertura . '</strong><br>';
+             $bodyText .= 'Primer nombre: ' .'<strong>' . $result->primer_nombre . '</strong><br>';
+             $bodyText .= 'Segundo nombre: ' .'<strong>' . $result->segundo_nombre . '</strong><br>';
+             $bodyText .= 'Primer apellido: ' .'<strong>' . $result->primer_apellido . '</strong><br>';
+             $bodyText .= 'Segundo apellido: ' .'<strong>' . $result->segundo_apellido . '</strong><br>';
+
+               }
+            //aqui termina la consulta que enviaremos al cuerpo del correo
+
+             
+            $sivigila = Cargue412::find($datosEmpleado['cargue412_id']);
+            $user = User::find($sivigila->user_id);
+             
+           $transport = new EsmtpTransport(env('MAIL_HOST'), env('MAIL_PORT'), env('MAIL_ENCRYPTION'));
+           $transport->setUsername(env('MAIL_USERNAME'))
+                     ->setPassword(env('MAIL_PASSWORD'));
+           
+           $mailer = new Mailer($transport);
+           
+           $email = (new Email())
+                   ->from(new Address(env('MAIL_FROM_ADDRESS'), env('MAIL_FROM_NAME')))
+                   ->to(new Address($user->email))
+                   ->subject('Recordatorio de control')
+                   ->html('Hola, tu seguimiento acaba de ser actualizado por el administrador debido a  algun inconveniente comunicate
+                   con la EPSI'.$bodyText.'se solicita gestionarlo lo antes posible ingresando a este enlace <br>
+                   https://dnt.epsianaswayuu.com:58222/Desnutricion/public/');
+                   if ($mailer->send($email)) {
+            return redirect()->route('Seguimiento.index')
+           ->with('mensaje',' El dato fue agregado a la base de datos Exitosamente..!');
+                   }else{
+                    return redirect()->route('Seguimiento.index')
+           ->with('mensaje',' El dato fue agregado a la base de datos Exitosamente..!');
+            
+                   }
+        
+        return redirect()->route('Seguimiento_412.index');
+        // return view('seguimiento.index', compact('empleado'),["incomeedit"=>$incomeedit]);
     }
 
     /**

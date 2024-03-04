@@ -32,7 +32,7 @@ return new class extends Migration
             $table->string('est_act_menor')->nullable();
             // $table->string('tratamiento_f75')->nullable();
             // $table->date('fecha_recibio_tratf75')->nullable();
-
+            $table->string('requerimiento_energia_ftlc')->nullable();
             $table->date('fecha_proximo_control')->nullable();
             $table->string('pdf')->nullable();
             $table->integer('cargue412_id');//relacion uno a uno 
