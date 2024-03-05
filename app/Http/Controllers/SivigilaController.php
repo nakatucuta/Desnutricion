@@ -445,7 +445,7 @@ class SivigilaController extends Controller
             // aqui empieza el tema de envio de correos entonces si el estado es 1
             //creamos una consulta
             $results = DB::table('sivigilas')
-            ->select('num_ide_', 'pri_nom_','seg_nom_','pri_ape_','seg_ape_')
+            ->select('num_ide_', 'pri_nom_','seg_nom_','pri_ape_','seg_ape_','fec_not')
             ->where('num_ide_', $request->num_ide_)
             ->where('fec_not', $request->fec_not)
             ->get();
@@ -453,7 +453,7 @@ class SivigilaController extends Controller
              $bodyText = ':<br>';
              
             foreach ($results as $result) {
-        
+            $bodyText .= 'Fecha de notificacion: ' .'<strong>' . $result->fec_not . '</strong><br>';
             $bodyText .= 'Identificación: ' .'<strong>' . $result->num_ide_ . '</strong><br>';
             $bodyText .= 'Primer Nombre: ' .'<strong>' . $result->pri_nom_ . '</strong><br>';
             $bodyText .= 'Segundo Nombre: ' .'<strong>' . $result->seg_nom_ . '</strong><br>';
