@@ -10,6 +10,7 @@ use App\Models\Seguimiento;
 use Maatwebsite\Excel\Facades\Excel;
 use App\Exports\SivigilaExport;
 use App\Exports\sivigilaslpExport;
+use App\Exports\reportesinseguimientos;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Redirect;
 use Symfony\Component\Mailer\Mailer;
@@ -576,6 +577,14 @@ class SivigilaController extends Controller
     public function reSporte2()
     {   
         return Excel::download(new sivigilaslpExport, 'sivigila.xls');
+
+
+    }
+
+
+    public function reSporte_sinseguimiento()
+    {   
+        return Excel::download(new reportesinseguimientos, 'sin_seguimiento.xls');
 
 
     }

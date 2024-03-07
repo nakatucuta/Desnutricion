@@ -58,15 +58,17 @@ class SivigilaExport implements FromCollection, WithHeadings, ShouldAutoSize, Wi
             'Regimen',
             'Ips atencion Ambulatorio',
             'Estado',
-            'Fecha atencion Ambulatorio',
+            'Fecha atencion Inicial',
            
            
             'Caso confirmada de desnutricion (etiologia-primaria)',
             'Ips Manejo Hospitalario',
-            'Esquema completo PAI por edad',
-            'Atencion promocion y mantemiento res3280 2018',
-            'Manejo hospitalario',
-            'Id prestador'
+            'nombre hospitalario',
+            
+            
+            'Id prestador',
+            'fecha creacion',
+            'fecha de edicion'
 
             
          
