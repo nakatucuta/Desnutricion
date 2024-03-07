@@ -21,10 +21,14 @@ class SivigilaExport implements FromCollection, WithHeadings, ShouldAutoSize, Wi
     */
     public function collection()
     {
-        return Sivigila::
-        select('*')
-        ->where('cod_eve', 113)
-        ->get();
+        
+        $resultados = DB::table('sivigilas as a')
+                ->select('b.name as Ips_asignada', 'a.*')
+                ->join('users as b', 'a.user_id', '=', 'b.id')
+                ->where('a.cod_eve', 113)
+                ->get();
+        
+        return  $resultados;
 
         //CONSULTA OARA HACER LO QUE LA JEFE QUIERE
         // return Sivigila::join('users as c', 'sivigilas.user_id', '=', 'c.id')
@@ -36,6 +40,7 @@ class SivigilaExport implements FromCollection, WithHeadings, ShouldAutoSize, Wi
     public function headings(): array
     {
         return [
+            'Ips asignada',
             'id',
             'Cod eve',
             'Semana de notificacion',
