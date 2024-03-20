@@ -264,10 +264,10 @@ PARA, <strong> AGREGAR OTRO SEGUIMIENTO O CERRAR EL CASO</strong> <a href="{{rou
                             ->first();
                     // Verifica si $income12 es null después de la consulta
                           if ($income12 === null) {
-                              $income12 = (object) ['name' => 'Sin datos'];
+                              $income12 = (object) ['name' => 'Sin datos , NO ASIGNAR  hasta confirmar prestador primario'];
                           }
                           } else {
-                              $income12 = (object) ['name' => 'Sin datos'];
+                              $income12 = (object) ['name' => 'Sin datos , NO ASIGNAR  hasta confirmar prestador primario'];
                           }
                                       ?>
 

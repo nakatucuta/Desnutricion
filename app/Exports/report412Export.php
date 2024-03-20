@@ -20,6 +20,11 @@ class report412Export implements ToCollection, WithStartRow
     public function collection(Collection $rows)
     {
         foreach ($rows as $row) {
+            // Verifica si $row[2] (fecha_captacion) y $row[19] (fecha_nacimieto_nino) son fechas válidas
+            if (!is_numeric($row[2]) || !is_numeric($row[19])) {
+                \Log::error("Valor no numérico encontrado en fila para 'fecha_captacion' o 'fecha_nacimieto_nino': ", $row->toArray());
+                continue; // O maneja el error como prefieras
+            }
             // Crea una nueva instancia del modelo Item
             $item = new Cargue412();
             
@@ -59,8 +64,9 @@ class report412Export implements ToCollection, WithStartRow
 
             // Guarda el modelo en la base de datos
             $item->save();
-        }
+       
     }
+}
 
     public function startRow(): int
     {
