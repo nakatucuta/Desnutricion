@@ -181,6 +181,8 @@
                                                 <option value="35662-18" {{ in_array('35662-18', explode(',', $empleado->medicamento)) ? 'selected' : '' }}>Acido folico</option>
                                                 <option value="31063-1" {{ in_array('31063-1', explode(',', $empleado->medicamento)) ? 'selected' : '' }}>Vitamina A</option>
                                                 <option value="27440-3" {{ in_array('27440-3', explode(',', $empleado->medicamento)) ? 'selected' : '' }}>Hierro</option>
+                                                <option value="NO APLICA" {{ in_array('NO APLICA', explode(',', $empleado->medicamento)) ? 'selected' : '' }}>NO APLICA</option>
+                                              
                                                 <!-- Agrega más opciones aquí -->
                                             </select>
                                         </div>
