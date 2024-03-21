@@ -346,6 +346,10 @@ if ($registroAnterior) {
      */
     public function edit(Seguimiento $seguimiento , $id)
     {   
+
+       
+
+
         $incomeedit = DB::table('sivigilas')->select('sivigilas.num_ide_','sivigilas.pri_nom_','sivigilas.seg_nom_',
         'sivigilas.pri_ape_','sivigilas.seg_ape_','sivigilas.id as idin')
         ->join('seguimientos', 'sivigilas.id', '=', 'seguimientos.sivigilas_id')
@@ -364,6 +368,40 @@ if ($registroAnterior) {
      */
     public function update(Request $request, Seguimiento $seguimiento,$id)
     {
+
+
+        $campos= [
+            'fecha_consulta' => 'required|string|max:100',
+            'peso_kilos' => 'required',
+            'talla_cm' => 'required',
+            'puntajez' => 'required',
+            'clasificacion' => 'required',
+            'requerimiento_energia_ftlc' => 'required',
+            // 'fecha_entrega_ftlc' => 'required',
+            'medicamento' => 'required',
+            //  'motivo_reapuertura' => 'required',
+            // 'resultados_seguimientos' => 'required',
+            // 'ips_realiza_seguuimiento' => 'required',
+            'Esquemq_complrto_pai_edad' => 'required',
+
+            'Atecion_primocion_y_mantenimiento_res3280_2018' => 'required',
+            'observaciones' => 'required',
+            // 'fecha_proximo_control' => 'nullable|date|after_or_equal:today',
+            'sivigilas_id' => 'required',
+            
+            // 'archivo_pdf' => 'required|mimes:pdf|max:2048',
+
+
+        ];
+
+        $mensajes=[
+            'required'=>'El :attribute es requerido',
+            'fecha_proximo_control.after_or_equal' => 'La fecha de ingreso no puede ser anterior a la fecha actual.',
+      
+        ];
+
+        $this->validate($request, $campos, $mensajes);
+
         $datosEmpleado = request()->except(['_token','_method']);
         $medicamentos = implode(',', $datosEmpleado['medicamento']);
         $datosEmpleado['medicamento'] = $medicamentos;
