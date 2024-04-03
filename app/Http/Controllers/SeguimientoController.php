@@ -395,7 +395,7 @@ if ($registroAnterior) {
         ];
 
         $mensajes=[
-            'required'=>'El :attribute es requerido (DEBE LLENARLO PARA CONTINUAR)',
+            'required'=>'El :attribute es requerido  (DEBE LLENARLO PARA CONTINUAR)',
             'fecha_proximo_control.after_or_equal' => 'La fecha de ingreso no puede ser anterior a la fecha actual.',
       
         ];
