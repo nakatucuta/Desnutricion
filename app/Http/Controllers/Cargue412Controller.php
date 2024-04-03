@@ -8,6 +8,11 @@ use Maatwebsite\Excel\Facades\Excel;
 use App\Exports\report412Export;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
+use Symfony\Component\Mailer\Mailer;
+use Symfony\Component\Mailer\Transport\Smtp\EsmtpTransport;
+use Symfony\Component\Mime\Address;
+use Symfony\Component\Mime\Email;
+use App\Models\User;
 use Session;
 
 class Cargue412Controller extends Controller
@@ -161,6 +166,54 @@ class Cargue412Controller extends Controller
         $datosEmpleado = request()->except(['_token','_method']);
       
         $seg =  Cargue412::where('id', $id)->update($datosEmpleado);
+
+
+        //para enviarle una consulta al correo 
+            // aqui empieza el tema de envio de correos entonces si el estado es 1
+            //creamos una consulta
+            $results = DB::table('cargue412s')
+            ->select('numero_identificacion', 'primer_nombre','segundo_nombre','primer_apellido','segundo_apellido','fecha_captacion')
+            ->where('numero_identificacion', $request->numero_identificacion)
+            ->where('fecha_captacion', $request->fecha_captacion)
+            ->get();
+            
+             $bodyText = ':<br>';
+             
+            foreach ($results as $result) {
+            $bodyText .= 'Fecha de notificacion: ' .'<strong>' . $result->fecha_captacion . '</strong><br>';
+            $bodyText .= 'Identificación: ' .'<strong>' . $result->numero_identificacion . '</strong><br>';
+            $bodyText .= 'Primer Nombre: ' .'<strong>' . $result->primer_nombre . '</strong><br>';
+            $bodyText .= 'Segundo Nombre: ' .'<strong>' . $result->segundo_nombre . '</strong><br>';
+            $bodyText .= 'Primer Apellido: ' .'<strong>' . $result->primer_apellido . '</strong><br>';
+            $bodyText .= 'Segundo Apellido: ' .'<strong>' . $result->segundo_apellido . '</strong><br>';
+              }
+            //aqui termina la consulta que enviaremos al cuerpo del correo
+
+             
+
+             
+           $transport = new EsmtpTransport(env('MAIL_HOST'), env('MAIL_PORT'), env('MAIL_ENCRYPTION'));
+           $transport->setUsername(env('MAIL_USERNAME'))
+                     ->setPassword(env('MAIL_PASSWORD'));
+           
+           $mailer = new Mailer($transport);
+           
+           $email = (new Email())
+                   ->from(new Address(env('MAIL_FROM_ADDRESS'), env('MAIL_FROM_NAME')))
+                   ->to(new Address(User::find($request->user_id)->email))
+                   ->subject('Recordatorio de control')
+                   ->html('FAVOR NO CONTESTAR ESTE MENSAJE <br>
+                    Hola, te acaban de asignar un paciente de desnutricion (412) por parte de la
+                   EPSI anas wayuu, se solicita gestionarlo lo antes posible ingresando a este enlace <br>
+                   http://dnt.epsianaswayuu.com:58222/Desnutricion/public/'.$bodyText);
+                   if ($mailer->send($email)) {
+            return redirect()->route('import-excel')
+           ->with('mensaje',' El dato fue agregado a la base de datos Exitosamente..!');
+                   }else{
+                    return redirect()->route('sivigila.index')
+           ->with('mensaje',' El dato fue agregado a la base de datos Exitosamente..!');
+            
+                   }
 
         return redirect()->route('import-excel');
     }
