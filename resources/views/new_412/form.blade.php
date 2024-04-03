@@ -108,22 +108,35 @@
                         <td><small>{{ $student2->fecha_nacimieto_nino }}</small></td>
                         <td><small>{{ $student2->edad_meses }}</small></td>
                         <td><small> 
-                            <a href="{{route('new412.destroy', $student2->id)}}"
+
+                            @if ($student2->user_id === null)
+                            <!-- El campo user_id es NULL -->
+
+                            <!-- El campo user_id no es NULL -->
+                            <a href="{{ route('new412.destroy', $student2->id) }}"
                                 onclick="event.preventDefault();
-                                if(confirm('¿Está seguro de que desea eliminar el producto?')) {
-                                document.getElementById('delete-form-{{$student2->id}}').submit();
-                                }" class="btn  btn-danger btn-sm">
-                                <i class="fas fa-trash"></i>
-                              </a>
-                            <form id="delete-form-{{$student2->id}}" action="{{route('new412.destroy', $student2->id)}}"
-                            method="POST" style="display: none;">
-                            @method('DELETE')
-                            @csrf
-                            </form>
-                        
-                            <a class="btn btn-success btn-sm" href="{{ url('/new412/' . $student2->id . '/' . $student2->numero_identificacion . '/edit') }}" class="ref">
-                                <i class="fas fa-edit"></i>
-                            </a>
+                                         if(confirm('¿Está seguro de que desea eliminar el producto?')) {
+                                             document.getElementById('delete-form-{{$student2->id}}').submit();
+                                         }" class="btn  btn-danger btn-sm">
+                                 <i class="fas fa-trash"></i>
+                             </a>
+                             <form id="delete-form-{{$student2->id}}" action="{{ route('new412.destroy', $student2->id) }}"
+                                   method="POST" style="display: none;">
+                                 @method('DELETE')
+                                 @csrf
+                             </form>
+                         
+                             <a class="btn btn-success btn-sm" href="{{ url('/new412/' . $student2->id . '/' . $student2->numero_identificacion . '/edit') }}" class="ref">
+                                 <i class="fas fa-edit"></i>
+                             </a>
+                            
+                        @else
+                        <a href="" onclick="return false;" title="DETALLE" class="btn  btn-secondary btn-sm">
+                            <span class="icon-zoom-in" ></span>Procesado <i class="fas fa-stop"></i></a>
+                        @endif
+
+
+                            
                             
                         </small></td>
                         {{-- <td><small>{{ $student2->regimen_afiliacion }}</small></td>
@@ -293,3 +306,6 @@ document.addEventListener("DOMContentLoaded", function() {
 @stop
 
 @stop
+
+
+
