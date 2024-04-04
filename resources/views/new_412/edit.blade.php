@@ -9,7 +9,7 @@
 
 <div class="container">
     {{-- <h2>Editar edit_cargue</h2> --}}
-    <form action="{{url('/new412/'.$edit_cargue->id)}}" method="post" enctype="multipart/form-data">
+    <form id="update-form" action="{{url('/new412/'.$edit_cargue->id)}}" method="post" enctype="multipart/form-data">
         @csrf
         {{method_field('PATCH')}}
 
@@ -384,7 +384,14 @@
                            
 
 
-<input class="btn btn-success" type="submit" value="ACTUALIZAR">
+                             <!-- Formulario con botón de envío y ícono de carga -->
+
+                             <button id="update-btn" class="btn btn-success" type="button" onclick="submitForm()">
+                                <span id="button-text">ACTUALIZAR</span>
+                                <span id="loading-icon" class="spinner-border spinner-border-sm" role="status" aria-hidden="true" style="display: none;"></span>
+                            </button>
+                            
+
             <a  class="btn btn-primary" href="{{url('import-excel')}}" class="btn  btn-success"> REGRESAR</a>
         </div>
     </div>
@@ -410,5 +417,21 @@
 @section('js')
     <script>   $(document).ready(function() {
         $('.js-example-basic-multiple').select2();
-    }); </script>
+    }); 
+    
+    
+    function submitForm() {
+        // Muestra el ícono de carga y oculta el texto del botón
+        document.getElementById('button-text').style.display = 'none';
+        document.getElementById('loading-icon').style.display = 'inline-block';
+
+        // Deshabilita el botón para evitar clics repetidos
+        document.getElementById('update-btn').disabled = true;
+
+        // Envía el formulario después de un breve retraso para permitir que se muestre el ícono de carga
+        setTimeout(function() {
+            document.getElementById('update-form').submit();
+        }, 500); // Puedes ajustar el tiempo de retraso según tus necesidades
+    }
+    </script>
 @stop

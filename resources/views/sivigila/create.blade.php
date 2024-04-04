@@ -8,7 +8,7 @@
 @stop
 @section('content')
 
-<form action="{{url('/sivigila')}}" method="post" enctype="multipart/form-data">
+<form id="update-form" action="{{url('/sivigila')}}" method="post" enctype="multipart/form-data">
     @csrf
 
     @include('sivigila.form', ['modo'=>'Crear']);
@@ -54,6 +54,21 @@
         //     });
             
         // });
+
+
+        function submitForm() {
+        // Muestra el ícono de carga y oculta el texto del botón
+        document.getElementById('button-text').style.display = 'none';
+        document.getElementById('loading-icon').style.display = 'inline-block';
+
+        // Deshabilita el botón para evitar clics repetidos
+        document.getElementById('update-btn').disabled = true;
+
+        // Envía el formulario después de un breve retraso para permitir que se muestre el ícono de carga
+        setTimeout(function() {
+            document.getElementById('update-form').submit();
+        }, 500); // Puedes ajustar el tiempo de retraso según tus necesidades
+    }
     </script>
     @stop
     
