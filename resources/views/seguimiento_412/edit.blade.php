@@ -119,7 +119,7 @@
                 <div class="col-sm-6">
                     <div class="form-group">
                         <label for="Nombre"> Perimetro Braqueal </label> {{-- el isset pregunta si el archivo esta seleccionado lo muestre sino no muestra nada por eso las comillas vacias al final --}}
-                        <input class="form-control" type="date" name="perimetro_braqueal" id = 'perimetro_braqueal'
+                        <input class="form-control" type="text" name="perimetro_braqueal" id = 'perimetro_braqueal'
                         value="{{$empleado->perimetro_braqueal}}">
                     </div>
                     </div>

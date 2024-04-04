@@ -389,6 +389,7 @@
                              <button id="update-btn" class="btn btn-success" type="button" onclick="submitForm()">
                                 <span id="button-text">ACTUALIZAR</span>
                                 <span id="loading-icon" class="spinner-border spinner-border-sm" role="status" aria-hidden="true" style="display: none;"></span>
+                                <span id="sending-text" style="display: none;">Enviando correo...</span>
                             </button>
                             
 
@@ -421,9 +422,10 @@
     
     
     function submitForm() {
-        // Muestra el ícono de carga y oculta el texto del botón
+        // Muestra el texto de "Enviando correo..." y oculta el texto del botón
         document.getElementById('button-text').style.display = 'none';
         document.getElementById('loading-icon').style.display = 'inline-block';
+        document.getElementById('sending-text').style.display = 'inline-block';
 
         // Deshabilita el botón para evitar clics repetidos
         document.getElementById('update-btn').disabled = true;
