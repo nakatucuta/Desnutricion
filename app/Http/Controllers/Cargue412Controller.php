@@ -210,7 +210,7 @@ class Cargue412Controller extends Controller
             return redirect()->route('import-excel')
            ->with('mensaje',' El dato fue agregado a la base de datos Exitosamente..!');
                    }else{
-                    return redirect()->route('sivigila.index')
+                    return redirect()->route('import-excel')
            ->with('mensaje',' El dato fue agregado a la base de datos Exitosamente..!');
             
                    }
