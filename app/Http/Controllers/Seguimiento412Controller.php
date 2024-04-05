@@ -94,7 +94,7 @@ class Seguimiento412Controller extends Controller
         // ->join('seguimientos', 'cargue412s.id', '=', 'seguimientos.cargue412s_id')
         ->where('cargue412s.estado', '=', 1)
         ->where('user_id', Auth::user()->id)
-        ->whereYear('cargue412s.created_at', '>', 2023) 
+        // ->whereYear('cargue412s.created_at', '>', 2023) 
         ->get();
 
         $income12 =  DB::connection('sqlsrv_1')->table('refIps')->select('descrip')
