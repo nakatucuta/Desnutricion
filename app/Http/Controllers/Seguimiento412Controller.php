@@ -88,6 +88,11 @@ class Seguimiento412Controller extends Controller
      */
     public function create()
     {
+
+        $sivigilas2030 = Cargue412::
+        where('user_id', Auth::user()->id)->get();
+        
+
         $incomeedit = DB::table('cargue412s')
         ->select('cargue412s.numero_identificacion','cargue412s.primer_nombre','cargue412s.segundo_nombre',
         'cargue412s.primer_apellido','cargue412s.segundo_apellido','cargue412s.id as idin')
@@ -101,7 +106,7 @@ class Seguimiento412Controller extends Controller
         ->where('refIps.codigoDepartamento', 44)
         ->get();
 
-        return view('seguimiento_412.create',compact('incomeedit','income12'));
+        return view('seguimiento_412.create',compact('incomeedit','income12','sivigilas2030'));
     }
 
     /**

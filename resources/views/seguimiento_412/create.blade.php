@@ -7,6 +7,46 @@
 
 @stop
 @section('content')
+
+
+
+<table class="table table-hover table-striped table-bordered" style="border: 1px solid #000000;" id="sivigila"> 
+  <thead class="table table-hover table-info table-bordered" style="background-color: #d9f2e6; border: 1px solid #000000;">
+      <tr>
+          <th style="font-size: smaller;" scope="col">Id</th>
+          {{-- <th style="font-size: smaller;" scope="col">Número de Orden</th> --}}
+          {{-- <th style="font-size: smaller;" scope="col">Nombre Coperante</th> --}}
+          <th style="font-size: smaller;" scope="col">Tipo ID</th>
+          <th style="font-size: smaller;" scope="col">Identificacion</th>
+          <th style="font-size: smaller;" scope="col">Nombre</th>
+          <th style="font-size: smaller;" scope="col">Municipio</th>
+          
+          <th style="font-size: smaller;" scope="col">Nombre rancheria</th>
+          {{-- <th style="font-size: smaller;" scope="col">Nombre Ranchería</th> --}}
+          {{-- <th style="font-size: smaller;" scope="col">Ubicación Casa</th> --}}
+          <th style="font-size: smaller;" scope="col">Ubicacion casa</th>
+        
+  </thead>
+  <tbody id="table">
+      @foreach($sivigilas2030 as $student2)
+      <tr>
+          <td><small>{{ $student2->id }}</small></td>
+          {{-- <td><small>{{ $student2->numero_orden }}</small></td> --}}
+          <td><small>{{ $student2->tipo_identificacion }}</small></td> 
+          <td><small>{{ $student2->numero_identificacion }}</small></td> 
+          <td><small>{{ $student2->primer_nombre.' '.$student2->segundo_nombre.' '.$student2->primer_apellido.' '.
+            $student2->segundo_apellido }} </small> </td>
+          <td><small>{{ $student2->municipio }}</small></td>
+          <td><small>{{ $student2->nombre_rancheria }}</small></td>
+          {{-- <td><small>{{ $student2->nombre_rancheria }}</small></td> --}}
+          {{-- <td><small>{{ $student2->ubicacion_casa }}</small></td> --}}
+          <td><small>{{ $student2->ubicacion_casa }}</small></td>
+          
+      </tr>
+      @endforeach 
+  </tbody>
+</table>
+
 <br>
 <form action="{{url('/new412_seguimiento')}}" method="post" enctype="multipart/form-data">
     @csrf
@@ -73,9 +113,21 @@
     .select2-container--default .select2-selection--multiple .select2-selection__choice__remove {
       color: #fff; /* Cambiar el color del texto del icono "x" */
     }
+
+    .dataTables_filter input {
+
+  height: 100%;
+  background-color: #555 ;
+  border: solid 3px !important;
+  border-radius: 20px !important;
+  color: rgb(64, 125, 232);
+  padding: 10px !important;
+  font-weight: bold !important;
+}
     
     </style>
-
+<link rel="stylesheet" href="{{ asset('vendor/DataTables/css/dataTables.bootstrap.css') }}">
+<link rel="stylesheet" href="{{ asset('vendor/DataTables/css/jquery.dataTables.css') }}">
     @stop
     
     @section('js')
@@ -123,5 +175,43 @@
     $('.js-example-basic-multiple').select2();
 });
     </script>
+
+<script>
+  $(document).ready(function () {
+    $('#sivigila').DataTable({
+        "language": {
+            "search": "BUSCAR",
+            "lengthMenu": "Mostrar _MENU_ registros",
+            "info": "Mostrando pagina _PAGE_ de _PAGES_",
+            "paginate": {
+                "first": "Primero",
+                "last": "Último",
+                "next": "Siguiente",
+                "previous": "Anterior"
+            }
+        },
+        "paging": true, // Activar paginación
+        "lengthChange": false, // Desactivar el cambio de cantidad de registros mostrados
+        "searching": true, // Habilitar la función de búsqueda
+        "info": false, // Desactivar la información de la tabla (registros mostrados, registros totales, etc.)
+        "pageLength": 1 // Mostrar solo un registro por página
+    });
+});
+
+
+
+
+</script>  
+
+
+
+<script src="{{ asset('vendor/DataTables/js/jquery.dataTables.min.js') }}"></script>
+<script src="{{ asset('vendor/DataTables/js/dataTables.bootstrap5.min.js') }}"></script>
+
+
+
+
+
+      
     @stop
     

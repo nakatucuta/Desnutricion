@@ -89,3 +89,6 @@ Route::get('seguimiento_ocasional/create/{id}', 'App\Http\Controllers\Seguimient
 //RUTAS PARA EL CARGUE DE LA  INFORMACION
 Route::get('/import-excel', [Cargue412Controller::class, 'showImportForm'])->name('import-excel-form')->middleware('auth');
 Route::post('/import-excel', [Cargue412Controller::class, 'importExcel'])->name('import-excel')->middleware('auth');
+
+// RUTA PARA CARGARA LA TABLA POR  JSON
+// Route::get('/obtener-datos-tabla', 'SivigilaController@obtenerDatos')->name('obtener.datos.tabla');
