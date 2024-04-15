@@ -9,16 +9,67 @@
 @section('content')
 
 
+{{-- boton para abrir la modal --}}
+<br>
+<button type="button" class="btn btn-primary btn-sm" style="border-radius: 50px; padding: 10px 20px; font-weight: bold; letter-spacing: 1px; background-color: #007bff;" data-toggle="modal" data-target="#exampleModal">
+  <i class="icon-zoom-in mr-2"></i> CLICK AQUI PARA VER TODOS LOS DATOS
+</button>
+<br>
+
+  {{-- aqui termina el boton --}}
+  
+  
+  <div class="modal fade" id="exampleModal" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="exampleModalLabel">NOTIFICACIONES</h5>
+          <button type="button" class="close" data-dismiss="modal" aria-label="Cerrar">
+            <span aria-hidden="true">&times;</span>
+          </button>
+        </div>
+        <div class="modal-body">
+
+
+
 
 <table class="table table-hover table-striped table-bordered" style="border: 1px solid #000000;" id="sivigila"> 
   <thead class="table table-hover table-info table-bordered" style="background-color: #d9f2e6; border: 1px solid #000000;">
       <tr>
-          <th style="font-size: smaller;" scope="col">Id</th>
+        <th style="font-size: smaller;" scope="col">Id</th>
+        <th style="font-size: smaller;" scope="col">nombre coperante</th>
+  
+        <th style="font-size: smaller;" scope="col">fecha captacion</th>
           {{-- <th style="font-size: smaller;" scope="col">Número de Orden</th> --}}
           {{-- <th style="font-size: smaller;" scope="col">Nombre Coperante</th> --}}
+
+          <th style="font-size: smaller;" scope="col">nombre_cuidador</th>
+          <th style="font-size: smaller;" scope="col">identioficacion_cuidador</th>
+          <th style="font-size: smaller;" scope="col">telefono_cuidador</th>
+          <th style="font-size: smaller;" scope="col">nombre_eapb_cuidador</th>
+
+
+          <th style="font-size: smaller;" scope="col">nombre_autoridad_trad_ansestral</th>
+          <th style="font-size: smaller;" scope="col">datos_contacto_autoridad</th>
+
           <th style="font-size: smaller;" scope="col">Tipo ID</th>
           <th style="font-size: smaller;" scope="col">Identificacion</th>
           <th style="font-size: smaller;" scope="col">Nombre</th>
+
+          <th style="font-size: smaller;" scope="col">sexo</th>
+          <th style="font-size: smaller;" scope="col">fecha_nacimieto_nino</th>
+          <th style="font-size: smaller;" scope="col">edad_meses</th>
+
+          <th style="font-size: smaller;" scope="col">regimen_afiliacion</th>
+          <th style="font-size: smaller;" scope="col">nombre_eapb_menor</th>
+          <th style="font-size: smaller;" scope="col">peso_kg</th>
+          <th style="font-size: smaller;" scope="col">logitud_talla_cm</th>
+          <th style="font-size: smaller;" scope="col">perimetro_braqueal</th>
+          <th style="font-size: smaller;" scope="col">signos_peligro_infeccion_respiratoria</th>
+          <th style="font-size: smaller;" scope="col">sexosignos_desnutricion</th>
+          <th style="font-size: smaller;" scope="col">puntaje_z</th>
+          <th style="font-size: smaller;" scope="col">calsificacion_antropometrica</th>
+
           <th style="font-size: smaller;" scope="col">Municipio</th>
           
           <th style="font-size: smaller;" scope="col">Nombre rancheria</th>
@@ -30,12 +81,41 @@
   <tbody id="table">
       @foreach($sivigilas2030 as $student2)
       <tr>
-          <td><small>{{ $student2->id }}</small></td>
-          {{-- <td><small>{{ $student2->numero_orden }}</small></td> --}}
+        <td><small>{{ $student2->id }}</small></td>
+        <td><small>{{ $student2->nombre_coperante }}</small></td>
+        
+           <td><small>{{ $student2->fecha_captacion }}</small></td> 
+           
+           <td><small>{{ $student2->nombre_cuidador }}</small></td>
+           <td><small>{{ $student2->identioficacion_cuidador }}</small></td>
+           <td><small>{{ $student2->telefono_cuidador }}</small></td>
+           <td><small>{{ $student2->nombre_eapb_cuidador }}</small></td>
+
+
+           <td><small>{{ $student2->nombre_autoridad_trad_ansestral }}</small></td>
+           <td><small>{{ $student2->datos_contacto_autoridad }}</small></td>
+        
+
+
           <td><small>{{ $student2->tipo_identificacion }}</small></td> 
           <td><small>{{ $student2->numero_identificacion }}</small></td> 
           <td><small>{{ $student2->primer_nombre.' '.$student2->segundo_nombre.' '.$student2->primer_apellido.' '.
             $student2->segundo_apellido }} </small> </td>
+
+          <td><small>{{ $student2->sexo }}</small></td>
+          <td><small>{{ $student2->fecha_nacimieto_nino }}</small></td>
+          <td><small>{{ $student2->edad_meses }}</small></td>
+
+          <td><small>{{ $student2->regimen_afiliacion }}</small></td>
+          <td><small>{{ $student2->nombre_eapb_menor }}</small></td>
+          <td><small>{{ $student2->peso_kg }}</small></td>
+          <td><small>{{ $student2->logitud_talla_cm }}</small></td>
+          <td><small>{{ $student2->perimetro_braqueal }}</small></td>
+          <td><small>{{ $student2->signos_peligro_infeccion_respiratoria }}</small></td>
+          <td><small>{{ $student2->sexosignos_desnutricion }}</small></td>
+          <td><small>{{ $student2->puntaje_z }}</small></td>
+          <td><small>{{ $student2->calsificacion_antropometrica }}</small></td>
+
           <td><small>{{ $student2->municipio }}</small></td>
           <td><small>{{ $student2->nombre_rancheria }}</small></td>
           {{-- <td><small>{{ $student2->nombre_rancheria }}</small></td> --}}
@@ -46,6 +126,17 @@
       @endforeach 
   </tbody>
 </table>
+<div class="modal-footer">
+  <button type="button" class="btn btn-secondary" data-dismiss="modal">Cerrar</button>
+  {{-- <button type="button" class="btn btn-primary">Guardar cambios</button> --}}
+</div>
+</div>
+</div>
+</div>
+
+</div>
+
+
 
 <br>
 <form action="{{url('/new412_seguimiento')}}" method="post" enctype="multipart/form-data">
@@ -75,6 +166,15 @@
         estaba en public vendor/adminlte/dist/js/select2.min.js--}}
         
         <style>
+
+.modal-dialog {
+    max-width: 90%; /* ajusta el ancho máximo de la modal */
+  }
+  .modal-body {
+    max-height: 70vh; /* ajusta la altura máxima de la modal */
+    overflow-y: auto; /* permite desplazamiento vertical si el contenido excede la altura máxima */
+  }
+
             
     .js-example-basic-multiple {
       color: black;
