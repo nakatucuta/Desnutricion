@@ -133,6 +133,24 @@
                         @else
                         <a href="" onclick="return false;" title="DETALLE" class="btn  btn-secondary btn-sm">
                             <span class="icon-zoom-in" ></span>Procesado <i class="fas fa-stop"></i></a>
+
+
+                            <a class="btn btn-success btn-sm" href="{{ url('/new412/' . $student2->id . '/' . $student2->numero_identificacion . '/edit') }}" class="ref">
+                                <i class="fas fa-tools"></i>
+
+                                <a href="{{ route('new412.destroy', $student2->id) }}"
+                                    onclick="event.preventDefault();
+                                             if(confirm('¿Está seguro de que desea eliminar el producto?')) {
+                                                 document.getElementById('delete-form-{{$student2->id}}').submit();
+                                             }" class="btn  btn-danger btn-sm">
+                                     <i class="fas fa-trash"></i>
+                                 </a>
+                                 <form id="delete-form-{{$student2->id}}" action="{{ route('new412.destroy', $student2->id) }}"
+                                       method="POST" style="display: none;">
+                                     @method('DELETE')
+                                     @csrf
+                                 </form>
+                            </a>
                         @endif
 
 
