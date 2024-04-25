@@ -18,6 +18,8 @@ use Symfony\Component\Mime\Address;
 use Symfony\Component\Mime\Email;
 use App\Models\User;
 use Illuminate\Http\Request;
+use Maatwebsite\Excel\Facades\Excel;
+use App\Exports\Seguimiento412Export;
 
 class Seguimiento412Controller extends Controller
 {
@@ -426,5 +428,15 @@ public function viewPDF($id)
     $filePath = storage_path('app/public/pdf/' . $seguimiento->pdf);
 
     return response()->file($filePath);
+}
+
+
+
+
+public function reporte_seguimiento412()
+{   
+    return Excel::download(new Seguimiento412Export, 'seguimientos_412.xls');
+
+
 }
 }

@@ -14,7 +14,7 @@
 <div>
     <h1 style="font-family: 'Helvetica Neue', sans-serif; 
     font-weight: 700;
-    font-size: 2rem;">Seguimientos</h1>
+    font-size: 2rem;">Seguimientos 412</h1>
 </div>
   <br>
 <a href="{{route('new412_seguimiento.create')}}" title="DETALLE" 
@@ -28,16 +28,16 @@
 
 {{-- secion del reporte general --}}
 
-<a href="{{route('export3')}}" 
+{{-- <a href="{{route('export3')}}" 
 class="btn btn-success btn-sm"
  style=" margin-right: 0; position: relative; right: 0;
   border-radius: 50px; padding: 10px 20px; font-weight: bold; letter-spacing: 1px;
    background-color: #28a745;">
   <i class="fas fa-book mr-2"></i>
-</a>
+</a> --}}
 
   {{-- seccion del primer reporte --}}
-  <a href="{{route('export')}}" class="btn btn-success btn-sm 
+  <a href="{{route('export6')}}" class="btn btn-success btn-sm 
   rounded-pill py-2 px-3" 
   style="float: right; margin-right: 0; position: relative; right: 0; 
   border-radius: 50px; padding: 10px 20px; font-weight: bold; letter-spacing: 1px; 
