@@ -476,7 +476,7 @@ return [
         ],
 
         [
-            'text'       => 'MANUAL DE USUARIO',
+            'text'       => 'MANUAL DE USUARIO.',
             'icon_color' => 'yellow',
             'url'        => 'download-pdf',
              'icon'        => 'fas fa-download fa-2x ',
