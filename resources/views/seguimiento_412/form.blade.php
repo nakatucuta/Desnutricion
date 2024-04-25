@@ -304,8 +304,12 @@
                            
 
 
-<input class="btn btn-success" type="submit" value="enviar">
-            <a  class="btn btn-primary" href="{{url('Seguimiento')}}" class="btn  btn-success"> REGRESAR</a>
+                                        <button id="update-btn" class="btn btn-success" type="button" onclick="submitForm()">
+                                            <span id="button-text">ENVIAR</span>
+                                            <span id="loading-icon" class="spinner-border spinner-border-sm" role="status" aria-hidden="true" style="display: none;"></span>
+                                            <span id="sending-text" style="display: none;">Enviando correo...</span>
+                                        </button>
+                                        <a  class="btn btn-primary" href="{{url('Seguimiento')}}" class="btn  btn-success"> REGRESAR</a>
         </div>
     </div>
         </div>

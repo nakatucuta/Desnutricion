@@ -139,7 +139,7 @@
 
 
 <br>
-<form action="{{url('/new412_seguimiento')}}" method="post" enctype="multipart/form-data">
+<form  id="update-form" action="{{url('/new412_seguimiento')}}" method="post" enctype="multipart/form-data">
     @csrf
 
 
@@ -299,7 +299,20 @@
 });
 
 
+function submitForm() {
+        // Muestra el texto de "Enviando correo..." y oculta el texto del botón
+        document.getElementById('button-text').style.display = 'none';
+        document.getElementById('loading-icon').style.display = 'inline-block';
+        document.getElementById('sending-text').style.display = 'inline-block';
 
+        // Deshabilita el botón para evitar clics repetidos
+        document.getElementById('update-btn').disabled = true;
+
+        // Envía el formulario después de un breve retraso para permitir que se muestre el ícono de carga
+        setTimeout(function() {
+            document.getElementById('update-form').submit();
+        }, 500); // Puedes ajustar el tiempo de retraso según tus necesidades
+    }
 
 </script>  
 
