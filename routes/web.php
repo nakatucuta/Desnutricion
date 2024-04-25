@@ -91,5 +91,10 @@ Route::get('seguimiento_ocasional/create/{id}', 'App\Http\Controllers\Seguimient
 Route::get('/import-excel', [Cargue412Controller::class, 'showImportForm'])->name('import-excel-form')->middleware('auth');
 Route::post('/import-excel', [Cargue412Controller::class, 'importExcel'])->name('import-excel')->middleware('auth');
 
+//RUTA PARA DESCARGAR MANUAL
+
+Route::get('/download-pdf', 'App\Http\Controllers\SivigilaController@downloadPdf')->name('download.pdf');
+
+
 // RUTA PARA CARGARA LA TABLA POR  JSON
 // Route::get('/obtener-datos-tabla', 'SivigilaController@obtenerDatos')->name('obtener.datos.tabla');

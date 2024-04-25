@@ -18,6 +18,8 @@ use Symfony\Component\Mailer\Transport\Smtp\EsmtpTransport;
 use Symfony\Component\Mime\Address;
 use Symfony\Component\Mime\Email;
 use App\Models\User;
+use Illuminate\Support\Facades\Response;
+
 
 class SivigilaController extends Controller
 {
@@ -657,6 +659,16 @@ class SivigilaController extends Controller
     
     //     return 'Datos importados exitosamente.';
     // }
+
+    
+
+    public function downloadPdf()
+    {
+        $pdfPath = 'C:/xampp/htdocs/Desnutricion/public/img/manual_de_usario.pdf'; // Ruta al archivo PDF en tu servidor
+        $pdfName = 'manual_de_usario.pdf'; // Nombre del archivo que se descargará
+
+        return Response::download($pdfPath, $pdfName);
+    }
     
 
 

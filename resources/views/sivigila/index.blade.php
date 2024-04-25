@@ -4,6 +4,8 @@
 
 @section('content_header')
 @include('seguimiento.mensajes')
+
+{{-- <a href="{{ route('download.pdf') }}">Descargar PDF</a> --}}
 {{-- boton para abrir la modal --}}
 <button type="button" class="btn {{$conteo > 0 ? 'btn-danger btn-sm btn-pulse' : 'btn-primary btn-sm btn-pulse'}} rounded-circle p-0" data-toggle="modal" data-target="#exampleModal" style="float: right; width: 40px; height: 40px; position: relative; right: 0;">
   <i class="fas fa-bell fa-2x text-white p-2" style="background-color: {{$conteo > 0 ? '#dc3545' : '#007bff'}}; border-radius: 75%;"></i>
