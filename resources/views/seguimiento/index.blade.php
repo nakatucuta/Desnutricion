@@ -10,7 +10,7 @@
 
   {{-- MODAL NOTIFICACIONES --}}
 @include('seguimiento.modal_notificaciones')
-
+<iframe title="Autorizaciones" width="1140" height="541.25" src="https://app.powerbi.com/reportEmbed?reportId=129b3b0a-5f22-44b7-99a7-62fd6ed304dc&autoAuth=true&ctid=a2654f78-8087-41a0-a705-a3dfcce05abd" frameborder="0" allowFullScreen="true"></iframe>
 <div>
     <h1 style="font-family: 'Helvetica Neue', sans-serif; 
     font-weight: 700;
