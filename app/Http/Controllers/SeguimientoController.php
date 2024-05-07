@@ -570,6 +570,7 @@ if ($registroAnterior) {
         ->Join('seguimientos', 'sivigilas.id', '=', 'seguimientos.sivigilas_id')
         ->select(DB::raw("sivigilas.num_ide_,sivigilas.pri_nom_,sivigilas.seg_nom_,
         sivigilas.pri_ape_,sivigilas.seg_ape_,seguimientos.motivo_reapuertura"))
+        ->where('seguimientos.id',$id)
         ->first();
 
    
