@@ -118,7 +118,7 @@
 <div class="form-group">
     <label for="Nombre">edad</label> {{-- el isset pregunta si el archivo esta seleccionado lo muestre sino no muestra nada por eso las comillas vacias al final --}}
     <input class="form-control" type="text" name="edad_" id = 'edad_'
-    value="{{$incomeedit3}}" readonly>
+    value="{{$incomeedit3}}" >
 </div>
 </div>
 
@@ -134,7 +134,7 @@
 <div class="form-group">
     <label for="Nombre">Fecha Nacimiento</label> {{-- el isset pregunta si el archivo esta seleccionado lo muestre sino no muestra nada por eso las comillas vacias al final --}}
     <input class="form-control" type="date" name="fecha_nto_" id = 'fecha_nto_'
-    value="{{$incomeedit8}}" readonly>
+    value="{{$incomeedit8}}" >
 </div>
 </div>
 
@@ -142,7 +142,7 @@
 <div class="form-group">
     <label for="Nombre">Edad Meses</label> {{-- el isset pregunta si el archivo esta seleccionado lo muestre sino no muestra nada por eso las comillas vacias al final --}}
     <input class="form-control" type="text" name="edad_ges" id = 'edad_ges'
-    value="{{$incomeedit9}}" readonly>
+    value="{{$incomeedit9}}" >
 </div>
 </div>
 </div>

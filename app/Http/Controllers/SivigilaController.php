@@ -234,12 +234,17 @@ class SivigilaController extends Controller
         ->value('fecha_nto_');
     
 
-        $incomeedit9 = DB::connection('sqlsrv_1')->table('maestroSiv113')->selectRaw('CAST(edad_ges AS VARCHAR )')
+        $incomeedit9 = DB::connection('sqlsrv_1')
+        ->table('maestroSiv113')
+        ->selectRaw("CASE WHEN ISNULL(edad_ges, '') != '' THEN CAST(REPLACE(edad_ges, ',', '.') AS DECIMAL(10,1)) ELSE COALESCE(NULLIF(edad_ges, ''), 0) END AS edad_ges")
         ->where('num_ide_', $num_ide_)
         ->where('num_ide_', $num_ide_)
         ->whereRaw('CAST(fec_not AS DATE) = ?', [$fecha_casteada])
-        
-        ->VALUE('edad_ges'); //PARA EDAD EN MESES
+        ->value('edad_ges');
+    
+    
+    
+    
 
 
         $incomeedit10 = DB::connection('sqlsrv_1')->table('maestroSiv113')->selectRaw('CONCAT(trim(cod_pre),trim(cod_sub)) ')
@@ -388,7 +393,7 @@ class SivigilaController extends Controller
             'fecha_nto_' => 'required',
             'edad_ges' => 'required',
             'telefono_' => 'required',
-           
+            'edad_ges' => 'required|numeric|min:0.01',
             
             'user_id' => 'required',
             'Caso_confirmada_desnutricion_etiologia_primaria' => 'required',
@@ -405,6 +410,7 @@ class SivigilaController extends Controller
 
         $mensajes=[
             'required'=>'El :attribute es requerido',
+            'min' => 'El :attribute debe ser mayor que CERO :min',
       
         ];
 
