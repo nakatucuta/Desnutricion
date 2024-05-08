@@ -234,7 +234,7 @@ class SivigilaController extends Controller
         ->value('fecha_nto_');
     
 
-        $incomeedit9 = DB::connection('sqlsrv_1')->table('maestroSiv113')->selectRaw('CAST(edad_ges AS INT )')
+        $incomeedit9 = DB::connection('sqlsrv_1')->table('maestroSiv113')->selectRaw('CAST(edad_ges AS VARCHAR )')
         ->where('num_ide_', $num_ide_)
         ->where('num_ide_', $num_ide_)
         ->whereRaw('CAST(fec_not AS DATE) = ?', [$fecha_casteada])
