@@ -38,8 +38,7 @@
 
 </div>
   {{-- aqui finliza la modal --
-
-
+hola prueba
 {{-- <div>
     <input type="text" class="form-control" id="search" placeholder="Buscar...">
 </div> --}}
@@ -65,7 +64,7 @@
 
 
 
-      
+
   <a href="{{route('create11')}}" class="btn btn-success btn-sm"
   style="float: right; margin-right: 1rem; position: relative; right: 0; border-radius: 50px; padding: 10px 20px; font-weight: bold; letter-spacing: 1px; background-color: #28a745;">
       <i class="fas fa-plus mr-2"></i> AGREGAR
