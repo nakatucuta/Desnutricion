@@ -17,10 +17,10 @@ class Seguimiento412Export implements FromCollection, WithHeadings, ShouldAutoSi
     */
     public function collection()
     {
-        $data = DB::table('DESNUTRICION..cargue412s as a')
-    ->join('DESNUTRICION..users as c', 'a.user_id', '=', 'c.id')
-    ->join('DESNUTRICION..seguimiento_412s as b', 'a.id', '=', 'b.cargue412_id')
-    ->select('a.primer_nombre', 'a.segundo_nombre', 'a.primer_apellido', 'a.segundo_apellido', 'a.tipo_identificacion', 'a.numero_identificacion', 'c.name as PRESTADOR_PRIMARIO', 'b.*')
+        $data = DB::table('DESNUTRICION.dbo.cargue412s as a')
+    ->join('DESNUTRICION.dbo.users as c', 'a.user_id', '=', 'c.id')
+    ->join('DESNUTRICION.dbo.seguimiento_412s as b', 'a.id', '=', 'b.cargue412_id')
+    ->select('a.primer_nombre', 'a.segundo_nombre', 'a.primer_apellido', 'a.segundo_apellido', 'a.tipo_identificacion', 'a.numero_identificacion', 'c.name', 'b.*')
     ->get();
 
 
@@ -36,6 +36,7 @@ class Seguimiento412Export implements FromCollection, WithHeadings, ShouldAutoSi
             'Segundo apellido',
             'Tipo id',
             'Identificacion',
+            'prestador_primario',
             'Id',
             'Estado',
             'Fecha consulta',
