@@ -277,7 +277,7 @@ if ($registroAnterior) {
                    ->to(new Address(Auth::user()->email))
                    ->subject('Recordatorio de control')
                    ->html('Hola, acabas de realizarle un seguimiento a'.$bodyText.'se solicita gestionarlo lo antes posible ingresando a este enlace <br>
-                   https://dnt.epsianaswayuu.com:58222/Desnutricion/public/');
+                   http://app.epsianaswayuu.com/Desnutricion/public/login');
             
            if ($mailer->send($email)) {
                return redirect()->route('new412_seguimiento.index')
@@ -396,7 +396,7 @@ if ($registroAnterior) {
                    ->subject('Recordatorio de control')
                    ->html('Hola, tu seguimiento acaba de ser actualizado por el administrador debido a  algun inconveniente comunicate
                    con la EPSI'.$bodyText.'se solicita gestionarlo lo antes posible ingresando a este enlace <br>
-                   https://dnt.epsianaswayuu.com:58222/Desnutricion/public/');
+                   http://app.epsianaswayuu.com/Desnutricion/public/login');
                    if ($mailer->send($email)) {
             return redirect()->route('Seguimiento.index')
            ->with('mensaje',' El dato fue agregado a la base de datos Exitosamente..!');
