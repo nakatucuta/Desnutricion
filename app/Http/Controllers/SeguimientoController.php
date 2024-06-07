@@ -624,13 +624,33 @@ public function graficaBarras()
         $clasificaciones_labels[] = $clasificacion->clasificacion;
         $clasificaciones_data[] = $clasificacion->total;
     }
-
+    $results = DB::table('DESNUTRICION.dbo.users AS a')
+    ->select(
+        'a.id',
+        'a.name',
+        DB::raw('COUNT(c.sivigilas_id) AS total_Seguimientos'),
+        DB::raw('COUNT(b.id) AS cant_casos_asignados')
+    )
+    ->join('DESNUTRICION.dbo.sivigilas AS b', 'a.id', '=', 'b.user_id')
+    ->leftJoin('DESNUTRICION.dbo.seguimientos AS c', 'b.id', '=', 'c.sivigilas_id')
+    ->whereRaw('YEAR(b.created_at) > ?', [2023])
+    ->groupBy('a.id', 'a.name')
+    ->paginate(5);
     // Pasar los datos a la vista
-    return view('seguimiento.grafica-barras', compact('estados_labels', 'estados_data', 'clasificaciones_labels', 'clasificaciones_data'));
+    return view('seguimiento.grafica-barras', compact('estados_labels', 'estados_data', 'clasificaciones_labels', 'clasificaciones_data','results'));
 }
 
 
+// public function indicador()
+// {
 
+
+
+
+//     return view('seguimiento.grafica-barras', compact('results'));
+
+
+// }
     
 }
     

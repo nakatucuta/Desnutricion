@@ -11,6 +11,39 @@
 
 @section('content')
 
+
+<div class="content">
+    <div class="clearfix">
+        <div class="box box-primary">
+            <div class="box-body">
+                <table class="table table-hover table-striped table-bordered" style="border: 1px solid #000000;" id="seguimiento"> 
+                    <thead class="table table-hover table-info table-bordered" style="background-color: #d9f2e6; border: 1px solid #000000;">
+                        <tr>
+                            <th>ID</th>
+                            <th>PRESTADOR</th>
+                            <th>CANT CASOS ASIGNADOS</th>
+                            <th>CANT CASOS CON SEGUIMIENTOS</th>
+                        </tr>
+                    </thead>
+                    <tbody id="table">
+                        @foreach($results as $student2)
+                        <tr>
+                            <td>{{ $student2->id }}</td>
+                            <td>{{ $student2->name }}</td>
+                            <td>{{ $student2->cant_casos_asignados }}</td>
+                            <td>{{ $student2->total_Seguimientos }}</td>
+                            <!-- Los botones o enlaces de acciones pueden ir aquí -->
+                        </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+                {{ $results->links() }}
+            </div>
+        </div>
+    </div>
+</div>
+
+
 {{-- <i class="fas fa-chart-line fa-3x" style="color: #33cc33; border: 2px solid
  #33cc33; border-radius: 5px; padding: 5px;"></i> --}}
 
