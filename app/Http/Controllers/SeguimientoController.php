@@ -635,9 +635,26 @@ public function graficaBarras()
     ->leftJoin('DESNUTRICION.dbo.seguimientos AS c', 'b.id', '=', 'c.sivigilas_id')
     ->whereRaw('YEAR(b.created_at) > ?', [2023])
     ->groupBy('a.id', 'a.name')
+    ->orderBy(DB::raw('COUNT(b.id)'), 'desc')
     ->paginate(5);
-    // Pasar los datos a la vista
-    return view('seguimiento.grafica-barras', compact('estados_labels', 'estados_data', 'clasificaciones_labels', 'clasificaciones_data','results'));
+
+    $results_412 = DB::table('DESNUTRICION.dbo.users AS a')
+    ->select(
+        'a.id',
+        'a.name',
+        DB::raw('COUNT(c.cargue412_id) AS total_Seguimientos'),
+        DB::raw('COUNT(b.id) AS cant_casos_asignados')
+    )
+    ->join('DESNUTRICION.dbo.cargue412s AS b', 'a.id', '=', 'b.user_id')
+    ->leftJoin('DESNUTRICION.dbo.seguimiento_412s AS c', 'b.id', '=', 'c.cargue412_id')
+    ->whereRaw('YEAR(b.created_at) > ?', [2023])
+    ->groupBy('a.id', 'a.name')
+    ->orderBy(DB::raw('COUNT(b.id)'), 'desc')
+    ->paginate(5);
+
+
+
+    return view('seguimiento.grafica-barras', compact('estados_labels', 'estados_data', 'clasificaciones_labels', 'clasificaciones_data','results','results_412'));
 }
 
 
