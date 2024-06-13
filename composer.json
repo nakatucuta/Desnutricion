@@ -17,7 +17,8 @@
         "nesbot/carbon": "^2.65",
         "phpoffice/phpspreadsheet": "^1.26",
         "psr/simple-cache": "2.0",
-        "symfony/mailer": "^6.2"
+        "symfony/mailer": "^6.2",
+        "yajra/laravel-datatables-oracle": "^10.11"
     },
     "require-dev": {
         "fakerphp/faker": "^1.9.1",

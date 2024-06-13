@@ -38,7 +38,7 @@
                     </tbody>
                 </table>
                 <div class="pagination">
-                    {{ $results->links() }}
+                    {{-- {{ $results->links() }} --}}
                 </div>
             </div>
         </div>
@@ -68,7 +68,7 @@
                     </tbody>
                 </table>
                 <div class="pagination">
-                    {{ $results_412->links() }}
+                    {{-- {{ $results_412->links() }} --}}
                 </div>
             </div>
         </div>
@@ -118,6 +118,8 @@
 @stop
 
 @section('css')
+<link rel="stylesheet" href="{{ asset('vendor/DataTables/css/dataTables.bootstrap.css') }}">
+<link rel="stylesheet" href="{{ asset('vendor/DataTables/css/jquery.dataTables.css') }}">
 <style>
   .content {
             margin: 20px;
@@ -186,8 +188,63 @@
 
 <!-- Llamada al archivo Chart.min.js -->
 {{-- <script src="{{ asset('node_modules/chart.js/dist/chart.js') }}"></script> --}}
+<script src="https://code.jquery.com/jquery-3.5.1.js"></script>
+<script src="//cdn.datatables.net/1.10.21/js/jquery.dataTables.min.js"></script>
+<script>
+    $(document).ready(function () {
+    $('#seguimiento').DataTable({
+        "pageLength": 5, // Mostrar 5 registros por página
+        "lengthMenu": [ [5, 10, 25, 50, -1], [5, 10, 25, 50, "Todos"] ], // Opciones de selección de cantidad de registros
+
+        "language": {
+            "search": "BUSCAR:",
+            "lengthMenu": "Mostrar _MENU_ registros",
+            "info": "CANTIDAD: _TOTAL_",
+            "infoEmpty": "No hay registros disponibles",
+            "zeroRecords": "No se encontraron registros coincidentes",
+            "paginate": {
+                "first": "Primero",
+                "last": "Último",
+                "next": "Siguiente",
+                "previous": false // Eliminamos el botón "Anterior"
+            },
+            "aria": {
+                "sortAscending": ": Activar para ordenar la columna en orden ascendente",
+                "sortDescending": ": Activar para ordenar la columna en orden descendente"
+            }
+        },
+        "autoWidth": true
+    });
+});
 
 
+$(document).ready(function () {
+    $('#seguimiento2').DataTable({
+        "pageLength": 5, // Mostrar 5 registros por página
+        "lengthMenu": [ [5, 10, 25, 50, -1], [5, 10, 25, 50, "Todos"] ], // Opciones de selección de cantidad de registros
+
+        "language": {
+            "search": "BUSCAR:",
+            "lengthMenu": "Mostrar _MENU_ registros",
+            "info": "CANTIDAD: _TOTAL_",
+            "infoEmpty": "No hay registros disponibles",
+            "zeroRecords": "No se encontraron registros coincidentes",
+            "paginate": {
+                "first": "Primero",
+                "last": "Último",
+                "next": "Siguiente",
+                "previous": false // Eliminamos el botón "Anterior"
+            },
+            "aria": {
+                "sortAscending": ": Activar para ordenar la columna en orden ascendente",
+                "sortDescending": ": Activar para ordenar la columna en orden descendente"
+            }
+        },
+        "autoWidth": true
+    });
+});
+
+</script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
     var ctx = document.getElementById('grafica-barras').getContext('2d');
