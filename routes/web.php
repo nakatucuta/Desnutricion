@@ -98,3 +98,8 @@ Route::get('/download-pdf', 'App\Http\Controllers\SivigilaController@downloadPdf
 
 // RUTA PARA CARGARA LA TABLA POR  JSON
 // Route::get('/obtener-datos-tabla', 'SivigilaController@obtenerDatos')->name('obtener.datos.tabla');
+
+//RUTAS PARA LAS TABLAS CON JAVA SCRIPT Y DATATABLE
+Route::get('seguimiento/data', [SeguimientoController::class, 'getData'])->name('seguimiento.data');
+Route::get('sivigila/data', [SivigilaController::class, 'getData'])->name('sivigila.data');
+

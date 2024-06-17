@@ -92,7 +92,9 @@ class Seguimiento412Controller extends Controller
     {
 
         $sivigilas2030 = Cargue412::
-        where('user_id', Auth::user()->id)->get();
+        where('cargue412s.estado', '=', 1)
+        ->where('user_id', Auth::user()->id)->get();
+
         
 
         $incomeedit = DB::table('cargue412s')

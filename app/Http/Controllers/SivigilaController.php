@@ -19,6 +19,7 @@ use Symfony\Component\Mime\Address;
 use Symfony\Component\Mime\Email;
 use App\Models\User;
 use Illuminate\Support\Facades\Response;
+use DataTables;
 
 
 class SivigilaController extends Controller
@@ -74,7 +75,7 @@ class SivigilaController extends Controller
         ->select(DB::raw("CAST(m.fec_not AS DATE) as fec_noti, m.tip_ide_, m.num_ide_, m.pri_nom_, m.seg_nom_, m.pri_ape_, m.seg_ape_, m.semana,m.nom_upgd"))
         ->where('m.cod_eve', 113)
         ->whereBetween(DB::raw("YEAR(m.fec_not)"), [2024, 2024])
-        ->paginate(100000);
+        ->paginate(5);
 
 
        
@@ -677,7 +678,30 @@ class SivigilaController extends Controller
     }
     
 
+    public function getData(Request $request)
+{
+    $sivigilas = DB::connection('sqlsrv_1')
+        ->table('maestroSiv113 AS m')
+        ->select(
+            DB::raw("CAST(m.fec_not AS DATE) as fec_noti"),
+            'm.tip_ide_',
+            'm.num_ide_',
+            'm.pri_nom_',
+            'm.seg_nom_',
+            'm.pri_ape_',
+            'm.seg_ape_',
+            'm.semana',
+            'm.nom_upgd'
+        )
+        
+        ->where('m.cod_eve', 113);
+
+    // Utilizamos DataTables::of() y ->toJson() para formatear la respuesta JSON
+    return DataTables::of($sivigilas)->toJson();
+}
+
+   
+}
 
     
 
-}

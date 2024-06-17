@@ -195,7 +195,7 @@ return [
         App\Providers\EventServiceProvider::class,
         App\Providers\RouteServiceProvider::class,
         Barryvdh\DomPDF\ServiceProvider::class,
-        //Yajra\DataTables\DataTablesServiceProvider::class,
+        Yajra\DataTables\DataTablesServiceProvider::class,
 
 
     ],
@@ -213,7 +213,7 @@ return [
 
     'aliases' => Facade::defaultAliases()->merge([
         // 'ExampleClass' => App\Example\ExampleClass::class,
-        // 'DataTables' => Yajra\DataTables\Facades\DataTables::class,
+         'DataTables' => Yajra\DataTables\Facades\DataTables::class,
   
 
     ])->toArray(),

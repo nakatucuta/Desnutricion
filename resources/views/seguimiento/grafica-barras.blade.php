@@ -26,15 +26,15 @@
                         </tr>
                     </thead>
                     <tbody id="table">
-                        @foreach($results as $student2)
-                        <tr>
+                        {{--@foreach($results as $student2)
+                         <tr>
                             <td>{{ $student2->id }}</td>
                             <td>{{ $student2->name }}</td>
                             <td>{{ $student2->cant_casos_asignados }}</td>
                             <td>{{ $student2->total_Seguimientos }}</td>
                             <!-- Los botones o enlaces de acciones pueden ir aquí -->
                         </tr>
-                        @endforeach
+                        @endforeach --}}
                     </tbody>
                 </table>
                 <div class="pagination">
@@ -193,6 +193,9 @@
 <script>
     $(document).ready(function () {
     $('#seguimiento').DataTable({
+        "processing": true,
+        "serverSide": true,
+        "ajax": "{{ route('seguimiento.data') }}",
         "pageLength": 5, // Mostrar 5 registros por página
         "lengthMenu": [ [5, 10, 25, 50, -1], [5, 10, 25, 50, "Todos"] ], // Opciones de selección de cantidad de registros
 
@@ -213,7 +216,13 @@
                 "sortDescending": ": Activar para ordenar la columna en orden descendente"
             }
         },
-        "autoWidth": true
+        "autoWidth": true,
+        "columns": [
+            { "data": "id" },
+            { "data": "name" },
+            { "data": "cant_casos_asignados" },
+            { "data": "total_Seguimientos" }
+        ]
     });
 });
 

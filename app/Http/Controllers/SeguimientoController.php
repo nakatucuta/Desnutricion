@@ -18,6 +18,7 @@ use Symfony\Component\Mailer\Transport\Smtp\EsmtpTransport;
 use Symfony\Component\Mime\Address;
 use Symfony\Component\Mime\Email;
 use App\Models\User;
+use DataTables;
 class SeguimientoController extends Controller
 {
 
@@ -689,7 +690,71 @@ public function obtenerDatosEnJson()
 
 
 // }
-    
+
+
+
+
+
+    public function getData(Request $request)
+    {
+        // Definimos la consulta principal a la base de datos
+        $query = DB::table('DESNUTRICION.dbo.users AS a')
+            ->select(
+                'a.id', // Seleccionamos el ID del usuario
+                'a.name', // Seleccionamos el nombre del usuario
+                DB::raw('COUNT(c.sivigilas_id) AS total_Seguimientos'), // Contamos el número total de seguimientos
+                DB::raw('COUNT(b.id) AS cant_casos_asignados') // Contamos el número total de casos asignados
+            )
+            // Unimos la tabla de sivigilas con la tabla de usuarios en base al ID del usuario
+            ->join('DESNUTRICION.dbo.sivigilas AS b', 'a.id', '=', 'b.user_id')
+            // Unimos la tabla de seguimientos con la tabla de sivigilas en base al ID de sivigilas
+            ->leftJoin('DESNUTRICION.dbo.seguimientos AS c', 'b.id', '=', 'c.sivigilas_id')
+            // Aplicamos un filtro para seleccionar solo los registros creados en el año 2023 o posterior
+            ->whereRaw('YEAR(b.created_at) > ?', [2023])
+            // Agrupamos los resultados por ID y nombre del usuario
+            ->groupBy('a.id', 'a.name');
+
+        // Usamos DataTables para manejar la consulta
+        return DataTables::of($query)
+            // Aplicamos un filtro para la búsqueda
+            ->filter(function ($query) use ($request) {
+                // Verificamos si hay un valor de búsqueda
+                if ($request->has('search.value')) {
+                    $search = $request->input('search.value'); // Obtenemos el valor de búsqueda
+                    // Aplicamos la búsqueda en los campos id y name de la tabla users
+                    $query->where(function($query) use ($search) {
+                        $query->where('a.name', 'like', "%{$search}%") // Búsqueda parcial por nombre
+                              ->orWhere('a.id', 'like', "%{$search}%"); // Búsqueda parcial por ID
+                    });
+                }
+            })
+            // Retornamos el resultado en formato JSON para que DataTables pueda procesarlo
+            ->make(true);
+    }
+
+
+
+//PARA UNA CONSULTA NORMAL 
+// $query = DB::table('DESNUTRICION.dbo.users AS a')
+// ->select(
+//     'a.id',
+//     'a.name',
+//     DB::raw('COUNT(c.sivigilas_id) AS total_Seguimientos'),
+//     DB::raw('COUNT(b.id) AS cant_casos_asignados')
+// )
+// ->join('DESNUTRICION.dbo.sivigilas AS b', 'a.id', '=', 'b.user_id')
+// ->leftJoin('DESNUTRICION.dbo.seguimientos AS c', 'b.id', '=', 'c.sivigilas_id')
+// ->whereRaw('YEAR(b.created_at) > ?', [2023])
+// ->groupBy('a.id', 'a.name')
+// ;
+
+// return DataTables::of($query)
+// ->make(true);
+// }
+
+
+
 }
+
     
         
