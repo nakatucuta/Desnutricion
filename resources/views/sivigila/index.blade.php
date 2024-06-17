@@ -125,6 +125,7 @@ hola prueba
                   <tr>
                     @foreach($sivigilas as $student2)
 
+                    
                     <?php
                     $incomeedit14 = DB::connection('sqlsrv_1')
                         ->table('maestroAfiliados as a')
