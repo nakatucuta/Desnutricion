@@ -75,7 +75,7 @@ class SivigilaController extends Controller
         ->select(DB::raw("CAST(m.fec_not AS DATE) as fec_noti, m.tip_ide_, m.num_ide_, m.pri_nom_, m.seg_nom_, m.pri_ape_, m.seg_ape_, m.semana,m.nom_upgd"))
         ->where('m.cod_eve', 113)
         ->whereBetween(DB::raw("YEAR(m.fec_not)"), [2024, 2024])
-        ->paginate(5);
+        ->paginate(1000000);
 
 
        
