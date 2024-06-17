@@ -118,12 +118,93 @@ hola prueba
                     <th style="font-size: smaller;" scope="col">Upgd Notificadora</th>
                     <th style="font-size: smaller;" scope="col">Ips Primaria</th> 
                     <th style="font-size: smaller;" scope="col">Acciones</th>
-                    <th style="font-size: smaller;" scope="col">Ips Primaria</th> 
-                    <th style="font-size: smaller;" scope="col">Acciones</th>
                     
                   </tr>
                 </thead>
                 <tbody id="table">
+                  <tr>
+                    @foreach($sivigilas as $student2)
+
+                    <?php
+                    $incomeedit14 = DB::connection('sqlsrv_1')
+                        ->table('maestroAfiliados as a')
+                        ->join('maestroips as b', 'a.numeroCarnet', '=', 'b.numeroCarnet')
+                        ->join('maestroIpsGru as c', 'b.idGrupoIps', '=', 'c.id')
+                        ->join('maestroIpsGruDet as d', function ($join) {
+                            $join->on('c.id', '=', 'd.idd')
+                                ->where('d.servicio', '=', 1);
+                        })
+                        ->join('refIps as e', 'd.idIps', '=', 'e.idIps')
+                        ->select(DB::raw('CAST(e.codigo AS BIGINT) as codigo_habilitacion'))
+                        ->where('a.identificacion', $student2->num_ide_)
+                        ->first();
+                
+                    if ($incomeedit14 !== null) {
+                        $income12 = DB::table('users')
+                            ->select('name', 'id', 'codigohabilitacion')
+                            ->where('codigohabilitacion', $incomeedit14->codigo_habilitacion)
+                            ->first();
+                    // Verifica si $income12 es null después de la consulta
+                          if ($income12 === null) {
+                              $income12 = (object) ['name' => 'Sin datos , NO ASIGNAR  hasta confirmar prestador primario'];
+                          }
+                          } else {
+                              $income12 = (object) ['name' => 'Sin datos , NO ASIGNAR  hasta confirmar prestador primario'];
+                          }
+                                      ?>
+
+
+                    
+                    {{-- <th scope="row">1</th> --}}
+                    <td><small>{{ $student2->fec_noti }}</small></td>
+                    <td><small>{{ $student2->semana }}</small></td>
+                    <td><small>{{ $student2->tip_ide_ }}</small></td>
+                    <td><small>{{ $student2->num_ide_ }}</small></td>
+                    
+                    <td><small>{{ $student2->pri_nom_.' '.$student2->seg_nom_.' '.$student2->pri_ape_.' '.
+                          $student2->seg_ape_ }} </small> </td>
+                    <td><small>{{ $student2->nom_upgd }}</small></td>
+                    <td><small>{{ $income12->name }}</small></td>
+                    {{-- @if (DB::connection('sqlsrv_1')->table('maestroSiv113')
+                    ->where('num_ide_', $student2->num_ide_)
+                    ->exists())
+                    
+                    <td><small>{{ $income12->name}}</small></td>
+                   
+                @else
+                    {{-- Manejo si $income12 es nulo
+                    <td><small>Sin datos</small></td>
+                    
+                @endif --}}
+
+                    <td> 
+                        
+                      @if (DB::connection('sqlsrv_1')->table('maestroSiv113')
+                      ->where('num_ide_', $student2->num_ide_)
+                      // ->where('fec_not', Carbon\Carbon::parse($student2->fec_noti)->format('d/m/Y'))->exists() 
+                      &&
+                      DB::connection('sqlsrv')->table('sivigilas')
+                      ->where('num_ide_', $student2->num_ide_)
+                      ->where('fec_not', $student2->fec_noti)
+                      ->exists())
+                      <div>
+                        <a href="" onclick="return false;" title="DETALLE" class="btn  btn-secondary btn-sm">
+                          <span class="icon-zoom-in" ></span>Procesado <i class="fas fa-stop"></i></a>
+                      </div>
+                 
+                      @else
+
+                      
+                      <a href="{{route('detalle_sivigila', [$student2->num_ide_, $student2->fec_noti])}}" title="DETALLE" class="btn  btn-success btn-sm">
+                        <span class="icon-zoom-in" ></span>Seguimiento</a>
+
+                      @endif
+                </td>
+                  </tr>
+                    
+             
+              
+                  @endforeach 
                  
                 </tbody>
                  
@@ -210,52 +291,27 @@ hola prueba
   });
 </script> --}}
 
-
-<script src="https://code.jquery.com/jquery-3.5.1.js"></script>
-<script src="//cdn.datatables.net/1.10.21/js/jquery.dataTables.min.js"></script>
 <script>
-    $(document).ready(function () {
+  $(document).ready(function () {
     $('#sivigila').DataTable({
-        "processing": true,
-        "serverSide": true,
-        "ajax": "{{ route('sivigila.data') }}",
-        "pageLength": 5, // Mostrar 5 registros por página
-        "lengthMenu": [ [5, 10, 25, 50, -1], [5, 10, 25, 50, "Todos"] ], // Opciones de selección de cantidad de registros
 
-        "language": {
-            "search": "BUSCAR:",
+      "language":{
+
+            "search": "BUSCAR",
             "lengthMenu": "Mostrar _MENU_ registros",
-            "info": "CANTIDAD: _TOTAL_",
-            "infoEmpty": "No hay registros disponibles",
-            "zeroRecords": "No se encontraron registros coincidentes",
+            "info": "Mostrando pagina _PAGE_ de _PAGES_",
             "paginate": {
-                "first": "Primero",
-                "last": "Último",
-                "next": "Siguiente",
-                "previous": false // Eliminamos el botón "Anterior"
-            },
-            "aria": {
-                "sortAscending": ": Activar para ordenar la columna en orden ascendente",
-                "sortDescending": ": Activar para ordenar la columna en orden descendente"
-            }
-        },
-        "autoWidth": true,
-        "columns": [
-          { "data": "fec_noti" },
-            { "data": "tip_ide_" },
-            { "data": "num_ide_" },
-            { "data": "pri_nom_" }
-            { "data": "seg_nom_" },
-            { "data": "pri_ape_" },
-            { "data": "seg_ape_" },
-            { "data": "semana" }
-            { "data": "nom_upgd" }
-            
-        ]
+            "first": "Primero",
+            "last": "Último",
+            "next": "Siguiente",
+            "previous": "Anterior"
+                           }
+
+
+              }
+
     });
 });
-
-
 </script>
 @stop
 
