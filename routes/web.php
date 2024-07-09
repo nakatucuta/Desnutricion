@@ -101,5 +101,7 @@ Route::get('/download-pdf', 'App\Http\Controllers\SivigilaController@downloadPdf
 
 //RUTAS PARA LAS TABLAS CON JAVA SCRIPT Y DATATABLE
 Route::get('seguimiento/data', [SeguimientoController::class, 'getData'])->name('seguimiento.data');
-Route::get('sivigila/data', [SivigilaController::class, 'getData'])->name('sivigila.data');
+Route::get('/obtener-datos-tabla', [SivigilaController::class, 'getData1'])->name('sivigila.data');
+Route::post('/sivigila/check-status', [App\Http\Controllers\SivigilaController::class, 'checkStatus'])->name('sivigila.checkStatus');
+Route::post('/sivigila/check-ipsprimaria', [App\Http\Controllers\SivigilaController::class, 'checkIpsPrimaria'])->name('sivigila.ipsprimaria');
 

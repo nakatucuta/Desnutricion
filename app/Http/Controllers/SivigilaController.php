@@ -1,7 +1,6 @@
 <?php
 
 namespace App\Http\Controllers;
-
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use App\Models\MaestroSiv113;
@@ -30,7 +29,7 @@ class SivigilaController extends Controller
 
         $this->middleware('auth');
         $this->middleware('Admin_sivigila', ['only' =>'create']);
-        $this->middleware('Admin_sivigila', ['only' =>'index']);
+         $this->middleware('Admin_sivigila', ['only' =>'index']);
         $this->middleware('Admin_sivigila', ['only' =>'show']);
         
        
@@ -678,30 +677,83 @@ class SivigilaController extends Controller
     }
     
 
-    public function getData(Request $request)
-{
-    $sivigilas = DB::connection('sqlsrv_1')
-        ->table('maestroSiv113 AS m')
-        ->select(
-            DB::raw("CAST(m.fec_not AS DATE) as fec_noti"),
-            'm.tip_ide_',
-            'm.num_ide_',
-            'm.pri_nom_',
-            'm.seg_nom_',
-            'm.pri_ape_',
-            'm.seg_ape_',
-            'm.semana',
-            'm.nom_upgd'
-        )
-        
-        ->where('m.cod_eve', 113);
+   
+  
 
-    // Utilizamos DataTables::of() y ->toJson() para formatear la respuesta JSON
-    return DataTables::of($sivigilas)->toJson();
+    public function getData1(Request $request)
+    {
+        $query = DB::connection('sqlsrv_1')
+        ->table('maestroSiv113 AS m')
+        ->select(DB::raw("CAST(m.fec_not AS DATE) as fec_noti, m.tip_ide_, m.num_ide_, m.pri_nom_, m.seg_nom_, m.pri_ape_, m.seg_ape_, m.semana,m.nom_upgd"))
+        ->where('m.cod_eve', 113)
+        ->whereBetween(DB::raw("YEAR(m.fec_not)"), [2024, 2024]);
+        return DataTables::of($query)
+             ->make(true);
+
+    }
+
+
+    public function checkStatus(Request $request)
+{
+    $num_ide = $request->input('num_ide');
+    $fec_noti = $request->input('fec_noti');
+
+    $exists = DB::connection('sqlsrv_1')->table('maestroSiv113')
+        ->where('num_ide_', $num_ide)
+        ->exists() && 
+        DB::connection('sqlsrv')->table('sivigilas')
+        ->where('num_ide_', $num_ide)
+        ->where('fec_not', $fec_noti)
+        ->exists();
+
+    return response()->json(['processed' => $exists]);
 }
+
+
+
+
+
+    // En tu controlador de Laravel
+
+// public function getData()
+// {
+//     $data = DB::connection('sqlsrv_1')
+//         ->table('maestroAfiliados as a')
+//         ->join('maestroips as b', 'a.numeroCarnet', '=', 'b.numeroCarnet')
+//         ->join('maestroIpsGru as c', 'b.idGrupoIps', '=', 'c.id')
+//         ->join('maestroIpsGruDet as d', function ($join) {
+//             $join->on('c.id', '=', 'd.idd')
+//                 ->where('d.servicio', '=', 1);
+//         })
+//         ->join('refIps as e', 'd.idIps', '=', 'e.idIps')
+//         ->select('a.identificacion', 'a.fec_noti', 'a.semana', 'a.tip_ide_', 'a.num_ide_', 'a.pri_nom_', 'a.seg_nom_', 'a.pri_ape_', 'a.seg_ape_', 'a.nom_upgd', DB::raw('CAST(e.codigo AS BIGINT) as codigo_habilitacion'))
+//         ->whereYear('a.fecha_documento', '>=', 2023)
+//         ->get();
+
+//     foreach ($data as $item) {
+//         $income12 = DB::table('users')
+//             ->select('name')
+//             ->where('codigohabilitacion', $item->codigo_habilitacion)
+//             ->first();
+
+//         if ($income12 === null) {
+//             $item->ips_primaria = 'Sin datos, NO ASIGNAR hasta confirmar prestador primario';
+//         } else {
+//             $item->ips_primaria = $income12->name;
+//         }
+//     }
+
+//     return response()->json(['data' => $data]);
+// }
+
+
+
+    
+
+        }
 
    
-}
+
 
     
 
