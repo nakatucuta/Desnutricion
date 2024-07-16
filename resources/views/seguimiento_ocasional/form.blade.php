@@ -1,20 +1,26 @@
 
 @include('seguimiento.mensajes')
-
-
-<div class="row">
-    <div class="col-lg-12">
-        <div class="card card-info card-outline card-tabs">
-            <div class="card-header">
-                <h2 class="card-title text-center">
-                      <i class="far fa-hospital" style="font-size: 45px; color: #3333ff; "></i>
-                      Seguimiento
-                      <i class="bi bi-plus"></i>
-                      <i class="fas fa-user-md" style="font-size: 45px; color: #3333ff;"></i>
-                </h2>
-
-                
-            </div>
+<title>Seguimiento Extraordinario</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.1.3/css/bootstrap.min.css">
+</head>
+<body>
+    <div class="h1 seguimiento-extraordinario">
+        SOLO PARA SEGUIMIENTOS EXTRAORDINARIOS<br>
+        PARA REALIZAR SEGUIMIENTOS PROGRAMADOS DAR CLICK <a href="{{ route('Seguimiento.create') }}">AQUÍ</a>
+    </div>
+    <div class="row">
+        <div class="col-lg-12">
+            <div class="card card-info card-outline card-tabs">
+                <div class="card-header text-center">
+                    <h2 class="card-title">
+                        <i class="far fa-hospital" style="font-size: 45px; color: #3333ff;"></i>
+                        Seguimiento
+                        <i class="bi bi-plus"></i>
+                        <i class="fas fa-user-md" style="font-size: 45px; color: #3333ff;"></i>
+                    </h2>
+                </div>
             
             <div class="card-body">
 
@@ -325,4 +331,36 @@
    
 
 
-                    
+                        @section('css')
+                       <style>
+                        body {
+    font-family: Arial, sans-serif;
+}
+
+.seguimiento-extraordinario {
+    text-align: center;
+    font-size: 20px;
+    margin: 20px;
+    padding: 10px;
+    border: 2px solid #000;
+    display: inline-block;
+    background-color: #f0f0f0;
+    border-radius: 5px;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+}
+
+.seguimiento-extraordinario a {
+    color: #0066cc;
+    text-decoration: none;
+}
+
+.seguimiento-extraordinario a:hover {
+    text-decoration: underline;
+}
+
+.card-title {
+    font-size: 24px;
+}
+
+                       </style>
+                        @stop
