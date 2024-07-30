@@ -38,7 +38,8 @@
       <tr>
         <th style="font-size: smaller;" scope="col">Id</th>
         <th style="font-size: smaller;" scope="col">nombre coperante</th>
-  
+        <th style="font-size: smaller;" scope="col">nombre profesional</th>
+        <th style="font-size: smaller;" scope="col">numero profesional</th>
         <th style="font-size: smaller;" scope="col">fecha captacion</th>
           {{-- <th style="font-size: smaller;" scope="col">Número de Orden</th> --}}
           {{-- <th style="font-size: smaller;" scope="col">Nombre Coperante</th> --}}
@@ -71,7 +72,7 @@
           <th style="font-size: smaller;" scope="col">calsificacion_antropometrica</th>
 
           <th style="font-size: smaller;" scope="col">Municipio</th>
-          
+          <th style="font-size: smaller;" scope="col">uds</th>
           <th style="font-size: smaller;" scope="col">Nombre rancheria</th>
           {{-- <th style="font-size: smaller;" scope="col">Nombre Ranchería</th> --}}
           {{-- <th style="font-size: smaller;" scope="col">Ubicación Casa</th> --}}
@@ -83,7 +84,8 @@
       <tr>
         <td><small>{{ $student2->id }}</small></td>
         <td><small>{{ $student2->nombre_coperante }}</small></td>
-        
+        <td><small>{{ $student2->nombre_profesional }}</small></td>
+        <td><small>{{ $student2->numero_profesional }}</small></td>
            <td><small>{{ $student2->fecha_captacion }}</small></td> 
            
            <td><small>{{ $student2->nombre_cuidador }}</small></td>
@@ -117,6 +119,7 @@
           <td><small>{{ $student2->calsificacion_antropometrica }}</small></td>
 
           <td><small>{{ $student2->municipio }}</small></td>
+          <td><small>{{ $student2->uds }}</small></td>
           <td><small>{{ $student2->nombre_rancheria }}</small></td>
           {{-- <td><small>{{ $student2->nombre_rancheria }}</small></td> --}}
           {{-- <td><small>{{ $student2->ubicacion_casa }}</small></td> --}}
