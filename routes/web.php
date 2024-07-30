@@ -28,7 +28,7 @@ Auth::routes();
 
 Route::get('/home', [App\Http\Controllers\HomeController::class, 'index'])->name('home');
 
-Route::resource('sivigila', SivigilaController::class)->middleware('auth');
+Route::resource('sivigila', SivigilaController::class)->middleware(['auth', 'increase_execution_time']);
 
 Route::resource('revision', RevisionController::class);
 

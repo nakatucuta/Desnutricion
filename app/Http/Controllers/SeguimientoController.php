@@ -356,6 +356,8 @@ if ($registroAnterior) {
         ->join('seguimientos', 'sivigilas.id', '=', 'seguimientos.sivigilas_id')
         ->where('seguimientos.id', $id)
         ->get();
+
+        
         $empleado = Seguimiento::findOrFail($id); 
         return view('seguimiento.edit',compact('empleado','incomeedit'));
     }

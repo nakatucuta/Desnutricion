@@ -72,6 +72,8 @@ class Kernel extends HttpKernel
         'Admin_nutric_ingres' => \App\Http\Middleware\Admin_nutric_ingres::class,
         'Admin_nutric_seguimiento' => \App\Http\Middleware\Admin_nutric_seguimiento::class,
         'adminrevision' => \App\Http\Middleware\adminrevision::class,
+        'increase_execution_time' => \App\Http\Middleware\IncreaseExecutionTime::class,
+
         
     ];
 }

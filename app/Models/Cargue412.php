@@ -18,8 +18,11 @@ class Cargue412 extends Model
        protected $fillable = [
         'numero_orden',
         'nombre_coperante',
+        'nombre_profesional',
+        'numero_profesional',
         'fecha_captacion',
         'municipio',
+        'uds',
         'nombre_rancheria',
         'ubicacion_casa',
         'nombre_cuidador',
@@ -46,6 +49,8 @@ class Cargue412 extends Model
         'signos_desnutricion',
         'puntaje_z',
         'calsificacion_antropometrica',
+     
+      
            // Agrega aquí más columnas si es necesario.
        ];
 }
