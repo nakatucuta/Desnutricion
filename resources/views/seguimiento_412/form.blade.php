@@ -183,6 +183,7 @@
                                                     <label for="Nombre">Estado actual del menor</label>
                                                     <select class="person2 " name="est_act_menor" id="est_act_menor"  style="width: 100% ">
                                                     <option  value="">SELECCIONAR</option>
+                                                    <option  value="DESNUTRICION AGUDA MODERADA">DESNUTRICION AGUDA MODERADA</option>
                                                     <option  value="PESO ADECUADO PARA LA TALLA">PESO ADECUADO PARA LA TALLA</option>
                                                     <option  value="RIESGO DE DESNUTRICIÓN AGUDA ">RIESGO DE DESNUTRICIÓN AGUDA</option>
                                                     <option  value="RIESGO DE DESNUTRICIÓN AGUDA SEVERA">DESNUTRICIÓN AGUDA SEVERA</option>
