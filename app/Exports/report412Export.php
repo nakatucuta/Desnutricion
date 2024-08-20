@@ -78,7 +78,7 @@ class report412Export implements ToCollection, WithStartRow
                 'primer_apellido' => 'nullable|string',
                 'segundo_apellido' => 'nullable|string',
                 'tipo_identificacion' => 'nullable|string',
-                'numero_identificacion' => 'nullable|string',
+                'numero_identificacion' => 'nullable',
                 'sexo' => 'nullable|string',
                 'fecha_nacimieto_nino' => 'nullable|date',
                 'edad_meses' => 'nullable|integer',
