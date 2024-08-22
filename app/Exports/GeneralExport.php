@@ -21,109 +21,113 @@ class GeneralExport implements  FromCollection, WithHeadings, ShouldAutoSize, Wi
     */
     public function collection()
     {
-        $data =  DB::table('sivigilas')
+      $user = auth()->user(); // Obtener el usuario activo
+
+$data = DB::table('sivigilas')
     ->join('seguimientos', 'sivigilas.id', '=', 'seguimientos.sivigilas_id')
     ->join('users as users_sivigilas', 'sivigilas.user_id', '=', 'users_sivigilas.id')
     ->join('users as users_seguimientos', 'seguimientos.user_id', '=', 'users_seguimientos.id')
-    
-    ->select('sivigilas.id', 
-    'sivigilas.cod_eve',
-     'sivigilas.semana',
-      'sivigilas.fec_not', 
-    'sivigilas.year', 
-    'sivigilas.dpto',
-    'sivigilas.mun', 
-    'sivigilas.tip_ide_',
-    'sivigilas.num_ide_', 
-    'sivigilas.pri_nom_', 
-    'sivigilas.seg_nom_', 
-    'sivigilas.pri_ape_',
-     'sivigilas.seg_ape_', 
-    'sivigilas.sexo_',
-     'sivigilas.fecha_nto_',
-      'sivigilas.edad_ges',
-       'sivigilas.telefono_',
-     'sivigilas.nom_grupo_', 
-     'sivigilas.regimen', 
-     'sivigilas.Ips_at_inicial', 
-     'sivigilas.fecha_aten_inicial',
-      'users_sivigilas.name as user_sivigilas_name', 
-     'sivigilas.Caso_confirmada_desnutricion_etiologia_primaria', 
-     'sivigilas.Ips_manejo_hospitalario',  
-     'sivigilas.nombreips_manejo_hospita', 
-     DB::raw("CASE WHEN seguimientos.estado = 1 THEN 'Activo' ELSE 'Inactivo' END as Estado"),
-     'seguimientos.fecha_consulta as seguimiento_fecha_consulta', 
-     'seguimientos.peso_kilos as pesokilos1',
-      'seguimientos.talla_cm as talla1', 
-     'seguimientos.puntajez as puntajez1', 
-     'seguimientos.clasificacion as clasificacion1', 
-     'seguimientos.requerimiento_energia_ftlc as energia1',
-      'seguimientos.fecha_entrega_ftlc as fechaentrega1', 
-     'seguimientos.medicamento as medicamento1', 
-     'seguimientos.observaciones as observaciones1',
-      'seguimientos.est_act_menor as est1', 
-     'seguimientos.tratamiento_f75 as f751', 
-     'seguimientos.fecha_recibio_tratf75 as fecf751', 
-     'seguimientos.fecha_proximo_control as fecproxcontrl1',
-     'seguimientos.Esquemq_complrto_pai_edad as a', 
-     'seguimientos.Atecion_primocion_y_mantenimiento_res3280_2018 as b',
+    ->select(
+        'sivigilas.id', 
+        'sivigilas.cod_eve',
+        'sivigilas.semana',
+        'sivigilas.fec_not', 
+        'sivigilas.year', 
+        'sivigilas.dpto',
+        'sivigilas.mun', 
+        'sivigilas.tip_ide_',
+        'sivigilas.num_ide_', 
+        'sivigilas.pri_nom_', 
+        'sivigilas.seg_nom_', 
+        'sivigilas.pri_ape_',
+        'sivigilas.seg_ape_', 
+        'sivigilas.sexo_',
+        'sivigilas.fecha_nto_',
+        'sivigilas.edad_ges',
+        'sivigilas.telefono_',
+        'sivigilas.nom_grupo_', 
+        'sivigilas.regimen', 
+        'sivigilas.Ips_at_inicial', 
+        'sivigilas.fecha_aten_inicial',
+        'users_sivigilas.name as user_sivigilas_name', 
+        'sivigilas.Caso_confirmada_desnutricion_etiologia_primaria', 
+        'sivigilas.Ips_manejo_hospitalario',  
+        'sivigilas.nombreips_manejo_hospita', 
+        DB::raw("CASE WHEN seguimientos.estado = 1 THEN 'Activo' ELSE 'Inactivo' END as Estado"),
+        'seguimientos.fecha_consulta as seguimiento_fecha_consulta', 
+        'seguimientos.peso_kilos as pesokilos1',
+        'seguimientos.talla_cm as talla1', 
+        'seguimientos.puntajez as puntajez1', 
+        'seguimientos.clasificacion as clasificacion1', 
+        'seguimientos.requerimiento_energia_ftlc as energia1',
+        'seguimientos.fecha_entrega_ftlc as fechaentrega1', 
+        'seguimientos.medicamento as medicamento1', 
+        'seguimientos.observaciones as observaciones1',
+        'seguimientos.est_act_menor as est1', 
+        'seguimientos.tratamiento_f75 as f751', 
+        'seguimientos.fecha_recibio_tratf75 as fecf751', 
+        'seguimientos.fecha_proximo_control as fecproxcontrl1',
+        'seguimientos.Esquemq_complrto_pai_edad as a', 
+        'seguimientos.Atecion_primocion_y_mantenimiento_res3280_2018 as b',
+        'users_seguimientos.name as user_seguimientos_name'
+    );
+   //->where('seguimientos.user_id', $user->id); // Agregar la condición para el user_id
 
-     'users_seguimientos.name as user_seguimientos_name');
-
-
-    $secondQuery = DB::table('sivigilas')
+$secondQuery = DB::table('sivigilas')
     ->join('seguimientos', 'sivigilas.id', '=', 'seguimientos.sivigilas_id')
     ->join('users as users_sivigilas', 'sivigilas.user_id', '=', 'users_sivigilas.id')
     ->join('users as users_seguimientos', 'seguimientos.user_id', '=', 'users_seguimientos.id')
     ->join('seguimiento_ocasionals', 'seguimientos.id', '=', 'seguimiento_ocasionals.seguimiento_id')
-    ->select('sivigilas.id', 
-    'sivigilas.cod_eve',
-     'sivigilas.semana',
-      'sivigilas.fec_not', 
-    'sivigilas.year', 
-    'sivigilas.dpto',
-    'sivigilas.mun', 
-    'sivigilas.tip_ide_',
-    'sivigilas.num_ide_', 
-    'sivigilas.pri_nom_', 
-    'sivigilas.seg_nom_', 
-    'sivigilas.pri_ape_',
-     'sivigilas.seg_ape_', 
-    'sivigilas.sexo_',
-     'sivigilas.fecha_nto_',
-      'sivigilas.edad_ges',
-       'sivigilas.telefono_',
-     'sivigilas.nom_grupo_', 
-     'sivigilas.regimen', 
-     'sivigilas.Ips_at_inicial', 
-     'sivigilas.fecha_aten_inicial',
-      'users_sivigilas.name as user_sivigilas_name', 
-     'sivigilas.Caso_confirmada_desnutricion_etiologia_primaria', 
-     'sivigilas.Ips_manejo_hospitalario',  
-     'sivigilas.nombreips_manejo_hospita', 
-     DB::raw("CASE WHEN seguimientos.estado = 1 THEN 'Activo' ELSE 'Inactivo' END as Estado"),
-     
-     'seguimiento_ocasionals.fecha_consulta as fechaconsulta22 ',
-     'seguimiento_ocasionals.peso_kilos as pesokilos22',
-     'seguimiento_ocasionals.talla_cm',
-     'seguimiento_ocasionals.puntajez',
-     'seguimiento_ocasionals.clasificacion',
-     'seguimiento_ocasionals.requerimiento_energia_ftlc',
-     'seguimiento_ocasionals.fecha_entrega_ftlc',
-     'seguimiento_ocasionals.medicamento',
-     'seguimiento_ocasionals.observaciones',
-     'seguimiento_ocasionals.est_act_menor',
-     'seguimiento_ocasionals.tratamiento_f75',
-     'seguimiento_ocasionals.fecha_recibio_tratf75',
-     'seguimiento_ocasionals.fecha_proximo_control',
-     'seguimiento_ocasionals.Esquemq_complrto_pai_edad',
-     'seguimiento_ocasionals.Atecion_primocion_y_mantenimiento_res3280_2018',
-    //  'seguimiento_ocasionals.motivo_seguimiento',
-     'users_seguimientos.name as user_seguimientos_name');
+    ->select(
+        'sivigilas.id', 
+        'sivigilas.cod_eve',
+        'sivigilas.semana',
+        'sivigilas.fec_not', 
+        'sivigilas.year', 
+        'sivigilas.dpto',
+        'sivigilas.mun', 
+        'sivigilas.tip_ide_',
+        'sivigilas.num_ide_', 
+        'sivigilas.pri_nom_', 
+        'sivigilas.seg_nom_', 
+        'sivigilas.pri_ape_',
+        'sivigilas.seg_ape_', 
+        'sivigilas.sexo_',
+        'sivigilas.fecha_nto_',
+        'sivigilas.edad_ges',
+        'sivigilas.telefono_',
+        'sivigilas.nom_grupo_', 
+        'sivigilas.regimen', 
+        'sivigilas.Ips_at_inicial', 
+        'sivigilas.fecha_aten_inicial',
+        'users_sivigilas.name as user_sivigilas_name', 
+        'sivigilas.Caso_confirmada_desnutricion_etiologia_primaria', 
+        'sivigilas.Ips_manejo_hospitalario',  
+        'sivigilas.nombreips_manejo_hospita', 
+        DB::raw("CASE WHEN seguimientos.estado = 1 THEN 'Activo' ELSE 'Inactivo' END as Estado"),
+        'seguimiento_ocasionals.fecha_consulta as fechaconsulta22 ',
+        'seguimiento_ocasionals.peso_kilos as pesokilos22',
+        'seguimiento_ocasionals.talla_cm',
+        'seguimiento_ocasionals.puntajez',
+        'seguimiento_ocasionals.clasificacion',
+        'seguimiento_ocasionals.requerimiento_energia_ftlc',
+        'seguimiento_ocasionals.fecha_entrega_ftlc',
+        'seguimiento_ocasionals.medicamento',
+        'seguimiento_ocasionals.observaciones',
+        'seguimiento_ocasionals.est_act_menor',
+        'seguimiento_ocasionals.tratamiento_f75',
+        'seguimiento_ocasionals.fecha_recibio_tratf75',
+        'seguimiento_ocasionals.fecha_proximo_control',
+        'seguimiento_ocasionals.Esquemq_complrto_pai_edad',
+        'seguimiento_ocasionals.Atecion_primocion_y_mantenimiento_res3280_2018',
+        'users_seguimientos.name as user_seguimientos_name'
+    );
+    //->where('seguimientos.user_id', $user->id); // Agregar la condición para el user_id
 
-        $result = $data->unionAll($secondQuery)->orderBy('seguimiento_fecha_consulta')->get();
+$result = $data->unionAll($secondQuery)->orderBy('seguimiento_fecha_consulta')->get();
 
-    return $result;
+return $result;
+
 
     }
 
