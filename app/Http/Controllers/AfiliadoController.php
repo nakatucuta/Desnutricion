@@ -34,7 +34,7 @@ class AfiliadoController extends Controller
         //     ->get();
 
 
-        $sivigilas = DB::table(DB::raw('[PRUEBA_DESNUTRICION].[dbo].[afiliados] AS [b]'))
+        $sivigilas = DB::table(DB::raw('[DESNUTRICION].[dbo].[afiliados] AS [b]'))
             ->select(
                 'b.id',
                 'b.primer_nombre',
@@ -44,7 +44,7 @@ class AfiliadoController extends Controller
                 'b.numero_identificacion',
                 'c.batch_verifications_id'
             )
-            ->join(DB::raw('[PRUEBA_DESNUTRICION].[dbo].[vacunas] AS [c]'), 'b.id', '=', 'c.afiliado_id')
+            ->join(DB::raw('[DESNUTRICION].[dbo].[vacunas] AS [c]'), 'b.id', '=', 'c.afiliado_id')
             ->get(); // Usamos get() en lugar de paginate() porque DataTables manejará la paginación.
 
         return view('livewire.afiliado', compact('sivigilas'));
