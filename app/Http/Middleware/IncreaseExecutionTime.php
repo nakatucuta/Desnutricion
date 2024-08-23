@@ -13,9 +13,9 @@ class IncreaseExecutionTime
      *
      * @param  \Closure(\Illuminate\Http\Request): (\Symfony\Component\HttpFoundation\Response)  $next
      */
-    public function handle(Request $request, Closure $next): Response
+    public function handle($request, Closure $next)
     {
-        ini_set('max_execution_time', 360); // 360 segundos
+        ini_set('max_execution_time', 1000); // 360 segundos
         return $next($request);
     }
 }

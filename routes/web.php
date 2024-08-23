@@ -8,6 +8,8 @@ use App\Http\Controllers\RevisionController;
 use App\Http\Controllers\SeguimientoOcasionalController;
 use App\Http\Controllers\Seguimiento412Controller;
 use App\Http\Controllers\Cargue412Controller;
+use App\Http\Controllers\AfiliadoController;
+
 
 /*
 |--------------------------------------------------------------------------
@@ -23,6 +25,36 @@ use App\Http\Controllers\Cargue412Controller;
 Route::get('/', function () {
     return view('auth/login');
 });
+
+//OJO AQUI COMIENZAN LAS RUTAS  DE PAI
+Route::get('/afiliado', [AfiliadoController::class, 'index'])->name('afiliado')
+->middleware('auth');
+
+
+// Rutas para el cargue de la información
+ Route::get('/import-excel_2', [AfiliadoController::class, 'showImportForm'])->name('import-excel-form_2');//->middleware('auth');
+Route::post('/import-excel_2', [AfiliadoController::class, 'importExcel'])
+    ->name('import-excel_2')
+    ->middleware(['auth', \App\Http\Middleware\IncreaseExecutionTime::class]);
+   // ->middleware([\App\Http\Middleware\IncreaseExecutionTime::class]);
+
+
+// Ruta para obtener vacunas
+Route::get('/vacunas/{id}', [AfiliadoController::class, 'getVacunas'])->name('getVacunas');
+
+
+// Ruta para el reporte Excel
+Route::get('export-vacunas', function () {
+    return Excel::download(new VacunaExport, 'vacunas.xlsx');
+});
+
+// Ruta para eliminar registros
+Route::delete('/batch_verifications/{id}', [AfiliadoController::class, 'destroy'])->name('batch_verifications.destroy');
+
+
+//AQUI TERMINAN LAS  RUTAS  DE PAI
+
+
 
 Auth::routes();
 

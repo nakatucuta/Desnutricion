@@ -5,7 +5,7 @@ use  Maatwebsite\Excel\Concerns\FromCollection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Carbon\Carbon;
-
+use App\Models\User;
 class Seguimiento extends Model
 {
   
@@ -38,8 +38,6 @@ class Seguimiento1 implements FromCollection
 
     public function user()
     {
-    
-        return $this->belongsTo('App\User');
-    
+        return $this->belongsTo(User::class);
     }
 }

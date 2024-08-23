@@ -85,6 +85,20 @@ class User extends Authenticatable
     
     }
 
+    public function Afiliado ()
+    {
+    
+        return $this->hasMany('App\Models\afiliado');
+    
+    }
+
+    public function Vacuna ()
+    {
+    
+        return $this->hasMany('App\Models\vacuna');
+    
+    }
+
 
 
 }
