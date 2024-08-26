@@ -4,7 +4,7 @@
 @section('title', 'Dashboard')
 
 @section('content_header')
-    <h1>Dashboard</h1>
+    <h1>CARGUE REGISTRO DIARIO (PAI)</h1>
 @stop
 
 @section('content')

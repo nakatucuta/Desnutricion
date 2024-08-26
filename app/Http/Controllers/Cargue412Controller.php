@@ -231,8 +231,82 @@ class Cargue412Controller extends Controller
 
     public function showImportForm()
     {
-        $sivigilas = Cargue412::all();
+
+        // Consulta utilizando el modelo Cargue412
+    $sivigilas = Cargue412::from('cargue412s as a')
+    ->select('a.*', 'd.descrip as ips_primaria')
+    ->leftJoin(DB::connection('sqlsrv_1')->raw('[sga].[dbo].[maestroidentificaciones] as b'), function($join) {
+        $join->on('a.tipo_identificacion', '=', 'b.tipoIdentificacion')
+             ->on('a.numero_identificacion', '=', 'b.identificacion');
+    })
+    ->leftJoin(DB::connection('sqlsrv_1')->raw('[sga].[dbo].[maestroips] as c'), 'b.numeroCarnet', '=', 'c.numeroCarnet')
+    ->leftJoin(DB::connection('sqlsrv_1')->raw('[sga].[dbo].[maestroIpsGru] as d'), 'c.idGrupoIps', '=', 'd.id')
+    ->get();
+
+// Preparar los datos para la vista
+foreach ($sivigilas as $student2) {
+    $incomeedit14 = DB::connection('sqlsrv_1')
+        ->table('maestroAfiliados as a')
+        ->join('maestroips as b', 'a.numeroCarnet', '=', 'b.numeroCarnet')
+        ->join('maestroIpsGru as c', 'b.idGrupoIps', '=', 'c.id')
+        ->join('maestroIpsGruDet as d', function ($join) {
+            $join->on('c.id', '=', 'd.idd')
+                ->where('d.servicio', '=', 1);
+        })
+        ->join('refIps as e', 'd.idIps', '=', 'e.idIps')
+        ->select(DB::raw('CAST(e.codigo AS BIGINT) as codigo_habilitacion'))
+        ->where('a.identificacion', $student2->numero_identificacion)
+        ->first();
+
+    if ($incomeedit14 !== null) {
+        $income12 = DB::table('users')
+            ->select('name', 'id', 'codigohabilitacion')
+            ->where('codigohabilitacion', $incomeedit14->codigo_habilitacion)
+            ->first();
+
+        if ($income12 === null) {
+            $student2->displayText = 'Sin datos, NO ASIGNAR hasta confirmar prestador primario';
+            $student2->textColor = 'red';
+        } else {
+            $student2->displayText = $income12->name;
+            $student2->textColor = 'black'; // Color negro (o cualquier color por defecto)
+        }
+    } else {
+        $student2->displayText = 'Sin datos, NO ASIGNAR hasta confirmar prestador primario';
+        $student2->textColor = 'red';
+    }
+}
+
+
+
+
+
+        // $sivigilas = Cargue412::from('cargue412s as a')
+        // ->select('a.*', 'd.descrip as ips_primaria')
+        // ->leftJoin(DB::connection('sqlsrv_1')->raw('[sga].[dbo].[maestroidentificaciones] as b'), function($join) {
+        //     $join->on('a.tipo_identificacion', '=', 'b.tipoIdentificacion')
+        //          ->on('a.numero_identificacion', '=', 'b.identificacion');
+        // })
+        // ->leftJoin(DB::connection('sqlsrv_1')->raw('[sga].[dbo].[maestroips] as c'), 'b.numeroCarnet', '=', 'c.numeroCarnet')
+        // ->leftJoin(DB::connection('sqlsrv_1')->raw('[sga].[dbo].[maestroIpsGru] as d'), 'c.idGrupoIps', '=', 'd.id')
+        // ->get();
+
+        //OTRA FROMA DE HACERLO 
+        // $sivigilas = DB::table(DB::raw('[DESNUTRICION]..[cargue412s] AS [a]'))
+        // ->select(
+        //     'a.*',
+        //     'd.descrip as ips_primaria'
+        // )
+        // ->leftJoin(DB::raw('[sga]..[maestroidentificaciones] AS [b]'), function($join) {
+        //     $join->on('a.tipo_identificacion', '=', 'b.tipoIdentificacion')
+        //          ->on('a.numero_identificacion', '=', 'b.identificacion');
+        // })
+        // ->leftJoin(DB::raw('[sga]..[maestroips] AS [c]'), 'b.numeroCarnet', '=', 'c.numeroCarnet')
+        // ->leftJoin(DB::raw('[sga]..[maestroIpsGru] AS [d]'), 'c.idGrupoIps', '=', 'd.id')
+        // ->get();
         return view('new_412.form',compact('sivigilas'));
+
+        
     }
 
     public function importExcel(Request $request)

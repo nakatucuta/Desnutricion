@@ -67,6 +67,7 @@
                         <th style="font-size: smaller;" scope="col">Sexo</th>
                         <th style="font-size: smaller;" scope="col">Fecha de Nacimiento del Niño</th>
                         <th style="font-size: smaller;" scope="col">Edad en Meses</th>
+                        <th style="font-size: smaller;" scope="col">Ips Primaria</th>
                         <th style="font-size: smaller;" scope="col">Acciones</th>
                         {{-- <th style="font-size: smaller;" scope="col">Regimen de Afiliación</th>
                         <th style="font-size: smaller;" scope="col">Nombre EAPB Menor</th>
@@ -82,6 +83,10 @@
                 </thead>
                 <tbody id="table">
                     @foreach($sivigilas as $student2)
+
+                    
+
+
                     <tr>
                         <td><small>{{ $student2->id }}</small></td>
                         {{-- <td><small>{{ $student2->numero_orden }}</small></td> --}}
@@ -107,6 +112,8 @@
                         <td><small>{{ $student2->sexo }}</small></td>
                         <td><small>{{ $student2->fecha_nacimieto_nino }}</small></td>
                         <td><small>{{ $student2->edad_meses }}</small></td>
+                        <td style="color: {{ $student2->textColor }}"><small>{{ $student2->displayText }}</small></td>
+                        
                         <td><small> 
 
                             @if ($student2->user_id === null)
