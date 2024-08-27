@@ -126,7 +126,6 @@ hola prueba
                     @foreach($sivigilas as $student2)
 
 
-                    
                     <?php
                     $incomeedit14 = DB::connection('sqlsrv_1')
                         ->table('maestroAfiliados as a')
@@ -140,20 +139,26 @@ hola prueba
                         ->select(DB::raw('CAST(e.codigo AS BIGINT) as codigo_habilitacion'))
                         ->where('a.identificacion', $student2->num_ide_)
                         ->first();
-                
+                    
                     if ($incomeedit14 !== null) {
                         $income12 = DB::table('users')
                             ->select('name', 'id', 'codigohabilitacion')
                             ->where('codigohabilitacion', $incomeedit14->codigo_habilitacion)
                             ->first();
-                    // Verifica si $income12 es null después de la consulta
-                          if ($income12 === null) {
-                              $income12 = (object) ['name' => 'Sin datos , NO ASIGNAR  hasta confirmar prestador primario'];
-                          }
-                          } else {
-                              $income12 = (object) ['name' => 'Sin datos , NO ASIGNAR  hasta confirmar prestador primario'];
-                          }
-                                      ?>
+                            
+                        if ($income12 === null) {
+                            $student2->displayText = 'Sin datos, NO ASIGNAR hasta confirmar prestador primario';
+                            $student2->textColor = 'red';
+                        } else {
+                            $student2->displayText = $income12->name;
+                            $student2->textColor = 'black'; // Color negro (o cualquier color por defecto)
+                        }
+                    } else {
+                        $student2->displayText = 'Sin datos, NO ASIGNAR hasta confirmar prestador primario';
+                        $student2->textColor = 'red';
+                    }
+                    ?>
+                    
 
 
                     
@@ -166,10 +171,8 @@ hola prueba
                     <td><small>{{ $student2->pri_nom_.' '.$student2->seg_nom_.' '.$student2->pri_ape_.' '.
                           $student2->seg_ape_ }} </small> </td>
                     <td><small>{{ $student2->nom_upgd }}</small></td>
-                    <td>
-                      <small style="color: {{ trim($income12->name) === 'Sin datos , NO ASIGNAR hasta confirmar prestador primario' ? 'red' : 'black' }};">
-                          {{ $income12->name }}
-                      </small>
+                    <td style="color: {{ $student2->textColor }}">
+                      <small>{{ $student2->displayText }}</small>
                   </td>
                   
                     {{-- @if (DB::connection('sqlsrv_1')->table('maestroSiv113')
