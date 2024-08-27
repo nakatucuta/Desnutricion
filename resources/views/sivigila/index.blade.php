@@ -124,6 +124,37 @@ hola prueba
                 <tbody id="table">
                   <tr>
                     @foreach($sivigilas as $student2)
+                      {{-- OJO ASI ESTBA LA CONSULTA --}}
+  
+                    {{-- 
+                    $incomeedit14 = DB::connection('sqlsrv_1')
+                        ->table('maestroAfiliados as a')
+                        ->join('maestroips as b', 'a.numeroCarnet', '=', 'b.numeroCarnet')
+                        ->join('maestroIpsGru as c', 'b.idGrupoIps', '=', 'c.id')
+                        ->join('maestroIpsGruDet as d', function ($join) {
+                            $join->on('c.id', '=', 'd.idd')
+                                ->where('d.servicio', '=', 1);
+                        })
+                        ->join('refIps as e', 'd.idIps', '=', 'e.idIps')
+                        ->select(DB::raw('CAST(e.codigo AS BIGINT) as codigo_habilitacion'))
+                        ->where('a.identificacion', $student2->num_ide_)
+                        ->first();
+                
+                    if ($incomeedit14 !== null) {
+                        $income12 = DB::table('users')
+                            ->select('name', 'id', 'codigohabilitacion')
+                            ->where('codigohabilitacion', $incomeedit14->codigo_habilitacion)
+                            ->first();
+                    // Verifica si $income12 es null después de la consulta
+                          if ($income12 === null) {
+                              $income12 = (object) ['name' => 'Sin datos , NO ASIGNAR  hasta confirmar prestador primario'];
+                          }
+                          } else {
+                              $income12 = (object) ['name' => 'Sin datos , NO ASIGNAR  hasta confirmar prestador primario'];
+                          }
+                                      ?> --}}
+
+
 
 
                     <?php
