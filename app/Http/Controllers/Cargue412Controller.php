@@ -14,6 +14,7 @@ use Symfony\Component\Mime\Address;
 use Symfony\Component\Mime\Email;
 use App\Models\User;
 use Session;
+use App\Exports\Cargue412Export;
 
 class Cargue412Controller extends Controller
 {
@@ -320,5 +321,13 @@ foreach ($sivigilas as $student2) {
         Excel::import(new report412Export, $file);
 
         return redirect()->route('import-excel-form')->with('success', 'Datos importados correctamente');
+    }
+
+
+    public function reporte1cargue412()
+    {   
+        return Excel::download(new Cargue412Export, '412_.xls');
+
+
     }
 }

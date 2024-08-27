@@ -8,6 +8,11 @@
 
 
             @section('content')
+            <br>
+            <a href="{{route('export7')}}" class="btn btn-success btn-sm"
+            style="float: right; margin-right: 1rem; position: relative; right: 0; border-radius: 50px; padding: 10px 20px; font-weight: bold; letter-spacing: 1px; background-color: #28a745;">
+                <i class="fas fa-file-export mr-2"></i> EXPORTAR
+            </a>
             @include('new_412.mensajes')
             @if ($message = Session::get('success'))
             <div class="alert alert-success text-center">
@@ -33,12 +38,13 @@
                         </form>
                     </div>
                 </div>
+                
             </div>
             
             
 
 
-
+         
 
 
 

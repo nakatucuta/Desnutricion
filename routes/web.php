@@ -87,6 +87,7 @@ Route::get('/report3', [SeguimientoController::class,'reporte2'])->name('export3
 Route::get('/report4', [SivigilaController::class,'reSporte2'])->name('export4');
 Route::get('/report5', [SivigilaController::class,'reSporte_sinseguimiento'])->name('export5');
 Route::get('/report6', [Seguimiento412Controller::class,'reporte_seguimiento412'])->name('export6');
+Route::get('/report7', [Cargue412Controller::class,'reporte1cargue412'])->name('export7');
 
 //RUTAS PDF
 Route::get('revision/{id}/reporte','App\Http\Controllers\RevisionController@reportepdf')->name('pdfcertificado');

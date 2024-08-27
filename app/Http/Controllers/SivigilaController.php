@@ -69,13 +69,53 @@ class SivigilaController extends Controller
 
         
 
-        $sivigilas = DB::connection('sqlsrv_1')
-        ->table('maestroSiv113 AS m')
-        ->select(DB::raw("CAST(m.fec_not AS DATE) as fec_noti, m.tip_ide_, m.num_ide_, m.pri_nom_, m.seg_nom_, m.pri_ape_, m.seg_ape_, m.semana,m.nom_upgd"))
-        ->where('m.cod_eve', 113)
-        ->whereBetween(DB::raw("YEAR(m.fec_not)"), [2024, 2024])
-        ->paginate(1000000);
+       $sivigilas = DB::connection('sqlsrv_1')
+    ->table('maestroSiv113 AS m')
+    ->select(DB::raw("
+        CAST(m.fec_not AS DATE) AS fec_noti,
+        m.tip_ide_,
+        m.num_ide_,
+        m.pri_nom_,
+        m.seg_nom_,
+        m.pri_ape_,
+        m.seg_ape_,
+        m.semana,
+        MAX(m.nom_upgd) AS nom_upgd
+    "))
+    ->join(DB::raw("
+        (SELECT 
+            m.tip_ide_, 
+            m.num_ide_, 
+            MAX(m.fec_not) AS fec_not, 
+            m.semana
+        FROM 
+            maestroSiv113 AS m
+        GROUP BY 
+            m.tip_ide_, 
+            m.num_ide_, 
+            m.semana
+        ) AS s
+    "), function($join) {
+        $join->on('m.tip_ide_', '=', 's.tip_ide_')
+            ->on('m.num_ide_', '=', 's.num_ide_')
+            ->on('m.semana', '=', 's.semana')
+            ->on('m.fec_not', '=', 's.fec_not');
+    })
+    ->where('m.cod_eve', 113)
+    ->whereYear('m.fec_not', '>=', 2024)
+    ->groupBy(
+        'm.semana', 
+        'm.tip_ide_', 
+        'm.num_ide_', 
+        'm.fec_not', 
+        'm.pri_nom_', 
+        'm.seg_nom_', 
+        'm.pri_ape_', 
+        'm.seg_ape_'
+    )
+    ->get();
 
+   
 
        
        $T1 = DB::connection('sqlsrv_1')->table('maestroSiv113 AS m')
@@ -110,7 +150,50 @@ class SivigilaController extends Controller
     
     
     // Obtener el total de filas
-    $resultados = $totalFilas;
+    $resultados = DB::connection('sqlsrv_1')
+    ->table(DB::raw("(
+        SELECT 
+            CAST(m.fec_not AS DATE) AS fec_noti,
+            m.tip_ide_,
+            m.num_ide_,
+            m.pri_nom_,
+            m.seg_nom_,
+            m.pri_ape_,
+            m.seg_ape_,
+            m.semana,
+            MAX(m.nom_upgd) AS nom_upgd
+        FROM 
+            maestroSiv113 AS m
+        INNER JOIN (
+            SELECT 
+                m.tip_ide_, 
+                m.num_ide_, 
+                MAX(m.fec_not) AS fec_not, 
+                m.semana
+            FROM 
+                maestroSiv113 AS m
+            GROUP BY 
+                m.tip_ide_, 
+                m.num_ide_, 
+                m.semana
+        ) AS s ON m.tip_ide_ = s.tip_ide_
+              AND m.num_ide_ = s.num_ide_
+              AND m.semana = s.semana
+              AND m.fec_not = s.fec_not
+        WHERE 
+            m.cod_eve = 113
+            AND YEAR(m.fec_not) >= 2024
+        GROUP BY 
+            m.semana, 
+            m.tip_ide_, 
+            m.num_ide_, 
+            m.fec_not, 
+            m.pri_nom_, 
+            m.seg_nom_, 
+            m.pri_ape_, 
+            m.seg_ape_
+    ) AS derived"))
+    ->count();
     
         
         
