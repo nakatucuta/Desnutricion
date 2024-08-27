@@ -166,9 +166,11 @@ hola prueba
                     <td><small>{{ $student2->pri_nom_.' '.$student2->seg_nom_.' '.$student2->pri_ape_.' '.
                           $student2->seg_ape_ }} </small> </td>
                     <td><small>{{ $student2->nom_upgd }}</small></td>
-                    <td><small style="color: {{ $income12->name === 'Sin datos , NO ASIGNAR hasta confirmar prestador primario' ? 'red' : 'black' }};">
-                      {{ $income12->name }}
-                  </small></td>
+                    <td>
+                      <small style="color: {{ $income12->name === 'Sin datos , NO ASIGNAR hasta confirmar prestador primario' ? 'red' : 'black' }};">
+                          {{ $income12->name }}
+                      </small>
+                  </td>
                     {{-- @if (DB::connection('sqlsrv_1')->table('maestroSiv113')
                     ->where('num_ide_', $student2->num_ide_)
                     ->exists())
