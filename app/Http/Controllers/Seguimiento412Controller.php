@@ -41,7 +41,7 @@ class Seguimiento412Controller extends Controller
             $incomeedit = Cargue412::select('cargue412s.numero_identificacion','cargue412s.primer_nombre','cargue412s.segundo_nombre',
             'cargue412s.primer_apellido','cargue412s.segundo_apellido','seguimiento_412s.id as idin',
             'seguimiento_412s.fecha_proximo_control','seguimiento_412s.id',
-            'seguimiento_412s.estado','seguimiento_412s.id','cargue412s.nombre_coperante')
+            'seguimiento_412s.estado','seguimiento_412s.id','cargue412s.nombre_coperante','seguimiento_412s.created_at')
             ->orderBy('seguimiento_412s.created_at', 'desc')
             ->join('seguimiento_412s', 'cargue412s.id', '=', 'seguimiento_412s.cargue412_id')
             ->where('seguimiento_412s.user_id', Auth::user()->id)
@@ -53,7 +53,7 @@ class Seguimiento412Controller extends Controller
             $incomeedit = Cargue412::select('cargue412s.numero_identificacion','cargue412s.primer_nombre','cargue412s.segundo_nombre',
             'cargue412s.primer_apellido','cargue412s.segundo_apellido','seguimiento_412s.id as idin',
             'seguimiento_412s.fecha_proximo_control','seguimiento_412s.id',
-            'seguimiento_412s.estado','seguimiento_412s.id','cargue412s.nombre_coperante')
+            'seguimiento_412s.estado','seguimiento_412s.id','cargue412s.nombre_coperante','seguimiento_412s.created_at')
             ->orderBy('seguimiento_412s.created_at', 'desc')
             ->join('seguimiento_412s', 'cargue412s.id', '=', 'seguimiento_412s.cargue412_id')
          

@@ -7,6 +7,7 @@
             style="background-color: #d9f2e6 ;
             border: 1px solid #000000;">
             <tr>
+            <th >Fecha de cargue</th>
             <th>ID</th>
             <th >Identificacion</th>
             <th >Nombre</th>
@@ -40,11 +41,12 @@
                       <td  class="text-center">No hay registros disponibles</td>
                       <td  class="text-center">No hay registros disponibles</td>
                       <td  class="text-center">No hay registros disponibles</td>
+                      <td  class="text-center">No hay registros disponibles</td>
                         @elseif($count >= 1 && (auth()->user()->usertype == 2))
                        
                      
                        @foreach($incomeedit as $student2)
-                    
+                    <td>{{ $student2->created_at }}</td>
                     <th >{{ $student2->id }}</th>
                     <th >{{ $student2->numero_identificacion }}</th>
                     <td>{{ $student2->primer_nombre.' '.$student2->segundo_nombre.' '.$student2->primer_apellido.' '.$student2->segundo_apellido }}</td>
@@ -120,9 +122,10 @@
                   <td  class="text-center">No hay registros disponibles</td>
                   <td  class="text-center">No hay registros disponibles</td>
                   <td  class="text-center">No hay registros disponibles</td>
+                  <td  class="text-center">No hay registros disponibles</td>
                  @elseif($count1 >= 1 && (auth()->user()->usertype == 1 ||  auth()->user()->usertype == 3))
                  @foreach($incomeedit as $student2)
-                        
+                 <td>{{ $student2->created_at}}</td>     
                  <th >{{ $student2->id }}</th>
                  <th >{{ $student2->numero_identificacion }}</th>
                  <td>{{ $student2->primer_nombre.' '.$student2->segundo_nombre.' '.$student2->primer_apellido.' '.$student2->segundo_apellido }}</td>

@@ -51,6 +51,7 @@
             <table class="table table-hover table-striped table-bordered" style="border: 1px solid #000000;" id="sivigila"> 
                 <thead class="table table-hover table-info table-bordered" style="background-color: #d9f2e6; border: 1px solid #000000;">
                     <tr>
+                        <th style="font-size: smaller;" scope="col">Fecha cargue</th>
                         <th style="font-size: smaller;" scope="col">Id</th>
                         {{-- <th style="font-size: smaller;" scope="col">Número de Orden</th> --}}
                         <th style="font-size: smaller;" scope="col">Nombre Coperante</th>
@@ -71,7 +72,7 @@
                         <th style="font-size: smaller;" scope="col">Tipo de Identificación</th>
                         <th style="font-size: smaller;" scope="col">Número de Identificación</th>
                         <th style="font-size: smaller;" scope="col">Sexo</th>
-                        <th style="font-size: smaller;" scope="col">Fecha de Nacimiento del Niño</th>
+                        {{-- <th style="font-size: smaller;" scope="col">Fecha de Nacimiento del Niño</th> --}}
                         <th style="font-size: smaller;" scope="col">Edad en Meses</th>
                         <th style="font-size: smaller;" scope="col">Ips Primaria</th>
                         <th style="font-size: smaller;" scope="col">Acciones</th>
@@ -94,6 +95,7 @@
 
 
                     <tr>
+                        <td><small>{{ $student2->created_at }}</small></td>
                         <td><small>{{ $student2->id }}</small></td>
                         {{-- <td><small>{{ $student2->numero_orden }}</small></td> --}}
                         <td><small>{{ $student2->nombre_coperante }}</small></td>
@@ -116,7 +118,7 @@
                         <td><small>{{ $student2->tipo_identificacion }}</small></td>
                         <td><small>{{ $student2->numero_identificacion }}</small></td>
                         <td><small>{{ $student2->sexo }}</small></td>
-                        <td><small>{{ $student2->fecha_nacimieto_nino }}</small></td>
+                        {{-- <td><small>{{ $student2->fecha_nacimieto_nino }}</small></td> --}}
                         <td><small>{{ $student2->edad_meses }}</small></td>
                         <td style="color: {{ $student2->textColor }}"><small>{{ $student2->displayText }}</small></td>
                         
