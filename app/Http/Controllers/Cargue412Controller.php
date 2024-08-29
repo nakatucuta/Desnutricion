@@ -233,6 +233,36 @@ class Cargue412Controller extends Controller
     public function showImportForm()
     {
 
+       
+        $seguimientoen113 = DB::table(DB::connection('sqlsrv')->raw('[DESNUTRICION].[dbo].[sivigilas] as a'))
+        ->distinct()
+        ->select('a.num_ide_ as identificacion')
+        ->join(DB::connection('sqlsrv')->raw('[DESNUTRICION].[dbo].[seguimientos] as b'), 'a.id', '=', 'b.sivigilas_id')
+        ->where('b.estado', 1)
+        ->whereIn('a.num_ide_', function($query) {
+            $query->select('numero_identificacion')
+                  ->from(DB::connection('sqlsrv')->raw('[DESNUTRICION].[dbo].[cargue412s]'));
+        })
+        ->whereIn('a.tip_ide_', function($query) {
+            $query->select('tipo_identificacion')
+                  ->from(DB::connection('sqlsrv')->raw('[DESNUTRICION].[dbo].[cargue412s]'));
+        })
+        ->pluck('identificacion');
+    
+    // Establecer estado_anulado a 1 donde se cumple la condición
+    DB::table('cargue412s')
+        ->whereIn('numero_identificacion', $seguimientoen113)
+        ->update(['estado_anulado' => 1]);
+    
+    // Establecer estado_anulado a 0 donde NO se cumple la condición
+    DB::table('cargue412s')
+        ->whereNotIn('numero_identificacion', $seguimientoen113)
+        ->update(['estado_anulado' => 0]);
+
+    
+
+
+
         // Consulta utilizando el modelo Cargue412
     $sivigilas = Cargue412::from('cargue412s as a')
     ->select('a.*', 'd.descrip as ips_primaria')
@@ -305,7 +335,7 @@ foreach ($sivigilas as $student2) {
         // ->leftJoin(DB::raw('[sga]..[maestroips] AS [c]'), 'b.numeroCarnet', '=', 'c.numeroCarnet')
         // ->leftJoin(DB::raw('[sga]..[maestroIpsGru] AS [d]'), 'c.idGrupoIps', '=', 'd.id')
         // ->get();
-        return view('new_412.form',compact('sivigilas'));
+        return view('new_412.form',compact('sivigilas','seguimientoen113'));
 
         
     }

@@ -60,7 +60,7 @@
                         {{-- <th style="font-size: smaller;" scope="col">Nombre Ranchería</th> --}}
                         {{-- <th style="font-size: smaller;" scope="col">Ubicación Casa</th> --}}
                         <th style="font-size: smaller;" scope="col">Nombre Cuidador</th>
-                        <th style="font-size: smaller;" scope="col">Identificación Cuidador</th>
+                        {{-- <th style="font-size: smaller;" scope="col">Identificación Cuidador</th> --}}
                         {{-- <th style="font-size: smaller;" scope="col">Teléfono Cuidador</th> --}}
                         {{-- <th style="font-size: smaller;" scope="col">Nombre EAPB Cuidador</th> --}}
                         {{-- <th style="font-size: smaller;" scope="col">Nombre Autoridad Trad. Ancestral</th>
@@ -75,6 +75,7 @@
                         {{-- <th style="font-size: smaller;" scope="col">Fecha de Nacimiento del Niño</th> --}}
                         <th style="font-size: smaller;" scope="col">Edad en Meses</th>
                         <th style="font-size: smaller;" scope="col">Ips Primaria</th>
+                        {{-- <th style="font-size: smaller;" scope="col">Validacion</th> --}}
                         <th style="font-size: smaller;" scope="col">Acciones</th>
                         {{-- <th style="font-size: smaller;" scope="col">Regimen de Afiliación</th>
                         <th style="font-size: smaller;" scope="col">Nombre EAPB Menor</th>
@@ -104,7 +105,7 @@
                         {{-- <td><small>{{ $student2->nombre_rancheria }}</small></td> --}}
                         {{-- <td><small>{{ $student2->ubicacion_casa }}</small></td> --}}
                         <td><small>{{ $student2->nombre_cuidador }}</small></td>
-                        <td><small>{{ $student2->identioficacion_cuidador }}</small></td>
+                        {{-- <td><small>{{ $student2->identioficacion_cuidador }}</small></td> --}}
                         {{-- <td><small>{{ $student2->telefono_cuidador }}</small></td> --}}
                         {{-- <td><small>{{ $student2->nombre_eapb_cuidador }}</small></td>
                         <td><small>{{ $student2->nombre_autoridad_trad_ansestral }}</small></td>
@@ -121,9 +122,27 @@
                         {{-- <td><small>{{ $student2->fecha_nacimieto_nino }}</small></td> --}}
                         <td><small>{{ $student2->edad_meses }}</small></td>
                         <td style="color: {{ $student2->textColor }}"><small>{{ $student2->displayText }}</small></td>
-                        
+                        {{-- <td>
+                            <small>
+                                @if ($seguimientoen113->contains($student2->numero_identificacion))
+                                    
+                                <span class="badge badge-warning d-block text-wrap" style="white-space: normal; font-size: 0.875rem;">
+                                        NO ASIGNAR YA QUE TIENE UN SEGUIMIENTO ACTIVO EN EVENTO 113
+                                    </span>
+                                @endif
+                            </small>
+                        </td> --}}
                         <td><small> 
-
+                            @if ($seguimientoen113->contains($student2->numero_identificacion))
+                            <div class="alert alert-warning text-center" role="alert" style="background-color: #ffcc00; color: #333; padding: 20px; border-radius: 8px; position: relative;">
+                                <div class="d-flex flex-column align-items-center">
+                                    <i class="fas fa-exclamation-triangle" style="font-size: 2rem; margin-bottom: 10px; animation: colorChange 3s infinite;"></i>
+                                    <span>
+                                        <strong>¡Atención!</strong> NO ASIGNAR YA QUE TIENE UN SEGUIMIENTO ACTIVO EN EVENTO 113
+                                    </span>
+                                </div>
+                            </div>
+                            @else
                             @if ($student2->user_id === null)
                             <!-- El campo user_id es NULL -->
 
@@ -169,7 +188,7 @@
                         @endif
 
 
-                            
+                        @endif
                             
                         </small></td>
                         {{-- <td><small>{{ $student2->regimen_afiliacion }}</small></td>
@@ -245,6 +264,14 @@
 .drag-over {
     background-color: #e8f4ff;
 }
+
+ @keyframes colorChange {
+        0% { color: #ff3333; }
+        25% { color: #ffcc00; }
+        50% { color: #33cc33; }
+        75% { color: #3399ff; }
+        100% { color: #ff3333; }
+    }
 
 
             </style>
