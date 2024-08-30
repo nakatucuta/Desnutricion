@@ -134,14 +134,15 @@
                         </td> --}}
                         <td><small> 
                             @if ($seguimientoen113->contains($student2->numero_identificacion))
-                            <div class="alert alert-warning text-center" role="alert" style="background-color: #ffcc00; color: #333; padding: 20px; border-radius: 8px; position: relative;">
+                            <div class="alert alert-warning text-center" role="alert" style="background-color: #ffcc00; color: #333; padding: 10px; border-radius: 5px; position: relative; font-size: 0.8rem;">
                                 <div class="d-flex flex-column align-items-center">
-                                    <i class="fas fa-exclamation-triangle" style="font-size: 2rem; margin-bottom: 10px; animation: colorChange 3s infinite;"></i>
+                                    <i class="fas fa-exclamation-triangle" style="font-size: 1.2rem; margin-bottom: 5px; animation: colorChange 3s infinite;"></i>
                                     <span>
                                         <strong>¡Atención!</strong> NO ASIGNAR YA QUE TIENE UN SEGUIMIENTO ACTIVO EN EVENTO 113
                                     </span>
                                 </div>
                             </div>
+                            
                             @else
                             @if ($student2->user_id === null)
                             <!-- El campo user_id es NULL -->
