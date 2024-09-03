@@ -49,7 +49,7 @@ class Cargue412 extends Model
         'signos_desnutricion',
         'puntaje_z',
         'calsificacion_antropometrica',
-     
+        'user_id',
       
            // Agrega aquí más columnas si es necesario.
        ];

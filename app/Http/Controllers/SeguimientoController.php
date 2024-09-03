@@ -592,10 +592,42 @@ public function viewPDF($id)
 
     return response()->file($filePath);
 }
+public function detallePrestador($id)
+{
+    // Verifica si el ID está llegando al controlador
+    \Log::info('ID recibido en el controlador: ' . $id);
 
-        
+    // Realiza la consulta para obtener los detalles del prestador
+    $detalles = DB::table('cargue412s')
+        ->where('user_id', $id)
+        ->select(
+            'primer_nombre',
+            'segundo_nombre',
+            'primer_apellido',
+            'segundo_apellido',
+            'tipo_identificacion',
+            'numero_identificacion'
+        )
+        ->get();
+
+    // Verificación en logs
+    if ($detalles->isEmpty()) {
+        \Log::info('No se encontraron detalles para el ID: ' . $id);
+    } else {
+        \Log::info('Detalles obtenidos: ' . $detalles);
+    }
+
+    // Devuelve los detalles en formato JSON
+    return response()->json($detalles);
+}
+
+
+    
 public function graficaBarras()
 {
+
+
+    
     // Obtener los datos de la base de datos para la gráfica de barras
     $estados = DB::table('seguimientos')
         ->select('estado', DB::raw('count(*) as total'))
@@ -651,9 +683,11 @@ public function graficaBarras()
     ->join('DESNUTRICION.dbo.cargue412s AS b', 'a.id', '=', 'b.user_id')
     ->leftJoin('DESNUTRICION.dbo.seguimiento_412s AS c', 'b.id', '=', 'c.cargue412_id')
     ->whereRaw('YEAR(b.created_at) > ?', [2023])
+    ->where('b.estado_anulado', '=', 0) // Condición añadida
     ->groupBy('a.id', 'a.name')
     ->orderBy(DB::raw('COUNT(b.id)'), 'desc')
     ->get();
+
 
 
 
@@ -754,7 +788,34 @@ public function obtenerDatosEnJson()
 // ->make(true);
 // }
 
+public function detallePrestador_113($id)
+{
+    // Verifica si el ID está llegando al controlador
+    \Log::info('ID recibido en el controlador: ' . $id);
 
+    // Realiza la consulta para obtener los detalles del prestador
+    $detalles = DB::table('DESNUTRICION.dbo.sivigilas')
+        ->where('user_id', $id)
+        ->select(
+            'tip_ide_',
+            'num_ide_',
+            'pri_nom_',
+            'seg_nom_',
+            'pri_ape_',
+            'seg_ape_'
+        )
+        ->get();
+
+    // Verificación en logs
+    if ($detalles->isEmpty()) {
+        \Log::info('No se encontraron detalles para el ID: ' . $id);
+    } else {
+        \Log::info('Detalles obtenidos: ' . $detalles);
+    }
+
+    // Devuelve los detalles en formato JSON
+    return response()->json($detalles);
+}
 
 }
 

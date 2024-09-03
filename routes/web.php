@@ -139,3 +139,8 @@ Route::get('/obtener-datos-tabla', [SivigilaController::class, 'getData1'])->nam
 Route::post('/sivigila/check-status', [App\Http\Controllers\SivigilaController::class, 'checkStatus'])->name('sivigila.checkStatus');
 Route::post('/sivigila/check-ipsprimaria', [App\Http\Controllers\SivigilaController::class, 'checkIpsPrimaria'])->name('sivigila.ipsprimaria');
 
+
+//RURTA PARA JSON DE ESTADISTICAS   DE LAS TABLAS QUE MUESTRAN PARA LOS INDICADORES
+Route::get('/detalle-prestador/{id}', [SeguimientoController::class, 'detallePrestador'])->name('gedetalle_prestador');
+
+Route::get('/detalle-prestador-113/{id}', [SeguimientoController::class, 'detallePrestador_113'])->name('detallePrestador_113');
