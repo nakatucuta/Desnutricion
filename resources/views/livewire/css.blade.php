@@ -35,4 +35,52 @@
             background-color: #28a745;
             border-color: #28a745;
         }
+
+
+        /*PARA EL ICONO DE ENVIAR MENSAJE PAROPADEE */
+
+       /* Estilo base del botón más pequeño */
+.blinking-button {
+    display: inline-block;
+    padding: 5px 10px;  /* Reducido el padding */
+    font-size: 12px;    /* Tamaño de texto más pequeño */
+    font-weight: bold;
+    color: white;
+    background-color: #28a745; /* Verde base */
+    border: none;
+    border-radius: 5px;
+    text-decoration: none;
+    transition: background-color 0.5s ease;
+    position: relative;
+}
+
+/* Agregar el icono dentro del botón, con un tamaño más pequeño */
+.blinking-button i {
+    margin-right: 5px;
+    font-size: 12px; /* Reducir el tamaño del icono */
+}
+
+/* Parpadeo con variaciones de color verde */
+@keyframes blinking {
+    0% { background-color: #28a745; }  /* Verde base */
+    50% { background-color: #34d058; } /* Verde más claro */
+    100% { background-color: #28a745; } /* Regresar al verde base */
+}
+
+/* Aplicar la animación de parpadeo */
+.blinking-button {
+    animation: blinking 1.5s infinite;
+}
+
+/* Efecto de hover */
+.blinking-button:hover {
+    background-color: #218838; /* Verde más oscuro al pasar el mouse */
+    text-decoration: none;
+}
+
+/* Sombra al pasar el mouse */
+.blinking-button:hover {
+    box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.3);
+}
+
     </style>

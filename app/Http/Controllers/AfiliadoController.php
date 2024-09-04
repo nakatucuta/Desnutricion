@@ -34,7 +34,7 @@ class AfiliadoController extends Controller
         //     ->get();
 
 
-        $sivigilas = DB::table(DB::raw('[DESNUTRICION].[dbo].[afiliados] AS [b]'))
+        $sivigilas = DB::table(DB::raw('afiliados AS b'))
             ->select(
                 'b.id',
                 'b.primer_nombre',
@@ -44,12 +44,22 @@ class AfiliadoController extends Controller
                 'b.numero_identificacion',
                 'c.batch_verifications_id'
             )
-            ->join(DB::raw('[DESNUTRICION].[dbo].[vacunas] AS [c]'), 'b.id', '=', 'c.afiliado_id')
+            ->join(DB::raw('vacunas AS c'), 'b.id', '=', 'c.afiliado_id')
             ->get(); // Usamos get() en lugar de paginate() porque DataTables manejará la paginación.
+    
+           
+           
+            $sivigilas_usernormal = DB::table('afiliados as b')
 
-        return view('livewire.afiliado', compact('sivigilas'));
+            ->select('b.id', 'b.primer_nombre', 'b.segundo_nombre', 'b.primer_apellido', 'b.segundo_apellido', 
+            'b.numero_identificacion','c.batch_verifications_id')
+            ->join(DB::raw('vacunas AS c'), 'b.id', '=', 'c.afiliado_id')
+
+           ->get();
+             // Usamos get() en lugar de paginate() porque DataTables manejará la paginación.
+        return view('livewire.afiliado', compact('sivigilas','sivigilas_usernormal'));
     }
-
+  
       /**
      * Muestra el formulario para importar archivos Excel.
      *

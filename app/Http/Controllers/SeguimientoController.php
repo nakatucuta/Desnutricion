@@ -600,6 +600,7 @@ public function detallePrestador($id)
     // Realiza la consulta para obtener los detalles del prestador
     $detalles = DB::table('cargue412s')
         ->where('user_id', $id)
+        
         ->select(
             'primer_nombre',
             'segundo_nombre',
@@ -608,6 +609,8 @@ public function detallePrestador($id)
             'tipo_identificacion',
             'numero_identificacion'
         )
+        ->where('estado_anulado', '=', 0) // Condición añadida
+
         ->get();
 
     // Verificación en logs
@@ -664,7 +667,7 @@ public function graficaBarras()
         'a.id',
         'a.name',
         DB::raw('COUNT(c.sivigilas_id) AS total_Seguimientos'),
-        DB::raw('COUNT(b.id) AS cant_casos_asignados')
+        DB::raw('COUNT(b.user_id) AS cant_casos_asignados')
     )
     ->join('DESNUTRICION.dbo.sivigilas AS b', 'a.id', '=', 'b.user_id')
     ->leftJoin('DESNUTRICION.dbo.seguimientos AS c', 'b.id', '=', 'c.sivigilas_id')
@@ -678,7 +681,7 @@ public function graficaBarras()
         'a.id',
         'a.name',
         DB::raw('COUNT(c.cargue412_id) AS total_Seguimientos'),
-        DB::raw('COUNT(b.id) AS cant_casos_asignados')
+        DB::raw('COUNT(b.user_id) AS cant_casos_asignados')
     )
     ->join('DESNUTRICION.dbo.cargue412s AS b', 'a.id', '=', 'b.user_id')
     ->leftJoin('DESNUTRICION.dbo.seguimiento_412s AS c', 'b.id', '=', 'c.cargue412_id')
@@ -739,7 +742,7 @@ public function obtenerDatosEnJson()
                 'a.id', // Seleccionamos el ID del usuario
                 'a.name', // Seleccionamos el nombre del usuario
                 DB::raw('COUNT(c.sivigilas_id) AS total_Seguimientos'), // Contamos el número total de seguimientos
-                DB::raw('COUNT(b.id) AS cant_casos_asignados') // Contamos el número total de casos asignados
+                DB::raw('COUNT(b.user_id) AS cant_casos_asignados') // Contamos el número total de casos asignados
             )
             // Unimos la tabla de sivigilas con la tabla de usuarios en base al ID del usuario
             ->join('DESNUTRICION.dbo.sivigilas AS b', 'a.id', '=', 'b.user_id')
@@ -794,17 +797,37 @@ public function detallePrestador_113($id)
     \Log::info('ID recibido en el controlador: ' . $id);
 
     // Realiza la consulta para obtener los detalles del prestador
-    $detalles = DB::table('DESNUTRICION.dbo.sivigilas')
-        ->where('user_id', $id)
-        ->select(
-            'tip_ide_',
-            'num_ide_',
-            'pri_nom_',
-            'seg_nom_',
-            'pri_ape_',
-            'seg_ape_'
-        )
-        ->get();
+    $detalles = DB::table('DESNUTRICION.dbo.sivigilas AS s')
+    ->where('s.user_id', $id)
+    ->select(
+        's.tip_ide_',
+        's.num_ide_',
+        's.pri_nom_',
+        's.seg_nom_',
+        's.pri_ape_',
+        's.seg_ape_'
+    )
+    ->leftJoin('DESNUTRICION.dbo.seguimientos AS seg', 's.id', '=', 'seg.sivigilas_id')
+    // Aplicamos un filtro para seleccionar solo los registros creados en el año 2023 o posterior
+    ->whereRaw('YEAR(s.created_at) > ?', [2023])
+    ->get();
+
+    $query = DB::table('DESNUTRICION.dbo.users AS a')
+            ->select(
+                'a.id', // Seleccionamos el ID del usuario
+                'a.name', // Seleccionamos el nombre del usuario
+                DB::raw('COUNT(c.sivigilas_id) AS total_Seguimientos'), // Contamos el número total de seguimientos
+                DB::raw('COUNT(b.user_id) AS cant_casos_asignados') // Contamos el número total de casos asignados
+            )
+            // Unimos la tabla de sivigilas con la tabla de usuarios en base al ID del usuario
+            ->join('DESNUTRICION.dbo.sivigilas AS b', 'a.id', '=', 'b.user_id')
+            // Unimos la tabla de seguimientos con la tabla de sivigilas en base al ID de sivigilas
+            ->leftJoin('DESNUTRICION.dbo.seguimientos AS c', 'b.id', '=', 'c.sivigilas_id')
+            // Aplicamos un filtro para seleccionar solo los registros creados en el año 2023 o posterior
+            ->whereRaw('YEAR(b.created_at) > ?', [2023])
+            // Agrupamos los resultados por ID y nombre del usuario
+            ->groupBy('a.id', 'a.name');
+
 
     // Verificación en logs
     if ($detalles->isEmpty()) {

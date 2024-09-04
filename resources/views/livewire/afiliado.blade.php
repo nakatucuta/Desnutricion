@@ -225,6 +225,22 @@
                 }
             }
         });
+
+
+
+
+        $(document).ready(function () {
+    // Evento al hacer clic en el botón "Solicitud"
+    $('.send-email').on('click', function () {
+        var patientName = $(this).data('name');
+        var patientId = $(this).data('id');
+        
+        // Rellenar los campos del modal
+        $('#patientName').val(patientName);
+        $('#patientId').val(patientId);
+    });
+});
+
     </script>
 @stop
 
