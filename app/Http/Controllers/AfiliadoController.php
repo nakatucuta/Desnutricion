@@ -9,6 +9,9 @@ use App\Models\batch_verifications;
 use App\Imports\AfiliadoImport;
 use Maatwebsite\Excel\Facades\Excel;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Mail;
+use App\Mail\SolicitudMail;
+use App\Models\CorreoEnviado;
 
 
 class AfiliadoController extends Controller
@@ -52,8 +55,8 @@ class AfiliadoController extends Controller
             $sivigilas_usernormal = DB::table('afiliados as b')
 
             ->select('b.id', 'b.primer_nombre', 'b.segundo_nombre', 'b.primer_apellido', 'b.segundo_apellido', 
-            'b.numero_identificacion','c.batch_verifications_id')
-            ->join(DB::raw('vacunas AS c'), 'b.id', '=', 'c.afiliado_id')
+            'b.numero_identificacion')
+            // ->join(DB::raw('vacunas AS c'), 'b.id', '=', 'c.afiliado_id')
 
            ->get();
              // Usamos get() en lugar de paginate() porque DataTables manejará la paginación.
@@ -148,5 +151,51 @@ class AfiliadoController extends Controller
             DB::rollBack();
             return redirect()->route('afiliado')->with('error', 'Hubo un problema al eliminar los registros: ' . $e->getMessage());
         }
+    }
+
+//METODO PARA  EL ENVIO DE CORREO EN PAI  OJO 
+
+    public function sendEmail(Request $request)
+    {
+        $request->validate([
+            'subject' => 'required|string|max:255',
+            'message' => 'required|string',
+            'patientId' => 'required|integer'
+        ]);
+    
+        // Verifica si ya se ha enviado un correo para este paciente
+        $userId = auth()->id();
+        $patientId = $request->patientId;
+    
+        $correoExistente = CorreoEnviado::where('user_id', $userId)
+            ->where('patient_id', $patientId)
+            ->first();
+    
+        if ($correoExistente) {
+            return redirect()->back()->with('error', 'Ya has enviado un correo de solicitud para este paciente.');
+        }
+    
+        // Obtener el usuario actual
+        $fromEmail = auth()->user()->email;
+    
+        // Preparar datos para el correo
+        $details = [
+            'subject' => $request->subject,
+            'message' => $request->message,
+            'fromEmail' => $fromEmail,
+            'patientName' => $request->patientName,  // El nombre del paciente
+        ];
+    
+        // Enviar el correo
+        Mail::to('jsuarez@epsianaswayuu.com')->send(new SolicitudMail($details));
+    
+        // Registrar que se ha enviado un correo para este paciente
+        CorreoEnviado::create([
+            'user_id' => $userId,
+            'patient_id' => $patientId,
+            'sent_at' => now(),
+        ]);
+    
+        return redirect()->back()->with('success', 'Correo enviado exitosamente.');
     }
 }

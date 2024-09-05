@@ -9,6 +9,7 @@ use App\Http\Controllers\SeguimientoOcasionalController;
 use App\Http\Controllers\Seguimiento412Controller;
 use App\Http\Controllers\Cargue412Controller;
 use App\Http\Controllers\AfiliadoController;
+use App\Http\Controllers\EmailController;
 
 
 /*
@@ -144,3 +145,6 @@ Route::post('/sivigila/check-ipsprimaria', [App\Http\Controllers\SivigilaControl
 Route::get('/detalle-prestador/{id}', [SeguimientoController::class, 'detallePrestador'])->name('gedetalle_prestador');
 
 Route::get('/detalle-prestador-113/{id}', [SeguimientoController::class, 'detallePrestador_113'])->name('detallePrestador_113');
+
+//RUTA  PARA ENVIO DE CORREO DE  PAI 
+Route::post('/send-email', [AfiliadoController::class, 'sendEmail'])->name('send.email');

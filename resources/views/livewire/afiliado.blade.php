@@ -47,24 +47,63 @@
     <!-- modal  que muestra las vacunas -->
     @include('livewire.modal_tabla')
 
-   <!-- Modal para mensajes de carga -->
-<div class="modal fade" id="loadingModal" tabindex="-1" role="dialog" aria-labelledby="loadingModalLabel" aria-hidden="true" data-backdrop="static" data-keyboard="false">
-<div class="modal-dialog" role="document">
-    <div class="modal-content text-center">
+   <!-- Modal para enviar correo mensajes de carga -->
+<!-- Modal -->
+<div class="modal fade" id="emailModal" tabindex="-1" role="dialog" aria-labelledby="emailModalLabel" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+      <div class="modal-content">
         <div class="modal-header">
-            <h5 class="modal-title" id="loadingModalLabel">Cargando Documento</h5>
+          <h5 class="modal-title" id="emailModalLabel">Enviar Correo</h5>
+          <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+            <span aria-hidden="true">&times;</span>
+          </button>
         </div>
         <div class="modal-body">
-            <div class="spinner-border text-primary spinner-large" role="status">
-                <span class="sr-only">Cargando...</span>
+          <form>
+            <div class="form-group">
+              <label for="emailSubject">Asunto</label>
+              <input type="text" class="form-control" id="emailSubject" placeholder="Asunto">
             </div>
-            <p>Por favor espere mientras se carga el documento...</p>
+            <div class="form-group">
+              <label for="emailMessage">Mensaje</label>
+              <textarea class="form-control" id="emailMessage" rows="3"></textarea>
+            </div>
+            <input type="hidden" id="emailPatientName">
+          </form>
         </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-dismiss="modal">Cerrar</button>
+          <button type="button" class="btn btn-primary" id="sendEmailButton">Enviar Correo</button>
+        </div>
+      </div>
     </div>
-</div>
-</div>
+  </div>
+  
 
 </div>
+
+
+
+
+
+ <!-- Modal para mensajes de carga -->
+ <div class="modal fade" id="loadingModal" tabindex="-1" role="dialog" aria-labelledby="loadingModalLabel" aria-hidden="true" data-backdrop="static" data-keyboard="false">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content text-center">
+            <div class="modal-header">
+                <h5 class="modal-title" id="loadingModalLabel">Cargando Documento</h5>
+            </div>
+            <div class="modal-body">
+                <div class="spinner-border text-primary spinner-large" role="status">
+                    <span class="sr-only">Cargando...</span>
+                </div>
+                <p>Por favor espere mientras se carga el documento...</p>
+            </div>
+        </div>
+    </div>
+    </div>
+    
+    </div>
 @stop
 @section('css')
     <!-- Bootstrap CSS -->
@@ -228,18 +267,28 @@
 
 
 
+        //JAVA SCRIPT PARA  ENVIAR EL CORREO DE LA MODAL  OJOOOOOO
 
-        $(document).ready(function () {
-    // Evento al hacer clic en el botón "Solicitud"
-    $('.send-email').on('click', function () {
-        var patientName = $(this).data('name');
+        $(document).ready(function() {
+    // Evento para abrir el modal de correo
+    $('.send-email').on('click', function() {
         var patientId = $(this).data('id');
+        var patientName = $(this).data('name');
         
-        // Rellenar los campos del modal
+        // Llenar los campos del modal con los datos del paciente
         $('#patientName').val(patientName);
         $('#patientId').val(patientId);
     });
+
+    // Después de enviar el formulario
+    $('#emailForm').on('submit', function() {
+        var patientId = $('#patientId').val();
+        
+        // Deshabilitar el botón de envío para este paciente
+        $('.send-email[data-id="' + patientId + '"]').prop('disabled', true).removeClass('blinking-button').addClass('btn-secondary').html('<i class="fas fa-envelope"></i> Correo Enviado');
+    });
 });
+
 
     </script>
 @stop
