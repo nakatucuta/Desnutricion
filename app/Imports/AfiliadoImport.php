@@ -13,6 +13,7 @@ use Illuminate\Support\Facades\Log; // Importa la clase Log
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\ValidationException;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Session; // Asegúrate de importar Session
 
 //Y LE DEBES  AGREGAR EL WithStartRow PARA QUE FUNCIONE LO DE LA FILAO  QUE EMPIEZE POR ESA FILA 
 class AfiliadoImport implements ToModel, WithStartRow

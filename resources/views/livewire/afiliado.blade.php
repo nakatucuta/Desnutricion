@@ -106,6 +106,8 @@
     </div>
 @stop
 @section('css')
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">
+
     <!-- Bootstrap CSS -->
     <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
 
@@ -269,25 +271,46 @@
 
         //JAVA SCRIPT PARA  ENVIAR EL CORREO DE LA MODAL  OJOOOOOO
 
-        $(document).ready(function() {
-    // Evento para abrir el modal de correo
-    $('.send-email').on('click', function() {
-        var patientId = $(this).data('id');
-        var patientName = $(this).data('name');
-        
-        // Llenar los campos del modal con los datos del paciente
-        $('#patientName').val(patientName);
-        $('#patientId').val(patientId);
-    });
+        function handleEmailModal() {
+        // Evento para abrir el modal de correo
+        $('.send-email').off('click').on('click', function() {
+            var patientId = $(this).data('id');
+            var patientName = $(this).data('name');
+            
+            // Llenar los campos del modal con los datos del paciente
+            $('#patientName').val(patientName);
+            $('#patientId').val(patientId);
+            
+            // Abre el modal
+            $('#emailModal').modal('show');
+        });
 
-    // Después de enviar el formulario
-    $('#emailForm').on('submit', function() {
-        var patientId = $('#patientId').val();
-        
-        // Deshabilitar el botón de envío para este paciente
-        $('.send-email[data-id="' + patientId + '"]').prop('disabled', true).removeClass('blinking-button').addClass('btn-secondary').html('<i class="fas fa-envelope"></i> Correo Enviado');
+        // Evento para enviar el correo al hacer clic en el botón de "Enviar Correo"
+        $('#sendEmailButton').off('click').on('click', function() {
+            var patientId = $('#patientId').val();
+            var subject = $('#emailSubject').val();
+            var message = $('#emailMessage').val();
+            
+            // Aquí iría la lógica para enviar el correo (puede ser una llamada AJAX)
+
+            // Simulación de éxito en el envío de correo
+            alert('Correo enviado a ' + $('#patientName').val());
+
+            // Deshabilitar el botón de envío para este paciente
+            $('.send-email[data-id="' + patientId + '"]').prop('disabled', true).removeClass('blinking-button').addClass('btn-secondary').html('<i class="fas fa-envelope"></i> Correo Enviado');
+            
+            // Cerrar el modal
+            $('#emailModal').modal('hide');
+        });
+    }
+
+    // Aplica la funcionalidad al cargar la tabla y cada vez que se redibuja
+    handleEmailModal();  // Aplica para la primera carga
+
+    // Vuelve a aplicar los eventos después de cada redibujado de la tabla
+    table.on('draw', function() {
+        handleEmailModal();  // Aplica para cada redibujado (paginación, filtrado, etc.)
     });
-});
 
 
     </script>

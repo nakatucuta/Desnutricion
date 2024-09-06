@@ -1,5 +1,4 @@
 <?php
-
 namespace App\Exports;
 
 use App\Models\Cargue412;
@@ -7,25 +6,39 @@ use Illuminate\Support\Collection;
 use Maatwebsite\Excel\Concerns\ToCollection;
 use Maatwebsite\Excel\Concerns\WithStartRow;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Validator;
-use Illuminate\Validation\ValidationException;
+use Illuminate\Support\Facades\Session;
 use PhpOffice\PhpSpreadsheet\Shared\Date;
+use Illuminate\Support\Facades\Validator;
+
+use Exception;
 
 class report412Export implements ToCollection, WithStartRow
 {
-     
-   
+    protected $errores = [];
 
-    
     public function collection(Collection $rows)
     {
+        $fila = 1; // Empezamos a contar desde la fila 1 (ajustar según sea necesario)
+
         foreach ($rows as $row) {
+            $fila++; // Incrementamos el contador de filas
+
+            // Convertir y validar las fechas
+            $fecha_captacion = $this->convertirFecha($row, 4, $fila, 'fecha_captacion');
+            $fecha_nacimiento_nino = $this->convertirFecha($row, 22, $fila, 'fecha_nacimiento_nino');
+
+            // Si hay errores, no continuamos y registramos el error
+            if (!empty($this->errores)) {
+                continue; // Pasamos a la siguiente fila si ya hay errores
+            }
+
+            // Los datos que se validarán
             $data = [
                 'numero_orden' => $row[0],
                 'nombre_coperante' => $row[1],
                 'nombre_profesional' => $row[2],
                 'numero_profesional' => $row[3],
-                'fecha_captacion' => isset($row[4]) ? Date::excelToDateTimeObject($row[4])->format('Y-m-d') : null,
+                'fecha_captacion' => $fecha_captacion,
                 'municipio' => $row[5],
                 'uds' => $row[6],
                 'nombre_rancheria' => $row[7],
@@ -43,7 +56,7 @@ class report412Export implements ToCollection, WithStartRow
                 'tipo_identificacion' => $row[19],
                 'numero_identificacion' => $row[20],
                 'sexo' => $row[21],
-                'fecha_nacimieto_nino' => isset($row[22]) ? Date::excelToDateTimeObject($row[22])->format('Y-m-d') : null,
+                'fecha_nacimieto_nino' => $fecha_nacimiento_nino,
                 'edad_meses' => $row[23],
                 'regimen_afiliacion' => $row[24],
                 'nombre_eapb_menor' => $row[25],
@@ -56,13 +69,13 @@ class report412Export implements ToCollection, WithStartRow
                 'calsificacion_antropometrica' => $row[32],
             ];
 
-            // Define las reglas de validación
+            // Reglas de validación
             $rules = [
                 'numero_orden' => 'nullable',
                 'nombre_coperante' => 'nullable|string',
                 'nombre_profesional' => 'nullable|string',
                 'numero_profesional' => 'nullable',
-                'fecha_captacion' => 'nullable|date',
+                'fecha_captacion' => 'nullable|date_format:Y-m-d',
                 'municipio' => 'nullable|string',
                 'uds' => 'nullable|string',
                 'nombre_rancheria' => 'nullable|string',
@@ -80,102 +93,88 @@ class report412Export implements ToCollection, WithStartRow
                 'tipo_identificacion' => 'nullable|string',
                 'numero_identificacion' => 'nullable',
                 'sexo' => 'nullable|string',
-                'fecha_nacimieto_nino' => 'nullable|date',
+                'fecha_nacimieto_nino' => 'nullable|date_format:Y-m-d',
                 'edad_meses' => 'nullable|integer',
                 'regimen_afiliacion' => 'nullable|string',
                 'nombre_eapb_menor' => 'nullable|string',
                 'peso_kg' => 'nullable|numeric',
                 'logitud_talla_cm' => 'nullable|numeric',
-                'perimetro_braqueal' => 'nullable|numeric',
+                'perimetro_braqueal' => 'nullable',
                 'signos_peligro_infeccion_respiratoria' => 'nullable|string',
                 'sexosignos_desnutricion' => 'nullable|string',
-                'puntaje_z' => 'nullable|numeric',
+                'puntaje_z' => 'nullable',
                 'calsificacion_antropometrica' => 'nullable|string',
             ];
 
-            // Define los mensajes de error
+            // Mensajes de error personalizados
             $messages = [
-                'date' => 'El campo :attribute debe ser una fecha válida.',
-                'string' => 'El campo :attribute debe ser un texto válido.',
-                'integer' => 'El campo :attribute debe ser un número entero válido.',
-                'numeric' => 'El campo :attribute debe ser un número válido.',
+                'date_format' => "El campo :attribute debe tener el formato Y-m-d (por ejemplo, 2024-07-29) en la fila $fila.",
+                'string' => "El campo :attribute debe ser un texto válido en la fila $fila.",
+                'integer' => "El campo :attribute debe ser un número entero válido en la fila $fila.",
+                'numeric' => "El campo :attribute debe ser un número válido en la fila $fila.",
             ];
 
-            // Realiza la validación
-            $validator = Validator::make($data, $rules, $messages);
+                // Realizamos la validación
+                $validator = Validator::make($data, $rules, $messages);
+
+                // Si la validación falla, registrar errores
+                if ($validator->fails()) {
+                    foreach ($validator->errors()->all() as $error) {
+                        Log::error($error . " (Fila: $fila)");
+                        $this->errores[] = $error . " (Fila: $fila)";
+                    }
+                    continue; // Saltamos la fila con error
+                }
+
+                // Guardar los datos si pasan la validación
+                $item = new Cargue412();
+                $item->fill($data);
+                $item->estado = 1;
+                $item->save();
+            }
+
+            // Si hay errores, almacenarlos en la sesión y redirigir
+            if (!empty($this->errores)) {
+                // Guardar los errores en la sesión
+                Session::flash('error1', implode("\n", $this->errores));
+                // Puedes redirigir a la ruta que desees con un mensaje de error
+                return redirect()->back();
+            } else {
+                // Si todo fue bien, guardamos el mensaje de éxito
+                Session::flash('success', 'El archivo se cargó correctamente.');
+                return redirect()->back();
+            }
         }
 
-        if ($validator->fails()) {
-            // Registra los errores y arroja una excepción de validación
-            foreach ($validator->errors()->all() as $error) {
-                Log::error($error);
+        // Método para convertir la fecha en el formato correcto
+        private function convertirFecha($row, $columna, $fila, $nombreCampo)
+        {
+            if (isset($row[$columna]) && is_numeric($row[$columna])) {
+                try {
+                    return Date::excelToDateTimeObject($row[$columna])->format('Y-m-d');
+                } catch (\Exception $e) {
+                    $error = "Error al convertir la fecha en el campo '$nombreCampo' en la fila $fila, columna $columna.";
+                    Log::error($error);
+                    $this->errores[] = $error;
+                    return null; // Si hay error, devolver nulo y agregar error
+                }
+            } elseif (isset($row[$columna]) && !is_numeric($row[$columna])) {
+                // Verificamos si es una fecha en formato Y-m-d
+                if (\DateTime::createFromFormat('Y-m-d', $row[$columna])) {
+                    return $row[$columna]; // Si es válida, devolverla
+                } else {
+                    $error = "Fecha inválida en el campo '$nombreCampo' en la fila $fila, columna $columna. Debe estar en formato 'Y-m-d'.";
+                    Log::error($error);
+                    $this->errores[] = $error;
+                    return null; // Si no es válida, devolver nulo y agregar error
+                }
             }
-            throw new ValidationException($validator);
-        } 
 
+            return null; // Si no hay fecha, devolver nulo
+        }
 
-
-
-        foreach ($rows as $row) {
-            // Verifica si $row[2] (fecha_captacion) y $row[19] (fecha_nacimieto_nino) son fechas válidas
-            // if (!is_numeric($row[2]) || !is_numeric($row[19])) {
-            //     \Log::error("Valor no numérico encontrado en fila para 'fecha_captacion' o 'fecha_nacimieto_nino': ", $row->toArray());
-            //     continue; // O maneja el error como prefieras
-            // }
-            // Crea una nueva instancia del modelo Item
-            $item = new Cargue412();
-            
-            // Asigna los valores de las columnas del archivo Excel a las propiedades del modelo
-            $item->numero_orden = $row[0];
-            $item->nombre_coperante = $row[1];
-            $item->nombre_profesional = $row[2];
-            $item->numero_profesional = $row[3];
-            $item->fecha_captacion = \PhpOffice\PhpSpreadsheet\Shared\Date::excelToDateTimeObject($row[4])->format('Y-m-d');
-            $item->municipio = $row[5];
-            $item->uds = $row[6];
-            $item->nombre_rancheria = $row[7];
-            $item->ubicacion_casa = $row[8];
-            $item->nombre_cuidador = $row[9];
-            $item->identioficacion_cuidador = $row[10];
-            $item->telefono_cuidador = $row[11];
-            $item->nombre_eapb_cuidador = $row[12];
-            $item->nombre_autoridad_trad_ansestral = $row[13];
-            $item->datos_contacto_autoridad = $row[14];
-            $item->primer_nombre = $row[15];
-            $item->segundo_nombre = $row[16];
-            $item->primer_apellido = $row[17];
-            $item->segundo_apellido = $row[18];
-            $item->tipo_identificacion = $row[19];
-            $item->numero_identificacion = $row[20];
-            $item->sexo = $row[21];
-            $item->fecha_nacimieto_nino = \PhpOffice\PhpSpreadsheet\Shared\Date::excelToDateTimeObject($row[22])->format('Y-m-d');
-            $item->edad_meses = $row[23];
-            $item->regimen_afiliacion = $row[24];
-            $item->nombre_eapb_menor = $row[25];
-            $item->peso_kg = $row[26];
-            $item->logitud_talla_cm = $row[27];
-            $item->perimetro_braqueal = $row[28];
-            $item->signos_peligro_infeccion_respiratoria = $row[29];
-            $item->sexosignos_desnutricion = $row[30];
-            $item->puntaje_z = $row[31];
-            $item->calsificacion_antropometrica = $row[32];
-            $item->estado = 1 ;
-            // Asigna las demás columnas según corresponda
-
-            // Guarda el modelo en la base de datos
-            $item->save();
-       // Añadir un mensaje de log para confirmar el guardado
-Log::info('Afiliado guardado con éxito:');
-
-
-
+        public function startRow(): int
+        {
+            return 2; // Establece la fila de inicio según sea necesario
+        }
     }
-}
-
-    public function startRow(): int
-    {
-        return 2; // Establece la fila de inicio predeterminada en 2 (puede variar según tus necesidades)
-    }
-
-
-}

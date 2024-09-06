@@ -14,11 +14,11 @@
                 <i class="fas fa-file-export mr-2"></i> EXPORTAR
             </a>
             @include('new_412.mensajes')
-            @if ($message = Session::get('success'))
+            {{-- @if ($message = Session::get('success'))
             <div class="alert alert-success text-center">
                 <strong>{{ $message }}</strong>
             </div>
-            @endif
+            @endif --}}
             
             <div class="container mt-5">
                 <div class="row">
@@ -211,6 +211,9 @@
             @section('css')
 <link rel="stylesheet" href="{{ asset('vendor/DataTables/css/dataTables.bootstrap.css') }}">
 <link rel="stylesheet" href="{{ asset('vendor/DataTables/css/jquery.dataTables.css') }}">
+
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11.3.4/dist/sweetalert2.all.min.js"></script>
+
 @stop
             @section('js')
 
@@ -218,6 +221,8 @@
 <script src="{{ asset('vendor/jquery/jquery.min.js') }}"></script>
 <script src="{{ asset('vendor/DataTables/js/jquery.dataTables.min.js') }}"></script>
 <script src="{{ asset('vendor/DataTables/js/dataTables.bootstrap5.min.js') }}"></script>
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11.3.4/dist/sweetalert2.all.min.js"></script>
+
 <style> 
 
 .dataTables_filter input {
