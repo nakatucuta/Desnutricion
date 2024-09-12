@@ -14,6 +14,7 @@ use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\ValidationException;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Session; // Asegúrate de importar Session
+use Illuminate\Support\Facades\DB;
 
 //Y LE DEBES  AGREGAR EL WithStartRow PARA QUE FUNCIONE LO DE LA FILAO  QUE EMPIEZE POR ESA FILA 
 class AfiliadoImport implements ToModel, WithStartRow
@@ -250,6 +251,7 @@ class AfiliadoImport implements ToModel, WithStartRow
  $fechaNacimiento = isset($row[7]) ? Date::excelToDateTimeObject($row[7])->format('Y-m-d') : null;
  $fechaProbParto = isset($row[46]) ? Date::excelToDateTimeObject($row[46])->format('Y-m-d') : null;
  $fechaAntecedente = isset($row[48]) ? Date::excelToDateTimeObject($row[48])->format('Y-m-d') : null;
+ $tipo_identifi = isset($row[1]) ? (string)$row[1] : null; // Convertir a cadena de texto
 $numero_identifi = isset($row[2]) ? (string)$row[2] : null; // Convertir a cadena de texto
 
 
@@ -269,6 +271,12 @@ $numero_identifi = isset($row[2]) ? (string)$row[2] : null; // Convertir a caden
    
 
 
+// $afiliado_1 = DB::connection('sqlsrv_1')
+// //->select('identificacion') // Especifica la conexión 'sqlsrv_1'
+// ->table('maestroIdentificaciones') // Accede a la tabla 'maestroIdentificaciones'
+// ->where('identificacion', $numero_identifi)
+// ->where('tipoIdentificacion', $tipo_identifi) // Filtro por número de identificación
+// ->first(); // Obtener el primer registro que coincida
 
 
  // Busca si el afiliado ya existe en la base de datos
@@ -278,7 +286,7 @@ $numero_identifi = isset($row[2]) ? (string)$row[2] : null; // Convertir a caden
      // Si el afiliado no existe, crea uno nuevo
      $afiliado = new afiliado([
         'fecha_atencion' => $fechaatencion,
-         'tipo_identificacion' => $row[1] ?? null,
+         'tipo_identificacion' => $tipo_identifi,
          'numero_identificacion' => $numero_identifi,
          'primer_nombre' => $row[3] ?? null,
          'segundo_nombre' => $row[4] ?? null,
