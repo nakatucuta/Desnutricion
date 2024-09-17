@@ -9,9 +9,19 @@
                 </button>
             </div>
             <div class="modal-body">
-                <ul id="vacunaList" class="list-group">
-                    {{-- dddddddddd --}}
-                </ul>
+                <!-- Tabla de vacunas -->
+                <table class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th>Vacuna</th>
+                            <th>Docis</th>
+                            <th>Fecha de Vacunación</th>
+                        </tr>
+                    </thead>
+                    <tbody id="vacunaList">
+                        {{-- Aquí se agregan las vacunas dinámicamente --}}
+                    </tbody>
+                </table>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-dismiss="modal">Cerrar</button>

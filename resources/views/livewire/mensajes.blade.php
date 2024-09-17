@@ -67,7 +67,6 @@
     }
 </style>
 
-
 @if(Session::has('mensaje'))
 <div class="alert alert-primary custom-alert" role="alert">
     <button type="button" class="close" data-dismiss="alert">&times;</button>
@@ -80,7 +79,18 @@
 <div class="alert alert-danger custom-alert" role="alert">
     <button type="button" class="close" data-dismiss="alert">&times;</button>
     <i class="fas fa-exclamation-circle"></i> <!-- Icono llamativo -->
-    <strong>{{ Session::get('error1') }}</strong>
+    
+    <!-- Si el mensaje es un array, lo recorremos -->
+    @if(is_array(Session::get('error1')))
+        <ul>
+            @foreach(Session::get('error1') as $error)
+                <li><strong>{{ $error }}</strong></li>
+            @endforeach
+        </ul>
+    @else
+        <!-- Si es solo un string, lo mostramos directamente -->
+        <strong>{{ Session::get('error1') }}</strong>
+    @endif
 </div>
 @endif
 

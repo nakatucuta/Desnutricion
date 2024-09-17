@@ -12,6 +12,8 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
 use App\Mail\SolicitudMail;
 use App\Models\CorreoEnviado;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 
 
 class AfiliadoController extends Controller
@@ -83,19 +85,97 @@ class AfiliadoController extends Controller
      */
     public function importExcel(Request $request)
     {
+        // Validar que se haya subido un archivo y que sea de tipo 'xlsx' o 'xls'
         $request->validate([
             'file' => 'required|mimes:xlsx,xls',
         ]);
-
+    
+        // Obtenemos el archivo del request
         $file = $request->file('file');
-
+    
         if ($file) {
-            Excel::import(new AfiliadoImport, $file);
-            return redirect()->route('afiliado')->with('success', 'Datos importados correctamente');
+            // Verificar que el usuario esté autenticado, si no está autenticado, redirigir con un error
+            if (!Auth::check()) {
+                return redirect()->route('afiliado')->with('error', 'Usuario no autenticado.');
+            }
+    
+            // Instanciar la clase AfiliadoImport que se encargará de procesar el archivo
+            $import = new \App\Imports\AfiliadoImport();
+    
+            // Importar los datos del archivo Excel usando la clase AfiliadoImport
+            Excel::import($import, $file);
+    
+            // Obtener cualquier error que haya ocurrido durante la importación
+            $errores = $import->getErrores();
+    
+            // Si hay errores, redirigir con un mensaje de error y no continuar el proceso
+            if (!empty($errores)) {
+                // Si hay algún error, redirigir inmediatamente sin guardar ningún dato
+                return redirect()->route('afiliado')->with('error1', $errores);
+            }
+    
+            // Verificar si se debe guardar los datos; esto depende del proceso de validación dentro de AfiliadoImport
+            if ($import->debeGuardar()) {
+                // Obtener las filas validadas para guardar (tanto afiliados como vacunas)
+                $filasParaGuardar = $import->getFilasParaGuardar();
+    
+                // Iterar sobre cada fila validada
+                foreach ($filasParaGuardar as $fila) {
+                    // Asignar el 'user_id' al afiliado
+                    $fila['afiliado']['user_id'] = Auth::id();
+    
+                    // Verificar si el afiliado ya existe en la base de datos
+                    $afiliado = Afiliado::where('numero_identificacion', $fila['afiliado']['numero_identificacion'])
+                                        ->first();
+    
+                    if (!$afiliado) {
+                        // Si el afiliado no existe, crear un nuevo registro
+                        $afiliado = Afiliado::create($fila['afiliado']);
+                    }
+    
+                   // Guardar las vacunas asociadas al afiliado
+                        foreach ($fila['vacunas'] as $vacunaData) {
+                            // Verificar si ya existe una vacuna con la misma dosis y el mismo nombre para el mismo afiliado
+                            $existeVacuna = Vacuna::where('afiliado_id', $afiliado->id)
+                                                ->where('docis', $vacunaData['docis'])
+                                                ->where('nombre', $vacunaData['nombre'])  // Verifica también el nombre de la vacuna
+                                                ->first();
+
+                            if (!$existeVacuna) {
+                                // Si no existe la vacuna con la misma dosis y el mismo nombre, crearla
+                                $vacunaData['afiliado_id'] = $afiliado->id;
+                                Vacuna::create($vacunaData);  // Guardar la vacuna asociada
+                            }
+                        }
+                }
+    
+                // Redirigir con un mensaje de éxito si todo se ha guardado correctamente
+                return redirect()->route('afiliado')->with('success', 'Datos importados correctamente');
+            } else {
+                // Si no se deben guardar los datos, redirigir con un mensaje de error
+                return redirect()->route('afiliado')->with('error1', 'No se pudo cargar el archivo debido a errores en los datos.');
+            }
         } else {
+            // Si no se sube ningún archivo, mostrar un mensaje de error al usuario
             return redirect()->route('afiliado')->with('error', 'Por favor, sube un archivo Excel.');
         }
     }
+    
+    
+
+    
+
+    
+    
+    
+
+    
+
+    
+
+    
+
+    
 
     /**
      * Obtiene las vacunas asociadas a un afiliado específico.
@@ -108,7 +188,7 @@ class AfiliadoController extends Controller
         $vacunas = DB::table('vacunas as a')
             ->join('afiliados as b', 'a.afiliado_id', '=', 'b.id')
             ->where('b.id', $id)
-            ->select('a.nombre as nombre_vacuna')
+            ->select('a.nombre as nombre_vacuna','a.docis as docis_vacuna','a.fecha_vacuna as fecha_vacunacion')
             ->get();
 
         return response()->json($vacunas);

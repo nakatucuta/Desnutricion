@@ -19,9 +19,12 @@ use Illuminate\Support\Facades\DB;
 //Y LE DEBES  AGREGAR EL WithStartRow PARA QUE FUNCIONE LO DE LA FILAO  QUE EMPIEZE POR ESA FILA 
 class AfiliadoImport implements ToModel, WithStartRow
 {
+    protected $errores = []; // Aquí se guardarán los mensajes de advertencia
+    protected $guardar = true; // Indicador de si debemos guardar o no
+    protected $filasParaGuardar = []; // Aquí almacenamos los afiliados que pasaron la validación
 
     //ESTA FUNCION  ES LA QUE CREA LA VERIFICACION Y LA ASIGNAS LAS TABLAS FORANEAS
-
+    
     private $batch_verifications_id; // Almacena el ID único para esta importación
 
     public function __construct()
@@ -54,7 +57,6 @@ class AfiliadoImport implements ToModel, WithStartRow
      */
     public function model(array $row)
     {
-
 
       
 
@@ -267,110 +269,155 @@ $numero_identifi = isset($row[2]) ? (string)$row[2] : null; // Convertir a caden
     
 // ]);
 // $verificacion->save();
-     
+
+
+// Consulta el afiliado en la base de datos externa
    
+// Verificar si el afiliado existe en la base de datos externa
+  // Consulta en la base de datos externa para validar si el afiliado existe
+  $numero_carnet = DB::connection('sqlsrv_1')
+  ->select('maestroIdentificaciones.numeroCarnet')
+  ->table('maestroIdentificaciones')
+  ->where('identificacion', $numero_identifi)
+  ->where('tipoIdentificacion', $tipo_identifi)
+  ->first();
 
 
-// $afiliado_1 = DB::connection('sqlsrv_1')
-// //->select('identificacion') // Especifica la conexión 'sqlsrv_1'
-// ->table('maestroIdentificaciones') // Accede a la tabla 'maestroIdentificaciones'
-// ->where('identificacion', $numero_identifi)
-// ->where('tipoIdentificacion', $tipo_identifi) // Filtro por número de identificación
-// ->first(); // Obtener el primer registro que coincida
+  $afiliado_1 = DB::connection('sqlsrv_1')
+  ->table('maestroIdentificaciones')
+  ->where('identificacion', $numero_identifi)
+  ->where('tipoIdentificacion', $tipo_identifi)
+  ->first();
 
+// Si no se encuentra el afiliado en la base externa
+if (!$afiliado_1) {
+  $this->errores[] = "No se encontró ningún afiliado con la identificación: $numero_identifi y tipo: $tipo_identifi";
+  $this->guardar = false; // No se debe guardar nada
+  return null;
+}
 
- // Busca si el afiliado ya existe en la base de datos
- $afiliado = afiliado::where('numero_identificacion', $numero_identifi)->first();
+// Verificar si el afiliado ya existe en la base de datos local
+$afiliado = Afiliado::where('numero_identificacion', $numero_identifi)->first();
 
- if (!$afiliado) {
-     // Si el afiliado no existe, crea uno nuevo
-     $afiliado = new afiliado([
-        'fecha_atencion' => $fechaatencion,
-         'tipo_identificacion' => $tipo_identifi,
-         'numero_identificacion' => $numero_identifi,
-         'primer_nombre' => $row[3] ?? null,
-         'segundo_nombre' => $row[4] ?? null,
-         'primer_apellido' => $row[5] ?? null,
-         'segundo_apellido' => $row[6] ?? null,
-         'fecha_nacimiento' => $fechaNacimiento,
-         'edad_anos' => $row[8] ?? null,
-         'edad_meses' => $row[9] ?? null,
-         'edad_dias' => $row[10] ?? null,
-         'total_meses' => $row[11] ?? null,
-         'esquema_completo' => $row[12] ?? null,
-         'sexo' => $row[13] ?? null,
-         'genero' => $row[14] ?? null,
-         'orientacion_sexual' => $row[15] ?? null,
-         'edad_gestacional' => $row[16] ?? null,
-         'pais_nacimiento' => $row[17] ?? null,
-         'estatus_migratorio' => $row[18] ?? null,
-         'lugar_atencion_parto' => $row[19] ?? null,
-         'regimen' => $row[20] ?? null,
-         'aseguradora' => $row[21] ?? null,
-         'pertenencia_etnica' => $row[22] ?? null,
-         'desplazado' => $row[23] ?? null,
-         'discapacitado' => $row[24] ?? null,
-         'fallecido' => $row[25] ?? null,
-         'victima_conflicto' => $row[26] ?? null,
-         'estudia' => $row[27] ?? null,
-         'pais_residencia' => $row[28] ?? null,
-         'departamento_residencia' => $row[29] ?? null,
-         'municipio_residencia' => $row[30] ?? null,
-         'comuna' => $row[31] ?? null,
-         'area' => $row[32] ?? null,
-         'direccion' => $row[33] ?? null,
-         'telefono_fijo' => $row[34] ?? null,
-         'celular' => $row[35] ?? null,
-         'email' => $row[36] ?? null,
-         'autoriza_llamadas' => $row[37] ?? null,
-         'autoriza_correos' => $row[38] ?? null,
-         'contraindicacion_vacuna' => $row[39] ?? null,
-         'enfermedad_contraindicacion' => $row[40] ?? null,
-         'reaccion_biologicos' => $row[41] ?? null,
-         'sintomas_reaccion' => $row[42] ?? null,
-         'condicion_usuaria' => $row[43] ?? null,
-         'fecha_ultima_menstruacion' => $row[44] ?? null,
-         'semanas_gestacion' => $row[45] ?? null,
-         'fecha_prob_parto' => $fechaProbParto,
-         'embarazos_previos' => $row[47] ?? null,
-         'fecha_antecedente' => $fechaAntecedente,
-         'tipo_antecedente' => $row[49] ?? null,
-         'descripcion_antecedente' => $row[50] ?? null,
-         'observaciones_especiales' => $row[51] ?? null,
-         'madre_tipo_identificacion' => $row[52] ?? null,
-         'madre_identificacion' => $row[53] ?? null,
-         'madre_primer_nombre' => $row[54] ?? null,
-         'madre_segundo_nombre' => $row[55] ?? null,
-         'madre_primer_apellido' => $row[56] ?? null,
-         'madre_segundo_apellido' => $row[57] ?? null,
-         'madre_correo' => $row[58] ?? null,
-         'madre_telefono' => $row[59] ?? null,
-         'madre_celular' => $row[60] ?? null,
-         'madre_regimen' => $row[61] ?? null,
-         'madre_pertenencia_etnica' => $row[62] ?? null,
-         'madre_desplazada' => $row[63] ?? null,
-         'cuidador_tipo_identificacion' => $row[64] ?? null,
-         'cuidador_identificacion' => $row[65] ?? null,
-         'cuidador_primer_nombre' => $row[66] ?? null,
-         'cuidador_segundo_nombre' => $row[67] ?? null,
-         'cuidador_primer_apellido' => $row[68] ?? null,
-         'cuidador_segundo_apellido' => $row[69] ?? null,
-         'cuidador_parentesco' => $row[70] ?? null,
-         'cuidador_correo' => $row[71] ?? null,
-         'cuidador_telefono' => $row[72] ?? null,
-         'cuidador_celular' => $row[73] ?? null,
-         'esquema_vacunacion' => $row[74] ?? null,
-         'user_id' => $usuario_activo,
-         'batch_verifications_id' => $this->batch_verifications_id, // Clave foránea
-         'created_at' => Carbon::now()->format('Y-m-d H:i:s'),
-         'updated_at' => Carbon::now()->format('Y-m-d H:i:s'),
-         
-     ]);
-     
-   
-     // Guarda el modelo afiliado
-     $afiliado->save();
- }
+// Si el afiliado no existe, creamos un nuevo registro
+if (!$afiliado) {
+  $afiliadoData = [
+            'fecha_atencion' => $fechaatencion,
+            'tipo_identificacion' => $tipo_identifi,
+            'numero_identificacion' => $numero_identifi,
+            'primer_nombre' => $row[3] ?? null,
+            'segundo_nombre' => $row[4] ?? null,
+            'primer_apellido' => $row[5] ?? null,
+            'segundo_apellido' => $row[6] ?? null,
+            'fecha_nacimiento' => $fechaNacimiento,
+            'edad_anos' => $row[8] ?? null,
+            'edad_meses' => $row[9] ?? null,
+            'edad_dias' => $row[10] ?? null,
+            'total_meses' => $row[11] ?? null,
+            'esquema_completo' => $row[12] ?? null,
+            'sexo' => $row[13] ?? null,
+            'genero' => $row[14] ?? null,
+            'orientacion_sexual' => $row[15] ?? null,
+            'edad_gestacional' => $row[16] ?? null,
+            'pais_nacimiento' => $row[17] ?? null,
+            'estatus_migratorio' => $row[18] ?? null,
+            'lugar_atencion_parto' => $row[19] ?? null,
+            'regimen' => $row[20] ?? null,
+            'aseguradora' => $row[21] ?? null,
+            'pertenencia_etnica' => $row[22] ?? null,
+            'desplazado' => $row[23] ?? null,
+            'discapacitado' => $row[24] ?? null,
+            'fallecido' => $row[25] ?? null,
+            'victima_conflicto' => $row[26] ?? null,
+            'estudia' => $row[27] ?? null,
+            'pais_residencia' => $row[28] ?? null,
+            'departamento_residencia' => $row[29] ?? null,
+            'municipio_residencia' => $row[30] ?? null,
+            'comuna' => $row[31] ?? null,
+            'area' => $row[32] ?? null,
+            'direccion' => $row[33] ?? null,
+            'telefono_fijo' => $row[34] ?? null,
+            'celular' => $row[35] ?? null,
+            'email' => $row[36] ?? null,
+            'autoriza_llamadas' => $row[37] ?? null,
+            'autoriza_correos' => $row[38] ?? null,
+            'contraindicacion_vacuna' => $row[39] ?? null,
+            'enfermedad_contraindicacion' => $row[40] ?? null,
+            'reaccion_biologicos' => $row[41] ?? null,
+            'sintomas_reaccion' => $row[42] ?? null,
+            'condicion_usuaria' => $row[43] ?? null,
+            'fecha_ultima_menstruacion' => $row[44] ?? null,
+            'semanas_gestacion' => $row[45] ?? null,
+            'fecha_prob_parto' => $fechaProbParto,
+            'embarazos_previos' => $row[47] ?? null,
+            'fecha_antecedente' => $fechaAntecedente,
+            'tipo_antecedente' => $row[49] ?? null,
+            'descripcion_antecedente' => $row[50] ?? null,
+            'observaciones_especiales' => $row[51] ?? null,
+            'madre_tipo_identificacion' => $row[52] ?? null,
+            'madre_identificacion' => $row[53] ?? null,
+            'madre_primer_nombre' => $row[54] ?? null,
+            'madre_segundo_nombre' => $row[55] ?? null,
+            'madre_primer_apellido' => $row[56] ?? null,
+            'madre_segundo_apellido' => $row[57] ?? null,
+            'madre_correo' => $row[58] ?? null,
+            'madre_telefono' => $row[59] ?? null,
+            'madre_celular' => $row[60] ?? null,
+            'madre_regimen' => $row[61] ?? null,
+            'madre_pertenencia_etnica' => $row[62] ?? null,
+            'madre_desplazada' => $row[63] ?? null,
+            'cuidador_tipo_identificacion' => $row[64] ?? null,
+            'cuidador_identificacion' => $row[65] ?? null,
+            'cuidador_primer_nombre' => $row[66] ?? null,
+            'cuidador_segundo_nombre' => $row[67] ?? null,
+            'cuidador_primer_apellido' => $row[68] ?? null,
+            'cuidador_segundo_apellido' => $row[69] ?? null,
+            'cuidador_parentesco' => $row[70] ?? null,
+            'cuidador_correo' => $row[71] ?? null,
+            'cuidador_telefono' => $row[72] ?? null,
+            'cuidador_celular' => $row[73] ?? null,
+            'esquema_vacunacion' => $row[74] ?? null,
+            'user_id' => $usuario_activo,
+            'batch_verifications_id' => $this->batch_verifications_id, // Clave foránea
+            'created_at' => Carbon::now()->format('Y-m-d H:i:s'),
+            'updated_at' => Carbon::now()->format('Y-m-d H:i:s'),
+        ];
+
+        // Añadir afiliado y vacunas a filasParaGuardar
+        $vacunasData = $this->extraerVacunas($row, $fechaatencion, $responsable, $fuen_ingresado_paiweb, $motivo_noingreso, $observaciones, $usuario_activo);
+        $this->filasParaGuardar[] = [
+            'afiliado' => $afiliadoData,
+            'vacunas' => $vacunasData,
+        ];
+    } else {
+        // Si el afiliado ya existe, procesamos solo las vacunas nuevas
+        $vacunasData = $this->extraerVacunas($row, $fechaatencion, $responsable, $fuen_ingresado_paiweb, $motivo_noingreso, $observaciones, $usuario_activo);
+    
+        foreach ($vacunasData as $vacuna) {
+            // Verificar si la vacuna con la misma dosis ya está registrada para evitar duplicados solo en dosis
+            $existeVacuna = Vacuna::where('afiliado_id', $afiliado->id)
+                ->where('docis', $vacuna['docis'])
+                ->first();
+    
+            if (!$existeVacuna) {
+                // Guardamos la nueva vacuna si no existe la misma dosis
+                $vacuna['afiliado_id'] = $afiliado->id;
+                Vacuna::create($vacuna);  // Guardar la vacuna asociada
+            }
+        }
+    }
+    
+    return null;
+}
+ // Retornar null para no guardar un modelo inválido
+// $responsable = isset($row[251]) ? $row[251] : null;
+// $fuen_ingresado_paiweb = isset($row[252]) ? $row[252] : null;
+// $motivo_noingreso = isset($row[253]) ? $row[253] : null;
+// $observaciones = isset($row[254]) ? $row[254] : null;
+// $usuario_activo = Auth::id();
+private function extraerVacunas($row, $fechaatencion, $responsable, $fuen_ingresado_paiweb, $motivo_noingreso, $observaciones, $usuario_activo)
+{
+    $vacunas = [];
 
  // Verificar si todos los campos en el rango de 75 a 250 están vacíos
 $allVacunaFieldsEmpty = true;
@@ -1142,36 +1189,12 @@ if (!$allVacunaFieldsEmpty) { // Si hay al menos un campo no vacío
                 continue; // Saltar a la siguiente iteración si no se encuentra una vacuna válida
             }
 
-//         // Validar tipos de datos
-// if (!is_string($vacunaNombre) ||
-// (!is_null($docis) && !is_string($docis)) ||
-// (!is_null($laboratorio) && !is_string($laboratorio)) ||
-// (!is_null($lote) && !is_string($lote)) ||
-// (!is_null($jeringa) && !is_string($jeringa)) ||
-// (!is_null($lote_jeringa) && !is_string($lote_jeringa)) ||
-// (!is_null($diluyente) && !is_string($diluyente)) ||
-// (!is_null($lote_diluyente) && !is_string($lote_diluyente)) ||
-// (!is_null($observacion) && !is_string($observacion)) ||
-// (!is_null($gotero) && !is_string($gotero)) ||
-// (!is_null($tipo_neumococo) && !is_string($tipo_neumococo)) ||
-// (!is_null($num_frascos_utilizados) && !is_numeric($num_frascos_utilizados)) ||
-// (!is_null($fecha_vacuna) && !is_string($fecha_vacuna)) ||
-// (!is_null($responsable_) && !is_string($responsable_)) ||
-// (!is_null($fuen_ingresado_paiweb_) && !is_string($fuen_ingresado_paiweb_)) ||
-// (!is_null($motivo_noingreso_) && !is_string($motivo_noingreso_)) ||
-// (!is_null($observaciones_) && !is_string($observaciones_))
-// ) {
-// Log::error("Error de tipo de dato en la columna $i para la vacuna $vacunaNombre");
-// continue; // Saltar a la siguiente iteración si hay un error de tipo de dato
-// }
 
 
-            // Crear y guardar la vacuna si se ha identificado una
-            if (isset($vacunaNombre)) {
-                Log::info("Guardando vacuna: $vacunaNombre");
 
-                $vacuna = new vacuna([
-                    'afiliado_id' => $afiliado->id,
+if ($vacunaNombre) {
+    $vacunas[] = [
+                    
                     'nombre' => $vacunaNombre,
                     'docis' => $docis ?? null,
                     'laboratorio' => $laboratorio ?? null,
@@ -1194,27 +1217,26 @@ if (!$allVacunaFieldsEmpty) { // Si hay al menos un campo no vacío
                     'batch_verifications_id' => $this->batch_verifications_id, // Clave foránea
                     'created_at' => Carbon::now()->format('Y-m-d H:i:s'),
                     'updated_at' => Carbon::now()->format('Y-m-d H:i:s'),
-                ]);
-
-                // Guarda la vacuna
-                $vacuna->save();
-
-                // Limpiar las variables
-                unset($vacunaNombre, $docis, $laboratorio, $lote, $jeringa, $lote_jeringa, 
-                $diluyente, $lote_diluyente, $observacion, $gotero, $tipo_neumococo,
-                $num_frascos_utilizados,$fecha_vacuna,
-                $responsable_,$fuen_ingresado_paiweb_,$motivo_noingreso_,$observaciones_,$usuario_activo_);
+                ];
             }
         }
     }
 }
-
-// Añadir un mensaje de log para confirmar el guardado
-Log::info('Afiliado guardado con éxito:', $afiliado->toArray());
-
-return $afiliado;
+return $vacunas;
 }
 
+public function getErrores()
+{
+    return $this->errores;
+}
 
+public function debeGuardar()
+{
+    return $this->guardar;
+}
 
+public function getFilasParaGuardar()
+{
+    return $this->filasParaGuardar;
+}
 }

@@ -174,7 +174,7 @@
                         success: function(data) {
                             $('#vacunaList').empty();
                             data.forEach(function(vacuna) {
-                                $('#vacunaList').append('<li class="list-group-item">' + vacuna.nombre_vacuna + '</li>');
+                                $('#vacunaList').append('<tr><td>' + vacuna.nombre_vacuna + '</td><td>' + vacuna.docis_vacuna + '</td><td>' + vacuna.fecha_vacunacion + '</td></tr>');
                             });
                             $('#vacunaModal').modal('show');
                         },
