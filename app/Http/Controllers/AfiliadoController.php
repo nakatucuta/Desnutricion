@@ -47,7 +47,8 @@ class AfiliadoController extends Controller
                 'b.primer_apellido',
                 'b.segundo_apellido',
                 'b.numero_identificacion',
-                'c.batch_verifications_id'
+                'c.batch_verifications_id',
+                // 'b.numero_carnet'
             )
             ->join(DB::raw('vacunas AS c'), 'b.id', '=', 'c.afiliado_id')
             ->get(); // Usamos get() en lugar de paginate() porque DataTables manejará la paginación.
@@ -57,7 +58,7 @@ class AfiliadoController extends Controller
             $sivigilas_usernormal = DB::table('afiliados as b')
 
             ->select('b.id', 'b.primer_nombre', 'b.segundo_nombre', 'b.primer_apellido', 'b.segundo_apellido', 
-            'b.numero_identificacion')
+            'b.numero_identificacion','b.numero_carnet')
             // ->join(DB::raw('vacunas AS c'), 'b.id', '=', 'c.afiliado_id')
 
            ->get();
@@ -123,7 +124,7 @@ class AfiliadoController extends Controller
                 foreach ($filasParaGuardar as $fila) {
                     // Asignar el 'user_id' al afiliado
                     $fila['afiliado']['user_id'] = Auth::id();
-    
+                    
                     // Verificar si el afiliado ya existe en la base de datos
                     $afiliado = Afiliado::where('numero_identificacion', $fila['afiliado']['numero_identificacion'])
                                         ->first();
@@ -131,6 +132,7 @@ class AfiliadoController extends Controller
                     if (!$afiliado) {
                         // Si el afiliado no existe, crear un nuevo registro
                         $afiliado = Afiliado::create($fila['afiliado']);
+                                // Si el afiliado ya existe, actualizar su número de carnet
                     }
     
                    // Guardar las vacunas asociadas al afiliado
@@ -183,16 +185,28 @@ class AfiliadoController extends Controller
      * @param  int  $id
      * @return \Illuminate\Http\JsonResponse
      */
-    public function getVacunas($id)
-    {
-        $vacunas = DB::table('vacunas as a')
-            ->join('afiliados as b', 'a.afiliado_id', '=', 'b.id')
-            ->where('b.id', $id)
-            ->select('a.nombre as nombre_vacuna','a.docis as docis_vacuna','a.fecha_vacuna as fecha_vacunacion')
-            ->get();
+  // Método que obtiene las vacunas asociadas a un afiliado por id y número de carnet
+  public function getVacunas($id, $numeroCarnet)
+  {
+      // Consulta para obtener las vacunas que coincidan con el id o el número de carnet
+      $vacunas = DB::table('vacunas as a')
+          ->join('afiliados as b', 'a.afiliado_id', '=', 'b.id')
+          // La condición es que se cumpla el id o el numero_carnet
+          ->where(function($query) use ($id, $numeroCarnet) {
+              $query->where('b.id', $id)
+                    ->orWhere('b.numero_carnet', $numeroCarnet);
+          })
+          // Seleccionar los campos que queremos devolver
+          ->select('a.nombre as nombre_vacuna', 'a.docis as docis_vacuna', 'a.fecha_vacuna as fecha_vacunacion')
+          // Ejecutar la consulta y obtener los resultados
+          ->get();
+  
+      // Retornar la respuesta en formato JSON con los datos obtenidos
+      return response()->json($vacunas);
+  }
+  
+  
 
-        return response()->json($vacunas);
-    }
 
     /**
      * Elimina un registro de Batch_verification y sus afiliados y vacunas asociados.

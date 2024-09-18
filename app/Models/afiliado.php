@@ -95,6 +95,7 @@ class afiliado extends Model
         'esquema_vacunacion',
         'user_id',
         'batch_verifications_id',
+        'numero_carnet',
     ];
 
      /**

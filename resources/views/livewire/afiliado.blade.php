@@ -163,27 +163,45 @@
                 }
             });
 
-            // Asignar eventos de clic para elementos con clase 'numero-identificacion'
-            function attachEventHandlers() {
-                $('.numero-identificacion').on('click', function(e) {
-                    e.preventDefault();
-                    var id = $(this).data('id');
-                    $.ajax({
-                        url: '{{ route("getVacunas", "") }}/' + id,
-                        method: 'GET',
-                        success: function(data) {
-                            $('#vacunaList').empty();
-                            data.forEach(function(vacuna) {
-                                $('#vacunaList').append('<tr><td>' + vacuna.nombre_vacuna + '</td><td>' + vacuna.docis_vacuna + '</td><td>' + vacuna.fecha_vacunacion + '</td></tr>');
-                            });
-                            $('#vacunaModal').modal('show');
-                        },
-                        error: function(error) {
-                            console.log(error);
-                        }
-                    });
+        // Asignar eventos de clic para elementos con clase 'numero-identificacion'
+function attachEventHandlers() {
+    $('.numero-identificacion').on('click', function(e) {
+        e.preventDefault();
+        
+        // Se obtienen los valores de 'data-id' y 'data-carnet'
+        var id = $(this).data('id');
+        var numeroCarnet = $(this).data('carnet');
+
+        // Generar la URL correctamente con ambos parámetros (id y numero_carnet)
+        var url = '{{ route("getVacunas", ["id" => ":id", "numero_carnet" => ":numeroCarnet"]) }}';
+        url = url.replace(':id', id);
+        url = url.replace(':numeroCarnet', numeroCarnet);
+
+        // Realizar la solicitud AJAX con la URL corregida
+        $.ajax({
+            url: url,
+            method: 'GET',
+            success: function(data) {
+                // Se vacía la tabla de vacunas antes de agregar nuevos datos
+                $('#vacunaList').empty();
+
+                // Iterar sobre los datos recibidos y agregarlos a la tabla
+                data.forEach(function(vacuna) {
+                    $('#vacunaList').append('<tr><td>' + vacuna.nombre_vacuna + '</td><td>' + vacuna.docis_vacuna + '</td><td>' + vacuna.fecha_vacunacion + '</td></tr>');
                 });
+
+                // Mostrar el modal con los datos actualizados
+                $('#vacunaModal').modal('show');
+            },
+            // Mostrar el error en la consola si la solicitud falla
+            error: function(error) {
+                console.log(error);
             }
+        });
+    });
+}
+
+
 
             // Llamar a attachEventHandlers después de inicializar DataTables
             attachEventHandlers();

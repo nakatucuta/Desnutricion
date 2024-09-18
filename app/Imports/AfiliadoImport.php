@@ -275,36 +275,44 @@ $numero_identifi = isset($row[2]) ? (string)$row[2] : null; // Convertir a caden
    
 // Verificar si el afiliado existe en la base de datos externa
   // Consulta en la base de datos externa para validar si el afiliado existe
-  $numero_carnet = DB::connection('sqlsrv_1')
-  ->select('maestroIdentificaciones.numeroCarnet')
-  ->table('maestroIdentificaciones')
-  ->where('identificacion', $numero_identifi)
-  ->where('tipoIdentificacion', $tipo_identifi)
-  ->first();
+
 
 
   $afiliado_1 = DB::connection('sqlsrv_1')
-  ->table('maestroIdentificaciones')
-  ->where('identificacion', $numero_identifi)
-  ->where('tipoIdentificacion', $tipo_identifi)
-  ->first();
+    ->table('maestroIdentificaciones')
+    ->where('identificacion', $numero_identifi)
+    ->where('tipoIdentificacion', $tipo_identifi)
+    ->first();
 
 // Si no se encuentra el afiliado en la base externa
 if (!$afiliado_1) {
-  $this->errores[] = "No se encontró ningún afiliado con la identificación: $numero_identifi y tipo: $tipo_identifi";
-  $this->guardar = false; // No se debe guardar nada
-  return null;
+    $this->errores[] = "No se encontró ningún afiliado con la identificación: $numero_identifi y tipo: $tipo_identifi";
+    $this->guardar = false; // No se debe guardar nada
+    return null;
 }
 
+$numero_carnet = DB::connection('sqlsrv_1')
+    ->table('maestroIdentificaciones')
+    ->where('identificacion', $numero_identifi)
+    ->where('tipoIdentificacion', $tipo_identifi)
+    ->value('numeroCarnet');  // Obtener el valor de numeroCarnet
+
+
+    if (is_null($numero_carnet)) {
+        Log::info("El número de carnet es nulo para identificación: $numero_identifi");
+    } else {
+        Log::info("Número de carnet obtenido: $numero_carnet para identificación: $numero_identifi");
+    }
 // Verificar si el afiliado ya existe en la base de datos local
 $afiliado = Afiliado::where('numero_identificacion', $numero_identifi)->first();
 
 // Si el afiliado no existe, creamos un nuevo registro
 if (!$afiliado) {
-  $afiliadoData = [
+    $afiliadoData = [
             'fecha_atencion' => $fechaatencion,
             'tipo_identificacion' => $tipo_identifi,
             'numero_identificacion' => $numero_identifi,
+            'numero_carnet' => $numero_carnet, // Aquí estamos asignando el número de carnet correctamente
             'primer_nombre' => $row[3] ?? null,
             'segundo_nombre' => $row[4] ?? null,
             'primer_apellido' => $row[5] ?? null,
@@ -390,6 +398,8 @@ if (!$afiliado) {
             'vacunas' => $vacunasData,
         ];
     } else {
+
+
         // Si el afiliado ya existe, procesamos solo las vacunas nuevas
         $vacunasData = $this->extraerVacunas($row, $fechaatencion, $responsable, $fuen_ingresado_paiweb, $motivo_noingreso, $observaciones, $usuario_activo);
     

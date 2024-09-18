@@ -50,7 +50,7 @@
             <th style="font-size: smaller;" scope="col">Id</th>
             <th style="font-size: smaller;" scope="col">Numero Identificacion</th>
             <th style="font-size: smaller;" scope="col">Nombre Paciente</th>
-            {{-- <th style="font-size: smaller;" scope="col">Lote</th> --}}
+            <th style="font-size: smaller;" scope="col">Numero Carnet</th> 
             <th style="font-size: smaller;" scope="col">Acciones</th>
         </tr>
     </thead>
@@ -64,9 +64,15 @@
     @endphp
         <tr>
             <td><small>{{ $student2->id }}</small></td>
-            <td><a href="#" class="numero-identificacion" data-id="{{ $student2->id }}">{{ $student2->numero_identificacion }}</a></td>
+            <td>
+                <a href="#" class="numero-identificacion" 
+                   data-id="{{ $student2->id }}" 
+                   data-carnet="{{ $student2->numero_carnet }}">
+                   {{ $student2->numero_identificacion }}
+                </a>
+            </td>            
             <td><small>{{ $student2->primer_nombre.' '.$student2->segundo_nombre.' '.$student2->primer_apellido.' '.$student2->segundo_apellido }}</small></td>
-            {{-- <td><small>{{ $student2->batch_verifications_id }}</small></td> --}}
+            <td><small>{{ $student2->numero_carnet }}</small></td> 
             <td>
                 @if($correoEnviado)
                     <!-- Deshabilitar el botón si ya se envió el correo -->
