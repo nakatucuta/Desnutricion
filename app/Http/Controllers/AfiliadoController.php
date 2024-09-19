@@ -14,6 +14,7 @@ use App\Mail\SolicitudMail;
 use App\Models\CorreoEnviado;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
+use Carbon\Carbon;
 
 
 class AfiliadoController extends Controller
@@ -187,23 +188,34 @@ class AfiliadoController extends Controller
      */
   // Método que obtiene las vacunas asociadas a un afiliado por id y número de carnet
   public function getVacunas($id, $numeroCarnet)
-  {
-      // Consulta para obtener las vacunas que coincidan con el id o el número de carnet
-      $vacunas = DB::table('vacunas as a')
-          ->join('afiliados as b', 'a.afiliado_id', '=', 'b.id')
-          // La condición es que se cumpla el id o el numero_carnet
-          ->where(function($query) use ($id, $numeroCarnet) {
-              $query->where('b.id', $id)
-                    ->orWhere('b.numero_carnet', $numeroCarnet);
-          })
-          // Seleccionar los campos que queremos devolver
-          ->select('a.nombre as nombre_vacuna', 'a.docis as docis_vacuna', 'a.fecha_vacuna as fecha_vacunacion')
-          // Ejecutar la consulta y obtener los resultados
-          ->get();
-  
-      // Retornar la respuesta en formato JSON con los datos obtenidos
-      return response()->json($vacunas);
-  }
+{
+    // Consulta para obtener las vacunas que coincidan con el id o el número de carnet
+    $vacunas = DB::table('vacunas as a')
+        ->join('afiliados as b', 'a.afiliado_id', '=', 'b.id')
+        ->join('users as c', 'a.user_id', '=', 'c.id')  // Unir con la tabla users
+        // La condición es que se cumpla el id o el numero_carnet
+        ->where(function($query) use ($id, $numeroCarnet) {
+            $query->where('b.id', $id)
+                  ->orWhere('b.numero_carnet', $numeroCarnet);
+        })
+        // Seleccionar los campos que queremos devolver
+        ->select(
+            'a.nombre as nombre_vacuna', 
+            'a.docis as docis_vacuna', 
+            'a.fecha_vacuna as fecha_vacunacion',
+            'c.name as nombre_usuario',  // Campo del nombre del usuario responsable
+            'b.primer_nombre as prim_nom',
+            'b.segundo_nombre as seg_nom',
+            'b.primer_apellido as pri_ape',
+            'b.segundo_apellido as seg_ape', // Campo del correo del usuario responsable
+        )
+        // Ejecutar la consulta y obtener los resultados
+        ->get();
+
+    // Retornar la respuesta en formato JSON con los datos obtenidos
+    return response()->json($vacunas);
+}
+
   
   
 
@@ -287,7 +299,7 @@ class AfiliadoController extends Controller
         CorreoEnviado::create([
             'user_id' => $userId,
             'patient_id' => $patientId,
-            'sent_at' => now(),
+            'sent_at' => Carbon::now()->toDateTimeString(),  // Devuelve la fecha en formato compatible con SQL Server
         ]);
     
         return redirect()->back()->with('success', 'Correo enviado exitosamente.');

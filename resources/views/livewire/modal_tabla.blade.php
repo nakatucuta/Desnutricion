@@ -3,7 +3,7 @@
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title" id="vacunaModalLabel">Vacunas Asociadas</h5>
+                <h5 class="modal-title" id="vacunaModalLabel">Vacunas Asociadas para: <strong><span id="nombrePaciente"></span></strong></h5>
                 <button type="button" class="close" data-dismiss="modal" aria-label="Close">
                     <span aria-hidden="true">&times;</span>
                 </button>
@@ -15,7 +15,8 @@
                         <tr>
                             <th>Vacuna</th>
                             <th>Docis</th>
-                            <th>Fecha de Vacunación</th>
+                            <th>Fecha </th>
+                            <th>IPS</th>
                         </tr>
                     </thead>
                     <tbody id="vacunaList">
