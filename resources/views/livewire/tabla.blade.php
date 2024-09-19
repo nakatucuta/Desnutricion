@@ -1,6 +1,14 @@
 {{-- <h4>Exportar Vacunas</h4> --}}
-<a href="{{ url('export-vacunas') }}" class="btn btn-success">Exportar a Excel</a>
-<div class="table-responsive mt-5">
+{{-- <a href="{{ url('export-vacunas') }}" class="btn btn-success">Exportar a Excel</a>
+<div class="table-responsive mt-5"> --}}
+<!-- Botón para exportar a Excel que abrirá el modal -->
+<a href="#" class="btn btn-success" data-toggle="modal" data-target="#exportModal">Exportar a Excel</a>
+
+@include('livewire.modal_fecha_report')
+
+
+<br>
+<br>
 
     @if( auth()->user()->usertype == 2)
     <table class="table table-hover table-striped table-bordered" id="sivigila">

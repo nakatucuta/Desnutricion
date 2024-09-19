@@ -10,6 +10,8 @@ use App\Http\Controllers\Seguimiento412Controller;
 use App\Http\Controllers\Cargue412Controller;
 use App\Http\Controllers\AfiliadoController;
 use App\Http\Controllers\EmailController;
+use App\Exports\vacunaExport;
+use Illuminate\Http\Request;
 
 
 /*
@@ -44,10 +46,31 @@ Route::post('/import-excel_2', [AfiliadoController::class, 'importExcel'])
 Route::get('/vacunas/{id}/{numero_carnet}', [AfiliadoController::class, 'getVacunas'])->name('getVacunas');
 
 
-// Ruta para el reporte Excel
-Route::get('export-vacunas', function () {
-    return Excel::download(new VacunaExport, 'vacunas.xlsx');
-});
+// // Ruta para el reporte Excel
+// Route::get('export-vacunas', function () {
+//     return Excel::download(new vacunaExport, 'vacunas.xlsx');
+// });
+
+// Ruta para el reporte Excel con fechas
+// Ruta para el reporte Excel con fechas
+Route::get('export-vacunas', function (Request $request) {
+    // Obtener los parámetros de la URL usando el objeto Request inyectado
+    $startDate = $request->input('start_date');
+    $endDate = $request->input('end_date');
+    // dd($startDate, $endDate);
+
+    // Verifica que las fechas se reciban correctamente
+    if ($startDate && $endDate) {
+        return Excel::download(new VacunaExport($startDate, $endDate), 'vacunas.xlsx');
+    } else {
+        // Manejar el caso en que no se pasen las fechas (por ejemplo, redirigir o mostrar un error)
+        return redirect()->back()->withErrors(['msg' => 'Fechas no proporcionadas']);
+    }
+})->name('exportVacunas');
+
+
+
+
 
 // Ruta para eliminar registros
 Route::delete('/batch_verifications/{id}', [AfiliadoController::class, 'destroy'])->name('batch_verifications.destroy');

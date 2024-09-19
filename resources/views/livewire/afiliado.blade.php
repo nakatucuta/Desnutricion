@@ -285,6 +285,19 @@ function attachEventHandlers() {
             }
         });
 
+// Función para manejar la exportación a Excel con fechas
+$('#exportButton').on('click', function() {
+                    var startDate = $('#start_date').val();
+                    var endDate = $('#end_date').val();
+
+                    if (startDate && endDate) {
+                        // Usa la ruta de Laravel para generar la URL completa
+                        var url = '{{ route("exportVacunas") }}' + '?start_date=' + startDate + '&end_date=' + endDate;
+                        window.location.href = url;
+                    } else {
+                        alert('Por favor selecciona ambas fechas.');
+                    }
+            });
 
 
         //JAVA SCRIPT PARA  ENVIAR EL CORREO DE LA MODAL  OJOOOOOO
@@ -330,6 +343,8 @@ function attachEventHandlers() {
         handleEmailModal();  // Aplica para cada redibujado (paginación, filtrado, etc.)
     });
 
+
+ 
 
     </script>
 @stop
