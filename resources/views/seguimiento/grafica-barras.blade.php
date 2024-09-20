@@ -77,48 +77,70 @@
     </div>
 
     <!-- Modal HTML para Evento 113 -->
-    <div class="modal fade" id="prestador113Modal" tabindex="-1" aria-labelledby="prestador113ModalLabel" aria-hidden="true">
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title" id="prestador113ModalLabel">Detalles del Prestador</h5>
-                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
-                        <span aria-hidden="true">&times;</span>
-                    </button>
-                </div>
-                <div class="modal-body">
-                    <ul id="prestador113List" class="list-group">
-                        {{-- Los detalles del prestador se cargarán aquí --}}
-                    </ul>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Cerrar</button>
-                </div>
+   <!-- Modal HTML -->
+<div class="modal fade" id="prestador113Modal" tabindex="-1" aria-labelledby="prestador113ModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="prestador113ModalLabel">Detalles del Prestador: <strong><span id="nombrePrestador"></span></strong></h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <!-- Tabla de detalles del prestador -->
+                <table class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th>Identificación</th>
+                            <th>Nombre Completo</th>
+                        </tr>
+                    </thead>
+                    <tbody id="prestador113List">
+                        {{-- Aquí se agregarán los detalles del prestador dinámicamente --}}
+                    </tbody>
+                </table>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Cerrar</button>
             </div>
         </div>
     </div>
+</div>
+
 
     <!-- Modal HTML para Evento 412 -->
-    <div class="modal fade" id="prestadorModal" tabindex="-1" aria-labelledby="prestadorModalLabel" aria-hidden="true">
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title" id="prestadorModalLabel">Detalles del Prestador</h5>
-                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
-                        <span aria-hidden="true">&times;</span>
-                    </button>
-                </div>
-                <div class="modal-body">
-                    <ul id="prestadorList" class="list-group">
-                        {{-- Los detalles del prestador se cargarán aquí --}}
-                    </ul>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Cerrar</button>
-                </div>
+    <!-- Modal HTML -->
+<div class="modal fade" id="prestadorModal" tabindex="-1" aria-labelledby="prestadorModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="prestadorModalLabel">Detalles del Prestador: <strong><span id="nombrePrestador"></span></strong></h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <!-- Tabla de detalles del prestador -->
+                <table class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th>Identificación</th>
+                            <th>Nombre Completo</th>
+                        </tr>
+                    </thead>
+                    <tbody id="prestadorList">
+                        {{-- Aquí se agregarán los detalles del prestador dinámicamente --}}
+                    </tbody>
+                </table>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Cerrar</button>
             </div>
         </div>
     </div>
+</div>
+
 
     <br>
 
@@ -304,27 +326,21 @@ $(document).ready(function () {
                             if (modal.is('#prestador113Modal')) {
                                 // Renderiza los detalles del prestador para Evento 113
                                 modalBody.append(
-                                    '<div class="row">' +
-                                    '<div class="col-md-6">' +
-                                    '<li class="list-group-item">Identificación: ' + detalle.tip_ide_ + ' - ' + detalle.num_ide_ + '</li>' +
-                                    '</div>' +
-                                    '<div class="col-md-6">' +
-                                    '<li class="list-group-item">' + detalle.pri_nom_ + ' ' + detalle.seg_nom_ + ' ' + detalle.pri_ape_ + ' ' + detalle.seg_ape_ + '</li>' +
-                                    '</div>' +
-                                    '</div>'
-                                );
+                                        '<tr>' +
+                                            '<td>' + detalle.tip_ide_ + ' - ' + detalle.num_ide_ + '</td>' +
+                                            '<td>' + detalle.pri_nom_ + ' ' + (detalle.seg_nom_ ? detalle.seg_nom_ + ' ' : '') + detalle.pri_ape_ + ' ' + detalle.seg_ape_ + '</td>' +
+                                        '</tr>'
+                                    );
+
                             } else {
                                 // Renderiza los detalles del prestador para Evento 412
                                 modalBody.append(
-                                    '<div class="row">' +
-                                    '<div class="col-md-6">' +
-                                    '<li class="list-group-item">Identificación: ' + detalle.tipo_identificacion + ' - ' + detalle.numero_identificacion + '</li>' +
-                                    '</div>' +
-                                    '<div class="col-md-6">' +
-                                    '<li class="list-group-item">' + detalle.primer_nombre + ' ' + detalle.segundo_nombre + ' ' + detalle.primer_apellido + ' ' + detalle.segundo_apellido + '</li>' +
-                                    '</div>' +
-                                    '</div>'
-                                );
+                                        '<tr>' +
+                                            '<td>' + detalle.tipo_identificacion + ' - ' + detalle.numero_identificacion + '</td>' +
+                                            '<td>' + detalle.primer_nombre + ' ' + (detalle.segundo_nombre ? detalle.segundo_nombre + ' ' : '') + detalle.primer_apellido + ' ' + detalle.segundo_apellido + '</td>' +
+                                        '</tr>'
+                                    );
+
                             }
                         });
                     } else {
