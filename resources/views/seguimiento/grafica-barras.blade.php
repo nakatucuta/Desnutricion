@@ -21,19 +21,26 @@
                                 <th>ID</th>
                                 <th>PRESTADOR</th>
                                 <th>CASOS ASIGNADOS</th>
-                                <th>CASOS CON SEGUIMIENTOS</th>
+                                <th>CASOS SIN SEGUIMIENTOS</th>
                             </tr>
                         </thead>
                         <tbody id="table">
-                            {{-- Aquí irán los datos de la tabla del Evento 113 --}}
+                            @foreach($results as $student2)
+                            <tr>
+                                <td>{{ $student2->id }}</td>
+                                <td>
+                                    <a href="#" data-id="{{ $student2->id }}">{{ $student2->name }}</a>
+                                </td>
+                                <td>{{ $student2->cant_casos_asignados }}</td>
+                                <td>{{ $student2->total_Sin_Seguimientos }}</td>
+                            </tr>
+                            @endforeach
                         </tbody>
                     </table>
-                    <div class="pagination">
-                        {{-- {{ $results->links() }} --}}
-                    </div>
                 </div>
             </div>
         </div>
+  
 
         <!-- Tabla del Evento 412 -->
         <div class="col-md-6">
@@ -48,7 +55,7 @@
                                 <th>ID</th>
                                 <th>PRESTADOR</th>
                                 <th>CASOS ASIGNADOS</th>
-                                <th>CASOS CON SEGUIMIENTOS</th>
+                                <th>CASOS SIN SEGUIMIENTOS</th>
                             </tr>
                         </thead>
                         <tbody id="table">
@@ -59,7 +66,7 @@
                                     <a href="#" data-toggle="modal" data-target="#prestadorModal" data-id="{{ $student2->id }}">{{ $student2->name }}</a>
                                 </td>
                                 <td>{{ $student2->cant_casos_asignados }}</td>
-                                <td>{{ $student2->total_Seguimientos }}</td>
+                                <td>{{ $student2->total_Sin_Seguimientos }}</td>
                             </tr>
                             @endforeach
                         </tbody>
@@ -221,15 +228,8 @@ tr:hover {
 $(document).ready(function () {
     // Inicializar la tabla para Evento 113
     var table1 = $('#seguimiento').DataTable({
-        // Configuración para procesamiento del servidor
-        "processing": true,
-        "serverSide": true,
-        // Ruta para obtener los datos vía AJAX
-        "ajax": "{{ route('seguimiento.data') }}",
-        // Configuración de paginación
         "pageLength": 5,
         "lengthMenu": [ [5, 10, 25, 50, -1], [5, 10, 25, 50, "Todos"] ],
-        // Configuración de idioma
         "language": {
             "search": "BUSCAR:",
             "lengthMenu": "Mostrar _MENU_ registros",
@@ -247,21 +247,7 @@ $(document).ready(function () {
                 "sortDescending": ": Activar para ordenar la columna en orden descendente"
             }
         },
-        // Ajuste automático de ancho de columnas
-        "autoWidth": true,
-        // Definición de las columnas en la tabla
-        "columns": [
-            { "data": "id" }, // Columna ID
-            {
-                "data": "name", // Columna de nombre del prestador
-                "render": function (data, type, row) {
-                    // Renderiza el nombre del prestador como un enlace para abrir el modal
-                    return '<a href="#" data-toggle="modal" data-target="#prestador113Modal" data-id="' + row.id + '">' + data + '</a>';
-                }
-            },
-            { "data": "cant_casos_asignados" }, // Columna de casos asignados
-            { "data": "total_Seguimientos" } // Columna de seguimientos
-        ]
+        "autoWidth": true
     });
 
     // Inicializar la tabla para Evento 412 (si existe otra tabla con id #seguimiento2)
@@ -288,11 +274,10 @@ $(document).ready(function () {
         "autoWidth": true
     });
 
-    // Función para manejar el evento de clic en los enlaces con data-toggle="modal"
+    // Función para manejar el evento de clic en los enlaces sin usar data-toggle="modal"
     function attachClickHandler() {
-        // Manejar clic para Evento 113 y Evento 412
-        $('a[data-toggle="modal"]').off('click').on('click', function(e) {
-            e.preventDefault();
+        $('a[data-id]').off('click').on('click', function(e) {
+            e.preventDefault(); // Prevenir el comportamiento por defecto
             var id = $(this).data('id'); // Obtiene el ID del prestador
             var modal, modalBody, routeUrl;
 
@@ -317,36 +302,36 @@ $(document).ready(function () {
                     if (data.length > 0) {
                         data.forEach(function(detalle) {
                             if (modal.is('#prestador113Modal')) {
-    // Renderiza los detalles del prestador para Evento 113
-    modalBody.append(
-        '<div class="row">' +
-            '<div class="col-md-6">' +
-                '<li class="list-group-item">Identificación: ' + detalle.tip_ide_ + ' - ' + detalle.num_ide_ + '</li>' +
-            '</div>' +
-            '<div class="col-md-6">' +
-                '<li class="list-group-item">' + detalle.pri_nom_ + ' ' + detalle.seg_nom_ + ' ' + detalle.pri_ape_ + ' ' + detalle.seg_ape_ + '</li>' +
-            '</div>' +
-        '</div>'
-    );
-} else {
-    // Renderiza los detalles del prestador para Evento 412
-    modalBody.append(
-        '<div class="row">' +
-            '<div class="col-md-6">' +
-                '<li class="list-group-item">Identificación: ' + detalle.tipo_identificacion + ' - ' + detalle.numero_identificacion + '</li>' +
-            '</div>' +
-            '<div class="col-md-6">' +
-                '<li class="list-group-item">' + detalle.primer_nombre + ' ' + detalle.segundo_nombre + ' ' + detalle.primer_apellido + ' ' + detalle.segundo_apellido + '</li>' +
-            '</div>' +
-        '</div>'
-    );
-}
+                                // Renderiza los detalles del prestador para Evento 113
+                                modalBody.append(
+                                    '<div class="row">' +
+                                    '<div class="col-md-6">' +
+                                    '<li class="list-group-item">Identificación: ' + detalle.tip_ide_ + ' - ' + detalle.num_ide_ + '</li>' +
+                                    '</div>' +
+                                    '<div class="col-md-6">' +
+                                    '<li class="list-group-item">' + detalle.pri_nom_ + ' ' + detalle.seg_nom_ + ' ' + detalle.pri_ape_ + ' ' + detalle.seg_ape_ + '</li>' +
+                                    '</div>' +
+                                    '</div>'
+                                );
+                            } else {
+                                // Renderiza los detalles del prestador para Evento 412
+                                modalBody.append(
+                                    '<div class="row">' +
+                                    '<div class="col-md-6">' +
+                                    '<li class="list-group-item">Identificación: ' + detalle.tipo_identificacion + ' - ' + detalle.numero_identificacion + '</li>' +
+                                    '</div>' +
+                                    '<div class="col-md-6">' +
+                                    '<li class="list-group-item">' + detalle.primer_nombre + ' ' + detalle.segundo_nombre + ' ' + detalle.primer_apellido + ' ' + detalle.segundo_apellido + '</li>' +
+                                    '</div>' +
+                                    '</div>'
+                                );
+                            }
                         });
                     } else {
                         // Muestra un mensaje si no se encontraron detalles para el prestador
                         modalBody.append('<li class="list-group-item">No se encontraron detalles para este prestador.</li>');
                     }
-                    modal.modal('show'); // Muestra la modal
+                    modal.modal('show'); // Muestra la modal correspondiente
                 },
                 error: function(error) {
                     console.log('Error en la solicitud AJAX:', error); // Muestra el error en la consola
@@ -357,15 +342,18 @@ $(document).ready(function () {
         });
     }
 
-    // Ejecuta la función al inicializar la tabla y en cada draw (cuando la tabla se recarga)
+    // Llamada inicial para activar el controlador de eventos
     attachClickHandler();
+
+    // Reasigna los manejadores de clic en cada recarga de la tabla
     table1.on('draw', function() {
-        attachClickHandler(); // Reasigna los manejadores de clic en cada recarga de la tabla para Evento 113
+        attachClickHandler();
     });
     table2.on('draw', function() {
-        attachClickHandler(); // Reasigna los manejadores de clic en cada recarga de la tabla para Evento 412
+        attachClickHandler();
     });
 });
+
 
 
     var ctx1 = document.getElementById('grafica-barras').getContext('2d');

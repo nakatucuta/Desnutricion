@@ -14,12 +14,12 @@
            CARGUE
         </h2>
     </x-slot>
-    @include('livewire.mensajes')
+    {{-- @include('livewire.mensajes')
     @if ($message = Session::get('success'))
     <div class="alert alert-success text-center">
         <strong>{{ $message }}</strong>
     </div>
-    @endif
+    @endif --}}
 
     <div class="row">
         <div class="col-md-12">
@@ -212,23 +212,34 @@
             });
 
             // Ocultar el modal de carga cuando se complete la carga
-            @if (Session::has('success'))
-                $('#loadingModal').modal('hide');
-                Swal.fire({
-                    title: 'Carga Completa!',
-                    text: 'El documento se ha cargado exitosamente.',
-                    icon: 'success',
-                    timer: 20000,
-                    timerProgressBar: true,
-                    didClose: () => {
-                        confetti({
-                            particleCount: 100,
-                            spread: 70,
-                            origin: { y: 0.6 }
-                        });
-                    }
-                });
-            @endif
+            // @if (Session::has('success'))
+            //     $('#loadingModal').modal('hide');
+            //     // Swal.fire({
+            //     //     title: 'Carga Completa!',
+            //     //     text: 'El documento se ha cargado exitosamente.',
+            //     //     icon: 'success',
+            //     //     timer: 20000,
+            //     //     timerProgressBar: true,
+            //     //     didClose: () => {
+            //     //         confetti({
+            //     //             particleCount: 100,
+            //     //             spread: 70,
+            //     //             origin: { y: 0.6 }
+            //     //         });
+            //     //     }
+            //     // });
+            // @endif
+
+                // Ocultar el modal de carga cuando se complete la carga
+                @if (Session::has('success'))
+                    $('#loadingModal').modal('hide');
+                    // Insertar los mensajes de éxito en el DOM, si existen
+                    $(document).ready(function() {
+                        $('#mensajes-container').html(`@include('livewire.mensajes')`);
+                    });
+                @endif
+
+
         });
 
         // Script para el área de arrastrar y soltar
@@ -344,6 +355,60 @@ $('#exportButton').on('click', function() {
  
 
     </script>
+
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Mensaje de éxito
+        @if(Session::has('success'))
+            Swal.fire({
+                title: '¡Éxito!',
+                text: '{{ Session::get('success') }}',
+                icon: 'success',
+                confirmButtonText: 'Ok'
+            });
+        @endif
+
+        // Mensaje de error personalizado
+        @if(Session::has('error1'))
+            @if(is_array(Session::get('error1')))
+                let errors = '';
+                @foreach(Session::get('error1') as $error)
+                    errors += '<li>{{ $error }}</li>';
+                @endforeach
+
+                Swal.fire({
+                    title: '¡Error!',
+                    html: '<ul>' + errors + '</ul>',
+                    icon: 'error',
+                    confirmButtonText: 'Ok'
+                });
+            @else
+                Swal.fire({
+                    title: '¡Error!',
+                    text: '{{ Session::get('error1') }}',
+                    icon: 'error',
+                    confirmButtonText: 'Ok'
+                });
+            @endif
+        @endif
+
+        // Errores de validación
+        @if(count($errors) > 0)
+            let validationErrors = '';
+            @foreach($errors->all() as $error)
+                validationErrors += '<li>{{ $error }}</li>';
+            @endforeach
+
+            Swal.fire({
+                title: 'Errores de validación!',
+                html: '<ul>' + validationErrors + '</ul>',
+                icon: 'error',
+                confirmButtonText: 'Ok'
+            });
+        @endif
+    });
+</script>
 @stop
 
 

@@ -598,20 +598,24 @@ public function detallePrestador($id)
     \Log::info('ID recibido en el controlador: ' . $id);
 
     // Realiza la consulta para obtener los detalles del prestador
-    $detalles = DB::table('cargue412s')
-        ->where('user_id', $id)
-        
-        ->select(
-            'primer_nombre',
-            'segundo_nombre',
-            'primer_apellido',
-            'segundo_apellido',
-            'tipo_identificacion',
-            'numero_identificacion'
-        )
-        ->where('estado_anulado', '=', 0) // Condición añadida
+$detalles = DB::table('DESNUTRICION.dbo.cargue412s')
+    ->join('DESNUTRICION.dbo.users', 'cargue412s.user_id', '=', 'users.id')
+    ->leftJoin('DESNUTRICION.dbo.seguimiento_412s', 'cargue412s.id', '=', 'seguimiento_412s.cargue412_id')
+    ->where('users.id', $id) // Filtrar por el ID del usuario (dinámico)
+    ->whereNull('seguimiento_412s.cargue412_id') // Filtro para registros sin seguimiento
+    ->whereRaw('YEAR(cargue412s.created_at) > ?', [2023]) // Filtro para los registros creados después de 2023
+    ->select(
+        'cargue412s.primer_nombre',
+        'cargue412s.segundo_nombre',
+        'cargue412s.primer_apellido',
+        'cargue412s.segundo_apellido',
+        'cargue412s.tipo_identificacion',
+        'cargue412s.numero_identificacion'
+    )
+    ->get();
 
-        ->get();
+
+        
 
     // Verificación en logs
     if ($detalles->isEmpty()) {
@@ -666,8 +670,8 @@ public function graficaBarras()
     ->select(
         'a.id',
         'a.name',
-        DB::raw('COUNT(c.sivigilas_id) AS total_Seguimientos'),
-        DB::raw('COUNT(b.user_id) AS cant_casos_asignados')
+        DB::raw("COUNT(CASE WHEN c.sivigilas_id IS NULL THEN 1 ELSE NULL END) AS total_Sin_Seguimientos"),
+        DB::raw('COUNT(DISTINCT b.id) AS cant_casos_asignados')
     )
     ->join('DESNUTRICION.dbo.sivigilas AS b', 'a.id', '=', 'b.user_id')
     ->leftJoin('DESNUTRICION.dbo.seguimientos AS c', 'b.id', '=', 'c.sivigilas_id')
@@ -680,13 +684,12 @@ public function graficaBarras()
     ->select(
         'a.id',
         'a.name',
-        DB::raw('COUNT(c.cargue412_id) AS total_Seguimientos'),
-        DB::raw('COUNT(b.user_id) AS cant_casos_asignados')
+        DB::raw("COUNT(CASE WHEN c.cargue412_id IS NULL THEN 1 ELSE NULL END) AS total_Sin_Seguimientos"),
+        DB::raw('COUNT(DISTINCT b.id) AS cant_casos_asignados')
     )
     ->join('DESNUTRICION.dbo.cargue412s AS b', 'a.id', '=', 'b.user_id')
     ->leftJoin('DESNUTRICION.dbo.seguimiento_412s AS c', 'b.id', '=', 'c.cargue412_id')
     ->whereRaw('YEAR(b.created_at) > ?', [2023])
-    ->where('b.estado_anulado', '=', 0) // Condición añadida
     ->groupBy('a.id', 'a.name')
     ->orderBy(DB::raw('COUNT(b.id)'), 'desc')
     ->get();
@@ -796,38 +799,23 @@ public function detallePrestador_113($id)
     // Verifica si el ID está llegando al controlador
     \Log::info('ID recibido en el controlador: ' . $id);
 
-    // Realiza la consulta para obtener los detalles del prestador
-    $detalles = DB::table('DESNUTRICION.dbo.sivigilas AS s')
-    ->where('s.user_id', $id)
-    ->select(
-        's.tip_ide_',
-        's.num_ide_',
-        's.pri_nom_',
-        's.seg_nom_',
-        's.pri_ape_',
-        's.seg_ape_'
-    )
-    ->leftJoin('DESNUTRICION.dbo.seguimientos AS seg', 's.id', '=', 'seg.sivigilas_id')
-    // Aplicamos un filtro para seleccionar solo los registros creados en el año 2023 o posterior
-    ->whereRaw('YEAR(s.created_at) > ?', [2023])
-    ->get();
-
-    $query = DB::table('DESNUTRICION.dbo.users AS a')
-            ->select(
-                'a.id', // Seleccionamos el ID del usuario
-                'a.name', // Seleccionamos el nombre del usuario
-                DB::raw('COUNT(c.sivigilas_id) AS total_Seguimientos'), // Contamos el número total de seguimientos
-                DB::raw('COUNT(b.user_id) AS cant_casos_asignados') // Contamos el número total de casos asignados
-            )
-            // Unimos la tabla de sivigilas con la tabla de usuarios en base al ID del usuario
-            ->join('DESNUTRICION.dbo.sivigilas AS b', 'a.id', '=', 'b.user_id')
-            // Unimos la tabla de seguimientos con la tabla de sivigilas en base al ID de sivigilas
-            ->leftJoin('DESNUTRICION.dbo.seguimientos AS c', 'b.id', '=', 'c.sivigilas_id')
-            // Aplicamos un filtro para seleccionar solo los registros creados en el año 2023 o posterior
-            ->whereRaw('YEAR(b.created_at) > ?', [2023])
-            // Agrupamos los resultados por ID y nombre del usuario
-            ->groupBy('a.id', 'a.name');
-
+    // Realiza la consulta para obtener los detalles del prestador según la consulta proporcionada
+    $detalles = DB::table('DESNUTRICION.dbo.sivigilas AS siv')
+        ->join('DESNUTRICION.dbo.users AS usr', 'siv.user_id', '=', 'usr.id') // Unión con la tabla de usuarios
+        ->leftJoin('DESNUTRICION.dbo.seguimientos AS seg', 'siv.id', '=', 'seg.sivigilas_id') // Unión con la tabla de seguimientos
+        ->where('usr.id', $id) // Filtro por el ID del usuario
+        ->whereNull('seg.sivigilas_id') // Filtro para los registros sin seguimientos
+        ->whereRaw('YEAR(siv.created_at) > ?', [2023]) // Filtro para los registros creados después del año 2023
+        ->select(
+            'siv.tip_ide_',
+            'siv.num_ide_',
+            'siv.pri_nom_',
+            'siv.seg_nom_',
+            'siv.pri_ape_',
+            'siv.seg_ape_',
+            //'usr.name' // Añadido el nombre del usuario
+        )
+        ->get();
 
     // Verificación en logs
     if ($detalles->isEmpty()) {
@@ -839,6 +827,7 @@ public function detallePrestador_113($id)
     // Devuelve los detalles en formato JSON
     return response()->json($detalles);
 }
+
 
 }
 
