@@ -19,12 +19,17 @@ class reportesinseguimientos implements FromCollection, WithHeadings, ShouldAuto
     public function collection()
     {
 
-        $resultados = DB::table('DESNUTRICION.dbo.sivigilas as a')
-        ->leftJoin('DESNUTRICION.dbo.seguimientos as b', 'a.id', '=', 'b.sivigilas_id')
-        ->leftJoin('DESNUTRICION.dbo.users as c', 'a.user_id', '=', 'c.id')
-        ->select('c.name as PRESTADOR', 'a.*')
-        ->whereNull('b.sivigilas_id')
-        ->where('a.year', '>', '2023')
+        $resultados = DB::table('DESNUTRICION.dbo.sivigilas AS siv')
+        ->join('DESNUTRICION.dbo.users AS usr', 'siv.user_id', '=', 'usr.id') // Unión con la tabla de usuarios
+        ->leftJoin('DESNUTRICION.dbo.seguimientos AS seg', 'siv.id', '=', 'seg.sivigilas_id') // Unión con la tabla de seguimientos
+        // ->where('usr.id', $id) // Filtro por el ID del usuario
+        ->whereNull('seg.sivigilas_id') // Filtro para los registros sin seguimientos
+        ->whereRaw('YEAR(siv.created_at) > ?', [2023]) // Filtro para los registros creados después del año 2023
+        ->select(
+            'usr.name as PRESTADOR'
+            ,'siv.*'
+            //'usr.name' // Añadido el nombre del usuario
+        )
         ->get();
     
 
