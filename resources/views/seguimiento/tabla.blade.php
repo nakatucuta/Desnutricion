@@ -42,6 +42,8 @@
                       <td  class="text-center">No hay registros disponibles</td>
                       <td  class="text-center">No hay registros disponibles</td>
                       <td  class="text-center">No hay registros disponibles</td>
+                      <td  class="text-center">No hay registros disponibles</td>
+                      <td  class="text-center">No hay registros disponibles</td>
                         @elseif($count >= 1 && (auth()->user()->usertype == 2))
                        
                      
@@ -118,6 +120,8 @@
                   @endif
                   
                   @if($count1 < 1 && (auth()->user()->usertype == 1 ||  auth()->user()->usertype == 3)) 
+                  <td  class="text-center">No hay registros disponibles</td>
+                  <td  class="text-center">No hay registros disponibles</td>
                   <td  class="text-center">No hay registros disponibles</td>
                   <td  class="text-center">No hay registros disponibles</td>
                   <td  class="text-center">No hay registros disponibles</td>

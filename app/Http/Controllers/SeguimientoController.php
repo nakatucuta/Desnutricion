@@ -57,7 +57,7 @@ class SeguimientoController extends Controller
             'sivigilas.pri_ape_','sivigilas.seg_ape_','seguimientos.id as idin','sivigilas.Ips_at_inicial',
             'seguimientos.fecha_consulta','seguimientos.id',
             'seguimientos.fecha_proximo_control','seguimientos.estado','seguimientos.id',
-            'seguimientos.motivo_reapuertura','sivigilas.semana','s.created_at as  creado')
+            'seguimientos.motivo_reapuertura','sivigilas.semana','sivigilas.created_at as  creado')
             ->orderBy('seguimientos.created_at', 'desc')
             ->join('seguimientos', 'sivigilas.id', '=', 'seguimientos.sivigilas_id')
             ->where('seguimientos.user_id', Auth::user()->id)
