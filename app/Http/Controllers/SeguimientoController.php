@@ -62,7 +62,7 @@ class SeguimientoController extends Controller
             ->join('seguimientos', 'sivigilas.id', '=', 'seguimientos.sivigilas_id')
             ->where('seguimientos.user_id', Auth::user()->id)
             ->whereYear('seguimientos.created_at', '>', 2023) // Agregar la condición para el año
-            ->get();
+            ->paginate(20000);
         
         } else {  
 
@@ -74,7 +74,7 @@ class SeguimientoController extends Controller
         ->whereYear('seguimientos.created_at', '>', 2023)
         ->join('sivigilas as s', 's.id', '=', 'seguimientos.sivigilas_id')
         ->join('users', 'users.id', '=', 's.user_id')
-        ->get();
+        ->paginate(20000);
         //->paginate(30000000000);
 
         } 
