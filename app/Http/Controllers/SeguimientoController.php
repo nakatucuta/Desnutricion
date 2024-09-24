@@ -57,24 +57,24 @@ class SeguimientoController extends Controller
             'sivigilas.pri_ape_','sivigilas.seg_ape_','seguimientos.id as idin','sivigilas.Ips_at_inicial',
             'seguimientos.fecha_consulta','seguimientos.id',
             'seguimientos.fecha_proximo_control','seguimientos.estado','seguimientos.id',
-            'seguimientos.motivo_reapuertura')
+            'seguimientos.motivo_reapuertura','sivigilas.semana','s.created_at as  creado')
             ->orderBy('seguimientos.created_at', 'desc')
             ->join('seguimientos', 'sivigilas.id', '=', 'seguimientos.sivigilas_id')
             ->where('seguimientos.user_id', Auth::user()->id)
             ->whereYear('seguimientos.created_at', '>', 2023) // Agregar la condición para el año
-            ->paginate(3000);
+            ->paginate(30000000000);
         
         } else {  
 
             $incomeedit = Seguimiento::select('s.num_ide_','s.pri_nom_','s.seg_nom_',
         's.pri_ape_','s.seg_ape_','seguimientos.id as idin','users.name',
         'seguimientos.fecha_consulta','seguimientos.fecha_proximo_control','seguimientos.estado','seguimientos.id',
-        'seguimientos.motivo_reapuertura')
+        'seguimientos.motivo_reapuertura','s.semana','s.created_at as creado')
         ->orderBy('seguimientos.created_at', 'desc')
         ->whereYear('seguimientos.created_at', '>', 2023)
         ->join('sivigilas as s', 's.id', '=', 'seguimientos.sivigilas_id')
         ->join('users', 'users.id', '=', 's.user_id')
-        ->paginate(3000);
+        ->paginate(30000000000);
 
         } 
 
@@ -610,7 +610,8 @@ $detalles = DB::table('DESNUTRICION.dbo.cargue412s')
         'cargue412s.primer_apellido',
         'cargue412s.segundo_apellido',
         'cargue412s.tipo_identificacion',
-        'cargue412s.numero_identificacion'
+        'cargue412s.numero_identificacion',
+        'cargue412s.fecha_captacion',
     )
     ->get();
 
@@ -813,6 +814,7 @@ public function detallePrestador_113($id)
             'siv.seg_nom_',
             'siv.pri_ape_',
             'siv.seg_ape_',
+            'siv.semana',
             //'usr.name' // Añadido el nombre del usuario
         )
         ->get();

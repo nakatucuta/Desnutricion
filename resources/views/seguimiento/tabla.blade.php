@@ -8,7 +8,9 @@
             border: 1px solid #000000;">
             <tr>
             <th>ID</th>
+            <th >Fecha asignacion</th>
             <th >Identificacion</th>
+            <th >Semana Epid</th>
             <th >Nombre</th>
             <th >Estado</th>
             <th >Ips</th>
@@ -46,7 +48,10 @@
                        @foreach($incomeedit as $student2)
                     
                     <th >{{ $student2->id }}</th>
+                    <th >{{ $student2->creado }}</th>
+                    
                     <th >{{ $student2->num_ide_ }}</th>
+                    <th >{{ $student2->semana}}</th>
                     <td>{{ $student2->pri_nom_.' '.$student2->seg_nom_.' '.$student2->pri_ape_.' '.$student2->seg_ape_ }}</td>
                     
                     <td> @if ($student2->estado == 1)
@@ -124,7 +129,9 @@
                  @foreach($incomeedit as $student2)
                         
                  <th >{{ $student2->id }}</th>
+                 <th >{{ $student2->creado }}</th>
                  <th >{{ $student2->num_ide_ }}</th>
+                 <th >{{ $student2->semana}}</th>
                  <td>{{ $student2->pri_nom_.' '.$student2->seg_nom_.' '.$student2->pri_ape_.' '.$student2->seg_ape_ }}</td>
                  
                  <td> @if ($student2->estado == 1)

@@ -92,6 +92,7 @@
                 <table class="table table-striped">
                     <thead>
                         <tr>
+                            <th>Semana Epidemiologica</th>
                             <th>Identificación</th>
                             <th>Nombre Completo</th>
                         </tr>
@@ -125,6 +126,7 @@
                 <table class="table table-striped">
                     <thead>
                         <tr>
+                            <th>Fecha Captacion</th>
                             <th>Identificación</th>
                             <th>Nombre Completo</th>
                         </tr>
@@ -326,16 +328,20 @@ $(document).ready(function () {
                             if (modal.is('#prestador113Modal')) {
                                 // Renderiza los detalles del prestador para Evento 113
                                 modalBody.append(
-                                        '<tr>' +
-                                            '<td>' + detalle.tip_ide_ + ' - ' + detalle.num_ide_ + '</td>' +
-                                            '<td>' + detalle.pri_nom_ + ' ' + (detalle.seg_nom_ ? detalle.seg_nom_ + ' ' : '') + detalle.pri_ape_ + ' ' + detalle.seg_ape_ + '</td>' +
-                                        '</tr>'
-                                    );
+                                                '<tr>' +
+                                                    '<td>' + detalle.semana + '</td>' +
+                                                    '<td>' + detalle.tip_ide_ + ' - ' + detalle.num_ide_ + '</td>' +
+                                                    '<td>' + detalle.pri_nom_ + ' ' + (detalle.seg_nom_ ? detalle.seg_nom_ + ' ' : '') + detalle.pri_ape_ + ' ' + detalle.seg_ape_ + '</td>' +
+                                                    // Nuevo campo para mostrar la semana
+                                                '</tr>'
+                                            );
+
 
                             } else {
                                 // Renderiza los detalles del prestador para Evento 412
                                 modalBody.append(
                                         '<tr>' +
+                                            '<td>' + detalle.fecha_captacion + '</td>' +
                                             '<td>' + detalle.tipo_identificacion + ' - ' + detalle.numero_identificacion + '</td>' +
                                             '<td>' + detalle.primer_nombre + ' ' + (detalle.segundo_nombre ? detalle.segundo_nombre + ' ' : '') + detalle.primer_apellido + ' ' + detalle.segundo_apellido + '</td>' +
                                         '</tr>'
