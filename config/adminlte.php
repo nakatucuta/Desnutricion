@@ -511,7 +511,7 @@ return [
             'icon_color' => 'yellow',
             'url'        => 'download-pdf',
              'icon'        => 'fas fa-download fa-2x ',
-            'label'       => '***',  
+           
             'label_color' => 'primary',
             'icon_color'  => 'yellow',
         
@@ -562,78 +562,90 @@ return [
     |
     */
 
-    'plugins' => [
-        'Datatables' => [
-            'active' => false,
-            'files' => [
-                [
-                    'type' => 'js',
-                    'asset' => false,
-                    'location' => '//cdn.datatables.net/1.10.19/js/jquery.dataTables.min.js',
-                ],
-                [
-                    'type' => 'js',
-                    'asset' => false,
-                    'location' => '//cdn.datatables.net/1.10.19/js/dataTables.bootstrap4.min.js',
-                ],
-                [
-                    'type' => 'css',
-                    'asset' => false,
-                    'location' => '//cdn.datatables.net/1.10.19/css/dataTables.bootstrap4.min.css',
-                ],
+  'plugins' => [
+    'Datatables' => [
+        'active' => false,
+        'files' => [
+            [
+                'type' => 'js',
+                'asset' => false,
+                'location' => '//cdn.datatables.net/1.10.19/js/jquery.dataTables.min.js',
             ],
-        ],
-        'Select2' => [
-            'active' => false,
-            'files' => [
-                [
-                    'type' => 'js',
-                    'asset' => false,
-                    'location' => '//cdnjs.cloudflare.com/ajax/libs/select2/4.0.3/js/select2.min.js',
-                ],
-                [
-                    'type' => 'css',
-                    'asset' => false,
-                    'location' => '//cdnjs.cloudflare.com/ajax/libs/select2/4.0.3/css/select2.css',
-                ],
+            [
+                'type' => 'js',
+                'asset' => false,
+                'location' => '//cdn.datatables.net/1.10.19/js/dataTables.bootstrap4.min.js',
             ],
-        ],
-        'Chartjs' => [
-            'active' => false,
-            'files' => [
-                [
-                    'type' => 'js',
-                    'asset' => false,
-                    'location' => '//cdnjs.cloudflare.com/ajax/libs/Chart.js/2.7.0/Chart.bundle.min.js',
-                ],
-            ],
-        ],
-        'Sweetalert2' => [
-            'active' => true,
-            'files' => [
-                [
-                    'type' => 'js',
-                    'asset' => false,
-                    'location' => '//cdn.jsdelivr.net/npm/sweetalert2@8',
-                ],
-            ],
-        ],
-        'Pace' => [
-            'active' => false,
-            'files' => [
-                [
-                    'type' => 'css',
-                    'asset' => false,
-                    'location' => '//cdnjs.cloudflare.com/ajax/libs/pace/1.0.2/themes/blue/pace-theme-center-radar.min.css',
-                ],
-                [
-                    'type' => 'js',
-                    'asset' => false,
-                    'location' => '//cdnjs.cloudflare.com/ajax/libs/pace/1.0.2/pace.min.js',
-                ],
+            [
+                'type' => 'css',
+                'asset' => false,
+                'location' => '//cdn.datatables.net/1.10.19/css/dataTables.bootstrap4.min.css',
             ],
         ],
     ],
+    'Select2' => [
+        'active' => false,
+        'files' => [
+            [
+                'type' => 'js',
+                'asset' => false,
+                'location' => '//cdnjs.cloudflare.com/ajax/libs/select2/4.0.3/js/select2.min.js',
+            ],
+            [
+                'type' => 'css',
+                'asset' => false,
+                'location' => '//cdnjs.cloudflare.com/ajax/libs/select2/4.0.3/css/select2.css',
+            ],
+        ],
+    ],
+    'Chartjs' => [
+        'active' => false,
+        'files' => [
+            [
+                'type' => 'js',
+                'asset' => false,
+                'location' => '//cdnjs.cloudflare.com/ajax/libs/Chart.js/2.7.0/Chart.bundle.min.js',
+            ],
+        ],
+    ],
+    'Sweetalert2' => [
+        'active' => true,
+        'files' => [
+            [
+                'type' => 'js',
+                'asset' => false,
+                'location' => '//cdn.jsdelivr.net/npm/sweetalert2@8',
+            ],
+        ],
+    ],
+    'Pace' => [
+        'active' => false,
+        'files' => [
+            [
+                'type' => 'css',
+                'asset' => false,
+                'location' => '//cdnjs.cloudflare.com/ajax/libs/pace/1.0.2/themes/blue/pace-theme-center-radar.min.css',
+            ],
+            [
+                'type' => 'js',
+                'asset' => false,
+                'location' => '//cdnjs.cloudflare.com/ajax/libs/pace/1.0.2/pace.min.js',
+            ],
+        ],
+    ],
+    // Agregar el plugin para CSS personalizado y cambiar de color la barra lateral izquierda
+    'CustomCSS' => [
+        'active' => true, // Habilitar el CSS personalizado
+        'files' => [
+            [
+                'type' => 'css',
+                'asset' => true,
+                'location' => 'vendor/adminlte/dist/css/custom.css', // Nueva ubicación del CSS
+            ],
+        ],
+    ],
+],
+
 
     /*
     |--------------------------------------------------------------------------

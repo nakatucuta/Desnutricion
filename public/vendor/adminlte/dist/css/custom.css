@@ -1,0 +1,24 @@
+/* Aplicar degradado verde al header 
+.main-header {
+    background: linear-gradient(135deg, #24807f, #1f5c55);
+    border-bottom: none;
+    color: #ffffff;
+}
+
+Aplicar degradado verde al sidebar (parte superior) 
+.main-sidebar .brand-link {
+    background: linear-gradient(135deg, #24807f, #1f5c55);
+    border-bottom: 2px solid #ffffff;
+    text-align: center;
+    padding: 15px;
+}*/
+
+/* Texto blanco en el header 
+.main-header .navbar {
+    color: #ffffff;
+}*/
+
+/* Enlaces del header en blanco 
+.main-header .navbar-nav .nav-link {
+    color: #ffffff !important;
+}*/
