@@ -450,7 +450,7 @@ if (!$allVacunaFieldsEmpty) { // Si hay al menos un campo no vacío
         if (isset($row[$i]) && !empty($row[$i]) && !is_null($row[$i]) && trim($row[$i]) !== '') {
             // Determinar el nombre de la vacuna basado en el rango de columnas
             if ($i >= 75 && $i <= 80) {
-                $vacunaNombre = 'Covid 19';
+                $vacunaNombre = 1 ;
                 $docis = isset($row[75]) ? $row[75] : null;
                 $laboratorio = isset($row[76]) ? $row[76] : null;
                 $lote = isset($row[77]) ? $row[77] : null;
@@ -467,7 +467,7 @@ if (!$allVacunaFieldsEmpty) { // Si hay al menos un campo no vacío
 
                 $i = 80;
             } elseif ($i >= 81 && $i <= 86) {
-                $vacunaNombre = 'BCG';
+                $vacunaNombre = 2 ;
                 $docis = isset($row[81]) ? $row[81] : null;
                 $lote = isset($row[82]) ? $row[82] : null;
                 $jeringa = isset($row[83]) ? $row[83] : null;
@@ -483,7 +483,7 @@ if (!$allVacunaFieldsEmpty) { // Si hay al menos un campo no vacío
                 $usuario_activo_ = $usuario_activo;
                 $i = 86;
             } elseif ($i >= 87 && $i <= 91) {
-                $vacunaNombre = 'HEPATITIS B';
+                $vacunaNombre = 3 ;
                 $docis = isset($row[87]) ? $row[87] : null;
                 $lote = isset($row[88]) ? $row[88] : null;
                 $jeringa = isset($row[89]) ? $row[89] : null;
@@ -497,7 +497,7 @@ if (!$allVacunaFieldsEmpty) { // Si hay al menos un campo no vacío
                 $usuario_activo_ = $usuario_activo;
                 $i = 91;
             } elseif ($i >= 92 && $i <= 96) {
-                $vacunaNombre = 'POLIO INACTIVADO(INYECTABLE)';
+                $vacunaNombre = 4 ;
                 $docis = isset($row[92]) ? $row[92] : null;
                 $lote = isset($row[93]) ? $row[93] : null;
                 $jeringa = isset($row[94]) ? $row[94] : null;
@@ -511,7 +511,7 @@ if (!$allVacunaFieldsEmpty) { // Si hay al menos un campo no vacío
                 $usuario_activo_ = $usuario_activo;
                 $i = 96;
             } elseif ($i >= 97 && $i <= 99) {
-                $vacunaNombre = 'POLIO (VACUNA ORAL)';
+                $vacunaNombre = 5 ;
                 $docis = isset($row[97]) ? $row[97] : null;
                 $lote = isset($row[98]) ? $row[98] : null;
                 $gotero = isset($row[99]) ? $row[99] : null;
@@ -523,7 +523,7 @@ if (!$allVacunaFieldsEmpty) { // Si hay al menos un campo no vacío
                 $usuario_activo_ = $usuario_activo;
                 $i = 99;
             } elseif ($i >= 100 && $i <= 104) {
-                $vacunaNombre = 'PENTAVALENTE';
+                $vacunaNombre = 6 ;
                 $docis = isset($row[100]) ? $row[100] : null;
                 $lote = isset($row[101]) ? $row[101] : null;
                 $jeringa = isset($row[102]) ? $row[102] : null;
@@ -537,7 +537,7 @@ if (!$allVacunaFieldsEmpty) { // Si hay al menos un campo no vacío
                 $usuario_activo_ = $usuario_activo;
                 $i = 104;
             } elseif ($i >= 105 && $i <= 108) {
-                $vacunaNombre = 'HEXAVALENTE';
+                $vacunaNombre = 7 ;
                 $docis = isset($row[105]) ? $row[105] : null;
                 $lote = isset($row[106]) ? $row[106] : null;
                 $jeringa = isset($row[107]) ? $row[107] : null;
@@ -550,7 +550,7 @@ if (!$allVacunaFieldsEmpty) { // Si hay al menos un campo no vacío
                 $usuario_activo_ = $usuario_activo;
                 $i = 108;
             }elseif ($i >= 109 && $i <= 112) {
-                $vacunaNombre = 'DIFTERIA, TOS FERINA Y TÉTANOS - DPT';
+                $vacunaNombre = 8 ;
                 $docis = isset($row[109]) ? $row[109] : null;
                 $lote = isset($row[110]) ? $row[110] : null;
                 $jeringa = isset($row[111]) ? $row[111] : null;
@@ -564,7 +564,7 @@ if (!$allVacunaFieldsEmpty) { // Si hay al menos un campo no vacío
                 $i = 112;
             } 
             elseif ($i >= 113 && $i <= 116) {
-                $vacunaNombre = 'DTPA PEDIÁTRICO';
+                $vacunaNombre = 9 ;
                 $docis = isset($row[113]) ? $row[113] : null;
                 $lote = isset($row[114]) ? $row[114] : null;
                 $jeringa = isset($row[115]) ? $row[115] : null;
@@ -578,7 +578,7 @@ if (!$allVacunaFieldsEmpty) { // Si hay al menos un campo no vacío
                 $i = 116;
             }
             elseif ($i >= 117 && $i <= 120) {
-                $vacunaNombre = 'TD PEDIÁTRICO';
+                $vacunaNombre = 10 ;
                 $docis = isset($row[117]) ? $row[117] : null;
                 $lote = isset($row[118]) ? $row[118] : null;
                 $jeringa = isset($row[119]) ? $row[119] : null;
@@ -592,7 +592,7 @@ if (!$allVacunaFieldsEmpty) { // Si hay al menos un campo no vacío
                 $i = 120;
             }
             elseif ($i >= 121 && $i <= 122) {
-                $vacunaNombre = 'ROTAVIRUS (VACUNA ORAL)';
+                $vacunaNombre = 11 ;
                 $docis = isset($row[121]) ? $row[121] : null;
                 $lote = isset($row[122]) ? $row[122] : null;
                 $fecha_vacuna = $fechaatencion;
@@ -605,7 +605,7 @@ if (!$allVacunaFieldsEmpty) { // Si hay al menos un campo no vacío
             }
 
             elseif ($i >= 123 && $i <= 127) {
-                $vacunaNombre = 'NEUMOCOCO';
+                $vacunaNombre = 12 ;
                 $tipo_neumococo = isset($row[123]) ? $row[123] : null;
                 $docis = isset($row[124]) ? $row[124] : null;
                 $lote = isset($row[125]) ? $row[125] : null;
@@ -621,7 +621,7 @@ if (!$allVacunaFieldsEmpty) { // Si hay al menos un campo no vacío
                 
                 
             }elseif ($i >= 128 && $i <= 132) {
-                $vacunaNombre = 'TRIPLE VIRAL - SRP';
+                $vacunaNombre = 13 ;
                 $docis = isset($row[128]) ? $row[128] : null;
                 $lote = isset($row[129]) ? $row[129] : null;
                 $jeringa = isset($row[130]) ? $row[130] : null;
@@ -639,7 +639,7 @@ if (!$allVacunaFieldsEmpty) { // Si hay al menos un campo no vacío
             }
 
             elseif ($i >= 133 && $i <= 137) {
-                $vacunaNombre = 'SARAMPIÓN - RUBEOLA - SR MULTIDOSIS';
+                $vacunaNombre =  14 ;
                 $docis = isset($row[133]) ? $row[133] : null;
                 $lote = isset($row[134]) ? $row[134] : null;
                 $jeringa = isset($row[135]) ? $row[135] : null;
@@ -657,7 +657,7 @@ if (!$allVacunaFieldsEmpty) { // Si hay al menos un campo no vacío
             }
 
             elseif ($i >= 138 && $i <= 142) {
-                $vacunaNombre = 'FIEBRE AMARILLA';
+                $vacunaNombre = 15 ;
                 $docis = isset($row[138]) ? $row[138] : null;
                 $lote = isset($row[139]) ? $row[139] : null;
                 $jeringa = isset($row[140]) ? $row[140] : null;
@@ -674,7 +674,7 @@ if (!$allVacunaFieldsEmpty) { // Si hay al menos un campo no vacío
                 
             }
             elseif ($i >= 143 && $i <= 146) {
-                $vacunaNombre = 'HEPATITIS A PEDIÁTRICA';
+                $vacunaNombre = 16 ;
                 $docis = isset($row[143]) ? $row[143] : null;
                 $lote = isset($row[144]) ? $row[144] : null;
                 $jeringa = isset($row[145]) ? $row[145] : null;
@@ -692,7 +692,7 @@ if (!$allVacunaFieldsEmpty) { // Si hay al menos un campo no vacío
             }
                 
             elseif ($i >= 147 && $i <= 151) {
-                $vacunaNombre = 'VARICELA';
+                $vacunaNombre = 17 ;
                 $docis = isset($row[147]) ? $row[147] : null;
                 $lote = isset($row[148]) ? $row[148] : null;
                 $jeringa = isset($row[149]) ? $row[149] : null;
@@ -710,7 +710,7 @@ if (!$allVacunaFieldsEmpty) { // Si hay al menos un campo no vacío
             }
 
             elseif ($i >= 152 && $i <= 155) {
-                $vacunaNombre = 'TOXOIDE TETÁNICO Y DIFTÉRICO DE ADULTO';
+                $vacunaNombre = 18 ;
                 $docis = isset($row[152]) ? $row[152] : null;
                 $lote = isset($row[153]) ? $row[153] : null;
                 $jeringa = isset($row[154]) ? $row[154] : null;
@@ -728,7 +728,7 @@ if (!$allVacunaFieldsEmpty) { // Si hay al menos un campo no vacío
             }
 
             elseif ($i >= 156 && $i <= 159) {
-                $vacunaNombre = 'DTPA ADULTO';
+                $vacunaNombre = 19 ;
                 $docis = isset($row[156]) ? $row[156] : null;
                 $lote = isset($row[157]) ? $row[157] : null;
                 $jeringa = isset($row[158]) ? $row[158] : null;
@@ -746,7 +746,7 @@ if (!$allVacunaFieldsEmpty) { // Si hay al menos un campo no vacío
             }
 
             elseif ($i >= 160 && $i <= 164) {
-                $vacunaNombre = 'INFLUENZA';
+                $vacunaNombre = 20 ;
                 $docis = isset($row[160]) ? $row[160] : null;
                 $lote = isset($row[161]) ? $row[161] : null;
                 $jeringa = isset($row[162]) ? $row[162] : null;
@@ -762,7 +762,7 @@ if (!$allVacunaFieldsEmpty) { // Si hay al menos un campo no vacío
             }
 
             elseif ($i >= 165 && $i <= 168) {
-                $vacunaNombre = 'VPH';
+                $vacunaNombre = 21 ;
                 $docis = isset($row[165]) ? $row[165] : null;
                 $lote = isset($row[166]) ? $row[166] : null;
                 $jeringa = isset($row[167]) ? $row[167] : null;
@@ -777,7 +777,7 @@ if (!$allVacunaFieldsEmpty) { // Si hay al menos un campo no vacío
             }
 
             elseif ($i >= 169 && $i <= 174) {
-                $vacunaNombre = 'ANTIRRÁBICA  HUMANA (VACUNA)';
+                $vacunaNombre = 22 ;
                 $docis = isset($row[169]) ? $row[169] : null;
                 $lote = isset($row[170]) ? $row[170] : null;
                 $jeringa = isset($row[171]) ? $row[171] : null;
@@ -794,7 +794,7 @@ if (!$allVacunaFieldsEmpty) { // Si hay al menos un campo no vacío
             }
 
             elseif ($i >= 175 && $i <= 176) {
-                $vacunaNombre = 'ANTIRRÁBICO HUMANO (SUERO)';
+                $vacunaNombre = 23 ;
                 $num_frascos_utilizados = isset($row[175]) ? $row[175] : null;
                 $lote = isset($row[176]) ? $row[176] : null;
                 $fecha_vacuna = $fechaatencion;
@@ -807,7 +807,7 @@ if (!$allVacunaFieldsEmpty) { // Si hay al menos un campo no vacío
             }
 
             elseif ($i >= 177 && $i <= 181) {
-                $vacunaNombre = 'HEPATITIS B (INMUNOGLOBULINA)';
+                $vacunaNombre = 24 ;
                 $num_frascos_utilizados = isset($row[177]) ? $row[177] : null;
                 $lote = isset($row[178]) ? $row[178] : null;
                 $jeringa = isset($row[179]) ? $row[179] : null;
@@ -824,7 +824,7 @@ if (!$allVacunaFieldsEmpty) { // Si hay al menos un campo no vacío
             }
 
             elseif ($i >= 182 && $i <= 185) {
-                $vacunaNombre = 'INMUNOGLOBULINA ANTI TETANICA (Suero homólogo)';
+                $vacunaNombre = 25 ;
                 $num_frascos_utilizados = isset($row[182]) ? $row[182] : null;
                 $lote = isset($row[183]) ? $row[183] : null;
                 $jeringa = isset($row[184]) ? $row[184] : null;
@@ -839,7 +839,7 @@ if (!$allVacunaFieldsEmpty) { // Si hay al menos un campo no vacío
             }
 
             elseif ($i >= 186 && $i <= 189) {
-                $vacunaNombre = 'ANTI TOXINA TETANICA (Suero heterólogo)';
+                $vacunaNombre = 26 ;
                 $num_frascos_utilizados = isset($row[186]) ? $row[186] : null;
                 $lote = isset($row[187]) ? $row[187] : null;
                 $jeringa = isset($row[188]) ? $row[188] : null;
@@ -854,7 +854,7 @@ if (!$allVacunaFieldsEmpty) { // Si hay al menos un campo no vacío
             }
 
             elseif ($i >= 190 && $i <= 194) {
-                $vacunaNombre = 'Meningococo  de los serogrupos A, C, W-135 e Y';
+                $vacunaNombre = 27 ;
                 $docis = isset($row[190]) ? $row[190] : null;
                 $lote = isset($row[191]) ? $row[191] : null;
                 $jeringa = isset($row[192]) ? $row[192] : null;
@@ -870,7 +870,7 @@ if (!$allVacunaFieldsEmpty) { // Si hay al menos un campo no vacío
             }
 
             elseif ($i >= 195 && $i <= 196) {
-                $vacunaNombre = 'HEPATITIS B';
+                $vacunaNombre = 28 ;
                 $docis = isset($row[195]) ? $row[195] : null;
                 $lote = isset($row[196]) ? $row[196] : null;
                 $fecha_vacuna = $fechaatencion;
@@ -882,7 +882,7 @@ if (!$allVacunaFieldsEmpty) { // Si hay al menos un campo no vacío
                 $i = 196;
             }
             elseif ($i >= 197 && $i <= 198) {
-                $vacunaNombre = 'PENTAVALENTE (DPaT,HiB,VPI)';
+                $vacunaNombre = 29 ;
                 $docis = isset($row[197]) ? $row[197] : null;
                 $lote = isset($row[198]) ? $row[198] : null;
                 $fecha_vacuna = $fechaatencion;
@@ -894,7 +894,7 @@ if (!$allVacunaFieldsEmpty) { // Si hay al menos un campo no vacío
                 $i = 198;
             }
             elseif ($i >= 199 && $i <= 200) {
-                $vacunaNombre = 'HEXAVALENTE (DPaT,HiB,HB,VPI)';
+                $vacunaNombre = 30 ;
                 $docis = isset($row[199]) ? $row[199] : null;
                 $lote = isset($row[200]) ? $row[200] : null;
                 $fecha_vacuna = $fechaatencion;
@@ -907,7 +907,7 @@ if (!$allVacunaFieldsEmpty) { // Si hay al menos un campo no vacío
             }
 
             elseif ($i >= 201 && $i <= 202) {
-                $vacunaNombre = 'TETRAVALENTE (DPaT,VPI)';
+                $vacunaNombre = 31 ;
                 $docis = isset($row[201]) ? $row[201] : null;
                 $lote = isset($row[202]) ? $row[202] : null;
                 $fecha_vacuna = $fechaatencion;
@@ -920,7 +920,7 @@ if (!$allVacunaFieldsEmpty) { // Si hay al menos un campo no vacío
             }
 
             elseif ($i >= 203 && $i <= 204) {
-                $vacunaNombre = 'DPT ACELULAR PEDIATRICO';
+                $vacunaNombre = 32 ;
                 $docis = isset($row[203]) ? $row[203] : null;
                 $lote = isset($row[204]) ? $row[204] : null;
                 $fecha_vacuna = $fechaatencion;
@@ -933,7 +933,7 @@ if (!$allVacunaFieldsEmpty) { // Si hay al menos un campo no vacío
             }
            
             elseif ($i >= 205 && $i <= 206) {
-                $vacunaNombre = 'TOXOIDE TETANICO Y DIFTERICO (TD) PEDIATRICO';
+                $vacunaNombre = 33 ;
                 $docis = isset($row[205]) ? $row[205] : null;
                 $lote = isset($row[206]) ? $row[206] : null;
                 $fecha_vacuna = $fechaatencion;
@@ -945,7 +945,7 @@ if (!$allVacunaFieldsEmpty) { // Si hay al menos un campo no vacío
                 $i = 206;
             }
             elseif ($i >= 207 && $i <= 208) {
-                $vacunaNombre = 'ROTAVIRUS';
+                $vacunaNombre = 34 ;
                 $docis = isset($row[207]) ? $row[207] : null;
                 $lote = isset($row[208]) ? $row[208] : null;
                 $fecha_vacuna = $fechaatencion;
@@ -953,7 +953,7 @@ if (!$allVacunaFieldsEmpty) { // Si hay al menos un campo no vacío
                 $i = 208;
             }
             elseif ($i >= 209 && $i <= 210) {
-                $vacunaNombre = 'NEUMOCOCO CONJUGADA';
+                $vacunaNombre = 35 ;
                 $docis = isset($row[209]) ? $row[209] : null;
                 $lote = isset($row[210]) ? $row[210] : null;
                 $fecha_vacuna = $fechaatencion;
@@ -965,7 +965,7 @@ if (!$allVacunaFieldsEmpty) { // Si hay al menos un campo no vacío
                 $i = 210;
             }
             elseif ($i >= 211 && $i <= 212) {
-                $vacunaNombre = 'NEUMO POLISACARIDO';
+                $vacunaNombre = 36 ;
                 $docis = isset($row[211]) ? $row[211] : null;
                 $lote = isset($row[212]) ? $row[212] : null;
                 $fecha_vacuna = $fechaatencion;
@@ -977,7 +977,7 @@ if (!$allVacunaFieldsEmpty) { // Si hay al menos un campo no vacío
                 $i = 212;
             }
             elseif ($i >= 213 && $i <= 214) {
-                $vacunaNombre = 'TRIPLE VIRAL';
+                $vacunaNombre = 37 ;
                 $docis = isset($row[213]) ? $row[213] : null;
                 $lote = isset($row[214]) ? $row[214] : null;
                 $fecha_vacuna = $fechaatencion;
@@ -989,7 +989,7 @@ if (!$allVacunaFieldsEmpty) { // Si hay al menos un campo no vacío
                 $i = 214;
             }
             elseif ($i >= 215 && $i <= 216) {
-                $vacunaNombre = 'VARICELA + TRIPLE VIRAL';
+                $vacunaNombre = 38 ;
                 $docis = isset($row[215]) ? $row[215] : null;
                 $lote = isset($row[216]) ? $row[216] : null;
                 $fecha_vacuna = $fechaatencion;
@@ -1001,7 +1001,7 @@ if (!$allVacunaFieldsEmpty) { // Si hay al menos un campo no vacío
                 $i = 216;
             }
             elseif ($i >= 217 && $i <= 218) {
-                $vacunaNombre = 'FIEBRE AMARILLA';
+                $vacunaNombre = 39 ;
                 $docis = isset($row[217]) ? $row[217] : null;
                 $lote = isset($row[218]) ? $row[218] : null;
                 $fecha_vacuna = $fechaatencion;
@@ -1013,7 +1013,7 @@ if (!$allVacunaFieldsEmpty) { // Si hay al menos un campo no vacío
                 $i = 218;
             }
             elseif ($i >= 219 && $i <= 220) {
-                $vacunaNombre = 'HEPATITIS A';
+                $vacunaNombre = 40 ;
                 $docis = isset($row[219]) ? $row[219] : null;
                 $lote = isset($row[220]) ? $row[220] : null;
                 $fecha_vacuna = $fechaatencion;
@@ -1025,7 +1025,7 @@ if (!$allVacunaFieldsEmpty) { // Si hay al menos un campo no vacío
                 $i = 220;
             }
             elseif ($i >= 221 && $i <= 222) {
-                $vacunaNombre = 'HEPATITIS A, HEPATITIS B';
+                $vacunaNombre = 41 ;
                 $docis = isset($row[221]) ? $row[221] : null;
                 $lote = isset($row[222]) ? $row[222] : null;
                 $fecha_vacuna = $fechaatencion;
@@ -1037,7 +1037,7 @@ if (!$allVacunaFieldsEmpty) { // Si hay al menos un campo no vacío
                 $i = 222;
             }
             elseif ($i >= 223 && $i <= 224) {
-                $vacunaNombre = 'VARICELA';
+                $vacunaNombre = 42 ;
                 $docis = isset($row[223]) ? $row[223] : null;
                 $lote = isset($row[224]) ? $row[224] : null;
                 $fecha_vacuna = $fechaatencion;
@@ -1049,7 +1049,7 @@ if (!$allVacunaFieldsEmpty) { // Si hay al menos un campo no vacío
                 $i = 224;
             }
             elseif ($i >= 225 && $i <= 226) {
-                $vacunaNombre = 'TOXOIDE TETÁNICO/DIFTERICO ADULTOS';
+                $vacunaNombre = 43 ;
                 $docis = isset($row[225]) ? $row[225] : null;
                 $lote = isset($row[226]) ? $row[226] : null;
                 $fecha_vacuna = $fechaatencion;
@@ -1061,7 +1061,7 @@ if (!$allVacunaFieldsEmpty) { // Si hay al menos un campo no vacío
                 $i = 226;
             }
             elseif ($i >= 227 && $i <= 228) {
-                $vacunaNombre = 'DPT ACELULAR ADULTO';
+                $vacunaNombre = 44 ;
                 $docis = isset($row[227]) ? $row[227] : null;
                 $lote = isset($row[228]) ? $row[228] : null;
                 $fecha_vacuna = $fechaatencion;
@@ -1073,7 +1073,7 @@ if (!$allVacunaFieldsEmpty) { // Si hay al menos un campo no vacío
                 $i = 228;
             }
             elseif ($i >= 229 && $i <= 230) {
-                $vacunaNombre = 'INFLUENZA';
+                $vacunaNombre = 45 ;
                 $docis = isset($row[229]) ? $row[229] : null;
                 $lote = isset($row[230]) ? $row[230] : null;
                 $fecha_vacuna = $fechaatencion;
@@ -1085,7 +1085,7 @@ if (!$allVacunaFieldsEmpty) { // Si hay al menos un campo no vacío
                 $i = 230;
             }
             elseif ($i >= 231 && $i <= 232) {
-                $vacunaNombre = 'VPH';
+                $vacunaNombre = 46 ;
                 $docis = isset($row[231]) ? $row[231] : null;
                 $lote = isset($row[232]) ? $row[232] : null;
                 $fecha_vacuna = $fechaatencion;
@@ -1098,7 +1098,7 @@ if (!$allVacunaFieldsEmpty) { // Si hay al menos un campo no vacío
             }
 
             elseif ($i >= 233 && $i <= 235) {
-                $vacunaNombre = 'ANTIRRÁBICA PROFILÁCTICA';
+                $vacunaNombre = 47 ;
                 $docis = isset($row[233]) ? $row[233] : null;
                 $lote = isset($row[234]) ? $row[234] : null;
                 $observacion = isset($row[235]) ? $row[235] : null;
@@ -1112,7 +1112,7 @@ if (!$allVacunaFieldsEmpty) { // Si hay al menos un campo no vacío
             }
 
             elseif ($i >= 236 && $i <= 237) {
-                $vacunaNombre = 'INMUNOGLOBULINA ANTI TETANICA (Suero homólogo)';
+                $vacunaNombre = 48 ;
                 $num_frascos_utilizados = isset($row[236]) ? $row[236] : null;
                 $lote = isset($row[237]) ? $row[237] : null; 
                 $fecha_vacuna = $fechaatencion;
@@ -1124,7 +1124,7 @@ if (!$allVacunaFieldsEmpty) { // Si hay al menos un campo no vacío
                 $i = 237;
             }
             elseif ($i >= 238 && $i <= 240) {
-                $vacunaNombre = 'INMUNOGLOBULINA ANTI HEPATITIS B';
+                $vacunaNombre = 49 ;
                 $num_frascos_utilizados = isset($row[238]) ? $row[238] : null;
                 $lote = isset($row[239]) ? $row[239] : null;
                 $observacion = isset($row[240]) ? $row[240] : null; 
@@ -1137,7 +1137,7 @@ if (!$allVacunaFieldsEmpty) { // Si hay al menos un campo no vacío
                 $i = 240;
             }
             elseif ($i >= 241 && $i <= 242) {
-                $vacunaNombre = 'INMUNOGLOBULINA ANTI TETANICA (Suero homólogo)';
+                $vacunaNombre = 50 ;
                 $num_frascos_utilizados = isset($row[241]) ? $row[241] : null;
                 $lote = isset($row[242]) ? $row[242] : null;
                 $fecha_vacuna = $fechaatencion;
@@ -1149,7 +1149,7 @@ if (!$allVacunaFieldsEmpty) { // Si hay al menos un campo no vacío
                 $i = 242;
             }
             elseif ($i >= 243 && $i <= 244) {
-                $vacunaNombre = 'ANTI TOXINA TETANICA (Suero heterólogo)';
+                $vacunaNombre = 51 ;
                 $num_frascos_utilizados = isset($row[243]) ? $row[243] : null;
                 $lote = isset($row[244]) ? $row[244] : null;
                 $fecha_vacuna = $fechaatencion;
@@ -1161,7 +1161,7 @@ if (!$allVacunaFieldsEmpty) { // Si hay al menos un campo no vacío
                 $i = 244;
             }
             elseif ($i >= 245 && $i <= 246) {
-                $vacunaNombre = 'MENINGOCOCO CONJUGADO';
+                $vacunaNombre = 52 ;
                 $docis = isset($row[245]) ? $row[245] : null;
                 $lote = isset($row[246]) ? $row[246] : null;
                 $fecha_vacuna = $fechaatencion;
@@ -1173,7 +1173,7 @@ if (!$allVacunaFieldsEmpty) { // Si hay al menos un campo no vacío
                 $i = 246;
             }
             elseif ($i >= 247 && $i <= 248) {
-                $vacunaNombre = 'FIEBRE TIFOIDEA';
+                $vacunaNombre = 53 ;
                 $docis = isset($row[247]) ? $row[247] : null;
                 $lote = isset($row[248]) ? $row[248] : null;
                 $fecha_vacuna = $fechaatencion;
@@ -1185,7 +1185,7 @@ if (!$allVacunaFieldsEmpty) { // Si hay al menos un campo no vacío
                 $i = 248;
             }
             elseif ($i >= 249 && $i <= 250) {
-                $vacunaNombre = 'HERPES ZOSTER';
+                $vacunaNombre = 54 ;
                 $docis = isset($row[249]) ? $row[249] : null;
                 $lote = isset($row[250]) ? $row[250] : null;
                 $fecha_vacuna = $fechaatencion;
@@ -1206,7 +1206,7 @@ if (!$allVacunaFieldsEmpty) { // Si hay al menos un campo no vacío
 if ($vacunaNombre) {
     $vacunas[] = [
                     
-                    'nombre' => $vacunaNombre,
+                    // 'nombre' => $vacunaNombre,
                     'docis' => $docis ?? null,
                     'laboratorio' => $laboratorio ?? null,
                     'lote' => $lote ?? null,
@@ -1224,7 +1224,9 @@ if ($vacunaNombre) {
                     'fuen_ingresado_paiweb' => $fuen_ingresado_paiweb_ ?? null,
                     'motivo_noingreso' => $motivo_noingreso_ ?? null,
                     'observaciones' => $observaciones_ ?? null,
+                    'vacunas_id' => $vacunaNombre,
                     'user_id' => $usuario_activo ?? null,
+                    
                     'batch_verifications_id' => $this->batch_verifications_id, // Clave foránea
                     'created_at' => Carbon::now()->format('Y-m-d H:i:s'),
                     'updated_at' => Carbon::now()->format('Y-m-d H:i:s'),

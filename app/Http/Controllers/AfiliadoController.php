@@ -141,7 +141,7 @@ class AfiliadoController extends Controller
                             // Verificar si ya existe una vacuna con la misma dosis y el mismo nombre para el mismo afiliado
                             $existeVacuna = Vacuna::where('afiliado_id', $afiliado->id)
                                                 ->where('docis', $vacunaData['docis'])
-                                                ->where('nombre', $vacunaData['nombre'])  // Verifica también el nombre de la vacuna
+                                                ->where('vacunas_id', $vacunaData['vacunas_id'])  // Verifica también el nombre de la vacuna
                                                 ->first();
 
                             if (!$existeVacuna) {
@@ -193,6 +193,7 @@ class AfiliadoController extends Controller
     $vacunas = DB::table('vacunas as a')
         ->join('afiliados as b', 'a.afiliado_id', '=', 'b.id')
         ->join('users as c', 'a.user_id', '=', 'c.id')  // Unir con la tabla users
+        ->join('referencia_vacunas as d', 'a.vacunas_id', '=', 'd.id')
         // La condición es que se cumpla el id o el numero_carnet
         ->where(function($query) use ($id, $numeroCarnet) {
             $query->where('b.id', $id)
@@ -200,7 +201,7 @@ class AfiliadoController extends Controller
         })
         // Seleccionar los campos que queremos devolver
         ->select(
-            'a.nombre as nombre_vacuna', 
+            'd.nombre as nombre_vacuna', 
             'a.docis as docis_vacuna', 
             'a.fecha_vacuna as fecha_vacunacion',
             'c.name as nombre_usuario',  // Campo del nombre del usuario responsable

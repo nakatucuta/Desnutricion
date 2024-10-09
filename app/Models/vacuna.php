@@ -40,6 +40,7 @@ class vacuna extends Model
         'fuen_ingresado_paiweb',
         'motivo_noingreso',
         'observaciones',
+        'vacunas_id',
         'user_id',
         'batch_verifications_id',
 
