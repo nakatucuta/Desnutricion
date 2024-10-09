@@ -13,7 +13,7 @@ return new class extends Migration
     {
         Schema::create('vacunas', function (Blueprint $table) {
             $table->increments('id');
-            $table->string('nombre')->nullable();
+            // $table->string('nombre')->nullable();
             $table->string('docis')->nullable();
             $table->string('laboratorio')->nullable();
             $table->string('lote')->nullable();
@@ -37,8 +37,15 @@ return new class extends Migration
             
             $table->integer('afiliado_id')->unsigned()->nullable();
             $table->foreign('afiliado_id')->references('id')->on('afiliados');
+
+            $table->integer('vacunas_id')->unsigned()->nullable();
+            $table->foreign('vacunas_id')->references('id')->on('referencia_vacunas');
+
             $table->integer('user_id')->unsigned();
             $table->foreign('user_id')->references('id')->on('users');
+
+        
+
             $table->timestamps();
         });
     }
