@@ -15,6 +15,7 @@ use App\Models\CorreoEnviado;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\Storage;
 
 
 class AfiliadoController extends Controller
@@ -305,4 +306,21 @@ class AfiliadoController extends Controller
     
         return redirect()->back()->with('success', 'Correo enviado exitosamente.');
     }
+
+// METODO PARA DESCARGAR EL  FORMATO EXCEL 
+ 
+    // Método para descargar el archivo Excel
+    public function downloadExcel()
+    {
+        // Ruta del archivo Excel que deseas descargar (ubicado en storage/app/public/formato.xlsx)
+        $filePath = 'public/Formato pai_.xlsx';
+
+        // Verificar si el archivo existe
+        if (Storage::exists($filePath)) {
+            return Storage::download($filePath, 'formato_registro_diario.xlsx');
+        } else {
+            abort(404, 'El archivo no existe.');
+        }
+    }
+
 }

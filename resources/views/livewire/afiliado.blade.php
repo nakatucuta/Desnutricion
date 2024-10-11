@@ -1,10 +1,16 @@
 
 @extends('adminlte::page')
 
-@section('title', 'Dashboard')
+@section('title', 'PAI')
 
 @section('content_header')
-    <h1>CARGUE REGISTRO DIARIO (PAI)</h1>
+   
+<div class="header-container">
+    <h1 class="executive-title">CARGUE REGISTRO DIARIO (PAI)</h1>
+    <a href="{{ route('download.excel') }}" class="btn btn-download">
+        Descargar Formato
+    </a>
+</div>
 @stop
 
 @section('content')
@@ -20,7 +26,6 @@
         <strong>{{ $message }}</strong>
     </div>
     @endif --}}
-
     <div class="row">
         <div class="col-md-12">
             <form action="{{ route('import-excel_2') }}" method="POST" enctype="multipart/form-data" class="form-horizontal" id="file-upload-form">
@@ -33,11 +38,17 @@
                     </div>
                 </div>
                 <div class="form-group text-center">
-                    <button type="submit" class="btn btn-primary">Importar Excel</button>
+                    <button type="submit" class="btn btn-primary" id="submit-button">Importar Excel</button>
                 </div>
             </form>
         </div>
     </div>
+    <!-- Contenedor para mostrar el mensaje de advertencia -->
+    <div id="date-warning" class="alert alert-warning text-center" style="display: none;">
+        El formulario no está disponible fuera del rango de fechas permitido.
+    </div>
+    
+    
     {{-- <div class="container mt-5">
         <h4>Exportar Vacunas</h4>
         <a href="{{ url('export-vacunas') }}" class="btn btn-success">Exportar a Excel</a>
@@ -123,6 +134,69 @@
 
 
 @include('livewire.css')
+<style>
+    /* Contenedor del header para alinear el botón a la derecha */
+    .header-container {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 20px;
+        border-bottom: 2px solid #ccc;
+        margin-bottom: 20px;
+    }
+
+    /* Estilo profesional para el título */
+    .executive-title {
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        font-size: 36px;
+        font-weight: 700;
+        color: #2C3E50;
+        text-transform: uppercase;
+        letter-spacing: 2px;
+        text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.2);
+        padding: 10px 20px;
+        background: linear-gradient(135deg, #ecf0f1, #bdc3c7);
+        border-radius: 8px;
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
+        border-left: 6px solid #2980b9;
+    }
+
+    /* Estilo del botón animado */
+    .btn-download {
+        background-color: #ff4b5c;
+        color: white;
+        padding: 15px 30px;
+        border-radius: 50px;
+        font-size: 18px;
+        text-align: center;
+        display: inline-block;
+        text-decoration: none;
+        position: relative;
+        overflow: hidden;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+        animation: pulse 1s infinite;
+        transition: background-color 0.3s ease;
+    }
+
+    .btn-download:hover {
+        background-color: #ff616f;
+        color: white;
+    }
+
+    /* Efecto de palpitación */
+    @keyframes pulse {
+        0% {
+            transform: scale(1);
+        }
+        50% {
+            transform: scale(1.2);
+        }
+        100% {
+            transform: scale(1);
+        }
+    }
+</style>
+
 @stop
 @section('js')
     <!-- jQuery -->
@@ -242,56 +316,97 @@
 
         });
 
-        // Script para el área de arrastrar y soltar
-        document.addEventListener("DOMContentLoaded", function() {
-            var dragDropArea = document.getElementById('drag-drop-area');
-            var inputFile = dragDropArea.querySelector('input[type="file"]');
-            var fileNameDisplay = document.createElement('p');
-            dragDropArea.appendChild(fileNameDisplay);
 
-            dragDropArea.onclick = function () {
-                inputFile.click();
-            };
 
-            inputFile.onchange = function () {
-                validateAndDisplayFile(inputFile.files);
-            };
+    // Script para el área de arrastrar y soltar
+           // Script para el área de arrastrar y soltar
+           document.addEventListener("DOMContentLoaded", function() {
+    var dragDropArea = document.getElementById('drag-drop-area');
+    var inputFile = dragDropArea.querySelector('input[type="file"]');
+    var fileNameDisplay = document.createElement('p');
+    dragDropArea.appendChild(fileNameDisplay);
 
-            dragDropArea.ondragover = dragDropArea.ondragenter = function(evt) {
-                evt.preventDefault();
-                dragDropArea.classList.add('drag-over');
-            };
+    var submitButton = document.getElementById("submit-button");
+    var dateWarning = document.getElementById("date-warning");
 
-            dragDropArea.ondragleave = function() {
-                dragDropArea.classList.remove('drag-over');
-            };
+    // Obtener la fecha actual
+    var currentDate = new Date();
+    var currentYear = currentDate.getFullYear();
+    var currentMonth = currentDate.getMonth(); // Mes actual (0-11)
 
-            dragDropArea.ondrop = function(evt) {
-                evt.preventDefault();
-                dragDropArea.classList.remove('drag-over');
-                inputFile.files = evt.dataTransfer.files;
-                validateAndDisplayFile(inputFile.files);
-            };
+    // Definir la fecha de inicio (en este caso, desde ayer)
+    var startDate = new Date(currentYear, currentMonth, 11);  // Día 11 del mes actual
+   
+    // Definir la fecha de fin (5 del mes siguiente)
+    var endDate = new Date(currentYear, currentMonth + 1, 5);
 
-            function validateAndDisplayFile(files) {
-                if (files.length > 0) {
-                    var file = files[0];
-                    if (file.type === "application/vnd.ms-excel" || file.type === "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet") {
-                        fileNameDisplay.textContent = `Archivo cargado: ${file.name}`;
-                        fileNameDisplay.style.background = "";
-                        fileNameDisplay.style.color = "";
-                    } else {
-                        fileNameDisplay.textContent = "Por favor, sube un archivo Excel (.xls, .xlsx)";
-                        fileNameDisplay.style.background = "red";
-                        fileNameDisplay.style.color = "white";
-                        fileNameDisplay.style.padding = "10px";
-                        fileNameDisplay.style.borderRadius = "5px";
-                        fileNameDisplay.style.marginTop = "10px";
-                        inputFile.value = "";
-                    }
-                }
+    // Si estamos en diciembre, corregir para pasar a enero del próximo año
+    if (currentMonth === 11) {
+        endDate = new Date(currentYear + 1, 0, 5);
+    }
+
+    // Verificar si la fecha actual está dentro del rango (entre startDate y endDate)
+    if (currentDate >= startDate && currentDate <= endDate) {
+        // Habilitar el botón de enviar
+        submitButton.disabled = false;
+        dateWarning.style.display = "none";  // Ocultar el mensaje de advertencia
+
+        // Hacer funcional el área de arrastrar y soltar
+        dragDropArea.onclick = function () {
+            inputFile.click();
+        };
+
+        inputFile.onchange = function () {
+            validateAndDisplayFile(inputFile.files);
+        };
+
+        dragDropArea.ondragover = dragDropArea.ondragenter = function(evt) {
+            evt.preventDefault();
+            dragDropArea.classList.add('drag-over');
+        };
+
+        dragDropArea.ondragleave = function() {
+            dragDropArea.classList.remove('drag-over');
+        };
+
+        dragDropArea.ondrop = function(evt) {
+            evt.preventDefault();
+            dragDropArea.classList.remove('drag-over');
+            inputFile.files = evt.dataTransfer.files;
+            validateAndDisplayFile(inputFile.files);
+        };
+    } else {
+        // Deshabilitar el botón de enviar y el área de arrastrar y soltar
+        submitButton.disabled = true;
+        dateWarning.style.display = "block";  // Mostrar el mensaje de advertencia
+
+        // Deshabilitar la interacción con el área de arrastrar y soltar
+        dragDropArea.style.pointerEvents = 'none';
+        dragDropArea.style.opacity = '0.5';  // Hacer que se vea "deshabilitado"
+        dragDropArea.innerHTML = "<p>El formulario no está disponible fuera del rango de fechas permitido.</p>";
+    }
+
+    // Función para validar y mostrar el archivo cargado
+    function validateAndDisplayFile(files) {
+        if (files.length > 0) {
+            var file = files[0];
+            if (file.type === "application/vnd.ms-excel" || file.type === "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet") {
+                fileNameDisplay.textContent = `Archivo cargado: ${file.name}`;
+                fileNameDisplay.style.background = "";
+                fileNameDisplay.style.color = "";
+            } else {
+                fileNameDisplay.textContent = "Por favor, sube un archivo Excel (.xls, .xlsx)";
+                fileNameDisplay.style.background = "red";
+                fileNameDisplay.style.color = "white";
+                fileNameDisplay.style.padding = "10px";
+                fileNameDisplay.style.borderRadius = "5px";
+                fileNameDisplay.style.marginTop = "10px";
+                inputFile.value = "";
             }
-        });
+        }
+    }
+});
+
 
 // Función para manejar la exportación a Excel con fechas
 $('#exportButton').on('click', function() {

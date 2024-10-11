@@ -171,3 +171,6 @@ Route::get('/detalle-prestador-113/{id}', [SeguimientoController::class, 'detall
 
 //RUTA  PARA ENVIO DE CORREO DE  PAI 
 Route::post('/send-email', [AfiliadoController::class, 'sendEmail'])->name('send.email');
+
+
+Route::get('/descargar-formato', [AfiliadoController::class, 'downloadExcel'])->name('download.excel');
