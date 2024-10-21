@@ -59,7 +59,7 @@ class AfiliadoImport implements ToModel, WithStartRow
     {
 
       
-
+// validacion previa de  datos 
 
         $data = [
             'fecha_atencion' => $row[0] ?? null,
