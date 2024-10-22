@@ -219,9 +219,9 @@ class AfiliadoImport implements ToModel, WithStartRow
         'cuidador_segundo_apellido' => 'nullable|string',
         'cuidador_parentesco' => 'nullable|string',
         'cuidador_correo' => 'nullable|string',
-        'cuidador_telefono' => 'nullable|string',
+        'cuidador_telefono' => 'nullable',
         'cuidador_celular' => 'nullable',
-        'esquema_vacunacion' => 'nullable|string',
+        'esquema_vacunacion' => 'nullable',
     ];
 
     // Define los mensajes de error
