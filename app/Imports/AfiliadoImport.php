@@ -180,7 +180,7 @@ class AfiliadoImport implements ToModel, WithStartRow
         'comuna' => 'nullable|string',
         'area' => 'nullable|string',
         'direccion' => 'nullable',
-        'telefono_fijo' => 'nullable|string',
+        'telefono_fijo' => 'nullable',
         'celular' => 'nullable
         ',
         'email' => 'nullable|string',
@@ -206,7 +206,7 @@ class AfiliadoImport implements ToModel, WithStartRow
         'madre_primer_apellido' => 'nullable|string',
         'madre_segundo_apellido' => 'nullable|string',
         'madre_correo' => 'nullable|string',
-        'madre_telefono' => 'nullable|string',
+        'madre_telefono' => 'nullable',
         'madre_celular' => 'nullable',
         'madre_regimen' => 'nullable|string',
         'madre_pertenencia_etnica' => 'nullable|string',
