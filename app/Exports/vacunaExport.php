@@ -18,6 +18,10 @@ class vacunaExport implements FromQuery, WithHeadings
     {
         $this->startDate = $startDate;
         $this->endDate = $endDate;
+    
+        // Aumentar el tiempo de ejecución y el límite de memoria
+        ini_set('max_execution_time', 600); // 10 minutos
+        ini_set('memory_limit', '512M'); // Aumentar el límite de memoria a 512MB o ajustarlo según sea necesario
     }
 
 
