@@ -25,7 +25,7 @@ class vacunaExport implements FromQuery, WithHeadings
     public function query()
     {
         // Construcción de la consulta base
-        $query = DB::table('PRUEBA_DESNUTRICION.dbo.vacunas as a') // Asegúrate de que el esquema es correcto
+        $query = DB::table('DESNUTRICION.dbo.vacunas as a') // Asegúrate de que el esquema es correcto
             ->join('afiliados as b', 'b.id', '=', 'a.afiliado_id')
             ->join('referencia_vacunas as d', 'a.vacunas_id', '=', 'd.id')
 
