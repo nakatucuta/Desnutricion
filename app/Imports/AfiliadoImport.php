@@ -183,7 +183,7 @@ class AfiliadoImport implements ToModel, WithStartRow
         'telefono_fijo' => 'nullable',
         'celular' => 'nullable
         ',
-        'email' => 'nullable|string',
+        'email' => 'nullable',
         'autoriza_llamadas' => 'nullable|string',
         'autoriza_correos' => 'nullable|string',
         'contraindicacion_vacuna' => 'nullable|string',
