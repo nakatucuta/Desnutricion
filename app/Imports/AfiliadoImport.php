@@ -179,7 +179,7 @@ class AfiliadoImport implements ToModel, WithStartRow
         'municipio_residencia' => 'nullable|string',
         'comuna' => 'nullable|string',
         'area' => 'nullable|string',
-        'direccion' => 'nullable|string',
+        'direccion' => 'nullable',
         'telefono_fijo' => 'nullable|string',
         'celular' => 'nullable
         ',
