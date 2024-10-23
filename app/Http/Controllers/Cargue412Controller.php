@@ -126,38 +126,40 @@ class Cargue412Controller extends Controller
     public function edit(Cargue412 $cargue412, $id, $numero_identificacion)
     {
         $incomeedit14 = DB::connection('sqlsrv_1')->table('maestroAfiliados as a')
-        ->join('maestroips as b', 'a.numeroCarnet', '=', 'b.numeroCarnet')
-        ->join('maestroIpsGru as c', 'b.idGrupoIps', '=', 'c.id')
-        ->join('maestroIpsGruDet as d', function($join) {
-            $join->on('c.id', '=', 'd.idd')
-                 ->where('d.servicio', '=', 1);
-        })
-        ->join('refIps as e', 'd.idIps', '=', 'e.idIps')
-        ->select(DB::raw('CAST(e.codigo AS BIGINT) as codigo_habilitacion'))
-        ->where('a.identificacion', $numero_identificacion)
-        ->first(); // Obtener el primer registro de la consulta
-    
+            ->join('maestroips as b', 'a.numeroCarnet', '=', 'b.numeroCarnet')
+            ->join('maestroIpsGru as c', 'b.idGrupoIps', '=', 'c.id')
+            ->join('maestroIpsGruDet as d', function($join) {
+                $join->on('c.id', '=', 'd.idd')
+                     ->where('d.servicio', '=', 1);
+            })
+            ->join('refIps as e', 'd.idIps', '=', 'e.idIps')
+            ->select(DB::raw('CAST(e.codigo AS BIGINT) as codigo_habilitacion'))
+            ->where('a.identificacion', $numero_identificacion)
+            ->first(); // Obtener el primer registro de la consulta
+        
         if ($incomeedit14 !== null) {
             $income12 = DB::table('users')
                 ->select('name', 'id', 'codigohabilitacion')
                 ->where('codigohabilitacion', $incomeedit14->codigo_habilitacion)
-                
                 ->get();
-            // Resto del código que maneja el resultado de la segunda consulta...
         } else {
-            // Asignar un valor predeterminado a $income12 si $incomeedit14 es null
             $income12 = [];
         }
-      
-
-
-        $incomeedit15 =  DB::table('users')->select('name', 'id','codigohabilitacion')
-         ->where('usertype', 2)
-        ->get();
+    
+        // Obtener los IDs de los usuarios que ya están en income12
+        $idsEnIncome12 = $income12->pluck('id')->toArray();
+    
+        // Filtrar incomeedit15 para que no incluya los IDs que ya están en income12
+        $incomeedit15 = DB::table('users')
+            ->select('name', 'id', 'codigohabilitacion')
+            ->where('usertype', 2)
+            ->whereNotIn('id', $idsEnIncome12) // Evitar duplicados
+            ->get();
         
         $edit_cargue = Cargue412::findOrFail($id); 
-        return view('new_412.edit',compact('edit_cargue','incomeedit15','income12','incomeedit14'));
+        return view('new_412.edit', compact('edit_cargue', 'incomeedit15', 'income12', 'incomeedit14'));
     }
+    
 
     /**
      * Update the specified resource in storage.

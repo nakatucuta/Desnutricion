@@ -38,51 +38,46 @@
             
             <div class="card-body">
 
+                <div class="row">  
+                    {{-- El mensaje inicia aquí --}}
+                    <div class="col-sm-12">
+                        @if(count($income12) == 0)
+                            <div class="alert alert-danger">
+                                <button type="button" class="close" data-dismiss="alert">
+                                    &times;
+                                </button>
+                                La ips primaria del afiliado no se encuentra registrada, por favor registrarla o escoger otro prestador para realizar el seguimiento.
+                            </div>
+                            {{-- El mensaje termina aquí --}}
+                            
+                            {{-- Este es el select que mostrará en caso de que no se encuentre el código de habilitación de este usuario --}}
+                            <div class="form-group">
+                                <label for="Nombre">Ips seguimiento Ambulatorio</label>
+                                <select class="person2" name="user_id" id="user_id" style="width: 100%">
+                                    <option value="0">{{--REGISTRAR USUARIO--}}</option>  
+                                    @foreach($incomeedit15 as $developer)
+                                        <option value="{{$developer->id}}">{{$developer->codigohabilitacion.' '.$developer->name}}</option>
+                                    @endforeach 
+                                </select>
+                            </div>
+                            {{-- Aquí termina el select en caso de error --}}
+                        @else
+                            {{-- Si encuentra el prestador, muestra este select --}}
+                            <div class="form-group">
+                                <label for="Nombre">Ips seguimiento Ambulatorio</label>
+                                <select class="person2" name="user_id" id="user_id" style="width: 100%">
+                                    {{-- <option value="0">SELECCIONAR</option> --}}
                 
-        <div class="row">  
-    
-            {{-- el mensaje inicia aqui --}}
-            <div class="col-sm-12">
-                @if(count($income12) == 0)
-                <div class="alert alert-danger">
-                <button type="button" class="close" data-dismiss="alert">
-                    &times;
-                </button>
-            La ips primaria del afiliado no se encuentra registrada, por favor  registrarla o escoger otro prestador para realizar el seguimiento
-            </div>
-           {{-- el mensaje termina aqui  --}}
-        
-           {{-- este es el select que mostrara en caso que no encuentre el cod habilitacin de este usuario --}}
-        <div class="form-group">
-            <label for="Nombre">Ips seguimiento Ambulatorio</label>
-            <select class="person2 " name="user_id" id="user_id"  style="width: 100% ">
-                  <option  value="0">{{--REGISTRAR USUARIO--}}</option>  
-                 @foreach($incomeedit15 as $developer)
-                 <option  value="{{$developer->id}}">{{$developer->codigohabilitacion.' '.$developer->name}}</option>
-                 @endforeach 
-            </select>
-        </div>
-        {{-- aqui termina el select en caso de error --}}
-                @else
-              
-                {{-- si encuentra el el prestador muestre este  --}}
-                 <div class="form-group">
-                    <label for="Nombre">Ips seguimiento Ambulatorio</label>
-                    <select class="person2 " name="user_id" id="user_id"  style="width: 100% ">
-                        {{-- <option  value="0">SELECCIONAR</option> --}}
-                        
-                      
-                        @foreach($income12 as $developer)
-                            <option value="{{$developer->id}}">{{$developer->codigohabilitacion.' '.$developer->name }}</option>
-                        @endforeach
-                        @foreach($incomeedit15 as $developer)
-                        <option  value="{{$developer->id}}">{{$developer->codigohabilitacion.' '.$developer->name}}</option>
-                        @endforeach
-                        
-                    </select>
+                                    {{-- Combinamos los datos de $income12 y $incomeedit15 eliminando duplicados --}}
+                                    @foreach($income12->merge($incomeedit15)->unique('id') as $developer)
+                                        <option value="{{$developer->id}}">{{$developer->codigohabilitacion.' '.$developer->name}}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                        @endif
+                    </div>
                 </div>
-                @endif
-        
+                
                
                  </div> </div> 
 
