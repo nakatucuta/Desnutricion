@@ -152,7 +152,7 @@ class Cargue412Controller extends Controller
 
 
         $incomeedit15 =  DB::table('users')->select('name', 'id','codigohabilitacion')
-        // ->where('usertype', 2)
+         ->where('usertype', 2)
         ->get();
         
         $edit_cargue = Cargue412::findOrFail($id); 
