@@ -26,49 +26,81 @@ class AfiliadoController extends Controller
      *
      * @return \Illuminate\View\View
      */
-    public function index()
-    {
-        // $sivigilas1 = DB::connection('sqlsrv_1')
-        // ->table('users')  // Sin alias
-        // ->select('*') 
-        // ->get();
-        // $authenticatedUser = auth()->user()->name;
-        // $userInQuery = $sivigilas1->firstWhere('name', $authenticatedUser->name);
+    public function index(Request $request)
+{
+    $search = $request->input('search');
 
+    // Si se selecciona un número de identificación, filtramos los resultados
+    $sivigilas = DB::table(DB::raw('afiliados AS b'))
+        ->select(
+            'b.id',
+            'b.primer_nombre',
+            'b.segundo_nombre',
+            'b.primer_apellido',
+            'b.segundo_apellido',
+            'b.numero_identificacion',
+            'c.batch_verifications_id'
+        )
+        ->join(DB::raw('vacunas AS c'), 'b.id', '=', 'c.afiliado_id')
+        ->when($search, function ($query, $search) {
+            return $query->where('b.numero_identificacion', 'LIKE', "%{$search}%");
+        })
+        ->paginate(10);
 
-        // $sivigilas = DB::table('afiliados as b')
+    // Consulta para otros usuarios
+    $sivigilas_usernormal = DB::table('afiliados as b')
+        ->select(
+            'b.id',
+            'b.primer_nombre',
+            'b.segundo_nombre',
+            'b.primer_apellido',
+            'b.segundo_apellido',
+            'b.numero_identificacion',
+            'b.numero_carnet'
+        )
+        ->when($search, function ($query, $search) {
+            return $query->where('b.numero_identificacion', 'LIKE', "%{$search}%");
+        })
+        ->paginate(10);
 
-        //     ->select('b.id', 'b.primer_nombre', 'b.segundo_nombre', 'b.primer_apellido', 'b.segundo_apellido', 'b.numero_identificacion')
-        //     ->get();
-
-
-        $sivigilas = DB::table(DB::raw('afiliados AS b'))
-            ->select(
-                'b.id',
-                'b.primer_nombre',
-                'b.segundo_nombre',
-                'b.primer_apellido',
-                'b.segundo_apellido',
-                'b.numero_identificacion',
-                'c.batch_verifications_id',
-                // 'b.numero_carnet'
-            )
-            ->join(DB::raw('vacunas AS c'), 'b.id', '=', 'c.afiliado_id')
-            ->get(); // Usamos get() en lugar de paginate() porque DataTables manejará la paginación.
-    
-           
-           
-            $sivigilas_usernormal = DB::table('afiliados as b')
-
-            ->select('b.id', 'b.primer_nombre', 'b.segundo_nombre', 'b.primer_apellido', 'b.segundo_apellido', 
-            'b.numero_identificacion','b.numero_carnet')
-            // ->join(DB::raw('vacunas AS c'), 'b.id', '=', 'c.afiliado_id')
-
-           ->get();
-             // Usamos get() en lugar de paginate() porque DataTables manejará la paginación.
-        return view('livewire.afiliado', compact('sivigilas','sivigilas_usernormal'));
+    // Verificar si la solicitud es AJAX
+    if ($request->ajax()) {
+        return response()->json([
+            'sivigilas' => $sivigilas->items(),
+            'sivigilas_usernormal' => $sivigilas_usernormal->items(),
+        ]);
     }
-  
+
+    // Si no es una solicitud AJAX, devolvemos la vista normalmente
+    return view('livewire.afiliado', compact('sivigilas', 'sivigilas_usernormal', 'search'));
+}
+    // METODO PARA EL BUSCADOR  EN INDEX
+    
+    public function buscarAfiliados(Request $request)
+    {
+        $search = $request->input('search');
+    
+        // Verifica si hay un término de búsqueda
+        if ($search) {
+            $results = DB::table('afiliados as b')
+                ->select(
+                    'b.id',
+                    'b.primer_nombre',
+                    'b.segundo_nombre',
+                    'b.primer_apellido',
+                    'b.segundo_apellido',
+                    'b.numero_identificacion'
+                )
+                ->where('b.numero_identificacion', 'LIKE', "%{$search}%")
+                ->limit(10)  // Limitar el número de resultados
+                ->get();
+    
+            return response()->json($results);  // Devolver JSON
+        }
+    
+        return response()->json([]);  // Si no hay búsqueda, devolver un array vacío
+    }
+    
       /**
      * Muestra el formulario para importar archivos Excel.
      *

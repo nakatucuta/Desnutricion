@@ -174,3 +174,7 @@ Route::post('/send-email', [AfiliadoController::class, 'sendEmail'])->name('send
 
 
 Route::get('/descargar-formato', [AfiliadoController::class, 'downloadExcel'])->name('download.excel');
+
+
+//RUTA PARA EL BUSCADOR DINAMICO EN PAI
+Route::get('/buscar-afiliados', [AfiliadoController::class, 'buscarAfiliados'])->name('buscar.afiliados');

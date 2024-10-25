@@ -2,13 +2,28 @@
 {{-- <a href="{{ url('export-vacunas') }}" class="btn btn-success">Exportar a Excel</a>
 <div class="table-responsive mt-5"> --}}
 <!-- Botón para exportar a Excel que abrirá el modal -->
-<a href="#" class="btn btn-success" data-toggle="modal" data-target="#exportModal">Exportar a Excel</a>
+<!-- Contenedor flex para alinear el botón y el campo de búsqueda en el mismo nivel -->
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <!-- Botón de Exportar a la izquierda -->
+    <a href="#" class="btn btn-success" data-toggle="modal" data-target="#exportModal">Exportar a Excel</a>
 
+    <!-- Campo de búsqueda a la derecha con mayor ancho -->
+    <div class="search-container ml-auto">
+        <div class="search-input-wrapper">
+            <input type="text" id="search" class="form-control search-input" placeholder="Buscar por Número de Identificación" autocomplete="off">
+            <i class="fas fa-search search-icon"></i>
+        </div>
+        <!-- Área donde se mostrarán los resultados -->
+        <div id="search-results" class="list-group search-results"></div>
+    </div>
+</div>
+
+<!-- Modal Fecha Report (posición original sin cambios) -->
 @include('livewire.modal_fecha_report')
 
 
-<br>
-<br>
+
+
 
     @if( auth()->user()->usertype == 2)
     <table class="table table-hover table-striped table-bordered" id="sivigila">
@@ -47,6 +62,8 @@
            
         </tbody>
     </table>
+    {{ $sivigilas->links() }}
+
     @else
     {{-- VISTA PARTA LOS DEMAS USUARIOS --}}
 
@@ -63,24 +80,24 @@
         </tr>
     </thead>
     <tbody>
-        @foreach($sivigilas_usernormal as $student2)
+        @foreach($sivigilas_usernormal as $student21)
         @php
         // Verificamos si ya se ha enviado un correo para este paciente y usuario actual
         $correoEnviado = App\Models\CorreoEnviado::where('user_id', auth()->id())
-            ->where('patient_id', $student2->id)
+            ->where('patient_id', $student21->id)
             ->exists();
     @endphp
         <tr>
-            <td><small>{{ $student2->id }}</small></td>
+            <td><small>{{ $student21->id }}</small></td>
             <td>
                 <a href="#" class="numero-identificacion" 
-                   data-id="{{ $student2->id }}" 
-                   data-carnet="{{ $student2->numero_carnet }}">
-                   {{ $student2->numero_identificacion }}
+                   data-id="{{ $student21->id }}" 
+                   data-carnet="{{ $student21->numero_carnet }}">
+                   {{ $student21->numero_identificacion }}
                 </a>
             </td>            
-            <td><small>{{ $student2->primer_nombre.' '.$student2->segundo_nombre.' '.$student2->primer_apellido.' '.$student2->segundo_apellido }}</small></td>
-            <td><small>{{ $student2->numero_carnet }}</small></td> 
+            <td><small>{{ $student21->primer_nombre.' '.$student21->segundo_nombre.' '.$student21->primer_apellido.' '.$student21->segundo_apellido }}</small></td>
+            <td><small>{{ $student21->numero_carnet }}</small></td> 
             <td>
                 @if($correoEnviado)
                     <!-- Deshabilitar el botón si ya se envió el correo -->
@@ -92,8 +109,8 @@
                     <a href="#" class="btn btn-sm btn-warning blinking-button send-email" 
                         data-toggle="modal" 
                         data-target="#emailModal" 
-                        data-id="{{ $student2->id }}" 
-                        data-name="{{ $student2->primer_nombre.' '.$student2->segundo_nombre.' '.$student2->primer_apellido.' '.$student2->segundo_apellido }}">
+                        data-id="{{ $student21->id }}" 
+                        data-name="{{ $student21->primer_nombre.' '.$student21->segundo_nombre.' '.$student21->primer_apellido.' '.$student21->segundo_apellido }}">
                         <i class="fas fa-envelope"></i> Solicitud
                     </a>
                 @endif
@@ -102,6 +119,7 @@
         @endforeach
     </tbody>
 </table>
+{{ $sivigilas_usernormal->links() }}
 
 <!-- Modal para escribir el correo -->
 <div class="modal fade" id="emailModal" tabindex="-1" role="dialog" aria-labelledby="emailModalLabel" aria-hidden="true">

@@ -135,6 +135,129 @@
 
 @include('livewire.css')
 <style>
+    /* #search-results {
+    max-height: 200px;
+    overflow-y: auto;
+    width: 100%;
+}
+.list-group-item {
+    cursor: pointer;
+} */
+
+
+/*AQUI COMIENZA EL CSS PARA EL BUSCADOR */
+/* Contenedor principal */
+
+.search-container {
+    position: relative;
+    max-width: 100%; /* Ocupa todo el ancho disponible */
+    width: 500px; /* Ancho deseado */
+    padding: 20px;
+    background-color: #fff;
+    border-radius: 8px;
+    box-shadow: 0px 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+/* Input de búsqueda con icono */
+.search-input-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.search-input {
+    width: 100%;
+    padding: 12px 40px 12px 15px;
+    font-size: 16px;
+    border: 2px solid #ddd;
+    border-radius: 6px;
+    transition: all 0.3s ease;
+    box-shadow: 0 0 8px rgba(0, 0, 0, 0.05);
+}
+
+.search-input:focus {
+    outline: none;
+    border-color: #007bff;
+    box-shadow: 0px 4px 12px rgba(0, 123, 255, 0.2);
+}
+
+/* Icono de búsqueda dentro del input */
+.search-icon {
+    position: absolute;
+    right: 15px;
+    font-size: 18px;
+    color: #888;
+    transition: color 0.3s ease;
+}
+
+.search-input:focus + .search-icon {
+    color: #007bff;
+}
+
+/* Resultados de búsqueda */
+#search-results {
+    max-height: 300px;
+    overflow-y: auto;
+    width: 100%;
+    position: absolute;
+    top: 100%;
+    left: 0;
+    background-color: #fff;
+    box-shadow: 0px 8px 16px rgba(0, 0, 0, 0.1);
+    border-radius: 6px;
+    z-index: 1000;
+    animation: slideDown 0.3s ease;
+    padding-top: 8px;
+}
+
+.list-group-item {
+    padding: 12px 20px;
+    font-size: 16px;
+    color: #333;
+    cursor: pointer;
+    transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+.list-group-item:hover {
+    background-color: #007bff;
+    color: #fff;
+}
+
+/* Animación de deslizar para mostrar resultados */
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Responsive: pantalla pequeña */
+@media (max-width: 576px) {
+    .search-container {
+        width: 90%;
+        padding: 15px;
+    }
+
+    .search-input {
+        padding: 10px 35px 10px 15px;
+        font-size: 14px;
+    }
+
+    .list-group-item {
+        font-size: 14px;
+    }
+}
+
+/* AQUI TERMINA EL CSS DEL BUSCADOR */
+
+
+
+
+
     /* Contenedor del header para alinear el botón a la derecha */
     .header-container {
         display: flex;
@@ -217,25 +340,123 @@
 
     <!-- Confetti JS -->
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.5.1/dist/confetti.min.js"></script>
+    {{-- <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script> --}}
+
 
     @include('livewire.javascript')
 
     <script>
-        $(document).ready(function () {
-            // Inicializar DataTables
-            var table = $('#sivigila').DataTable({
-                "language": {
-                    "search": "BUSCAR",
-                    "lengthMenu": "Mostrar _MENU_ registros",
-                    "info": "Mostrando pagina _PAGE_ de _PAGES_",
-                    "paginate": {
-                        "first": "Primero",
-                        "last": "Último",
-                        "next": "Siguiente",
-                        "previous": "Anterior"
+$(document).ready(function() {
+    // Maneja el evento de escritura en el campo de búsqueda
+    $('#search').on('keyup', function() {
+        var query = $(this).val();
+
+        // Si el campo de búsqueda tiene texto, realizamos la búsqueda con AJAX
+        if (query.length > 0) {
+            $.ajax({
+                url: "{{ route('buscar.afiliados') }}",  // Ruta de búsqueda
+                method: "GET",
+                dataType: "json",  // Esperamos recibir JSON
+                data: {search: query},
+                success: function(data) {
+                    $('#search-results').empty();  // Limpiar resultados previos
+                    if (data.length > 0) {
+                        // Mostrar resultados en la lista
+                        $.each(data, function(index, afiliado) {
+                            $('#search-results').append('<a href="#" class="list-group-item list-group-item-action search-result-item" data-id="'+ afiliado.numero_identificacion +'">' +
+                                afiliado.numero_identificacion + ' - ' +
+                                afiliado.primer_nombre + ' ' + afiliado.segundo_nombre + ' ' +
+                                afiliado.primer_apellido + ' ' + afiliado.segundo_apellido +
+                                '</a>');
+                        });
+                    } else {
+                        $('#search-results').append('<a href="#" class="list-group-item list-group-item-action">No se encontraron resultados</a>');
                     }
+                },
+                error: function(xhr, status, error) {
+                    console.log("Error en la solicitud AJAX:", error);
                 }
             });
+        } else {
+            $('#search-results').empty();  // Limpiar resultados si el campo está vacío
+        }
+    });
+
+    // Maneja la selección de un resultado en la lista desplegable
+    $(document).on('click', '.search-result-item', function(e) {
+        e.preventDefault();
+        var numeroIdentificacion = $(this).data('id');
+        $('#search').val(numeroIdentificacion); // Establece el valor en el campo de búsqueda
+
+        // Filtra la tabla automáticamente por el número de identificación seleccionado
+        $.ajax({
+            url: "{{ route('afiliado') }}",  // Usamos la ruta correcta
+            method: "GET",
+            dataType: "json",
+            data: {search: numeroIdentificacion},
+            success: function(response) {
+                $('#sivigila tbody').html('');  // Limpiar la tabla
+
+                $.each(response.sivigilas_usernormal, function(index, student2) {
+                    // Verificar si ya se ha enviado un correo
+                    var correoEnviado = student2.correo_enviado ? true : false;  // Cambia según tu lógica de backend
+
+                    // Construir la columna de acciones
+                    var acciones = '';
+                    if (correoEnviado) {
+                        acciones = '<button class="btn btn-sm btn-secondary" disabled>' +
+                                    '<i class="fas fa-envelope"></i> Correo Enviado' +
+                                   '</button>';
+                    } else {
+                        acciones = '<a href="#" class="btn btn-sm btn-warning blinking-button send-email" ' +
+                                    'data-toggle="modal" data-target="#emailModal" ' +
+                                    'data-id="' + student2.id + '" ' +
+                                    'data-name="' + student2.primer_nombre + ' ' + student2.segundo_nombre + ' ' + student2.primer_apellido + ' ' + student2.segundo_apellido + '">' +
+                                    '<i class="fas fa-envelope"></i> Solicitud' +
+                                   '</a>';
+                    }
+
+                    // Agregar la fila a la tabla
+                    $('#sivigila tbody').append(
+                        '<tr>' +
+                        '<td>' + student2.id + '</td>' +
+                        '<td><a href="#" class="numero-identificacion" data-id="' + student2.id + '">' + student2.numero_identificacion + '</a></td>' +
+                        '<td>' + student2.primer_nombre + ' ' + student2.segundo_nombre + ' ' + student2.primer_apellido + ' ' + student2.segundo_apellido + '</td>' +
+                        '<td>' + student2.numero_carnet + '</td>' +
+                        '<td>' + acciones + '</td>' +
+                        '</tr>'
+                    );
+                });
+                
+                $('#search-results').empty();  // Limpiar los resultados de la lista desplegable
+
+                // Adjuntar manejador para el botón de "Solicitud" en la tabla generada
+                handleEmailModal();
+                attachEventHandlers();
+            },
+            error: function(xhr, status, error) {
+                console.log("Error al filtrar la tabla:", error);
+            }
+        });
+    });
+
+  
+
+        
+            // // Inicializar DataTables
+            // var table = $('#sivigila').DataTable({
+            //     "language": {
+            //         "search": "BUSCAR",
+            //         "lengthMenu": "Mostrar _MENU_ registros",
+            //         "info": "Mostrando pagina _PAGE_ de _PAGES_",
+            //         "paginate": {
+            //             "first": "Primero",
+            //             "last": "Último",
+            //             "next": "Siguiente",
+            //             "previous": "Anterior"
+            //         }
+            //     }
+            // });
 
             function attachEventHandlers() {
     $('.numero-identificacion').on('click', function(e) {
