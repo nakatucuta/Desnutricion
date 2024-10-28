@@ -152,7 +152,7 @@ class Cargue412Controller extends Controller
         // Filtrar incomeedit15 para que no incluya los IDs que ya están en income12
         $incomeedit15 = DB::table('users')
             ->select('name', 'id', 'codigohabilitacion')
-            ->where('usertype', 2)
+            ->where('usertype', 1)
             ->whereNotIn('id', $idsEnIncome12) // Evitar duplicados
             ->get();
         
@@ -166,11 +166,19 @@ class Cargue412Controller extends Controller
      */
     public function update(Request $request, Cargue412 $cargue412 ,$id)
     {
-        $datosEmpleado = request()->except(['_token','_method']);
-      
-        $seg =  Cargue412::where('id', $id)->update($datosEmpleado);
+        $datosEmpleado = $request->except(['_token', '_method']);
+    
+    DB::transaction(function () use ($id, $datosEmpleado) {
+        // Actualizar el registro específico con los datos proporcionados
+        $seg = Cargue412::where('id', $id)->update($datosEmpleado);
 
-
+        // Verificar si la actualización fue exitosa y luego actualizar el campo 'estado'
+        if ($seg) {
+            DB::table('cargue412s')
+                ->where('id', $id)
+                ->update(['estado' => 1]);
+        }
+    });
         //para enviarle una consulta al correo 
             // aqui empieza el tema de envio de correos entonces si el estado es 1
             //creamos una consulta
