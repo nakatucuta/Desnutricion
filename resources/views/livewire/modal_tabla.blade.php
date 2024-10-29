@@ -19,7 +19,7 @@
                                 <th>Fecha de aplicacion</th>
                                 <th>Edad años</th>
                                 <th>Edad Meses</th>
-                                <th>IPS</th>
+                                <th>IPS Vacunadora</th>
                                 <th>Vacunador</th>
                             </tr>
                         </thead>
