@@ -147,6 +147,14 @@
 
 /*AQUI COMIENZA EL CSS PARA EL BUSCADOR */
 /* Contenedor principal */
+.loading-spinner {
+    text-align: center;
+    font-size: 1rem;
+    color: #007bff;
+    margin-top: 10px;
+}
+
+
 
 .search-container {
     position: relative;
@@ -156,6 +164,8 @@
     background-color: #fff;
     border-radius: 8px;
     box-shadow: 0px 4px 12px rgba(0, 0, 0, 0.1);
+    margin-left: auto; /* Para asegurar que esté alineado a la derecha */
+
 }
 
 /* Input de búsqueda con icono */
@@ -200,13 +210,13 @@
     overflow-y: auto;
     width: 100%;
     position: absolute;
-    top: 100%;
+    bottom: 100%; /* Hacer que el contenedor suba sobre el input */
     left: 0;
     background-color: #fff;
-    box-shadow: 0px 8px 16px rgba(0, 0, 0, 0.1);
+    box-shadow: 0px -8px 16px rgba(0, 0, 0, 0.1); /* Sombra hacia arriba */
     border-radius: 6px;
     z-index: 1000;
-    animation: slideDown 0.3s ease;
+    animation: slideUp 0.3s ease;
     padding-top: 8px;
 }
 
@@ -224,10 +234,10 @@
 }
 
 /* Animación de deslizar para mostrar resultados */
-@keyframes slideDown {
+@keyframes slideUp {
     from {
         opacity: 0;
-        transform: translateY(-10px);
+        transform: translateY(10px);
     }
     to {
         opacity: 1;
@@ -348,20 +358,26 @@
     <script>
 $(document).ready(function() {
     // Maneja el evento de escritura en el campo de búsqueda
+    $(document).ready(function() {
+    // Maneja el evento de escritura en el campo de búsqueda
     $('#search').on('keyup', function() {
         var query = $(this).val();
 
-        // Si el campo de búsqueda tiene texto, realizamos la búsqueda con AJAX
         if (query.length > 0) {
+            // Mostrar el spinner
+            $('#loading-spinner').show();
+
+            // Realizar la búsqueda con AJAX
             $.ajax({
-                url: "{{ route('buscar.afiliados') }}",  // Ruta de búsqueda
+                url: "{{ route('buscar.afiliados') }}",
                 method: "GET",
-                dataType: "json",  // Esperamos recibir JSON
+                dataType: "json",
                 data: {search: query},
                 success: function(data) {
-                    $('#search-results').empty();  // Limpiar resultados previos
+                    $('#search-results').empty(); // Limpiar resultados previos
+                    $('#loading-spinner').hide(); // Ocultar el spinner
+
                     if (data.length > 0) {
-                        // Mostrar resultados en la lista
                         $.each(data, function(index, afiliado) {
                             $('#search-results').append('<a href="#" class="list-group-item list-group-item-action search-result-item" data-id="'+ afiliado.numero_identificacion +'">' +
                                 afiliado.numero_identificacion + ' - ' +
@@ -374,11 +390,13 @@ $(document).ready(function() {
                     }
                 },
                 error: function(xhr, status, error) {
+                    $('#loading-spinner').hide(); // Ocultar el spinner si hay un error
                     console.log("Error en la solicitud AJAX:", error);
                 }
             });
         } else {
-            $('#search-results').empty();  // Limpiar resultados si el campo está vacío
+            $('#search-results').empty(); // Limpiar resultados si el campo está vacío
+            $('#loading-spinner').hide(); // Ocultar el spinner
         }
     });
 
@@ -388,35 +406,26 @@ $(document).ready(function() {
         var numeroIdentificacion = $(this).data('id');
         $('#search').val(numeroIdentificacion); // Establece el valor en el campo de búsqueda
 
+        // Mostrar el spinner
+        $('#loading-spinner').show();
+
         // Filtra la tabla automáticamente por el número de identificación seleccionado
         $.ajax({
-            url: "{{ route('afiliado') }}",  // Usamos la ruta correcta
+            url: "{{ route('afiliado') }}",
             method: "GET",
             dataType: "json",
             data: {search: numeroIdentificacion},
             success: function(response) {
-                $('#sivigila tbody').html('');  // Limpiar la tabla
+                $('#sivigila tbody').html(''); // Limpiar la tabla
+                $('#loading-spinner').hide(); // Ocultar el spinner
 
                 $.each(response.sivigilas_usernormal, function(index, student2) {
-                    // Verificar si ya se ha enviado un correo
-                    var correoEnviado = student2.correo_enviado ? true : false;  // Cambia según tu lógica de backend
+                    var correoEnviado = student2.correo_enviado ? true : false;
 
-                    // Construir la columna de acciones
-                    var acciones = '';
-                    if (correoEnviado) {
-                        acciones = '<button class="btn btn-sm btn-secondary" disabled>' +
-                                    '<i class="fas fa-envelope"></i> Correo Enviado' +
-                                   '</button>';
-                    } else {
-                        acciones = '<a href="#" class="btn btn-sm btn-warning blinking-button send-email" ' +
-                                    'data-toggle="modal" data-target="#emailModal" ' +
-                                    'data-id="' + student2.id + '" ' +
-                                    'data-name="' + student2.primer_nombre + ' ' + student2.segundo_nombre + ' ' + student2.primer_apellido + ' ' + student2.segundo_apellido + '">' +
-                                    '<i class="fas fa-envelope"></i> Solicitud' +
-                                   '</a>';
-                    }
+                    var acciones = correoEnviado
+                        ? '<button class="btn btn-sm btn-secondary" disabled><i class="fas fa-envelope"></i> Correo Enviado</button>'
+                        : '<a href="#" class="btn btn-sm btn-warning blinking-button send-email" data-toggle="modal" data-target="#emailModal" data-id="' + student2.id + '" data-name="' + student2.primer_nombre + ' ' + student2.segundo_nombre + ' ' + student2.primer_apellido + ' ' + student2.segundo_apellido + '"><i class="fas fa-envelope"></i> Solicitud</a>';
 
-                    // Agregar la fila a la tabla
                     $('#sivigila tbody').append(
                         '<tr>' +
                         '<td>' + student2.id + '</td>' +
@@ -427,19 +436,21 @@ $(document).ready(function() {
                         '</tr>'
                     );
                 });
-                
-                $('#search-results').empty();  // Limpiar los resultados de la lista desplegable
 
-                // Adjuntar manejador para el botón de "Solicitud" en la tabla generada
-                handleEmailModal();
+                $('#search-results').empty(); // Limpiar los resultados de la lista desplegable
+
+                handleEmailModal(); // Adjuntar manejador para el botón de "Solicitud"
                 attachEventHandlers();
             },
             error: function(xhr, status, error) {
+                $('#loading-spinner').hide(); // Ocultar el spinner si hay un error
                 console.log("Error al filtrar la tabla:", error);
             }
         });
     });
+});
 
+    //EL BUSCADOR TERMINA A QUI 
   
 
         
@@ -481,9 +492,19 @@ $(document).ready(function() {
                     $('#nombrePaciente').text(nombreCompleto); // Actualizar el título con el nombre del paciente
                 }
 
-                data.forEach(function(vacuna) {
-                    $('#vacunaList').append('<tr><td>' + vacuna.nombre_vacuna + '</td><td>' + vacuna.docis_vacuna + '</td><td>' + vacuna.fecha_vacunacion + '</td><td>' + vacuna.nombre_usuario + '</td></tr>');
-                });
+                                    data.forEach(function(vacuna) {
+                        $('#vacunaList').append(
+                            '<tr>' +
+                            '<td>' + vacuna.nombre_vacuna + '</td>' +
+                            '<td>' + vacuna.docis_vacuna + '</td>' +
+                            '<td>' + vacuna.fecha_vacunacion + '</td>' +
+                            '<td>' + vacuna.edad_anos + '</td>' +
+                            '<td>' + vacuna.total_meses + '</td>' +
+                            '<td>' + vacuna.nombre_usuario + '</td>' +
+                            '<td>' + vacuna.responsable + '</td>' +
+                            '</tr>'
+                        );
+                    });     
 
                 $('#vacunaModal').modal('show');
             },

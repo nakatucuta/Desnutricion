@@ -242,7 +242,11 @@ class AfiliadoController extends Controller
             'b.primer_nombre as prim_nom',
             'b.segundo_nombre as seg_nom',
             'b.primer_apellido as pri_ape',
-            'b.segundo_apellido as seg_ape', // Campo del correo del usuario responsable
+            'b.segundo_apellido as seg_ape',
+            'b.edad_anos as edad_anos',
+            'b.total_meses as total_meses',
+            'a.responsable as responsable',
+             // Campo del correo del usuario responsable
         )
         // Ejecutar la consulta y obtener los resultados
         ->get();

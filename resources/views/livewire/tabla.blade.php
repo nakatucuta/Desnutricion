@@ -3,6 +3,7 @@
 <div class="table-responsive mt-5"> --}}
 <!-- Botón para exportar a Excel que abrirá el modal -->
 <!-- Contenedor flex para alinear el botón y el campo de búsqueda en el mismo nivel -->
+<!-- Contenedor de búsqueda alineado a la derecha con mayor ancho -->
 <div class="d-flex justify-content-between align-items-center mb-3">
     <!-- Botón de Exportar a la izquierda -->
     <a href="#" class="btn btn-success" data-toggle="modal" data-target="#exportModal">Exportar a Excel</a>
@@ -14,8 +15,12 @@
             <i class="fas fa-search search-icon"></i>
         </div>
         <!-- Área donde se mostrarán los resultados -->
-        <div id="search-results" class="list-group search-results"></div>
+        <div id="search-results" class="list-group search-results">
+            <div id="loading-spinner" style="display:none; text-align:center; padding:10px;"><i class="fas fa-spinner fa-spin"></i> Cargando...</div>
+        </div>
     </div>
+</div>
+
 </div>
 
 <!-- Modal Fecha Report (posición original sin cambios) -->
@@ -36,6 +41,11 @@
                 <th style="font-size: smaller;" scope="col">Acciones</th>
             </tr>
         </thead>
+       <!-- Spinner de carga (oculto por defecto) -->
+            <div id="loading-spinner" style="display:none; text-align:center;">
+                <i class="fas fa-spinner fa-spin"></i> Cargando...
+            </div>
+
         <tbody>
            
             @foreach($sivigilas as $student2)
@@ -79,6 +89,11 @@
             <th style="font-size: smaller;" scope="col">Acciones</th>
         </tr>
     </thead>
+            <!-- Spinner de carga (oculto por defecto) -->
+            <div id="loading-spinner" style="display:none; text-align:center;">
+                <i class="fas fa-spinner fa-spin"></i> Cargando...
+            </div>
+
     <tbody>
         @foreach($sivigilas_usernormal as $student21)
         @php
