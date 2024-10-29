@@ -225,31 +225,29 @@ class AfiliadoController extends Controller
 {
     // Consulta para obtener las vacunas que coincidan con el id o el número de carnet
     $vacunas = DB::table('vacunas as a')
-        ->join('afiliados as b', 'a.afiliado_id', '=', 'b.id')
-        ->join('users as c', 'a.user_id', '=', 'c.id')  // Unir con la tabla users
-        ->join('referencia_vacunas as d', 'a.vacunas_id', '=', 'd.id')
-        // La condición es que se cumpla el id o el numero_carnet
-        ->where(function($query) use ($id, $numeroCarnet) {
-            $query->where('b.id', $id)
-                  ->orWhere('b.numero_carnet', $numeroCarnet);
-        })
-        // Seleccionar los campos que queremos devolver
-        ->select(
-            'd.nombre as nombre_vacuna', 
-            'a.docis as docis_vacuna', 
-            'a.fecha_vacuna as fecha_vacunacion',
-            'c.name as nombre_usuario',  // Campo del nombre del usuario responsable
-            'b.primer_nombre as prim_nom',
-            'b.segundo_nombre as seg_nom',
-            'b.primer_apellido as pri_ape',
-            'b.segundo_apellido as seg_ape',
-            'b.edad_anos as edad_anos',
-            'b.total_meses as total_meses',
-            'a.responsable as responsable',
-             // Campo del correo del usuario responsable
-        )
-        // Ejecutar la consulta y obtener los resultados
-        ->get();
+    ->join('afiliados as b', 'a.afiliado_id', '=', 'b.id')
+    ->join('users as c', 'a.user_id', '=', 'c.id')
+    ->join('referencia_vacunas as d', 'a.vacunas_id', '=', 'd.id')
+    ->select(
+        'd.nombre as nombre_vacuna',
+        'a.docis as docis_vacuna',
+        'a.fecha_vacuna as fecha_vacunacion',
+        'b.fecha_nacimiento',
+        'c.name as nombre_usuario',
+        'b.primer_nombre as prim_nom',
+        'b.segundo_nombre as seg_nom',
+        'b.primer_apellido as pri_ape',
+        'b.segundo_apellido as seg_ape',
+        DB::raw('FLOOR((CAST(CONVERT(varchar(8), CONVERT(DATE, a.fecha_vacuna), 112) AS int) - CAST(CONVERT(varchar(8), CONVERT(DATE, b.fecha_nacimiento), 112) AS int)) / 10000) AS edad_anos'),
+        DB::raw('DATEDIFF(MONTH, b.fecha_nacimiento, a.fecha_vacuna) AS total_meses'),
+        'a.responsable as responsable'
+    )
+    ->where(function ($query) use ($id, $numeroCarnet) {
+        $query->where('b.id', $id)
+              ->orWhere('b.numero_carnet', $numeroCarnet);
+    })
+    ->get();
+
 
     // Retornar la respuesta en formato JSON con los datos obtenidos
     return response()->json($vacunas);
