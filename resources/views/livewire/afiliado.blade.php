@@ -356,6 +356,11 @@
     @include('livewire.javascript')
 
     <script>
+
+          // Mostrar el modal de carga cuando se envíe el formulario
+          $('#file-upload-form').on('submit', function() {
+                $('#loadingModal').modal('show');
+            });
 $(document).ready(function() {
     // Maneja el evento de escritura en el campo de búsqueda
     $(document).ready(function() {
@@ -522,10 +527,7 @@ $(document).ready(function() {
                 attachEventHandlers();
             });
 
-            // Mostrar el modal de carga cuando se envíe el formulario
-            $('#file-upload-form').on('submit', function() {
-                $('#loadingModal').modal('show');
-            });
+          
 
             // Ocultar el modal de carga cuando se complete la carga
             // @if (Session::has('success'))
