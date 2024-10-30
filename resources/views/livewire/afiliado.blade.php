@@ -654,7 +654,7 @@ $(document).ready(function() {
 
 // Función para manejar la exportación a Excel con fechas
 
-    $('#exportButton').on('click', function() {
+$('#exportButton').on('click', function() {
         var startDate = $('#start_date').val();
         var endDate = $('#end_date').val();
 
@@ -665,28 +665,50 @@ $(document).ready(function() {
             $('#sending-text').show();
             $('#exportButton').prop('disabled', true);
 
-            // Usa la ruta de Laravel para generar la URL completa
-            var url = '{{ route("exportVacunas") }}' + '?start_date=' + startDate + '&end_date=' + endDate;
+            // Crear una solicitud AJAX para iniciar la descarga del archivo
+            $.ajax({
+                url: '{{ route("exportVacunas") }}',
+                type: 'GET',
+                data: {
+                    start_date: startDate,
+                    end_date: endDate
+                },
+                xhrFields: {
+                    responseType: 'blob' // Configura la respuesta para manejar el archivo blob
+                },
+                success: function(blob) {
+                    // Crear un enlace para descargar el archivo
+                    var url = window.URL.createObjectURL(blob);
+                    var a = document.createElement('a');
+                    a.href = url;
+                    a.download = "reporte.xlsx"; // Cambia el nombre del archivo según sea necesario
+                    document.body.appendChild(a);
+                    a.click();
+                    a.remove();
 
-            // Realiza la descarga del archivo
-            window.location.href = url;
+                    // Cerrar el modal después de la descarga
+                    $('#exportModal').modal('hide');
 
-            // Usar un temporizador para cerrar el modal después de iniciar la descarga
-            setTimeout(function() {
-                // Cierra el modal
-                $('#exportModal').modal('hide');
+                    // Restaurar el botón y ocultar el spinner
+                    $('#button-text').show();
+                    $('#loading-icon').hide();
+                    $('#sending-text').hide();
+                    $('#exportButton').prop('disabled', false);
+                },
+                error: function() {
+                    alert('Hubo un error al generar el reporte. Inténtalo nuevamente.');
 
-                // Habilita el botón y oculta el spinner después de cerrar el modal
-                $('#button-text').show();
-                $('#loading-icon').hide();
-                $('#sending-text').hide();
-                $('#exportButton').prop('disabled', false);
-            }, 3000); // Espera 3 segundos antes de cerrar el modal
+                    // Restaurar el botón y ocultar el spinner en caso de error
+                    $('#button-text').show();
+                    $('#loading-icon').hide();
+                    $('#sending-text').hide();
+                    $('#exportButton').prop('disabled', false);
+                }
+            });
         } else {
             alert('Por favor selecciona ambas fechas.');
         }
     });
-
 
 
 
