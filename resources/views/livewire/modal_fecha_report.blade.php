@@ -19,7 +19,11 @@
                         <label for="end_date">Fecha Final</label>
                         <input type="date" class="form-control" id="end_date" name="end_date" required>
                     </div>
-                    <button type="button" class="btn btn-success" id="exportButton">Exportar</button>
+                    <button id="exportButton" class="btn btn-success" type="button">
+                        <span id="button-text">EXPORTAR</span>
+                        <span id="loading-icon" class="spinner-border spinner-border-sm" role="status" aria-hidden="true" style="display: none;"></span>
+                        <span id="sending-text" style="display: none;"> Generando Reporte...</span>
+                    </button>
                 </form>
             </div>
         </div>

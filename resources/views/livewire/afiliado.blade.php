@@ -653,18 +653,41 @@ $(document).ready(function() {
 
 
 // Función para manejar la exportación a Excel con fechas
-$('#exportButton').on('click', function() {
-                    var startDate = $('#start_date').val();
-                    var endDate = $('#end_date').val();
 
-                    if (startDate && endDate) {
-                        // Usa la ruta de Laravel para generar la URL completa
-                        var url = '{{ route("exportVacunas") }}' + '?start_date=' + startDate + '&end_date=' + endDate;
-                        window.location.href = url;
-                    } else {
-                        alert('Por favor selecciona ambas fechas.');
-                    }
-            });
+    $('#exportButton').on('click', function() {
+        var startDate = $('#start_date').val();
+        var endDate = $('#end_date').val();
+
+        if (startDate && endDate) {
+            // Deshabilita el botón y muestra el spinner
+            $('#button-text').hide();
+            $('#loading-icon').show();
+            $('#sending-text').show();
+            $('#exportButton').prop('disabled', true);
+
+            // Usa la ruta de Laravel para generar la URL completa
+            var url = '{{ route("exportVacunas") }}' + '?start_date=' + startDate + '&end_date=' + endDate;
+
+            // Realiza la descarga del archivo
+            window.location.href = url;
+
+            // Usar un temporizador para cerrar el modal después de iniciar la descarga
+            setTimeout(function() {
+                // Cierra el modal
+                $('#exportModal').modal('hide');
+
+                // Habilita el botón y oculta el spinner después de cerrar el modal
+                $('#button-text').show();
+                $('#loading-icon').hide();
+                $('#sending-text').hide();
+                $('#exportButton').prop('disabled', false);
+            }, 3000); // Espera 3 segundos antes de cerrar el modal
+        } else {
+            alert('Por favor selecciona ambas fechas.');
+        }
+    });
+
+
 
 
         //JAVA SCRIPT PARA  ENVIAR EL CORREO DE LA MODAL  OJOOOOOO
@@ -768,6 +791,9 @@ $('#exportButton').on('click', function() {
         @endif
     });
 </script>
+
+
+
 @stop
 
 
