@@ -30,7 +30,7 @@
 
 
 
-    @if( auth()->user()->usertype == 2)
+    @if( auth()->user()->usertype == 1)
     <table class="table table-hover table-striped table-bordered" id="sivigila">
         <thead class="table-info">
             <tr>
