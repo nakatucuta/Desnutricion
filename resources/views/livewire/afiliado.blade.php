@@ -579,7 +579,7 @@ $(document).ready(function() {
     var currentMonth = currentDate.getMonth(); // Mes actual (0-11)
 
     // Definir la fecha de inicio (en este caso, desde ayer)
-    var startDate = new Date(currentYear, currentMonth, 25);  // Día 11 del mes actual
+    var startDate = new Date(currentYear, currentMonth, 1);  // Día 11 del mes actual
    
     // Definir la fecha de fin (5 del mes siguiente)
     var endDate = new Date(currentYear, currentMonth + 1, 5);
