@@ -15,7 +15,7 @@
                         <thead>
                             <tr>
                                 <th>Biologico</th>
-                                <th>Docis</th>
+                                <th>Dosis</th>
                                 <th>Fecha de aplicacion</th>
                                 <th>Edad años</th>
                                 <th>Edad Meses</th>

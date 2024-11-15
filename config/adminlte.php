@@ -406,7 +406,7 @@ return [
                 [
                     'text'        => 'Registro Diario (PAI)',
                     'url'         => 'afiliado',
-                    'icon'        => 'fas fa-upload',
+                    'icon'        => 'fas fa-syringe',
                     'label'       => '',  
                     'label_color' => 'success',
                     // 'icon_color'  => 'red'

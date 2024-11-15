@@ -15,7 +15,7 @@ class IncreaseExecutionTime
      */
     public function handle($request, Closure $next)
     {
-        ini_set('max_execution_time', 1000); // 360 segundos
+        ini_set('max_execution_time', 3000); // 360 segundos
         return $next($request);
     }
 }

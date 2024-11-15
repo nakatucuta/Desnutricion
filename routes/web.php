@@ -131,7 +131,7 @@ Route::get('/seguimiento/view-pdf/{id}', 'App\Http\Controllers\SeguimientoContro
 Route::get('/seguimiento_412/view-pdf/{id}', 'App\Http\Controllers\Seguimiento412Controller@viewPDF')->name('seguimiento.view-pdf_412');
 
 //ruta para las graficas
-Route::get('/grafica-barras', [SeguimientoController::class, 'graficaBarras'])->name('grafica.barras');
+Route::get('/grafica-barras', [SeguimientoController::class, 'graficaBarras'])->name('grafica.barras')->middleware('can:view-statistics');
 
 Route::get('/grafica-torta-clasificacion', [SeguimientoController::class, 'graficaTortaClasificacion'])->name('grafica.torta.clasificacion');
 

@@ -136,8 +136,11 @@ class AfiliadoController extends Controller
             }
     
             // Instanciar la clase AfiliadoImport que se encargará de procesar el archivo
+            
             $import = new \App\Imports\AfiliadoImport();
-    
+            $batch_id = $import->getBatchVerificationsID();
+            $user = Auth::user()->name;
+            Log::info("Iniciando validación: $batch_id - user: $user - timestamp: " . Carbon::now()->format('Y-m-d H:i:s'));
             // Importar los datos del archivo Excel usando la clase AfiliadoImport
             Excel::import($import, $file);
     
@@ -147,6 +150,7 @@ class AfiliadoController extends Controller
             // Si hay errores, redirigir con un mensaje de error y no continuar el proceso
             if (!empty($errores)) {
                 // Si hay algún error, redirigir inmediatamente sin guardar ningún dato
+                Log::info("Errores: $batch_id - user: $user : " . Carbon::now()->format('Y-m-d H:i:s'));
                 return redirect()->route('afiliado')->with('error1', $errores);
             }
     
@@ -187,9 +191,11 @@ class AfiliadoController extends Controller
                 }
     
                 // Redirigir con un mensaje de éxito si todo se ha guardado correctamente
+                Log::info("Validacion exitosa: $batch_id - user: $user : " . Carbon::now()->format('Y-m-d H:i:s'));
                 return redirect()->route('afiliado')->with('success', 'Datos importados correctamente');
             } else {
                 // Si no se deben guardar los datos, redirigir con un mensaje de error
+                Log::info("Errores de validacion: $batch_id - user: $user : " . Carbon::now()->format('Y-m-d H:i:s'));
                 return redirect()->route('afiliado')->with('error1', 'No se pudo cargar el archivo debido a errores en los datos.');
             }
         } else {
@@ -246,6 +252,8 @@ class AfiliadoController extends Controller
         $query->where('b.id', $id)
               ->orWhere('b.numero_carnet', $numeroCarnet);
     })
+    ->orderBy('a.fecha_vacuna', 'asc') // Ordenar por fecha_vacuna ascendente
+    ->orderBy('d.nombre', 'asc') // Luego ordenar por nombre_vacuna ascendente
     ->get();
 
 
