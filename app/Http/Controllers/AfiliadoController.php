@@ -234,6 +234,13 @@ class AfiliadoController extends Controller
     ->join('afiliados as b', 'a.afiliado_id', '=', 'b.id')
     ->join('users as c', 'a.user_id', '=', 'c.id')
     ->join('referencia_vacunas as d', 'a.vacunas_id', '=', 'd.id')
+    ->leftJoin(DB::connection('sqlsrv_1')->raw('[sga].[dbo].[maestroafiliados] as x'), 'b.numero_carnet', '=', 'x.numeroCarnet')
+    ->leftJoin(DB::connection('sqlsrv_1')->raw('[sga].[dbo].[maestroips] as y'), 'x.numeroCarnet', '=', 'y.numeroCarnet')
+    ->leftJoin(DB::connection('sqlsrv_1')->raw('[sga].[dbo].[maestroIpsGru] as z'), 'y.idGrupoIps', '=', 'z.id')    
+    ->leftJoin(DB::connection('sqlsrv_1')->raw('[sga].[dbo].[municipios] as w'), function($join) {
+        $join->on('w.codigoDepartamento', '=', 'x.codigoDepartamento')
+             ->on('w.codigoMunicipio', '=', 'x.codigoMunicipio');
+    })
     ->select(
         'd.nombre as nombre_vacuna',
         'a.docis as docis_vacuna',
@@ -244,6 +251,11 @@ class AfiliadoController extends Controller
         'b.segundo_nombre as seg_nom',
         'b.primer_apellido as pri_ape',
         'b.segundo_apellido as seg_ape',
+        'b.tipo_identificacion as tipo_id',
+        'b.numero_identificacion as numero_id',
+        'x.genero as genero',
+        'z.descrip as ips',
+        'w.descrip as municipio',
         DB::raw('FLOOR((CAST(CONVERT(varchar(8), CONVERT(DATE, a.fecha_vacuna), 112) AS int) - CAST(CONVERT(varchar(8), CONVERT(DATE, b.fecha_nacimiento), 112) AS int)) / 10000) AS edad_anos'),
         DB::raw('DATEDIFF(MONTH, b.fecha_nacimiento, a.fecha_vacuna) AS total_meses'),
         'a.responsable as responsable'
@@ -256,6 +268,13 @@ class AfiliadoController extends Controller
     ->orderBy('d.nombre', 'asc') // Luego ordenar por nombre_vacuna ascendente
     ->get();
 
+    //Calcular la edad
+    $hoy = Carbon::now();
+    $fechaNacimiento = Carbon::createFromFormat('Y-m-d', $vacunas[0]->fecha_nacimiento);    
+    // Calcular la diferencia exacta en años, meses y días
+    $edad = $hoy->diff($fechaNacimiento);
+
+    $vacunas[0]->age = $edad->y . 'a ' . $edad->m . 'm ' . $edad->d . 'd';
 
     // Retornar la respuesta en formato JSON con los datos obtenidos
     return response()->json($vacunas);

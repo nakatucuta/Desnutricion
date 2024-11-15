@@ -22,6 +22,16 @@
             color: #ffffff;
         }
 
+        .modal-indicator {            
+            color: #202020;
+            font-size: 1rem;            
+        }
+
+        .text-gray-custom {
+            color: #202020; /* Gris personalizado */
+        }
+
+
         .drag-drop-area {
             background-color: #ffffff; /* Verde claro */
             border: 2px dashed #28a745; /* Verde */
