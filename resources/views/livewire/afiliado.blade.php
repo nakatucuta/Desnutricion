@@ -536,14 +536,14 @@
 
                                     // Armar el nombre completo del paciente
                                     if (data.length > 0) {
-                                        var nombreCompleto = [data[0].prim_nom,
+                                        var nombreCompleto = [
+                                            data[0].prim_nom,
                                             data[0].seg_nom ? data[0].seg_nom : '',
                                             data[0].pri_ape,
                                             data[0].seg_ape ? data[0].seg_ape : '',
                                     ].filter(Boolean).join(' ');
 
-                                    $('#nombrePaciente').text(
-                                    nombreCompleto); // Actualizar el título con el nombre del paciente
+                                    $('#nombrePaciente').text(nombreCompleto); // Actualizar el título con el nombre del paciente
                                     $('#tipoIdentificacion').text(data[0].tipo_id);
                                     $('#identificacion').text(data[0].numero_id);
                                     $('#sexo').text(data[0].genero);
