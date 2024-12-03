@@ -271,7 +271,7 @@ class AfiliadoImport implements ToModel, WithStartRow
         
         // Verificar si el afiliado existe en la base de datos externa
         // Consulta en la base de datos externa para validar si el afiliado existe
-
+        
         $afiliado_1 = DB::connection('sqlsrv_1')
             ->table('maestroIdentificaciones')
             ->where('identificacion', $numero_identifi)
@@ -385,7 +385,7 @@ class AfiliadoImport implements ToModel, WithStartRow
                 'created_at' => Carbon::now()->format('Y-m-d H:i:s'),
                 'updated_at' => Carbon::now()->format('Y-m-d H:i:s'),
             ];
-    
+  
             // Añadir afiliado y vacunas a filasParaGuardar
             $vacunasData = $this->extraerVacunas($row, $fechaatencion, $responsable, $fuen_ingresado_paiweb, $motivo_noingreso, $observaciones, $usuario_activo);
             $this->filasParaGuardar[] = [

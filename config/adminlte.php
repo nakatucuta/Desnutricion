@@ -377,7 +377,7 @@ return [
                     // 'icon_color'  => 'red'
                 ],
                  [
-                    'text'        => 'seguimiento',
+                    'text'        => 'Seguimiento',
                      'url'         => 'new412_seguimiento',
                     'icon'        => 'fas fa-fw fa-eye',
                    'label'       => 'REVISAR', 
@@ -400,13 +400,13 @@ return [
 
         
         [
-            'text'    => 'Cargues',
-            'icon'    => 'fas fa-upload',
+            'text'    => 'Registro Diario (PAI)',
+            'icon'    => 'fas fa-syringe',
             'submenu' => [
                 [
-                    'text'        => 'Registro Diario (PAI)',
+                    'text'        => 'Cargue',
                     'url'         => 'afiliado',
-                    'icon'        => 'fas fa-syringe',
+                    'icon'        => 'fas fa-upload',
                     'label'       => '',  
                     'label_color' => 'success',
                     // 'icon_color'  => 'red'
@@ -508,7 +508,7 @@ return [
         ],
 
         [
-            'text'       => 'MANUAL DE USUARIO...',
+            'text'       => 'MANUAL DE USUARIO',
             'icon_color' => 'yellow',
             'url'        => 'download-pdf',
              'icon'        => 'fas fa-download fa-2x ',

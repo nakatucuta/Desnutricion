@@ -149,7 +149,7 @@ class report412Export implements ToCollection, WithStartRow
         // Método para convertir la fecha en el formato correcto
         private function convertirFecha($row, $columna, $fila, $nombreCampo)
         {
-            if (isset($row[$columna]) && is_numeric($row[$columna])) {
+            if (isset($row[$columna]) && is_numeric($row[$columna])) {                
                 try {
                     return Date::excelToDateTimeObject($row[$columna])->format('Y-m-d');
                 } catch (\Exception $e) {

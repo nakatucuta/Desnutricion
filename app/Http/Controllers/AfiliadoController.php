@@ -154,11 +154,12 @@ class AfiliadoController extends Controller
                 return redirect()->route('afiliado')->with('error1', $errores);
             }
     
+            Log::info("Terminada la validacion: $batch_id - user: $user - timestamp: " . Carbon::now()->format('Y-m-d H:i:s'));
             // Verificar si se debe guardar los datos; esto depende del proceso de validación dentro de AfiliadoImport
             if ($import->debeGuardar()) {
                 // Obtener las filas validadas para guardar (tanto afiliados como vacunas)
                 $filasParaGuardar = $import->getFilasParaGuardar();
-    
+                Log::info("Iniciando cargue de datos: $batch_id - user: $user - timestamp: " . Carbon::now()->format('Y-m-d H:i:s'));
                 // Iterar sobre cada fila validada
                 foreach ($filasParaGuardar as $fila) {
                     // Asignar el 'user_id' al afiliado
