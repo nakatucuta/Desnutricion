@@ -405,7 +405,7 @@ class AfiliadoImport implements ToModel, WithStartRow
                     ->whereRaw("docis COLLATE Latin1_General_CI_AI =?", [$vacuna['docis']])  //Case Insensitive y Accent insensitive con COLLATE
                     ->where('vacunas_id', $vacuna['vacunas_id'])  // Verifica también el nombre de la vacuna
                     ->first();
-                Log::debug("Ya existe vacuna[".$vacuna['vacunas_id']."] ".$vacuna['docis']." -> Afiliado:".$afiliado->id);
+                //Log::debug("Ya existe vacuna[".$vacuna['vacunas_id']."] ".$vacuna['docis']." -> Afiliado:".$afiliado->id);
                 if (!$existeVacuna) {
                     // Guardamos la nueva vacuna si no existe la misma dosis
                     $vacuna['afiliado_id'] = $afiliado->id;
