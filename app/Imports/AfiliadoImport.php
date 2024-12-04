@@ -393,7 +393,8 @@ class AfiliadoImport implements ToModel, WithStartRow
                 'vacunas' => $vacunasData,
             ];
 
-        } else {
+        } 
+        else {
 
             // Si el afiliado ya existe, procesamos solo las vacunas nuevas
             $vacunasData = $this->extraerVacunas($row, $fechaatencion, $responsable, $fuen_ingresado_paiweb, $motivo_noingreso, $observaciones, $usuario_activo);
@@ -401,9 +402,10 @@ class AfiliadoImport implements ToModel, WithStartRow
             foreach ($vacunasData as $vacuna) {
                 // Verificar si la vacuna con la misma dosis ya está registrada para evitar duplicados solo en dosis
                 $existeVacuna = Vacuna::where('afiliado_id', $afiliado->id)
-                    ->where('docis', $vacuna['docis'])
+                    ->whereRaw("docis COLLATE Latin1_General_CI_AI =?", [$vacuna['docis']])  //Case Insensitive y Accent insensitive con COLLATE
+                    ->where('vacunas_id', $vacuna['vacunas_id'])  // Verifica también el nombre de la vacuna
                     ->first();
-        
+                Log::debug("Ya existe vacuna[".$vacuna['vacunas_id']."] ".$vacuna['docis']." -> Afiliado:".$afiliado->id);
                 if (!$existeVacuna) {
                     // Guardamos la nueva vacuna si no existe la misma dosis
                     $vacuna['afiliado_id'] = $afiliado->id;
@@ -448,7 +450,7 @@ class AfiliadoImport implements ToModel, WithStartRow
                     // Determinar el nombre de la vacuna basado en el rango de columnas
                     if ($i >= 75 && $i <= 80) {
                         $vacunaNombre = 1 ;
-                        $docis = isset($row[75]) ? $row[75] : null;
+                        $docis = isset($row[75]) ? trim($row[75]) : null;
                         $laboratorio = isset($row[76]) ? $row[76] : null;
                         $lote = isset($row[77]) ? $row[77] : null;
                         $jeringa = isset($row[78]) ? $row[78] : null;
@@ -463,7 +465,7 @@ class AfiliadoImport implements ToModel, WithStartRow
                         $i = 80;
                     } elseif ($i >= 81 && $i <= 86) {
                         $vacunaNombre = 2 ;
-                        $docis = isset($row[81]) ? $row[81] : null;
+                        $docis = isset($row[81]) ? trim($row[81]) : null;
                         $lote = isset($row[82]) ? $row[82] : null;
                         $jeringa = isset($row[83]) ? $row[83] : null;
                         $lote_jeringa = isset($row[84]) ? $row[84] : null;
@@ -478,7 +480,7 @@ class AfiliadoImport implements ToModel, WithStartRow
                         $i = 86;
                     } elseif ($i >= 87 && $i <= 91) {
                         $vacunaNombre = 3 ;
-                        $docis = isset($row[87]) ? $row[87] : null;
+                        $docis = isset($row[87]) ? trim($row[87]) : null;
                         $lote = isset($row[88]) ? $row[88] : null;
                         $jeringa = isset($row[89]) ? $row[89] : null;
                         $lote_jeringa = isset($row[90]) ? $row[90] : null;
@@ -492,7 +494,7 @@ class AfiliadoImport implements ToModel, WithStartRow
                         $i = 91;
                     } elseif ($i >= 92 && $i <= 96) {
                         $vacunaNombre = 4 ;
-                        $docis = isset($row[92]) ? $row[92] : null;
+                        $docis = isset($row[92]) ? trim($row[92]) : null;
                         $lote = isset($row[93]) ? $row[93] : null;
                         $jeringa = isset($row[94]) ? $row[94] : null;
                         $lote_jeringa = isset($row[95]) ? $row[95] : null;
@@ -506,7 +508,7 @@ class AfiliadoImport implements ToModel, WithStartRow
                         $i = 96;
                     } elseif ($i >= 97 && $i <= 99) {
                         $vacunaNombre = 5 ;
-                        $docis = isset($row[97]) ? $row[97] : null;
+                        $docis = isset($row[97]) ? trim($row[97]) : null;
                         $lote = isset($row[98]) ? $row[98] : null;
                         $gotero = isset($row[99]) ? $row[99] : null;
                         $fecha_vacuna = $fechaatencion;
@@ -518,7 +520,7 @@ class AfiliadoImport implements ToModel, WithStartRow
                         $i = 99;
                     } elseif ($i >= 100 && $i <= 104) {
                         $vacunaNombre = 6 ;
-                        $docis = isset($row[100]) ? $row[100] : null;
+                        $docis = isset($row[100]) ? trim($row[100]) : null;
                         $lote = isset($row[101]) ? $row[101] : null;
                         $jeringa = isset($row[102]) ? $row[102] : null;
                         $lote_jeringa = isset($row[103]) ? $row[103] : null;
@@ -532,7 +534,7 @@ class AfiliadoImport implements ToModel, WithStartRow
                         $i = 104;
                     } elseif ($i >= 105 && $i <= 108) {
                         $vacunaNombre = 7 ;
-                        $docis = isset($row[105]) ? $row[105] : null;
+                        $docis = isset($row[105]) ? trim($row[105]) : null;
                         $lote = isset($row[106]) ? $row[106] : null;
                         $jeringa = isset($row[107]) ? $row[107] : null;
                         $lote_jeringa = isset($row[108]) ? $row[108] : null;
@@ -545,7 +547,7 @@ class AfiliadoImport implements ToModel, WithStartRow
                         $i = 108;
                     } elseif ($i >= 109 && $i <= 112) {
                         $vacunaNombre = 8 ;
-                        $docis = isset($row[109]) ? $row[109] : null;
+                        $docis = isset($row[109]) ? trim($row[109]) : null;
                         $lote = isset($row[110]) ? $row[110] : null;
                         $jeringa = isset($row[111]) ? $row[111] : null;
                         $lote_jeringa = isset($row[112]) ? $row[112] : null;
@@ -558,7 +560,7 @@ class AfiliadoImport implements ToModel, WithStartRow
                         $i = 112;
                     } elseif ($i >= 113 && $i <= 116) {
                         $vacunaNombre = 9 ;
-                        $docis = isset($row[113]) ? $row[113] : null;
+                        $docis = isset($row[113]) ? trim($row[113]) : null;
                         $lote = isset($row[114]) ? $row[114] : null;
                         $jeringa = isset($row[115]) ? $row[115] : null;
                         $lote_jeringa = isset($row[116]) ? $row[116] : null;
@@ -571,7 +573,7 @@ class AfiliadoImport implements ToModel, WithStartRow
                         $i = 116;
                     } elseif ($i >= 117 && $i <= 120) {
                         $vacunaNombre = 10 ;
-                        $docis = isset($row[117]) ? $row[117] : null;
+                        $docis = isset($row[117]) ? trim($row[117]) : null;
                         $lote = isset($row[118]) ? $row[118] : null;
                         $jeringa = isset($row[119]) ? $row[119] : null;
                         $lote_jeringa = isset($row[120]) ? $row[120] : null;
@@ -584,7 +586,7 @@ class AfiliadoImport implements ToModel, WithStartRow
                         $i = 120;
                     } elseif ($i >= 121 && $i <= 122) {
                         $vacunaNombre = 11 ;
-                        $docis = isset($row[121]) ? $row[121] : null;
+                        $docis = isset($row[121]) ? trim($row[121]) : null;
                         $lote = isset($row[122]) ? $row[122] : null;
                         $fecha_vacuna = $fechaatencion;
                         $responsable_ = $responsable;
@@ -595,7 +597,7 @@ class AfiliadoImport implements ToModel, WithStartRow
                         $i = 122;
                     } elseif ($i >= 123 && $i <= 127) {
                         $vacunaNombre = 12 ;
-                        $tipo_neumococo = isset($row[123]) ? $row[123] : null;
+                        $tipo_neumococo = isset($row[123]) ? trim($row[123]) : null;
                         $docis = isset($row[124]) ? $row[124] : null;
                         $lote = isset($row[125]) ? $row[125] : null;
                         $jeringa = isset($row[126]) ? $row[126] : null;
@@ -609,7 +611,7 @@ class AfiliadoImport implements ToModel, WithStartRow
                         $i = 127;                
                     } elseif ($i >= 128 && $i <= 132) {
                         $vacunaNombre = 13 ;
-                        $docis = isset($row[128]) ? $row[128] : null;
+                        $docis = isset($row[128]) ? trim($row[128]) : null;
                         $lote = isset($row[129]) ? $row[129] : null;
                         $jeringa = isset($row[130]) ? $row[130] : null;
                         $lote_jeringa = isset($row[131]) ? $row[131] : null;
@@ -623,7 +625,7 @@ class AfiliadoImport implements ToModel, WithStartRow
                         $i = 132;
                     } elseif ($i >= 133 && $i <= 137) {
                         $vacunaNombre =  14 ;
-                        $docis = isset($row[133]) ? $row[133] : null;
+                        $docis = isset($row[133]) ? trim($row[133]) : null;
                         $lote = isset($row[134]) ? $row[134] : null;
                         $jeringa = isset($row[135]) ? $row[135] : null;
                         $lote_jeringa = isset($row[136]) ? $row[136] : null;
@@ -637,7 +639,7 @@ class AfiliadoImport implements ToModel, WithStartRow
                         $i = 137;                
                     } elseif ($i >= 138 && $i <= 142) {
                         $vacunaNombre = 15 ;
-                        $docis = isset($row[138]) ? $row[138] : null;
+                        $docis = isset($row[138]) ? trim($row[138]) : null;
                         $lote = isset($row[139]) ? $row[139] : null;
                         $jeringa = isset($row[140]) ? $row[140] : null;
                         $lote_jeringa = isset($row[141]) ? $row[141] : null;
@@ -651,7 +653,7 @@ class AfiliadoImport implements ToModel, WithStartRow
                         $i = 142;    
                     } elseif ($i >= 143 && $i <= 146) {
                         $vacunaNombre = 16 ;
-                        $docis = isset($row[143]) ? $row[143] : null;
+                        $docis = isset($row[143]) ? trim($row[143]) : null;
                         $lote = isset($row[144]) ? $row[144] : null;
                         $jeringa = isset($row[145]) ? $row[145] : null;
                         $lote_jeringa = isset($row[146]) ? $row[146] : null;
@@ -664,7 +666,7 @@ class AfiliadoImport implements ToModel, WithStartRow
                         $i = 146;
                     } elseif ($i >= 147 && $i <= 151) {
                         $vacunaNombre = 17 ;
-                        $docis = isset($row[147]) ? $row[147] : null;
+                        $docis = isset($row[147]) ? trim($row[147]) : null;
                         $lote = isset($row[148]) ? $row[148] : null;
                         $jeringa = isset($row[149]) ? $row[149] : null;
                         $lote_jeringa = isset($row[150]) ? $row[150] : null;
@@ -678,7 +680,7 @@ class AfiliadoImport implements ToModel, WithStartRow
                         $i = 151;
                     } elseif ($i >= 152 && $i <= 155) {
                         $vacunaNombre = 18 ;
-                        $docis = isset($row[152]) ? $row[152] : null;
+                        $docis = isset($row[152]) ? trim($row[152]) : null;
                         $lote = isset($row[153]) ? $row[153] : null;
                         $jeringa = isset($row[154]) ? $row[154] : null;
                         $lote_jeringa = isset($row[155]) ? $row[155] : null;               
@@ -691,7 +693,7 @@ class AfiliadoImport implements ToModel, WithStartRow
                         $i = 155;
                     } elseif ($i >= 156 && $i <= 159) {
                         $vacunaNombre = 19 ;
-                        $docis = isset($row[156]) ? $row[156] : null;
+                        $docis = isset($row[156]) ? trim($row[156]) : null;
                         $lote = isset($row[157]) ? $row[157] : null;
                         $jeringa = isset($row[158]) ? $row[158] : null;
                         $lote_jeringa = isset($row[159]) ? $row[159] : null;
@@ -704,7 +706,7 @@ class AfiliadoImport implements ToModel, WithStartRow
                         $i = 159;
                     } elseif ($i >= 160 && $i <= 164) {
                         $vacunaNombre = 20 ;
-                        $docis = isset($row[160]) ? $row[160] : null;
+                        $docis = isset($row[160]) ? trim($row[160]) : null;
                         $lote = isset($row[161]) ? $row[161] : null;
                         $jeringa = isset($row[162]) ? $row[162] : null;
                         $lote_jeringa = isset($row[163]) ? $row[163] : null;
@@ -718,7 +720,7 @@ class AfiliadoImport implements ToModel, WithStartRow
                         $i = 164;
                     } elseif ($i >= 165 && $i <= 168) {
                         $vacunaNombre = 21 ;
-                        $docis = isset($row[165]) ? $row[165] : null;
+                        $docis = isset($row[165]) ? trim($row[165]) : null;
                         $lote = isset($row[166]) ? $row[166] : null;
                         $jeringa = isset($row[167]) ? $row[167] : null;
                         $lote_jeringa = isset($row[168]) ? $row[168] : null;
@@ -731,7 +733,7 @@ class AfiliadoImport implements ToModel, WithStartRow
                         $i = 168;
                     } elseif ($i >= 169 && $i <= 174) {
                         $vacunaNombre = 22 ;
-                        $docis = isset($row[169]) ? $row[169] : null;
+                        $docis = isset($row[169]) ? trim($row[169]) : null;
                         $lote = isset($row[170]) ? $row[170] : null;
                         $jeringa = isset($row[171]) ? $row[171] : null;
                         $lote_jeringa = isset($row[172]) ? $row[172] : null;
@@ -797,7 +799,7 @@ class AfiliadoImport implements ToModel, WithStartRow
                         $i = 189;
                     } elseif ($i >= 190 && $i <= 194) {
                         $vacunaNombre = 27 ;
-                        $docis = isset($row[190]) ? $row[190] : null;
+                        $docis = isset($row[190]) ? trim($row[190]) : null;
                         $lote = isset($row[191]) ? $row[191] : null;
                         $jeringa = isset($row[192]) ? $row[192] : null;
                         $lote_jeringa = isset($row[193]) ? $row[193] : null;
@@ -811,7 +813,7 @@ class AfiliadoImport implements ToModel, WithStartRow
                         $i = 194;
                     } elseif ($i >= 195 && $i <= 196) {
                         $vacunaNombre = 28 ;
-                        $docis = isset($row[195]) ? $row[195] : null;
+                        $docis = isset($row[195]) ? trim($row[195]) : null;
                         $lote = isset($row[196]) ? $row[196] : null;
                         $fecha_vacuna = $fechaatencion;
                         $responsable_ = $responsable;
@@ -822,7 +824,7 @@ class AfiliadoImport implements ToModel, WithStartRow
                         $i = 196;
                     } elseif ($i >= 197 && $i <= 198) {
                         $vacunaNombre = 29 ;
-                        $docis = isset($row[197]) ? $row[197] : null;
+                        $docis = isset($row[197]) ? trim($row[197]) : null;
                         $lote = isset($row[198]) ? $row[198] : null;
                         $fecha_vacuna = $fechaatencion;
                         $responsable_ = $responsable;
@@ -833,7 +835,7 @@ class AfiliadoImport implements ToModel, WithStartRow
                         $i = 198;
                     } elseif ($i >= 199 && $i <= 200) {
                         $vacunaNombre = 30 ;
-                        $docis = isset($row[199]) ? $row[199] : null;
+                        $docis = isset($row[199]) ? trim($row[199]) : null;
                         $lote = isset($row[200]) ? $row[200] : null;
                         $fecha_vacuna = $fechaatencion;
                         $responsable_ = $responsable;
@@ -844,7 +846,7 @@ class AfiliadoImport implements ToModel, WithStartRow
                         $i = 200;
                     } elseif ($i >= 201 && $i <= 202) {
                         $vacunaNombre = 31 ;
-                        $docis = isset($row[201]) ? $row[201] : null;
+                        $docis = isset($row[201]) ? trim($row[201]) : null;
                         $lote = isset($row[202]) ? $row[202] : null;
                         $fecha_vacuna = $fechaatencion;
                         $responsable_ = $responsable;
@@ -855,7 +857,7 @@ class AfiliadoImport implements ToModel, WithStartRow
                         $i = 202;
                     } elseif ($i >= 203 && $i <= 204) {
                         $vacunaNombre = 32 ;
-                        $docis = isset($row[203]) ? $row[203] : null;
+                        $docis = isset($row[203]) ? trim($row[203]) : null;
                         $lote = isset($row[204]) ? $row[204] : null;
                         $fecha_vacuna = $fechaatencion;
                         $responsable_ = $responsable;
@@ -866,7 +868,7 @@ class AfiliadoImport implements ToModel, WithStartRow
                         $i = 204;
                     } elseif ($i >= 205 && $i <= 206) {
                         $vacunaNombre = 33 ;
-                        $docis = isset($row[205]) ? $row[205] : null;
+                        $docis = isset($row[205]) ? trim($row[205]) : null;
                         $lote = isset($row[206]) ? $row[206] : null;
                         $fecha_vacuna = $fechaatencion;
                         $responsable_ = $responsable;
@@ -877,14 +879,14 @@ class AfiliadoImport implements ToModel, WithStartRow
                         $i = 206;
                     } elseif ($i >= 207 && $i <= 208) {
                         $vacunaNombre = 34 ;
-                        $docis = isset($row[207]) ? $row[207] : null;
+                        $docis = isset($row[207]) ? trim($row[207]) : null;
                         $lote = isset($row[208]) ? $row[208] : null;
                         $fecha_vacuna = $fechaatencion;
                         $usuario_activo_ = $usuario_activo;
                         $i = 208;
                     } elseif ($i >= 209 && $i <= 210) {
                         $vacunaNombre = 35 ;
-                        $docis = isset($row[209]) ? $row[209] : null;
+                        $docis = isset($row[209]) ? trim($row[209]) : null;
                         $lote = isset($row[210]) ? $row[210] : null;
                         $fecha_vacuna = $fechaatencion;
                         $responsable_ = $responsable;
@@ -895,7 +897,7 @@ class AfiliadoImport implements ToModel, WithStartRow
                         $i = 210;
                     } elseif ($i >= 211 && $i <= 212) {
                         $vacunaNombre = 36 ;
-                        $docis = isset($row[211]) ? $row[211] : null;
+                        $docis = isset($row[211]) ? trim($row[211]) : null;
                         $lote = isset($row[212]) ? $row[212] : null;
                         $fecha_vacuna = $fechaatencion;
                         $responsable_ = $responsable;
@@ -906,7 +908,7 @@ class AfiliadoImport implements ToModel, WithStartRow
                         $i = 212;
                     } elseif ($i >= 213 && $i <= 214) {
                         $vacunaNombre = 37 ;
-                        $docis = isset($row[213]) ? $row[213] : null;
+                        $docis = isset($row[213]) ? trim($row[213]) : null;
                         $lote = isset($row[214]) ? $row[214] : null;
                         $fecha_vacuna = $fechaatencion;
                         $responsable_ = $responsable;
@@ -917,7 +919,7 @@ class AfiliadoImport implements ToModel, WithStartRow
                         $i = 214;
                     } elseif ($i >= 215 && $i <= 216) {
                         $vacunaNombre = 38 ;
-                        $docis = isset($row[215]) ? $row[215] : null;
+                        $docis = isset($row[215]) ? trim($row[215]) : null;
                         $lote = isset($row[216]) ? $row[216] : null;
                         $fecha_vacuna = $fechaatencion;
                         $responsable_ = $responsable;
@@ -928,7 +930,7 @@ class AfiliadoImport implements ToModel, WithStartRow
                         $i = 216;
                     } elseif ($i >= 217 && $i <= 218) {
                         $vacunaNombre = 39 ;
-                        $docis = isset($row[217]) ? $row[217] : null;
+                        $docis = isset($row[217]) ? trim($row[217]) : null;
                         $lote = isset($row[218]) ? $row[218] : null;
                         $fecha_vacuna = $fechaatencion;
                         $responsable_ = $responsable;
@@ -939,7 +941,7 @@ class AfiliadoImport implements ToModel, WithStartRow
                         $i = 218;
                     } elseif ($i >= 219 && $i <= 220) {
                         $vacunaNombre = 40 ;
-                        $docis = isset($row[219]) ? $row[219] : null;
+                        $docis = isset($row[219]) ? trim($row[219]) : null;
                         $lote = isset($row[220]) ? $row[220] : null;
                         $fecha_vacuna = $fechaatencion;
                         $responsable_ = $responsable;
@@ -950,7 +952,7 @@ class AfiliadoImport implements ToModel, WithStartRow
                         $i = 220;
                     } elseif ($i >= 221 && $i <= 222) {
                         $vacunaNombre = 41 ;
-                        $docis = isset($row[221]) ? $row[221] : null;
+                        $docis = isset($row[221]) ? trim($row[221]) : null;
                         $lote = isset($row[222]) ? $row[222] : null;
                         $fecha_vacuna = $fechaatencion;
                         $responsable_ = $responsable;
@@ -961,7 +963,7 @@ class AfiliadoImport implements ToModel, WithStartRow
                         $i = 222;
                     } elseif ($i >= 223 && $i <= 224) {
                         $vacunaNombre = 42 ;
-                        $docis = isset($row[223]) ? $row[223] : null;
+                        $docis = isset($row[223]) ? trim($row[223]) : null;
                         $lote = isset($row[224]) ? $row[224] : null;
                         $fecha_vacuna = $fechaatencion;
                         $responsable_ = $responsable;
@@ -972,7 +974,7 @@ class AfiliadoImport implements ToModel, WithStartRow
                         $i = 224;
                     } elseif ($i >= 225 && $i <= 226) {
                         $vacunaNombre = 43 ;
-                        $docis = isset($row[225]) ? $row[225] : null;
+                        $docis = isset($row[225]) ? trim($row[225]) : null;
                         $lote = isset($row[226]) ? $row[226] : null;
                         $fecha_vacuna = $fechaatencion;
                         $responsable_ = $responsable;
@@ -983,7 +985,7 @@ class AfiliadoImport implements ToModel, WithStartRow
                         $i = 226;
                     } elseif ($i >= 227 && $i <= 228) {
                         $vacunaNombre = 44 ;
-                        $docis = isset($row[227]) ? $row[227] : null;
+                        $docis = isset($row[227]) ? trim($row[227]) : null;
                         $lote = isset($row[228]) ? $row[228] : null;
                         $fecha_vacuna = $fechaatencion;
                         $responsable_ = $responsable;
@@ -994,7 +996,7 @@ class AfiliadoImport implements ToModel, WithStartRow
                         $i = 228;
                     } elseif ($i >= 229 && $i <= 230) {
                         $vacunaNombre = 45 ;
-                        $docis = isset($row[229]) ? $row[229] : null;
+                        $docis = isset($row[229]) ? trim($row[229]) : null;
                         $lote = isset($row[230]) ? $row[230] : null;
                         $fecha_vacuna = $fechaatencion;
                         $responsable_ = $responsable;
@@ -1005,7 +1007,7 @@ class AfiliadoImport implements ToModel, WithStartRow
                         $i = 230;
                     } elseif ($i >= 231 && $i <= 232) {
                         $vacunaNombre = 46 ;
-                        $docis = isset($row[231]) ? $row[231] : null;
+                        $docis = isset($row[231]) ? trim($row[231]) : null;
                         $lote = isset($row[232]) ? $row[232] : null;
                         $fecha_vacuna = $fechaatencion;
                         $responsable_ = $responsable;
@@ -1016,7 +1018,7 @@ class AfiliadoImport implements ToModel, WithStartRow
                         $i = 232;
                     } elseif ($i >= 233 && $i <= 235) {
                         $vacunaNombre = 47 ;
-                        $docis = isset($row[233]) ? $row[233] : null;
+                        $docis = isset($row[233]) ? trim($row[233]) : null;
                         $lote = isset($row[234]) ? $row[234] : null;
                         $observacion = isset($row[235]) ? $row[235] : null;
                         $fecha_vacuna = $fechaatencion;
@@ -1073,7 +1075,7 @@ class AfiliadoImport implements ToModel, WithStartRow
                         $i = 244;
                     } elseif ($i >= 245 && $i <= 246) {
                         $vacunaNombre = 52 ;
-                        $docis = isset($row[245]) ? $row[245] : null;
+                        $docis = isset($row[245]) ? trim($row[245]) : null;
                         $lote = isset($row[246]) ? $row[246] : null;
                         $fecha_vacuna = $fechaatencion;
                         $responsable_ = $responsable;
@@ -1084,7 +1086,7 @@ class AfiliadoImport implements ToModel, WithStartRow
                         $i = 246;
                     } elseif ($i >= 247 && $i <= 248) {
                         $vacunaNombre = 53 ;
-                        $docis = isset($row[247]) ? $row[247] : null;
+                        $docis = isset($row[247]) ? trim($row[247]) : null;
                         $lote = isset($row[248]) ? $row[248] : null;
                         $fecha_vacuna = $fechaatencion;
                         $responsable_ = $responsable;
@@ -1095,7 +1097,7 @@ class AfiliadoImport implements ToModel, WithStartRow
                         $i = 248;
                     } elseif ($i >= 249 && $i <= 250) {
                         $vacunaNombre = 54 ;
-                        $docis = isset($row[249]) ? $row[249] : null;
+                        $docis = isset($row[249]) ? trim($row[249]) : null;
                         $lote = isset($row[250]) ? $row[250] : null;
                         $fecha_vacuna = $fechaatencion;
                         $responsable_ = $responsable;

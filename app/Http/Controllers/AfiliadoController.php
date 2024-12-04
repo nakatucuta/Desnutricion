@@ -189,7 +189,7 @@ class AfiliadoController extends Controller
                             foreach ($fila['vacunas'] as $vacunaData) {
                                 // Verificar si ya existe una vacuna con la misma dosis y el mismo nombre para el mismo afiliado
                                 $existeVacuna = Vacuna::where('afiliado_id', $afiliado->id)
-                                                    ->where('docis', $vacunaData['docis'])
+                                                    ->whereRaw("docis COLLATE Latin1_General_CI_AI = ?", [$vacunaData['docis']])  //Case Insensitive y Accent insensitive con COLLATE
                                                     ->where('vacunas_id', $vacunaData['vacunas_id'])  // Verifica también el nombre de la vacuna
                                                     ->first();
 
