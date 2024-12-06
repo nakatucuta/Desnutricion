@@ -299,7 +299,8 @@ class AfiliadoImport implements ToModel, WithStartRow
         //}
 
         // Verificar si el afiliado ya existe en la base de datos local
-        $afiliado = Afiliado::where('numero_identificacion', $numero_identifi)->first();
+        // Se cambio el parametro a nunmero de carnet, el numero de identificacion generaba duplicados
+        $afiliado = Afiliado::where('numero_carnet', $numero_carnet)->first();
 
         // Si el afiliado no existe, creamos un nuevo registro
         if (!$afiliado) {
@@ -391,15 +392,25 @@ class AfiliadoImport implements ToModel, WithStartRow
             $this->filasParaGuardar[] = [
                 'afiliado' => $afiliadoData,
                 'vacunas' => $vacunasData,
+                'existe' => false,
             ];
 
         } 
         else {
 
+            $afiliadoData = ['numero_carnet' => $numero_carnet]; //enviar el numero de carnet para referenciar
+
             // Si el afiliado ya existe, procesamos solo las vacunas nuevas
             $vacunasData = $this->extraerVacunas($row, $fechaatencion, $responsable, $fuen_ingresado_paiweb, $motivo_noingreso, $observaciones, $usuario_activo);
+
+            //Delaga el guardado de Vacunas al controlador 
+            $this->filasParaGuardar[] = [
+                'afiliado' => $afiliadoData,
+                'vacunas' => $vacunasData,
+                'existe' => true,
+            ];
     
-            foreach ($vacunasData as $vacuna) {
+           /* foreach ($vacunasData as $vacuna) {
                 // Verificar si la vacuna con la misma dosis ya está registrada para evitar duplicados solo en dosis
                 $existeVacuna = Vacuna::where('afiliado_id', $afiliado->id)
                     ->whereRaw("docis COLLATE Latin1_General_CI_AI =?", [$vacuna['docis']])  //Case Insensitive y Accent insensitive con COLLATE
@@ -411,7 +422,7 @@ class AfiliadoImport implements ToModel, WithStartRow
                     $vacuna['afiliado_id'] = $afiliado->id;
                     Vacuna::create($vacuna);  // Guardar la vacuna asociada
                 }
-            }
+            } */
         }
     
         return null;

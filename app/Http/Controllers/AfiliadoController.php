@@ -164,7 +164,7 @@ class AfiliadoController extends Controller
                 $oldAfil = 0; //Afiliados exixtentes
                 $newVacuna = 0; //vacunas nuevas aplicadas
                 $oldVacuna = 0; //vacunas ya exixtentes
-
+ 
                 Log::info("Iniciando cargue de datos: $batch_id - user: $user - filas: $totalFilas");
                 // Iterar sobre cada fila validada
                 DB::transaction(function () use ($filasParaGuardar, &$newAfil, &$oldAfil, &$newVacuna, &$oldVacuna) {
@@ -172,36 +172,35 @@ class AfiliadoController extends Controller
                         // Asignar el 'user_id' al afiliado
                         $fila['afiliado']['user_id'] = Auth::id();
                         
-                        // Verificar si el afiliado ya existe en la base de datos
-                        $afiliado = Afiliado::where('numero_identificacion', $fila['afiliado']['numero_identificacion'])
-                                            ->first();
+                        // Verificar si el afiliado ya existe en la base de datos, se cambio a numero de carnet
+                        $afiliado = Afiliado::where('numero_carnet', $fila['afiliado']['numero_carnet'])->first();
         
-                        if (!$afiliado) {
+                        if (!$fila['existe'] && !$afiliado) {
                             // Si el afiliado no existe, crear un nuevo registro
                             $afiliado = Afiliado::create($fila['afiliado']);
-                                    // Si el afiliado ya existe, actualizar su número de carnet
+                            // Si el afiliado ya existe, actualizar su número de carnet??
                             $newAfil++;
                         }else{
                             $oldAfil++;
                         }
         
-                    // Guardar las vacunas asociadas al afiliado
-                            foreach ($fila['vacunas'] as $vacunaData) {
-                                // Verificar si ya existe una vacuna con la misma dosis y el mismo nombre para el mismo afiliado
-                                $existeVacuna = Vacuna::where('afiliado_id', $afiliado->id)
-                                                    ->whereRaw("docis COLLATE Latin1_General_CI_AI = ?", [$vacunaData['docis']])  //Case Insensitive y Accent insensitive con COLLATE
-                                                    ->where('vacunas_id', $vacunaData['vacunas_id'])  // Verifica también el nombre de la vacuna
-                                                    ->first();
+                        // Guardar las vacunas asociadas al afiliado
+                        foreach ($fila['vacunas'] as $vacunaData) {
+                            // Verificar si ya existe una vacuna con la misma dosis y el mismo nombre para el mismo afiliado
+                            $existeVacuna = Vacuna::where('afiliado_id', $afiliado->id)
+                                                ->whereRaw("docis COLLATE Latin1_General_CI_AI = ?", [$vacunaData['docis']])  //Case Insensitive y Accent insensitive con COLLATE
+                                                ->where('vacunas_id', $vacunaData['vacunas_id'])  // Verifica también el nombre de la vacuna
+                                                ->first();
 
-                                if (!$existeVacuna) {
-                                    // Si no existe la vacuna con la misma dosis y el mismo nombre, crearla
-                                    $vacunaData['afiliado_id'] = $afiliado->id;
-                                    Vacuna::create($vacunaData);  // Guardar la vacuna asociada
-                                    $newVacuna++;
-                                }else{
-                                    $oldVacuna++;
-                                }
+                            if (!$existeVacuna) {
+                                // Si no existe la vacuna con la misma dosis y el mismo nombre, crearla
+                                $vacunaData['afiliado_id'] = $afiliado->id;
+                                Vacuna::create($vacunaData);  // Guardar la vacuna asociada
+                                $newVacuna++;
+                            }else{
+                                $oldVacuna++;
                             }
+                        }
                     }
             });
     
