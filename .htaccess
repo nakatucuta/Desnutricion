@@ -1,0 +1,16 @@
+Options -Indexes
+
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteBase /
+
+    # Redirigir Desnutricion a Desnutricion/public
+    RewriteCond %{REQUEST_URI} ^/Desnutricion(/.*|$)
+    RewriteRule ^Desnutricion(/.*|$) /Desnutricion/public$1 [L,R=301]
+    
+</IfModule>
+
+<FilesMatch "^\.">
+    Order allow,deny
+    Deny from all
+</FilesMatch>
