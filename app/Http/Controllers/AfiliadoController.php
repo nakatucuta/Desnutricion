@@ -258,7 +258,13 @@ class AfiliadoController extends Controller
     })
     ->select(
         'd.nombre as nombre_vacuna',
-        'a.docis as docis_vacuna',
+        DB::raw("
+            CASE 
+                WHEN a.vacunas_id IN (23, 24) AND a.docis IS NULL 
+                    THEN CONCAT(a.num_frascos_utilizados, ' frascos')
+                ELSE a.docis
+            END as docis_vacuna
+        "),
         'a.fecha_vacuna as fecha_vacunacion',
         'b.fecha_nacimiento',
         'c.name as nombre_usuario',
@@ -282,6 +288,8 @@ class AfiliadoController extends Controller
     ->orderBy('a.fecha_vacuna', 'asc') // Ordenar por fecha_vacuna ascendente
     ->orderBy('d.nombre', 'asc') // Luego ordenar por nombre_vacuna ascendente
     ->get();
+
+   
 
     //Calcular la edad
     $hoy = Carbon::now();

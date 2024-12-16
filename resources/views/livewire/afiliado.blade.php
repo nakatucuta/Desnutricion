@@ -561,7 +561,7 @@
                                         '<td>' + vacuna.edad_anos + '</td>' +
                                         '<td>' + vacuna.total_meses + '</td>' +
                                         '<td>' + vacuna.nombre_usuario + '</td>' +
-                                        '<td>' + vacuna.responsable + '</td>' +
+                                        '<td>' + (vacuna.responsable ? vacuna.responsable : '---') + '</td>' +
                                         '</tr>'
                                     );
                                 });
