@@ -6,9 +6,13 @@ use Illuminate\Support\Facades\DB;
 use Maatwebsite\Excel\Concerns\FromQuery;
 use Maatwebsite\Excel\Concerns\WithHeadings;
 use Maatwebsite\Excel\Concerns\Exportable;
+use Maatwebsite\Excel\Concerns\ShouldAutoSize;
+use Maatwebsite\Excel\Concerns\WithEvents;
+use Maatwebsite\Excel\Events\AfterSheet;
 
-class vacunaExport implements FromQuery, WithHeadings
+class VacunaExport implements FromQuery, WithHeadings, ShouldAutoSize, WithEvents
 {
+
     use Exportable;
 
     protected $startDate;
@@ -32,8 +36,10 @@ class vacunaExport implements FromQuery, WithHeadings
         $query = DB::table('DESNUTRICION.dbo.vacunas as a') // Asegúrate de que el esquema es correcto
             ->join('afiliados as b', 'b.id', '=', 'a.afiliado_id')
             ->join('referencia_vacunas as d', 'a.vacunas_id', '=', 'd.id')
+            ->join('users', 'users.id', '=', 'a.user_id')
 
             ->select(
+                'users.name',
                 'b.fecha_atencion',
                 'b.tipo_identificacion',
                 'b.numero_identificacion',
@@ -145,6 +151,7 @@ return $query;
     public function headings(): array
     {
         return [
+            'Prestador',
             'Fecha de Atención',
             'Tipo de Identificación',
             'Número de Identificación',
@@ -239,5 +246,37 @@ return $query;
             'Observaciones',
             'Fecha de Creación'
         ];
+    }
+
+
+
+    public function registerEvents(): array
+    {
+        return [
+            AfterSheet::class    => function(AfterSheet $event) {
+                // $cellRange3 = 'A2:AT2'; //RANGO PARA LOS FILTROS
+                // $cellRange1 = 'AO1:AP1'; // All headers
+                // $cellRange2 = 'AQ1:AT1';
+                 $cellRange = 'A1:CP1'; // All headers
+                
+                //  $event->sheet->getDelegate()->mergeCells($cellRange2);
+                //  $event->sheet->getDelegate()->mergeCells($cellRange1);//ojo debes buscar la
+                $event->sheet->getDelegate()->getStyle($cellRange)->getFont()->setSize(14);
+                 $event->sheet->getDelegate()->getStyle($cellRange)->getFont()->setBold(true);
+                 $event->sheet->getDelegate()->getStyle($cellRange)->getFill()
+               ->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)
+                 ->getStartColor()->setARGB('e6ffe6');
+                 $event->sheet->getDelegate()->getStyle($cellRange)->getAlignment()->setHorizontal('center');
+                 $event->sheet->setAutoFilter($cellRange);
+                 $event->sheet->getDelegate()->getStyle('B2:CP2000')->applyFromArray([
+                     'alignment' => [
+                         'horizontal' => \PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_LEFT,
+                     ]
+                 ]
+                );
+
+                 
+             },
+         ];
     }
 }
