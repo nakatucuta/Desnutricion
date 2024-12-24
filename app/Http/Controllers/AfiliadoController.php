@@ -16,6 +16,8 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Storage;
+use App\Models\referencia_vacuna; // Importa el modelo aquí
+
 use ZipArchive;
 
 
@@ -126,98 +128,183 @@ class AfiliadoController extends Controller
             'file' => 'required|mimes:xlsx,xls',
         ]);
     
-        // Obtenemos el archivo del request
         $file = $request->file('file');
     
         if ($file) {
-            // Verificar que el usuario esté autenticado, si no está autenticado, redirigir con un error
             if (!Auth::check()) {
                 return redirect()->route('afiliado')->with('error', 'Usuario no autenticado.');
             }
     
-            // Instanciar la clase AfiliadoImport que se encargará de procesar el archivo
-            
             $import = new \App\Imports\AfiliadoImport();
             $batch_id = $import->getBatchVerificationsID();
             $user = Auth::user()->name;
-            Log::info("Iniciando validación: $batch_id - user: $user");
-            // Importar los datos del archivo Excel usando la clase AfiliadoImportg
-            Excel::import($import, $file);
     
-            // Obtener cualquier error que haya ocurrido durante la importación
+            Log::info("Iniciando validación: $batch_id - user: $user");
+    
+            Excel::import($import, $file);
             $errores = $import->getErrores();
     
-            // Si hay errores, redirigir con un mensaje de error y no continuar el proceso
             if (!empty($errores)) {
-                // Si hay algún error, redirigir inmediatamente sin guardar ningún dato
                 Log::info("Errores: $batch_id - user: $user");
                 return redirect()->route('afiliado')->with('error1', $errores);
             }
     
-            Log::info("Terminada la validacion: $batch_id - user: $user");
-            // Verificar si se debe guardar los datos; esto depende del proceso de validación dentro de AfiliadoImport
+            Log::info("Terminada la validación: $batch_id - user: $user");
+    
             if ($import->debeGuardar()) {
-                // Obtener las filas validadas para guardar (tanto afiliados como vacunas)
                 $filasParaGuardar = $import->getFilasParaGuardar();
                 $totalFilas = count($filasParaGuardar);
-                $newAfil = 0; // Afiliado nuevos
-                $oldAfil = 0; //Afiliados exixtentes
-                $newVacuna = 0; //vacunas nuevas aplicadas
-                $oldVacuna = 0; //vacunas ya exixtentes
- 
-                Log::info("Iniciando cargue de datos: $batch_id - user: $user - filas: $totalFilas");
-                // Iterar sobre cada fila validada
-                DB::transaction(function () use ($filasParaGuardar, &$newAfil, &$oldAfil, &$newVacuna, &$oldVacuna) {
+                $newAfil = 0;
+                $oldAfil = 0;
+                $newVacuna = 0;
+                $oldVacuna = 0;
+    
+                DB::transaction(function () use ($filasParaGuardar, &$newAfil, &$oldAfil, &$newVacuna, &$oldVacuna, $user, $batch_id) {
                     foreach ($filasParaGuardar as $fila) {
                         // Asignar el 'user_id' al afiliado
                         $fila['afiliado']['user_id'] = Auth::id();
-                        
-                        // Verificar si el afiliado ya existe en la base de datos, se cambio a numero de carnet
                         $afiliado = Afiliado::where('numero_carnet', $fila['afiliado']['numero_carnet'])->first();
-        
+    
                         if (!$fila['existe'] && !$afiliado) {
-                            // Si el afiliado no existe, crear un nuevo registro
                             $afiliado = Afiliado::create($fila['afiliado']);
-                            // Si el afiliado ya existe, actualizar su número de carnet??
                             $newAfil++;
-                        }else{
+                        } else {
                             $oldAfil++;
                         }
-        
-                        // Guardar las vacunas asociadas al afiliado
+    
                         foreach ($fila['vacunas'] as $vacunaData) {
-                            // Verificar si ya existe una vacuna con la misma dosis y el mismo nombre para el mismo afiliado
+                            // Verifica que `vacunas_id` esté definido antes de intentar buscar
+                            if (!isset($vacunaData['vacunas_id']) || empty($vacunaData['vacunas_id'])) {
+                                Log::error("El campo `vacunas_id` no está definido o está vacío en los datos de la vacuna.");
+                                continue; // Saltar esta iteración
+                            }
+                          //consulta que obtiene la vacuna comparando con la tabla  referncia
+                            // Obtener el `nombre_vacuna` desde la tabla `referencia_vacunas` usando Query Builder
+                            $referenciaVacuna = DB::table('referencia_vacunas')
+                                ->where('id', $vacunaData['vacunas_id'])
+                                ->first();
+                        
+                            if (!$referenciaVacuna) {
+                                // Si no encuentra la referencia, registrar un error y asignar un nombre predeterminado
+                                Log::error("Vacuna no encontrada en `referencia_vacunas` con ID: {$vacunaData['vacunas_id']}");
+                                $vacunaData['nombre_vacuna'] = 'Desconocida'; // Nombre predeterminado
+                            } else {
+                                // Asignar el nombre de la vacuna desde la tabla `referencia_vacunas`
+                                $vacunaData['nombre_vacuna'] = $referenciaVacuna->nombre;
+                            }
+                        
+                            // Comprobar si la vacuna ya existe en la tabla `vacunas`
                             $existeVacuna = Vacuna::where('afiliado_id', $afiliado->id)
-                                                ->whereRaw("docis COLLATE Latin1_General_CI_AI = ?", [$vacunaData['docis']])  //Case Insensitive y Accent insensitive con COLLATE
-                                                ->where('vacunas_id', $vacunaData['vacunas_id'])  // Verifica también el nombre de la vacuna
-                                                ->first();
-
+                                ->whereRaw("docis COLLATE Latin1_General_CI_AI = ?", [$vacunaData['docis']])
+                                ->where('vacunas_id', $vacunaData['vacunas_id'])
+                                ->first();
+                        
                             if (!$existeVacuna) {
-                                // Si no existe la vacuna con la misma dosis y el mismo nombre, crearla
+                                // Si la vacuna no existe, crearla
                                 $vacunaData['afiliado_id'] = $afiliado->id;
-                                Vacuna::create($vacunaData);  // Guardar la vacuna asociada
+                                Vacuna::create($vacunaData);
                                 $newVacuna++;
-                            }else{
+                            } else {
                                 $oldVacuna++;
                             }
                         }
+                        
+                        
                     }
-            });
+                });
     
-                // Redirigir con un mensaje de éxito si todo se ha guardado correctamente
-                Log::info("Resultados del proceso [$batch_id]: Nuevos afiliados: $newAfil, Afiliados existentes: $oldAfil, Nuevas vacunas aplicadas: $newVacuna, Vacunas existentes: $oldVacuna");
-                Log::info("Validacion exitosa: $batch_id - user: $user");
-                return redirect()->route('afiliado')->with('success', 'Datos importados correctamente');
+                // Ruta del archivo TXT
+                $filePath = storage_path('app/public/vacunas_cargadas_' . $batch_id . '.txt');
+    
+                // Generar el archivo
+                $this->generarArchivoVacunas($filasParaGuardar, $filePath);
+    
+                // Enviar el correo
+                $this->enviarCorreoConAdjunto($filePath, $user);
+    
+                Log::info("Proceso finalizado exitosamente: $batch_id - user: $user");
+                return redirect()->route('afiliado')->with('success', 'Datos importados y correo enviado correctamente');
             } else {
-                // Si no se deben guardar los datos, redirigir con un mensaje de error
-                Log::info("Errores de validacion: $batch_id - user: $user");
+                Log::info("Errores de validación: $batch_id - user: $user");
                 return redirect()->route('afiliado')->with('error1', 'No se pudo cargar el archivo debido a errores en los datos.');
             }
         } else {
-            // Si no se sube ningún archivo, mostrar un mensaje de error al usuario
             return redirect()->route('afiliado')->with('error', 'Por favor, sube un archivo Excel.');
         }
     }
+    
+    /**
+     * Enviar un correo con el archivo adjunto.
+     */
+    protected function generarArchivoVacunas($data, $filePath)
+    {
+        // Encabezado inicial del archivo
+        $contenido = "Reporte de Vacunas Cargadas:\n";
+        $contenido .= "-------------------------------------------\n";
+    
+        foreach ($data as $linea) {
+            // Datos del afiliado
+            $afiliado = $linea['afiliado'];
+            $contenido .= "Paciente: {$afiliado['primer_nombre']} {$afiliado['segundo_nombre']} {$afiliado['primer_apellido']} {$afiliado['segundo_apellido']}\n";
+            $contenido .= "Documento de Identidad: {$afiliado['numero_identificacion']}\n";
+    
+            // Vacunas
+            foreach ($linea['vacunas'] as $vacuna) {
+                // Obtener el nombre de la vacuna desde la tabla `referencia_vacunas`
+                $referenciaVacuna = \DB::table('referencia_vacunas')
+                    ->where('id', $vacuna['vacunas_id'])
+                    ->value('nombre'); // Obtiene directamente el nombre de la vacuna
+                
+                // Asignar valores predeterminados si no se encuentran
+                $nombreVacuna = $referenciaVacuna ?? 'Vacuna desconocida'; 
+                $dosis = $vacuna['docis'] ?? 'Dosis desconocida';
+    
+                $contenido .= "- Vacuna: {$nombreVacuna} | Dosis: {$dosis}\n";
+            }
+    
+            // Usuario cargador
+            $usuarioCargador = Auth::check() ? Auth::user()->name : 'Usuario desconocido';
+            $contenido .= "Cargado por: {$usuarioCargador}\n";
+    
+            $contenido .= "-------------------------------------------\n";
+        }
+    
+        // Crear o sobrescribir el archivo
+        if (file_put_contents($filePath, $contenido) === false) {
+            Log::error("No se pudo generar el archivo en: $filePath");
+            throw new \Exception("No se pudo generar el archivo en: $filePath");
+        }
+    
+        Log::info("Archivo generado en: $filePath");
+    }
+    
+
+
+protected function enviarCorreoConAdjunto($filePath)
+{
+    if (file_exists($filePath)) {
+        // Crear un nuevo correo con el archivo adjunto
+        $usuario = Auth::check() ? Auth::user()->name : 'Usuario desconocido';
+
+        $email = new \App\Mail\VacunasCargadas($filePath, $usuario);
+        
+        // Log de información
+        Log::info("Intentando enviar correo con vista 'mail.vacunas_cargadas' y archivo: $filePath");
+        
+        // Enviar el correo
+        Mail::to('pai@epsianaswayuu.com')->send($email);
+
+        // Log de éxito
+        Log::info("Correo enviado con éxito a pai@epsianaswayuu.com con el archivo: $filePath");
+    } else {
+        // Log de error si no encuentra el archivo
+        Log::error("Archivo no encontrado para enviar: $filePath");
+    }
+}
+
+
+    
+    
     
     
 
