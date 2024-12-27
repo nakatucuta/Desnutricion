@@ -292,7 +292,7 @@ protected function enviarCorreoConAdjunto($filePath)
         Log::info("Intentando enviar correo con vista 'mail.vacunas_cargadas' y archivo: $filePath");
         
         // Enviar el correo
-        Mail::to('pai@epsianaswayuu.com')->send($email);
+        Mail::to('juancamilosuarezcantero@gmail.com')->send($email);
 
         // Log de éxito
         Log::info("Correo enviado con éxito a pai@epsianaswayuu.com con el archivo: $filePath");

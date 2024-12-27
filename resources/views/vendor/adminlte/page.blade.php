@@ -15,9 +15,15 @@
     <div class="wrapper">
 
         {{-- Preloader Animation --}}
-        @if($layoutHelper->isPreloaderEnabled())
-            @include('adminlte::partials.common.preloader')
-        @endif
+        @if(config('adminlte.preloader.enabled', false))
+        <div class="preloader flex-column justify-content-center align-items-center">
+            <img class="{{ config('adminlte.preloader.img.effect') }}"
+                 src="{{ asset(config('adminlte.preloader.img.path')) }}"
+                 alt="{{ config('adminlte.preloader.img.alt') }}"
+                 height="250"
+                 width="250">
+        </div>
+    @endif
 
         {{-- Top Navbar --}}
         @if($layoutHelper->isLayoutTopnavEnabled())
