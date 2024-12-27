@@ -243,23 +243,48 @@ class AfiliadoController extends Controller
         $contenido .= "-------------------------------------------\n";
     
         foreach ($data as $linea) {
-            // Datos del afiliado
+            // Validar que exista 'afiliado' y que contenga los datos necesarios
+            if (!isset($linea['afiliado'])) {
+                Log::error("Datos del afiliado no encontrados en la línea: " . json_encode($linea));
+                $contenido .= "Datos del afiliado no disponibles.\n";
+                $contenido .= "-------------------------------------------\n";
+                continue; // Saltar al siguiente registro
+            }
+    
             $afiliado = $linea['afiliado'];
-            $contenido .= "Paciente: {$afiliado['primer_nombre']} {$afiliado['segundo_nombre']} {$afiliado['primer_apellido']} {$afiliado['segundo_apellido']}\n";
-            $contenido .= "Documento de Identidad: {$afiliado['numero_identificacion']}\n";
+            $primerNombre = $afiliado['primer_nombre'] ?? 'Desconocido';
+            $segundoNombre = $afiliado['segundo_nombre'] ?? 'Desconocido';
+            $primerApellido = $afiliado['primer_apellido'] ?? 'Desconocido';
+            $segundoApellido = $afiliado['segundo_apellido'] ?? 'Desconocido';
+            $numeroIdentificacion = $afiliado['numero_identificacion'] ?? 'No disponible';
     
-            // Vacunas
-            foreach ($linea['vacunas'] as $vacuna) {
-                // Obtener el nombre de la vacuna desde la tabla `referencia_vacunas`
-                $referenciaVacuna = \DB::table('referencia_vacunas')
-                    ->where('id', $vacuna['vacunas_id'])
-                    ->value('nombre'); // Obtiene directamente el nombre de la vacuna
-                
-                // Asignar valores predeterminados si no se encuentran
-                $nombreVacuna = $referenciaVacuna ?? 'Vacuna desconocida'; 
-                $dosis = $vacuna['docis'] ?? 'Dosis desconocida';
+            // Agregar datos del afiliado al contenido
+            $contenido .= "Paciente: {$primerNombre} {$segundoNombre} {$primerApellido} {$segundoApellido}\n";
+            $contenido .= "Documento de Identidad: {$numeroIdentificacion}\n";
     
-                $contenido .= "- Vacuna: {$nombreVacuna} | Dosis: {$dosis}\n";
+            // Validar y procesar las vacunas
+            if (isset($linea['vacunas']) && is_array($linea['vacunas'])) {
+                foreach ($linea['vacunas'] as $vacuna) {
+                    if (!isset($vacuna['vacunas_id'])) {
+                        Log::error("Campo `vacunas_id` no encontrado en la vacuna: " . json_encode($vacuna));
+                        $contenido .= "- Vacuna: Vacuna desconocida | Dosis: Dosis desconocida\n";
+                        continue; // Saltar esta iteración
+                    }
+    
+                    // Obtener el nombre de la vacuna desde la tabla `referencia_vacunas`
+                    $referenciaVacuna = \DB::table('referencia_vacunas')
+                        ->where('id', $vacuna['vacunas_id'])
+                        ->value('nombre'); // Obtiene directamente el nombre de la vacuna
+    
+                    // Asignar valores predeterminados si no se encuentran
+                    $nombreVacuna = $referenciaVacuna ?? 'Vacuna desconocida';
+                    $dosis = $vacuna['docis'] ?? 'Dosis desconocida';
+    
+                    // Agregar vacuna al contenido
+                    $contenido .= "- Vacuna: {$nombreVacuna} | Dosis: {$dosis}\n";
+                }
+            } else {
+                $contenido .= "No se encontraron vacunas asociadas.\n";
             }
     
             // Usuario cargador
@@ -278,6 +303,7 @@ class AfiliadoController extends Controller
         Log::info("Archivo generado en: $filePath");
     }
     
+    
 
 
 protected function enviarCorreoConAdjunto($filePath)
@@ -292,7 +318,7 @@ protected function enviarCorreoConAdjunto($filePath)
         Log::info("Intentando enviar correo con vista 'mail.vacunas_cargadas' y archivo: $filePath");
         
         // Enviar el correo
-        Mail::to('pai@epsianaswayuu.com')->send($email);
+        Mail::to('juancamilosuarezcantero@gmail.com')->send($email);
 
         // Log de éxito
         Log::info("Correo enviado con éxito a pai@epsianaswayuu.com con el archivo: $filePath");
