@@ -252,10 +252,10 @@ class AfiliadoController extends Controller
             }
     
             $afiliado = $linea['afiliado'];
-            $primerNombre = $afiliado['primer_nombre'] ?? 'Desconocido';
-            $segundoNombre = $afiliado['segundo_nombre'] ?? 'Desconocido';
-            $primerApellido = $afiliado['primer_apellido'] ?? 'Desconocido';
-            $segundoApellido = $afiliado['segundo_apellido'] ?? 'Desconocido';
+            $primerNombre = $afiliado['primer_nombre'] ?? 'vacio';
+            $segundoNombre = $afiliado['segundo_nombre'] ?? 'vacio';
+            $primerApellido = $afiliado['primer_apellido'] ?? 'vacio';
+            $segundoApellido = $afiliado['segundo_apellido'] ?? 'vacio';
             $numeroIdentificacion = $afiliado['numero_identificacion'] ?? 'No disponible';
     
             // Agregar datos del afiliado al contenido
