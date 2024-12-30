@@ -305,28 +305,40 @@ class AfiliadoController extends Controller
     
     
 
-
-protected function enviarCorreoConAdjunto($filePath)
-{
-    if (file_exists($filePath)) {
-        // Crear un nuevo correo con el archivo adjunto
-        $usuario = Auth::check() ? Auth::user()->name : 'Usuario desconocido';
-
-        $email = new \App\Mail\VacunasCargadas($filePath, $usuario);
-        
-        // Log de información
-        Log::info("Intentando enviar correo con vista 'mail.vacunas_cargadas' y archivo: $filePath");
-        
-        // Enviar el correo
-        Mail::to('juancamilosuarezcantero@gmail.com')->send($email);
-
-        // Log de éxito
-        Log::info("Correo enviado con éxito a pai@epsianaswayuu.com con el archivo: $filePath");
-    } else {
-        // Log de error si no encuentra el archivo
-        Log::error("Archivo no encontrado para enviar: $filePath");
+    protected function enviarCorreoConAdjunto($filePath)
+    {
+        if (file_exists($filePath)) {
+            // Obtener el nombre del usuario autenticado
+            $usuario = Auth::check() ? Auth::user()->name : 'Usuario desconocido';
+    
+            // Obtener el correo electrónico del usuario autenticado
+            $correoUsuario = Auth::check() ? Auth::user()->email : null;
+    
+            // Validar que el usuario autenticado tenga un correo
+            if (!$correoUsuario) {
+                Log::error("El usuario autenticado no tiene un correo válido.");
+                return;
+            }
+    
+            // Crear un nuevo correo con el archivo adjunto
+            $email = new \App\Mail\VacunasCargadas($filePath, $usuario);
+    
+            // Log de información
+            Log::info("Intentando enviar correo con vista 'mail.vacunas_cargadas' y archivo: $filePath");
+    
+            // Enviar el correo al usuario autenticado con copia a otros destinatarios
+            Mail::to($correoUsuario)
+                ->cc(['jsuarez@epsianaswayuu.com', 'pai@epsianaswayuu.com'])
+                ->send($email);
+    
+            // Log de éxito
+            Log::info("Correo enviado con éxito al usuario autenticado ({$correoUsuario}), jsuarez@epsianaswayuu.com y pai@epsianaswayuu.com con el archivo: $filePath");
+        } else {
+            // Log de error si no encuentra el archivo
+            Log::error("Archivo no encontrado para enviar: $filePath");
+        }
     }
-}
+    
 
 
     
