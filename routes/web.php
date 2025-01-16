@@ -178,3 +178,13 @@ Route::get('/descargar-formato', [AfiliadoController::class, 'downloadExcel'])->
 
 //RUTA PARA EL BUSCADOR DINAMICO EN PAI
 Route::get('/buscar-afiliados', [AfiliadoController::class, 'buscarAfiliados'])->name('buscar.afiliados');
+
+
+//rRUTA BUSCADOR DINAMICO EN SEGUIMIENTO
+Route::get('/buscar-seguimiento', [SeguimientoController::class, 'buscarSeguimiento'])
+     ->name('buscar.seguimiento');
+
+// Ruta para filtrar (puedes usar "index", pero debes retornar JSON si es AJAX)
+Route::get('/filtrar-seguimiento', [SeguimientoController::class, 'filtrarSeguimiento'])
+     ->name('filtrar.seguimiento');
+

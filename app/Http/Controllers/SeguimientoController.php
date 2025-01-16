@@ -44,66 +44,162 @@ class SeguimientoController extends Controller
      * @return \Illuminate\Http\Response
      */
     public function index(Request $request)
-    { 
-        
-        $busqueda = $request->busqueda;
-        $busqueda = $request->busqueda;
+    {
+        // 1) Si es una petición AJAX (o tiene 'search'), devolvemos JSON con la tabla filtrada.
+        if ($request->ajax()) {
+            // Toma la variable 'search' (o 'busqueda') de la petición
+            $search = $request->input('search') ?? $request->input('busqueda');
+    
+            // Dependiendo del usertype, usas la consulta que corresponda.
+            if (Auth::user()->usertype == 2) {
+                // Para usertype == 2:
+                $query = Sivigila::select(
+                        'sivigilas.num_ide_',
+                        'sivigilas.pri_nom_',
+                        'sivigilas.seg_nom_',
+                        'sivigilas.pri_ape_',
+                        'sivigilas.seg_ape_',
+                        'seguimientos.id as id',
+                        'sivigilas.Ips_at_inicial',
+                        'seguimientos.fecha_consulta',
+                        'seguimientos.fecha_proximo_control',
+                        'seguimientos.estado',
+                        'seguimientos.motivo_reapuertura',
+                        'sivigilas.semana',
+                        'sivigilas.created_at as creado'
+                    )
+                    ->join('seguimientos', 'sivigilas.id', '=', 'seguimientos.sivigilas_id')
+                    ->where('seguimientos.user_id', Auth::user()->id)
+                    ->whereYear('seguimientos.created_at', '>', 2023)
+                    ->orderBy('seguimientos.created_at', 'desc');
+    
+                // Si llega algo en search, filtra por num_ide_
+                if (!empty($search)) {
+                    $query->where('sivigilas.num_ide_', 'LIKE', "%{$search}%");
+                }
+    
+                // Retornamos todos los resultados filtrados (sin paginar)
+                $incomeedit = $query->get();
+            } else {
+                // Para usertype != 2:
+                $query = Seguimiento::select(
+                        's.num_ide_',
+                        's.pri_nom_',
+                        's.seg_nom_',
+                        's.pri_ape_',
+                        's.seg_ape_',
+                        'users.name',
+                        'seguimientos.id as id',
+                        'seguimientos.fecha_consulta',
+                        'seguimientos.fecha_proximo_control',
+                        'seguimientos.estado',
+                        'seguimientos.motivo_reapuertura',
+                        's.semana',
+                        's.created_at as creado'
+                    )
+                    ->join('sivigilas as s', 's.id', '=', 'seguimientos.sivigilas_id')
+                    ->join('users', 'users.id', '=', 's.user_id')
+                    ->whereYear('seguimientos.created_at', '>', 2023)
+                    ->orderBy('seguimientos.created_at', 'desc');
+    
+                if (!empty($search)) {
+                    $query->where('s.num_ide_', 'LIKE', "%{$search}%");
+                }
+    
+                $incomeedit = $query->get();
+            }
+    
+            // Devolvemos un JSON con la misma clave que tu JS espera ("incomeedit")
+            return response()->json([
+                'incomeedit' => $incomeedit
+            ]);
+        }
+    
+        // 2) Si NO es AJAX, seguimos con la lógica normal que retorna la vista.
+    
         $user_id = Auth::User()->usertype;
         $user_id1 = Auth::User()->id == '2';
-        //pra mostrar lo que cada usuario ingrese 
-
+    
         if (Auth::User()->usertype == 2) {
-            $incomeedit = Sivigila::select('sivigilas.num_ide_','sivigilas.pri_nom_','sivigilas.seg_nom_',
-            'sivigilas.pri_ape_','sivigilas.seg_ape_','seguimientos.id as idin','sivigilas.Ips_at_inicial',
-            'seguimientos.fecha_consulta','seguimientos.id',
-            'seguimientos.fecha_proximo_control','seguimientos.estado','seguimientos.id',
-            'seguimientos.motivo_reapuertura','sivigilas.semana','sivigilas.created_at as  creado')
-            ->orderBy('seguimientos.created_at', 'desc')
-            ->join('seguimientos', 'sivigilas.id', '=', 'seguimientos.sivigilas_id')
-            ->where('seguimientos.user_id', Auth::user()->id)
-            ->whereYear('seguimientos.created_at', '>', 2023) // Agregar la condición para el año
-            ->paginate(20000);
-        
-        } else {  
-
-            $incomeedit = Seguimiento::select('s.num_ide_','s.pri_nom_','s.seg_nom_',
-        's.pri_ape_','s.seg_ape_','seguimientos.id as idin','users.name',
-        'seguimientos.fecha_consulta','seguimientos.fecha_proximo_control','seguimientos.estado','seguimientos.id',
-        'seguimientos.motivo_reapuertura','s.semana','s.created_at as creado')
-        ->orderBy('seguimientos.created_at', 'desc')
-        ->whereYear('seguimientos.created_at', '>', 2023)
-        ->join('sivigilas as s', 's.id', '=', 'seguimientos.sivigilas_id')
-        ->join('users', 'users.id', '=', 's.user_id')
-        ->paginate(20000);
-        //->paginate(30000000000);
-
-        } 
-
-        if (Auth::User()->usertype == 2) {
-        $conteo = Seguimiento::where('estado', 1)
-                    ->where('user_id', Auth::user()->id)
-                    ->count('id');
-        }else{
-            $conteo = Seguimiento::where('estado', 1)
-            ->whereYear('seguimientos.created_at', '>', 2023)
-            ->count('id');
-
+            $incomeedit = Sivigila::select(
+                    'sivigilas.num_ide_',
+                    'sivigilas.pri_nom_',
+                    'sivigilas.seg_nom_',
+                    'sivigilas.pri_ape_',
+                    'sivigilas.seg_ape_',
+                    'seguimientos.id as idin',
+                    'sivigilas.Ips_at_inicial',
+                    'seguimientos.fecha_consulta',
+                    'seguimientos.id',
+                    'seguimientos.fecha_proximo_control',
+                    'seguimientos.estado',
+                    'seguimientos.id',
+                    'seguimientos.motivo_reapuertura',
+                    'sivigilas.semana',
+                    'sivigilas.created_at as creado'
+                )
+                ->orderBy('seguimientos.created_at', 'desc')
+                ->join('seguimientos', 'sivigilas.id', '=', 'seguimientos.sivigilas_id')
+                ->where('seguimientos.user_id', Auth::user()->id)
+                ->whereYear('seguimientos.created_at', '>', 2023)
+                ->paginate(2);
+        } else {
+            $incomeedit = Seguimiento::select(
+                    's.num_ide_',
+                    's.pri_nom_',
+                    's.seg_nom_',
+                    's.pri_ape_',
+                    's.seg_ape_',
+                    'seguimientos.id as idin',
+                    'users.name',
+                    'seguimientos.fecha_consulta',
+                    'seguimientos.fecha_proximo_control',
+                    'seguimientos.estado',
+                    'seguimientos.id',
+                    'seguimientos.motivo_reapuertura',
+                    's.semana',
+                    's.created_at as creado'
+                )
+                ->orderBy('seguimientos.created_at', 'desc')
+                ->whereYear('seguimientos.created_at', '>', 2023)
+                ->join('sivigilas as s', 's.id', '=', 'seguimientos.sivigilas_id')
+                ->join('users', 'users.id', '=', 's.user_id')
+                ->paginate(2);
         }
-        $seguimientos = Seguimiento::all()->where('estado',1);
-        $otro =  Sivigila::select('sivigilas.num_ide_','sivigilas.pri_nom_','sivigilas.seg_nom_',
-        'sivigilas.pri_ape_','sivigilas.seg_ape_','sivigilas.id as idin','sivigilas.Ips_at_inicial',
-        'seguimientos.id','seguimientos.fecha_proximo_control','seguimientos.estado as est',
-        'seguimientos.user_id as usr')
-        ->orderBy('seguimientos.created_at', 'desc')
-        ->join('seguimientos', 'sivigilas.id', '=', 'seguimientos.sivigilas_id')
-        // ->join('seguimientos', 'seguimientos.id', '=', 'seguimientos.sivigilas_id')
-        ->where('seguimientos.estado',1)
-        ->get();
-        return view('seguimiento.index',compact('incomeedit','seguimientos','conteo','otro'));
-
-       
-            
+    
+        if (Auth::User()->usertype == 2) {
+            $conteo = Seguimiento::where('estado', 1)
+                        ->where('user_id', Auth::user()->id)
+                        ->count('id');
+        } else {
+            $conteo = Seguimiento::where('estado', 1)
+                        ->whereYear('seguimientos.created_at', '>', 2023)
+                        ->count('id');
+        }
+    
+        $seguimientos = Seguimiento::all()->where('estado', 1);
+    
+        $otro =  Sivigila::select(
+                    'sivigilas.num_ide_',
+                    'sivigilas.pri_nom_',
+                    'sivigilas.seg_nom_',
+                    'sivigilas.pri_ape_',
+                    'sivigilas.seg_ape_',
+                    'sivigilas.id as idin',
+                    'sivigilas.Ips_at_inicial',
+                    'seguimientos.id',
+                    'seguimientos.fecha_proximo_control',
+                    'seguimientos.estado as est',
+                    'seguimientos.user_id as usr'
+                )
+                ->orderBy('seguimientos.created_at', 'desc')
+                ->join('seguimientos', 'sivigilas.id', '=', 'seguimientos.sivigilas_id')
+                ->where('seguimientos.estado', 1)
+                ->get();
+    
+        return view('seguimiento.index', compact('incomeedit','seguimientos','conteo','otro'));
     }
+    
 
     /**
      * Show the form for creating a new resource.
@@ -831,6 +927,39 @@ public function detallePrestador_113($id)
     return response()->json($detalles);
 }
 
+
+public function buscarSeguimiento(Request $request)
+{
+    $search = $request->input('search');
+
+    if ($search) {
+        $results = DB::table('sivigilas')
+            ->select(
+                'sivigilas.num_ide_ AS numero_identificacion',
+                'sivigilas.pri_nom_ AS primer_nombre',
+                'sivigilas.seg_nom_ AS segundo_nombre',
+                'sivigilas.pri_ape_ AS primer_apellido',
+                'sivigilas.seg_ape_ AS segundo_apellido'
+            )
+            ->join('seguimientos', 'sivigilas.id', '=', 'seguimientos.sivigilas_id')
+            ->where(function($q) use ($search) {
+                $q->where('sivigilas.num_ide_', 'LIKE', "%{$search}%")
+                  ->orWhere('sivigilas.pri_nom_', 'LIKE', "%{$search}%")
+                  ->orWhere('sivigilas.seg_nom_', 'LIKE', "%{$search}%")
+                  ->orWhere('sivigilas.pri_ape_', 'LIKE', "%{$search}%")
+                  ->orWhere('sivigilas.seg_ape_', 'LIKE', "%{$search}%");
+            })
+            ->limit(1)
+            ->get();
+
+        return response()->json($results);
+    }
+
+    return response()->json([]);
+}
+
+
+    
 
 }
 

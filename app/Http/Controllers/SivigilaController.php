@@ -113,7 +113,7 @@ class SivigilaController extends Controller
         'm.pri_ape_', 
         'm.seg_ape_'
     )
-    ->limit(5000) // Limita los resultados a 5
+    ->limit(5) // Limita los resultados a 5
 
     ->get();
 

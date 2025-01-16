@@ -1,4 +1,28 @@
 <div class="content">
+
+  
+   <!-- Campo de búsqueda -->
+   <div class="d-flex justify-content-between align-items-center mb-3">
+    <!-- Botón de Exportar a la izquierda -->
+
+    <!-- Campo de búsqueda a la derecha con mayor ancho -->
+    <div class="search-container ml-auto">
+        <div class="search-input-wrapper">
+            <input type="text" id="search" class="form-control search-input" placeholder="Buscar por Número de Identificación" autocomplete="off">
+            <i class="fas fa-search search-icon"></i>
+        </div>
+        <!-- Área donde se mostrarán los resultados -->
+        <div id="search-results" class="list-group search-results">
+            <div id="loading-spinner" style="display:none; text-align:center; padding:10px;"><i class="fas fa-spinner fa-spin"></i> Cargando...</div>
+        </div>
+    </div>
+</div>
+
+</div>
+
+
+
+
     <div class="clearfix">
       <div class="box box-primary">
         <div class="box-body">
