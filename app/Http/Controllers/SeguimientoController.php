@@ -949,7 +949,7 @@ public function buscarSeguimiento(Request $request)
                   ->orWhere('sivigilas.pri_ape_', 'LIKE', "%{$search}%")
                   ->orWhere('sivigilas.seg_ape_', 'LIKE', "%{$search}%");
             })
-            ->limit(1)
+            ->limit(8)
             ->get();
 
         return response()->json($results);
