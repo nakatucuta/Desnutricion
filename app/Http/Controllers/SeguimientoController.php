@@ -142,7 +142,7 @@ class SeguimientoController extends Controller
                 ->join('seguimientos', 'sivigilas.id', '=', 'seguimientos.sivigilas_id')
                 ->where('seguimientos.user_id', Auth::user()->id)
                 ->whereYear('seguimientos.created_at', '>', 2023)
-                ->paginate(2);
+                ->paginate(10);
         } else {
             $incomeedit = Seguimiento::select(
                     's.num_ide_',
