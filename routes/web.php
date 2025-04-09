@@ -12,6 +12,7 @@ use App\Http\Controllers\AfiliadoController;
 use App\Http\Controllers\EmailController;
 use App\Exports\vacunaExport;
 use Illuminate\Http\Request;
+use App\Http\Controllers\TamizajeController;
 
 
 /*
@@ -188,3 +189,15 @@ Route::get('/buscar-seguimiento', [SeguimientoController::class, 'buscarSeguimie
 Route::get('/filtrar-seguimiento', [SeguimientoController::class, 'filtrarSeguimiento'])
      ->name('filtrar.seguimiento');
 
+
+// RUTAS TAMIZAJE
+Route::get('/excel-import', [TamizajeController::class, 'index'])->name('excel.import.index')->middleware('auth');
+Route::post('/excel-import', [TamizajeController::class, 'import'])->name('excel.import')->middleware('auth');
+
+// Nueva ruta para la vista de la tabla
+Route::get('/excel-import/table', [TamizajeController::class, 'table'])->name('excel.import.table')->middleware('auth');
+
+
+// Nueva ruta para generar el Excel
+Route::post('/excel-import/generate-excel', [TamizajeController::class, 'generateExcel'])
+     ->name('excel.import.generate-excel')->middleware('auth');

@@ -431,7 +431,22 @@ return [
             ],
         ],
        
-
+        [
+            'text'    => 'Tamizajes (cargue)',
+            'icon'    => 'fas fa-notes-medical', // Aquí reemplazas el icono
+            'submenu' => [
+                [
+                    'text'        => 'Cargue',
+                    'url'         => 'excel-import',
+                    'icon'        => 'fas fa-upload',
+                    'label'       => '',  
+                    'label_color' => 'success',
+                ],
+                // Aquí puedes agregar más elementos de menú si deseas
+            ],
+        ],
+        
+       
          
      
         ['header' => 'account_settings'],
