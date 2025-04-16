@@ -145,7 +145,7 @@ class TamizajeController extends Controller
 
             // Lógica anterior para tipoTamizaje=11, code=1,2 ...
             if ($tipoTamizaje->id == 11 && $score !== null) {
-                if ($resultadoTamizaje->id == 81) {
+                if ($resultadoTamizaje->id == 66) {
                     // 0-3, 4-26, 27+
                     $valorLaboratorio = $score;
                     if ($score <= 3) {
@@ -155,7 +155,7 @@ class TamizajeController extends Controller
                     } else {
                         $descriptResultado = "RIESGO ALTO (27+) - TRATAMIENTO MÁS INTENSIVO";
                     }
-                } elseif ($resultadoTamizaje->id == 82) {
+                } elseif ($resultadoTamizaje->id == 67) {
                     // 0-10, 11-26, 27+
                     $valorLaboratorio = $score;
                     if ($score <= 10) {
@@ -177,7 +177,7 @@ class TamizajeController extends Controller
 
             if ($tipoTamizaje->id == 12 && $score !== null) {
                 $valorLaboratorio = $score; // lo guardamos directo
-                if ($resultadoTamizaje->id == 83) {
+                if ($resultadoTamizaje->id == 68) {
                     // HOMBRES
                     // Chequeamos de mayor a menor
                     if ($score >= 20) {
@@ -187,7 +187,7 @@ class TamizajeController extends Controller
                     } elseif ($score >= 8) {
                         $descriptResultado = "Fuerte probabilidad de daños debido al consumo de alcohol (8+ puntos)";
                     }
-                } elseif ($resultadoTamizaje->id == 84) {
+                } elseif ($resultadoTamizaje->id == 69) {
                     // MUJERES
                     if ($score >= 20) {
                         $descriptResultado = "Dependencia del alcohol (20+ puntos)";
@@ -201,7 +201,7 @@ class TamizajeController extends Controller
 
             if ($tipoTamizaje->id == 13 && $score !== null) {
                 $valorLaboratorio = $score; // Guardamos el valor directamente
-                if ($resultadoTamizaje->id == 85) {
+                if ($resultadoTamizaje->id == 70) {
                     if ($score <= 20) {
                         $descriptResultado = "Dependencia Total";
                     } elseif ($score <= 60) {
@@ -222,7 +222,7 @@ class TamizajeController extends Controller
                 $valorLaboratorio = $score; // Guarda el valor directo
             
                 // Caso HOMBRES (resultadoTamizaje->id == 1)
-                if ($resultadoTamizaje->id == 86) {
+                if ($resultadoTamizaje->id == 71) {
                     if ($score == 0) {
                         $descriptResultado = "Dependencia total";
                     } elseif ($score == 1) {
@@ -236,7 +236,7 @@ class TamizajeController extends Controller
                     }
             
                 // Caso MUJERES (resultadoTamizaje->id == 2)
-                } elseif ($resultadoTamizaje->id == 87) {
+                } elseif ($resultadoTamizaje->id == 72) {
                     if ($score >= 0 && $score <= 1) {
                         $descriptResultado = "Dependencia total";
                     } elseif ($score >= 2 && $score <= 3) {
@@ -254,7 +254,7 @@ class TamizajeController extends Controller
             if ($tipoTamizaje->id == 18 && $score !== null) {
                 // Ejemplo: supón que el resultadoTamizaje->id == 50
                 // (ajusta a tus IDs reales)
-                if ($resultadoTamizaje->id == 97) {
+                if ($resultadoTamizaje->id == 82) {
             
                     // Guardamos el valor directo
                     $valorLaboratorio = $score;

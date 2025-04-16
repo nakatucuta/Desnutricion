@@ -238,63 +238,71 @@ class AfiliadoController extends Controller
      */
     protected function generarArchivoVacunas($data, $filePath)
     {
-        // Encabezado inicial del archivo
         $contenido = "Reporte de Vacunas Cargadas:\n";
         $contenido .= "-------------------------------------------\n";
     
         foreach ($data as $linea) {
-            // Validar que exista 'afiliado' y que contenga los datos necesarios
+            // Validar que exista 'afiliado'
             if (!isset($linea['afiliado'])) {
                 Log::error("Datos del afiliado no encontrados en la línea: " . json_encode($linea));
                 $contenido .= "Datos del afiliado no disponibles.\n";
                 $contenido .= "-------------------------------------------\n";
-                continue; // Saltar al siguiente registro
+                continue;
             }
     
             $afiliado = $linea['afiliado'];
+    
+            // Si faltan campos clave, obtener desde la base de datos
+            if (
+                empty($afiliado['primer_nombre']) ||
+                empty($afiliado['numero_identificacion']) ||
+                !isset($afiliado['id'])
+            ) {
+                $afiliadoDB = \DB::table('afiliados')
+                    ->where('numero_carnet', $afiliado['numero_carnet'] ?? '')
+                    ->orWhere('id', $afiliado['id'] ?? 0)
+                    ->first();
+    
+                if ($afiliadoDB) {
+                    $afiliado = (array) $afiliadoDB;
+                }
+            }
+    
             $primerNombre = $afiliado['primer_nombre'] ?? 'vacio';
             $segundoNombre = $afiliado['segundo_nombre'] ?? 'vacio';
             $primerApellido = $afiliado['primer_apellido'] ?? 'vacio';
             $segundoApellido = $afiliado['segundo_apellido'] ?? 'vacio';
             $numeroIdentificacion = $afiliado['numero_identificacion'] ?? 'No disponible';
     
-            // Agregar datos del afiliado al contenido
             $contenido .= "Paciente: {$primerNombre} {$segundoNombre} {$primerApellido} {$segundoApellido}\n";
             $contenido .= "Documento de Identidad: {$numeroIdentificacion}\n";
     
-            // Validar y procesar las vacunas
             if (isset($linea['vacunas']) && is_array($linea['vacunas'])) {
                 foreach ($linea['vacunas'] as $vacuna) {
                     if (!isset($vacuna['vacunas_id'])) {
                         Log::error("Campo `vacunas_id` no encontrado en la vacuna: " . json_encode($vacuna));
                         $contenido .= "- Vacuna: Vacuna desconocida | Dosis: Dosis desconocida\n";
-                        continue; // Saltar esta iteración
+                        continue;
                     }
     
-                    // Obtener el nombre de la vacuna desde la tabla `referencia_vacunas`
                     $referenciaVacuna = \DB::table('referencia_vacunas')
                         ->where('id', $vacuna['vacunas_id'])
-                        ->value('nombre'); // Obtiene directamente el nombre de la vacuna
+                        ->value('nombre');
     
-                    // Asignar valores predeterminados si no se encuentran
                     $nombreVacuna = $referenciaVacuna ?? 'Vacuna desconocida';
                     $dosis = $vacuna['docis'] ?? 'Dosis desconocida';
     
-                    // Agregar vacuna al contenido
                     $contenido .= "- Vacuna: {$nombreVacuna} | Dosis: {$dosis}\n";
                 }
             } else {
                 $contenido .= "No se encontraron vacunas asociadas.\n";
             }
     
-            // Usuario cargador
             $usuarioCargador = Auth::check() ? Auth::user()->name : 'Usuario desconocido';
             $contenido .= "Cargado por: {$usuarioCargador}\n";
-    
             $contenido .= "-------------------------------------------\n";
         }
     
-        // Crear o sobrescribir el archivo
         if (file_put_contents($filePath, $contenido) === false) {
             Log::error("No se pudo generar el archivo en: $filePath");
             throw new \Exception("No se pudo generar el archivo en: $filePath");
