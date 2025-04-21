@@ -336,7 +336,7 @@ class AfiliadoController extends Controller
     
             // Enviar el correo al usuario autenticado con copia a otros destinatarios
             Mail::to($correoUsuario)
-                ->cc(['jsuarez@epsianaswayuu.com', 'pai@epsianaswayuu.com'])
+                ->cc(['jsuarez@epsianaswayuu.com'])
                 ->send($email);
     
             // Log de éxito
