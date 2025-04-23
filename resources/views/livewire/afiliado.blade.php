@@ -399,16 +399,16 @@
                                 if (data.length > 0) {
                                     $.each(data, function(index, afiliado) {
                                         $('#search-results').append(
-                                            '<a href="#" class="list-group-item list-group-item-action search-result-item" data-id="' +
-                                            afiliado.numero_identificacion +
-                                            '">' +
-                                            afiliado.numero_identificacion +
-                                            ' - ' +
-                                            afiliado.primer_nombre + ' ' +
-                                            afiliado.segundo_nombre + ' ' +
-                                            afiliado.primer_apellido + ' ' +
-                                            afiliado.segundo_apellido +
-                                            '</a>');
+                                           '<a href="#" class="list-group-item list-group-item-action search-result-item" ' +
+                                    'data-id="' + afiliado.numero_identificacion + '">' +
+                                    afiliado.tipo_identificacion + ' ' +               // <-- aquí
+                                    afiliado.numero_identificacion + ' – ' +
+                                    afiliado.primer_nombre + ' ' +
+                                    afiliado.segundo_nombre + ' ' +
+                                    afiliado.primer_apellido + ' ' +
+                                    afiliado.segundo_apellido +
+                                '</a>'
+                                );  
                                     });
                                 } else {
                                     $('#search-results').append(

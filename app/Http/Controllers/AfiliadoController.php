@@ -29,79 +29,208 @@ class AfiliadoController extends Controller
      * @return \Illuminate\View\View
      */
     public function index(Request $request)
-{
-    $search = $request->input('search');
-
-    // Si se selecciona un número de identificación, filtramos los resultados
-    $sivigilas = DB::table(DB::raw('afiliados AS b'))
-        ->select(
-            'b.id',
-            'b.primer_nombre',
-            'b.segundo_nombre',
-            'b.primer_apellido',
-            'b.segundo_apellido',
-            'b.numero_identificacion',
-            'c.batch_verifications_id'
-        )
-        ->join(DB::raw('vacunas AS c'), 'b.id', '=', 'c.afiliado_id')
-        ->when($search, function ($query, $search) {
-            return $query->where('b.numero_identificacion', 'LIKE', "%{$search}%");
-        })
-        ->paginate(10);
-
-    // Consulta para otros usuarios
-    $sivigilas_usernormal = DB::table('afiliados as b')
-        ->select(
-            'b.id',
-            'b.primer_nombre',
-            'b.segundo_nombre',
-            'b.primer_apellido',
-            'b.segundo_apellido',
-            'b.numero_identificacion',
-            'b.numero_carnet'
-        )
-        ->when($search, function ($query, $search) {
-            return $query->where('b.numero_identificacion', 'LIKE', "%{$search}%");
-        })
-        ->paginate(10);
-
-    // Verificar si la solicitud es AJAX
-    if ($request->ajax()) {
-        return response()->json([
-            'sivigilas' => $sivigilas->items(),
-            'sivigilas_usernormal' => $sivigilas_usernormal->items(),
-        ]);
+    {
+        $search = $request->input('search');
+        $carnets = collect();
+    
+        if ($search) {
+            // traducir identificación → carnet(es)
+            $carnets = DB::table('sga.dbo.maestroidentificaciones')
+                ->where('identificacion', 'LIKE', "%{$search}%")
+                ->pluck('numeroCarnet');
+        }
+    
+        // Consulta principal (usuarios con vacunas)
+        $sivigilas = DB::table('afiliados as b')
+            ->select(
+                'b.id',
+                'b.primer_nombre',
+                'b.segundo_nombre',
+                'b.primer_apellido',
+                'b.segundo_apellido',
+                'b.numero_identificacion',
+                'c.batch_verifications_id'
+            )
+            ->join('vacunas as c', 'b.id', '=', 'c.afiliado_id')
+            ->when($carnets->isNotEmpty(), function ($q) use ($carnets) {
+                return $q->whereIn('b.numero_carnet', $carnets);
+            })
+            // si no hay carnets, devolvemos vacío
+            ->when($search && $carnets->isEmpty(), function ($q) {
+                return $q->whereRaw('1 = 0');
+            })
+            ->paginate(10);
+    
+        // Consulta para usuarios normales
+        $sivigilas_usernormal = DB::table('afiliados as b')
+            ->select(
+                'b.id',
+                'b.primer_nombre',
+                'b.segundo_nombre',
+                'b.primer_apellido',
+                'b.segundo_apellido',
+                'b.numero_identificacion',
+                'b.numero_carnet'
+            )
+            ->when($carnets->isNotEmpty(), function ($q) use ($carnets) {
+                return $q->whereIn('b.numero_carnet', $carnets);
+            })
+            ->when($search && $carnets->isEmpty(), function ($q) {
+                return $q->whereRaw('1 = 0');
+            })
+            ->paginate(10);
+    
+        if ($request->ajax()) {
+            return response()->json([
+                'sivigilas'            => $sivigilas->items(),
+                'sivigilas_usernormal' => $sivigilas_usernormal->items(),
+            ]);
+        }
+    
+        return view('livewire.afiliado', compact('sivigilas', 'sivigilas_usernormal', 'search'));
     }
 
-    // Si no es una solicitud AJAX, devolvemos la vista normalmente
-    return view('livewire.afiliado', compact('sivigilas', 'sivigilas_usernormal', 'search'));
-}
+
+    
+    
     // METODO PARA EL BUSCADOR  EN INDEX
     
     public function buscarAfiliados(Request $request)
     {
         $search = $request->input('search');
-    
-        // Verifica si hay un término de búsqueda
-        if ($search) {
-            $results = DB::table('afiliados as b')
-                ->select(
-                    'b.id',
-                    'b.primer_nombre',
-                    'b.segundo_nombre',
-                    'b.primer_apellido',
-                    'b.segundo_apellido',
-                    'b.numero_identificacion'
-                )
-                ->where('b.numero_identificacion', 'LIKE', "%{$search}%")
-                ->limit(10)  // Limitar el número de resultados
-                ->get();
-    
-            return response()->json($results);  // Devolver JSON
+        if (! $search) {
+            return response()->json([]);
         }
     
-        return response()->json([]);  // Si no hay búsqueda, devolver un array vacío
+        // 1) Conexiones
+        $connSGA = DB::connection('sqlsrv_1');  // SGA
+        $connDES = DB::connection('sqlsrv');    // DESNUTRICION
+    
+        // 2) Sacar los carnets que coincidan con lo tecleado (SGA)
+        $carnets = $connSGA->table('maestroidentificaciones')
+            ->where('identificacion', 'LIKE', "%{$search}%")
+            ->pluck('numeroCarnet')
+            ->toArray();
+    
+        if (empty($carnets)) {
+            return response()->json([]);
+        }
+    
+        // 3) Subconsulta: para cada carnet, quedarnos con la identificación máxima (SGA)
+        $maxPerCarnet = $connSGA->table('maestroidentificaciones')
+            ->select('numeroCarnet', DB::raw('MAX(identificacion) as numero_identificacion'))
+            ->whereIn('numeroCarnet', $carnets)
+            ->groupBy('numeroCarnet');
+    
+        // 4) Obtener datos del afiliado + maestro + solo la fila "máxima" por carnet (SGA)
+        $results = $connSGA->table('maestroafiliados as c')
+            ->joinSub($maxPerCarnet, 'm', function($join) {
+                $join->on('c.numeroCarnet', '=', 'm.numeroCarnet');
+            })
+            ->join('maestroidentificaciones as d', function($join) {
+                $join->on('d.numeroCarnet', '=', 'm.numeroCarnet')
+                     ->on('d.identificacion', '=', 'm.numero_identificacion');
+            })
+            ->select([
+                'c.numeroCarnet       as numero_carnet',
+                'c.primerNombre       as primer_nombre',
+                'c.segundoNombre      as segundo_nombre',
+                'c.primerApellido     as primer_apellido',
+                'c.segundoApellido    as segundo_apellido',
+                'c.tipoIdentificacion as tipo_identificacion',
+                'c.identificacion     as numero_identificacion',
+            ])
+            ->get()
+            ->unique('numero_identificacion')  // quitar duplicados
+            ->values();
+    
+        // 5) Actualizar la tabla afiliados en DESNUTRICION solo si hay cambios
+        foreach ($results as $row) {
+            $current = $connDES->table('afiliados')
+                ->where('numero_carnet', $row->numero_carnet)
+                ->first([
+                    'tipo_identificacion',
+                    'numero_identificacion',
+                    'primer_nombre',
+                    'segundo_nombre',
+                    'primer_apellido',
+                    'segundo_apellido'
+                ]);
+    
+            $update = [];
+    
+            if (!$current || $current->tipo_identificacion   !== $row->tipo_identificacion)   {
+                $update['tipo_identificacion']   = $row->tipo_identificacion;
+            }
+            if (!$current || $current->numero_identificacion !== $row->numero_identificacion) {
+                $update['numero_identificacion'] = $row->numero_identificacion;
+            }
+            if (!$current || $current->primer_nombre          !== $row->primer_nombre)          {
+                $update['primer_nombre']          = $row->primer_nombre;
+            }
+            if (!$current || $current->segundo_nombre         !== $row->segundo_nombre)         {
+                $update['segundo_nombre']         = $row->segundo_nombre;
+            }
+            if (!$current || $current->primer_apellido        !== $row->primer_apellido)        {
+                $update['primer_apellido']        = $row->primer_apellido;
+            }
+            if (!$current || $current->segundo_apellido       !== $row->segundo_apellido)       {
+                $update['segundo_apellido']       = $row->segundo_apellido;
+            }
+    
+            if (!empty($update)) {
+                $connDES->table('afiliados')
+                    ->where('numero_carnet', $row->numero_carnet)
+                    ->update($update);
+            }
+        }
+    
+        // 6) Devolver JSON con los datos (ya sincronizados)
+        return response()->json($results);
     }
+    
+    
+
+//ESTE ME UESTRA  LOS DOCUMENTOS DE IDENTIDAD  ASOCIADOS  AUN NUMERO DE CARNET
+
+    // public function buscarAfiliados(Request $request)
+    // {
+    //     $search = $request->input('search');
+    
+    //     if (! $search) {
+    //         return response()->json([]);
+    //     }
+    
+    //     // 1) Obtener los carnet(s) asociados a la identificación buscada
+    //     $carnets = DB::table('sga.dbo.maestroidentificaciones')
+    //         ->where('identificacion', 'LIKE', "%{$search}%")
+    //         ->pluck('numeroCarnet');
+    
+    //     if ($carnets->isEmpty()) {
+    //         return response()->json([]);
+    //     }
+    
+    //     // 2) Traer **todas** las identificaciones de esos carnet(s)
+    //     $results = DB::table('DESNUTRICION.dbo.afiliados as b')
+    //         ->join('sga.dbo.maestroafiliados      as c', 'b.numero_carnet', '=', 'c.numeroCarnet')
+    //         ->join('sga.dbo.maestroidentificaciones as d', 'b.numero_carnet', '=', 'd.numeroCarnet')
+    //         ->select([
+    //             'b.id',
+    //             'c.primerNombre       as primer_nombre',
+    //             'c.segundoNombre      as segundo_nombre',
+    //             'c.primerApellido     as primer_apellido',
+    //             'c.segundoApellido    as segundo_apellido',
+    //             'd.tipoIdentificacion as tipo_identificacion',
+    //             'd.identificacion     as numero_identificacion',
+    //             'c.numeroCarnet       as numero_carnet',
+    //         ])
+    //         ->whereIn('b.numero_carnet', $carnets)
+    //         ->get();
+    
+    //     return response()->json($results);
+    // }
+    
+    
     
       /**
      * Muestra el formulario para importar archivos Excel.
