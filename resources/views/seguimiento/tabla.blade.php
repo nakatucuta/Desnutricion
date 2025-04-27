@@ -107,14 +107,14 @@
                   <i class="far fa-file-pdf"></i>   </a> 
 
                   
-                  @if ($student2->estado == 1)
-                  {{-- <a class="btn btn-primary btn-sm" href="{{ route('seguimiento_ocasional.create', ['id' => $student2->id]) }}" class="ref">
+                  {{-- @if ($student2->estado == 1)
+                   <a class="btn btn-primary btn-sm" href="{{ route('seguimiento_ocasional.create', ['id' => $student2->id]) }}" class="ref">
                       <i class="fas fa-plus"></i>
-                  </a>  --}}
+                  </a>  
    
                   @else 
                   
-              @endif
+              @endif --}}
              
 
                     {{-- <a href="{{route('Seguimiento.destroy', $student2->id)}}"
@@ -217,9 +217,9 @@
                    <i class="fas fa-plus"></i>
                </a> 
 
-               @else  --}}
+               @else  
                
-           @endif
+           @endif--}}
            
            
            
