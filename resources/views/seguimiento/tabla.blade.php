@@ -108,9 +108,9 @@
 
                   
                   @if ($student2->estado == 1)
-                  <a class="btn btn-primary btn-sm" href="{{ route('seguimiento_ocasional.create', ['id' => $student2->id]) }}" class="ref">
+                  {{-- <a class="btn btn-primary btn-sm" href="{{ route('seguimiento_ocasional.create', ['id' => $student2->id]) }}" class="ref">
                       <i class="fas fa-plus"></i>
-                  </a> 
+                  </a>  --}}
    
                   @else 
                   
