@@ -109,7 +109,7 @@
                     Cargue  aqui  su archivo  excel 
                 </h1>
                 <p class="lead">
-                    Suba su archivo Excel para importar la información de forma rápida y segura.
+                    {{-- Suba su archivo Excel para importar la información de forma rápida y segura. --}}
                 </p>
             </div>
         </div>
