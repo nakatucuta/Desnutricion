@@ -143,7 +143,7 @@ Route::get('/grafica-torta-clasificacion', [SeguimientoController::class, 'grafi
 Route::get('/nuevo', 'App\Http\Controllers\SivigilaController@create1')->name('create11');
 
 
-Route::get('seguimiento_ocasional/create/{id}', 'App\Http\Controllers\SeguimientoOcasionalController@create')->name('seguimiento_ocasional.create');
+// Route::get('seguimiento_ocasional/create/{id}', 'App\Http\Controllers\SeguimientoOcasionalController@create')->name('seguimiento_ocasional.create');
 
 
 //RUTAS PARA EL CARGUE DE LA  INFORMACION
