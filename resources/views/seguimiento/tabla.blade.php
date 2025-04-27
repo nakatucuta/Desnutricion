@@ -1,4 +1,5 @@
 <div class="content">
+  o
    <!-- Campo de búsqueda -->
    <div class="d-flex justify-content-between align-items-center mb-3">
     <!-- Botón de Exportar a la izquierda -->
