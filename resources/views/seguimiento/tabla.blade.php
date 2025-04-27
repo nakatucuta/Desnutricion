@@ -1,5 +1,5 @@
 <div class="content">
-holaaaaaaaaaaaaaaa
+
   
    <!-- Campo de búsqueda -->
    <div class="d-flex justify-content-between align-items-center mb-3">
