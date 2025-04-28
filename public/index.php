@@ -4,11 +4,6 @@ use Illuminate\Contracts\Http\Kernel;
 use Illuminate\Http\Request;
 
 define('LARAVEL_START', microtime(true));
-// Forzar base path si se accede desde /rutasintegrales
-if (strpos($_SERVER['REQUEST_URI'], '/rutasintegrales') === 0) {
-    $_SERVER['SCRIPT_NAME'] = '/rutasintegrales/index.php';
-}
-
 
 /*
 |--------------------------------------------------------------------------
