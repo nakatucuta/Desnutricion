@@ -4,6 +4,7 @@
     </IfModule>
 
     RewriteEngine On
+    RewriteBase /rutasintegrales/
 
     # Handle Authorization Header
     RewriteCond %{HTTP:Authorization} .
