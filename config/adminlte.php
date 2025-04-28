@@ -678,7 +678,7 @@ return [
 
     'iframe' => [
         'default_tab' => [
-            'url' => rutasintegrales,
+            'url' =>  'rutasintegrales', 
             'title' => null,
         ],
         'buttons' => [
