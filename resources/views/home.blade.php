@@ -1,4 +1,4 @@
- @extends('adminlte::page', ['iFrameEnabled' => true]){{-- , ['iFrameEnabled' => true] --}}
+ @extends('adminlte::page'){{-- , ['iFrameEnabled' => true] --}}
 
 @section('content')
 
