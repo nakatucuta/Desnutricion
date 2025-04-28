@@ -1,4 +1,4 @@
-@extends('adminlte::page', ['iFrameEnabled' => true])
+@extends('adminlte::iframe')
 
 @section('title', 'PAI')
 
