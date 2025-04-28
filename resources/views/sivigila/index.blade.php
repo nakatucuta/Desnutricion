@@ -1,4 +1,4 @@
-@extends('adminlte::page')
+@extends('adminlte::page', ['iFrameEnabled' => true])
 
 @section('title', 'Anas wayuu')
 
