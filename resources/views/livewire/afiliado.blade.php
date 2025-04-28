@@ -1,4 +1,4 @@
-@extends('adminlte::page')
+@extends('adminlte::iframe')
 
 @section('title', 'PAI')
 
