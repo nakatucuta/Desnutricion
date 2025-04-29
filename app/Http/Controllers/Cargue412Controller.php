@@ -15,6 +15,10 @@ use Symfony\Component\Mime\Email;
 use App\Models\User;
 use Session;
 use App\Exports\Cargue412Export;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
+use App\Mail\RecordatorioControl;        // <-- Importa tu Mailable desde App\Mail
+
 
 class Cargue412Controller extends Controller
 {
@@ -164,73 +168,99 @@ class Cargue412Controller extends Controller
     /**
      * Update the specified resource in storage.
      */
-    public function update(Request $request, Cargue412 $cargue412 ,$id)
-    {
-        $datosEmpleado = $request->except(['_token', '_method']);
+  
     
-    DB::transaction(function () use ($id, $datosEmpleado) {
-        // Actualizar el registro específico con los datos proporcionados
-        $seg = Cargue412::where('id', $id)->update($datosEmpleado);
-
-        // Verificar si la actualización fue exitosa y luego actualizar el campo 'estado'
-        if ($seg) {
-            DB::table('cargue412s')
-                ->where('id', $id)
-                ->update(['estado' => 1]);
-        }
-    });
-        //para enviarle una consulta al correo 
-            // aqui empieza el tema de envio de correos entonces si el estado es 1
-            //creamos una consulta
+        public function update(Request $request, $id)
+        {
+            // 1) Validar los datos entrantes
+            $request->validate([
+                'numero_identificacion' => 'required',
+                'fecha_captacion'       => 'required|date',
+                'primer_nombre'         => 'required',
+                'segundo_nombre'        => 'nullable',
+                'primer_apellido'       => 'required',
+                'segundo_apellido'      => 'nullable',
+                'user_id'               => 'required|exists:users,id',
+            ], [
+                'required' => 'El campo :attribute es obligatorio.',
+            ]);
+    
+            // 2) Actualizar registro dentro de transacción y marcar estado = 1
+            DB::transaction(function () use ($request, $id) {
+                Cargue412::where('id', $id)
+                    ->update(array_merge(
+                        $request->only([
+                            'numero_identificacion',
+                            'fecha_captacion',
+                            'primer_nombre',
+                            'segundo_nombre',
+                            'primer_apellido',
+                            'segundo_apellido',
+                        ]),
+                        ['estado' => 1]
+                    ));
+            });
+    
+            // 3) Recoger datos para el correo
+            $registro = Cargue412::findOrFail($id);
+            $datosCorreo = [
+                'id'                     => $registro->id,
+                'fecha_captacion'        => $registro->fecha_captacion,
+                'numero_identificacion'  => $registro->numero_identificacion,
+                'primer_nombre'          => $registro->primer_nombre,
+                'segundo_nombre'         => $registro->segundo_nombre,
+                'primer_apellido'        => $registro->primer_apellido,
+                'segundo_apellido'       => $registro->segundo_apellido,
+            ];
+    
+            // 4) Construir el HTML adicional ($bodyText)
             $results = DB::table('cargue412s')
-            ->select('numero_identificacion', 'primer_nombre','segundo_nombre','primer_apellido','segundo_apellido','fecha_captacion')
-            ->where('numero_identificacion', $request->numero_identificacion)
-            ->where('fecha_captacion', $request->fecha_captacion)
-            ->get();
-            
-             $bodyText = ':<br>';
-             
-            foreach ($results as $result) {
-            $bodyText .= 'Fecha de notificacion: ' .'<strong>' . $result->fecha_captacion . '</strong><br>';
-            $bodyText .= 'Identificación: ' .'<strong>' . $result->numero_identificacion . '</strong><br>';
-            $bodyText .= 'Primer Nombre: ' .'<strong>' . $result->primer_nombre . '</strong><br>';
-            $bodyText .= 'Segundo Nombre: ' .'<strong>' . $result->segundo_nombre . '</strong><br>';
-            $bodyText .= 'Primer Apellido: ' .'<strong>' . $result->primer_apellido . '</strong><br>';
-            $bodyText .= 'Segundo Apellido: ' .'<strong>' . $result->segundo_apellido . '</strong><br>';
-              }
-            //aqui termina la consulta que enviaremos al cuerpo del correo
-
-             
-                        // Validar que el usuario exista
+                ->select('numero_identificacion','primer_nombre','segundo_nombre',
+                         'primer_apellido','segundo_apellido','fecha_captacion')
+                ->where('numero_identificacion', $request->numero_identificacion)
+                ->where('fecha_captacion', $request->fecha_captacion)
+                ->get();
+    
+            $bodyText = '<br>';
+            foreach ($results as $r) {
+                $bodyText .= 'Fecha de notificación: <strong>'   . $r->fecha_captacion        . '</strong><br>';
+                $bodyText .= 'Identificación: <strong>'           . $r->numero_identificacion . '</strong><br>';
+                $bodyText .= 'Primer Nombre: <strong>'            . $r->primer_nombre         . '</strong><br>';
+                $bodyText .= 'Segundo Nombre: <strong>'           . $r->segundo_nombre        . '</strong><br>';
+                $bodyText .= 'Primer Apellido: <strong>'          . $r->primer_apellido       . '</strong><br>';
+                $bodyText .= 'Segundo Apellido: <strong>'         . $r->segundo_apellido      . '</strong><br>';
+            }
+    
+            // 5) Enviar el correo con el mensaje completo
+            $mailSent = false;
             $user = User::find($request->user_id);
-
+    
             if ($user && $user->email) {
                 try {
-                    $transport = new EsmtpTransport(env('MAIL_HOST'), env('MAIL_PORT'), env('MAIL_ENCRYPTION'));
-                    $transport->setUsername(env('MAIL_USERNAME'))
-                            ->setPassword(env('MAIL_PASSWORD'));
-
-                    $mailer = new Mailer($transport);
-
-                    $email = (new Email())
-                        ->from(new Address(env('MAIL_FROM_ADDRESS'), env('MAIL_FROM_NAME')))
-                        ->to(new Address($user->email))
-                        ->subject('Recordatorio de control')
-                        ->html('FAVOR NO CONTESTAR ESTE MENSAJE <br>
-                        Hola, te acaban de asignar un paciente de desnutrición (412) por parte de la EPSI Anas Wayuu. 
-                        Por favor, gestionarlo lo antes posible ingresando al siguiente enlace: <br>
-                        <a href="https://app.epsianaswayuu.com/rutasintegrales/login">Ingresar</a><br><br>' . $bodyText);
-
-                    $mailer->send($email);
-
-                } catch (\Exception $e) {
-                    \Log::error('Error al enviar el correo: ' . $e->getMessage());
-                    // Puedes opcionalmente mostrar un mensaje si quieres
+                    Mail::to($user->email)
+                        ->send(new RecordatorioControl($datosCorreo, $bodyText));
+    
+                    // Si no lanza excepción, lo marcamos enviado
+                    $mailSent = true;
+                } catch (\Throwable $e) {
+                    Log::error('Error al enviar correo: ' . $e->getMessage());
                 }
+            } else {
+                Log::warning("Usuario ID {$request->user_id} sin email válido.");
             }
+    
+            // 6) Redirigir siempre a import-excel con mensaje flash
+            $flashKey = $mailSent ? 'success' : 'warning';
+            $flashMsg = $mailSent
+                ? 'Registro actualizado y correo enviado correctamente.'
+                : 'Registro actualizado, pero no se pudo enviar el correo.';
+    
+            return redirect()
+                ->route('import-excel')
+                ->with($flashKey, $flashMsg);
+        }
+    
 
-        return redirect()->route('import-excel');
-    }
 
 
     /**
