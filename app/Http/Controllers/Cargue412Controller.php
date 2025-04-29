@@ -201,33 +201,37 @@ class Cargue412Controller extends Controller
             //aqui termina la consulta que enviaremos al cuerpo del correo
 
              
+                        // Validar que el usuario exista
+            $user = User::find($request->user_id);
 
-             
-           $transport = new EsmtpTransport(env('MAIL_HOST'), env('MAIL_PORT'), env('MAIL_ENCRYPTION'));
-           $transport->setUsername(env('MAIL_USERNAME'))
-                     ->setPassword(env('MAIL_PASSWORD'));
-           
-           $mailer = new Mailer($transport);
-           
-           $email = (new Email())
-                   ->from(new Address(env('MAIL_FROM_ADDRESS'), env('MAIL_FROM_NAME')))
-                   ->to(new Address(User::find($request->user_id)->email))
-                   ->subject('Recordatorio de control')
-                   ->html('FAVOR NO CONTESTAR ESTE MENSAJE <br>
-                    Hola, te acaban de asignar un paciente de desnutricion (412) por parte de la
-                   EPSI anas wayuu, se solicita gestionarlo lo antes posible ingresando a este enlace <br>
-                   http://app.epsianaswayuu.com/Desnutricion/public/login'.$bodyText);
-                   if ($mailer->send($email)) {
-            return redirect()->route('import-excel')
-           ->with('mensaje',' El dato fue agregado a la base de datos Exitosamente..!');
-                   }else{
-                    return redirect()->route('import-excel')
-           ->with('mensaje',' El dato fue agregado a la base de datos Exitosamente..!');
-            
-                   }
+            if ($user && $user->email) {
+                try {
+                    $transport = new EsmtpTransport(env('MAIL_HOST'), env('MAIL_PORT'), env('MAIL_ENCRYPTION'));
+                    $transport->setUsername(env('MAIL_USERNAME'))
+                            ->setPassword(env('MAIL_PASSWORD'));
+
+                    $mailer = new Mailer($transport);
+
+                    $email = (new Email())
+                        ->from(new Address(env('MAIL_FROM_ADDRESS'), env('MAIL_FROM_NAME')))
+                        ->to(new Address($user->email))
+                        ->subject('Recordatorio de control')
+                        ->html('FAVOR NO CONTESTAR ESTE MENSAJE <br>
+                        Hola, te acaban de asignar un paciente de desnutrición (412) por parte de la EPSI Anas Wayuu. 
+                        Por favor, gestionarlo lo antes posible ingresando al siguiente enlace: <br>
+                        <a href="https://app.epsianaswayuu.com/rutasintegrales/login">Ingresar</a><br><br>' . $bodyText);
+
+                    $mailer->send($email);
+
+                } catch (\Exception $e) {
+                    \Log::error('Error al enviar el correo: ' . $e->getMessage());
+                    // Puedes opcionalmente mostrar un mensaje si quieres
+                }
+            }
 
         return redirect()->route('import-excel');
     }
+
 
     /**
      * Remove the specified resource from storage.
