@@ -170,96 +170,98 @@ class Cargue412Controller extends Controller
      */
   
     
-        public function update(Request $request, $id)
-        {
-            // 1) Validar los datos entrantes
-            $request->validate([
-                'numero_identificacion' => 'required',
-                'fecha_captacion'       => 'required|date',
-                'primer_nombre'         => 'required',
-                'segundo_nombre'        => 'nullable',
-                'primer_apellido'       => 'required',
-                'segundo_apellido'      => 'nullable',
-                'user_id'               => 'required|exists:users,id',
-            ], [
-                'required' => 'El campo :attribute es obligatorio.',
-            ]);
-    
-            // 2) Actualizar registro dentro de transacción y marcar estado = 1
-            DB::transaction(function () use ($request, $id) {
-                Cargue412::where('id', $id)
-                    ->update(array_merge(
-                        $request->only([
-                            'numero_identificacion',
-                            'fecha_captacion',
-                            'primer_nombre',
-                            'segundo_nombre',
-                            'primer_apellido',
-                            'segundo_apellido',
-                        ]),
-                        ['estado' => 1]
-                    ));
-            });
-    
-            // 3) Recoger datos para el correo
-            $registro = Cargue412::findOrFail($id);
-            $datosCorreo = [
-                'id'                     => $registro->id,
-                'fecha_captacion'        => $registro->fecha_captacion,
-                'numero_identificacion'  => $registro->numero_identificacion,
-                'primer_nombre'          => $registro->primer_nombre,
-                'segundo_nombre'         => $registro->segundo_nombre,
-                'primer_apellido'        => $registro->primer_apellido,
-                'segundo_apellido'       => $registro->segundo_apellido,
-            ];
-    
-            // 4) Construir el HTML adicional ($bodyText)
-            $results = DB::table('cargue412s')
-                ->select('numero_identificacion','primer_nombre','segundo_nombre',
-                         'primer_apellido','segundo_apellido','fecha_captacion')
-                ->where('numero_identificacion', $request->numero_identificacion)
-                ->where('fecha_captacion', $request->fecha_captacion)
-                ->get();
-    
-            $bodyText = '<br>';
-            foreach ($results as $r) {
-                $bodyText .= 'Fecha de notificación: <strong>'   . $r->fecha_captacion        . '</strong><br>';
-                $bodyText .= 'Identificación: <strong>'           . $r->numero_identificacion . '</strong><br>';
-                $bodyText .= 'Primer Nombre: <strong>'            . $r->primer_nombre         . '</strong><br>';
-                $bodyText .= 'Segundo Nombre: <strong>'           . $r->segundo_nombre        . '</strong><br>';
-                $bodyText .= 'Primer Apellido: <strong>'          . $r->primer_apellido       . '</strong><br>';
-                $bodyText .= 'Segundo Apellido: <strong>'         . $r->segundo_apellido      . '</strong><br>';
-            }
-    
-            // 5) Enviar el correo con el mensaje completo
-            $mailSent = false;
-            $user = User::find($request->user_id);
-    
-            if ($user && $user->email) {
-                try {
-                    Mail::to($user->email)
-                        ->send(new RecordatorioControl($datosCorreo, $bodyText));
-    
-                    // Si no lanza excepción, lo marcamos enviado
-                    $mailSent = true;
-                } catch (\Throwable $e) {
-                    Log::error('Error al enviar correo: ' . $e->getMessage());
-                }
-            } else {
-                Log::warning("Usuario ID {$request->user_id} sin email válido.");
-            }
-    
-            // 6) Redirigir siempre a import-excel con mensaje flash
-            $flashKey = $mailSent ? 'success' : 'warning';
-            $flashMsg = $mailSent
-                ? 'Registro actualizado y correo enviado correctamente.'
-                : 'Registro actualizado, pero no se pudo enviar el correo.';
-    
-            return redirect()
-                ->route('import-excel')
-                ->with($flashKey, $flashMsg);
-        }
-    
+     public function update(Request $request, $id)
+     {
+         // 1) Validar los datos entrantes
+         $request->validate([
+             'numero_identificacion' => 'required',
+             'fecha_captacion'       => 'required|date',
+             'primer_nombre'         => 'required',
+             'segundo_nombre'        => 'nullable',
+             'primer_apellido'       => 'required',
+             'segundo_apellido'      => 'nullable',
+             'user_id'               => 'required|exists:users,id',
+         ], [
+             'required' => 'El campo :attribute es obligatorio.',
+         ]);
+ 
+         // 2) Actualizar todos los campos (incluyendo user_id) y, si hubo cambios, marcar estado=1
+         $datosEmpleado = $request->except(['_token', '_method']);
+         
+         DB::transaction(function () use ($id, $datosEmpleado) {
+             // $seg será el número de filas afectadas por el update
+             $seg = Cargue412::where('id', $id)->update($datosEmpleado);
+ 
+             if ($seg) {
+                 // sólo si realmente se actualizó algo, fijamos estado=1
+                 DB::table('cargue412s')
+                     ->where('id', $id)
+                     ->update(['estado' => 1]);
+             }
+         });
+ 
+         // 3) Recoger el registro ya actualizado
+         $registro = Cargue412::findOrFail($id);
+         $datosCorreo = [
+             'id'                     => $registro->id,
+             'fecha_captacion'        => $registro->fecha_captacion,
+             'numero_identificacion'  => $registro->numero_identificacion,
+             'primer_nombre'          => $registro->primer_nombre,
+             'segundo_nombre'         => $registro->segundo_nombre,
+             'primer_apellido'        => $registro->primer_apellido,
+             'segundo_apellido'       => $registro->segundo_apellido,
+         ];
+ 
+         // 4) Construir el HTML adicional (bodyText)
+         $results = DB::table('cargue412s')
+             ->select(
+                 'fecha_captacion',
+                 'numero_identificacion',
+                 'primer_nombre',
+                 'segundo_nombre',
+                 'primer_apellido',
+                 'segundo_apellido'
+             )
+             ->where('numero_identificacion', $request->numero_identificacion)
+             ->where('fecha_captacion', $request->fecha_captacion)
+             ->get();
+ 
+         $bodyText = '<br>';
+         foreach ($results as $r) {
+             $bodyText .= "Fecha de notificación: <strong>{$r->fecha_captacion}</strong><br>";
+             $bodyText .= "Identificación: <strong>{$r->numero_identificacion}</strong><br>";
+             $bodyText .= "Primer Nombre: <strong>{$r->primer_nombre}</strong><br>";
+             $bodyText .= "Segundo Nombre: <strong>{$r->segundo_nombre}</strong><br>";
+             $bodyText .= "Primer Apellido: <strong>{$r->primer_apellido}</strong><br>";
+             $bodyText .= "Segundo Apellido: <strong>{$r->segundo_apellido}</strong><br>";
+         }
+ 
+         // 5) Enviar el correo
+         $mailSent = false;
+         $user = User::find($request->user_id);
+ 
+         if ($user && $user->email) {
+             try {
+                 Mail::to($user->email)
+                     ->send(new RecordatorioControl($datosCorreo, $bodyText));
+                 $mailSent = true;
+             } catch (\Throwable $e) {
+                 Log::error('Error al enviar correo: '.$e->getMessage());
+             }
+         } else {
+             Log::warning("Usuario ID {$request->user_id} sin email válido.");
+         }
+ 
+         // 6) Redirigir siempre a import-excel con mensaje flash
+         $flashKey = $mailSent ? 'success' : 'warning';
+         $flashMsg = $mailSent
+             ? 'Registro actualizado y correo enviado correctamente.'
+             : 'Registro actualizado, pero no se pudo enviar el correo.';
+ 
+         return redirect()
+             ->route('import-excel')
+             ->with($flashKey, $flashMsg);
+     }
 
 
 
