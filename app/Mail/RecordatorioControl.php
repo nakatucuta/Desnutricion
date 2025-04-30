@@ -32,7 +32,7 @@ class RecordatorioControl extends Mailable
     public function build()
     {
         // URL de login
-        $loginUrl = 'http://app.epsianaswayuu.com/Desnutricion/public/login';
+        $loginUrl = 'https://app.epsianaswayuu.com/rutasintegrales/';
 
         // Ensamblamos el HTML completo
         $html = 

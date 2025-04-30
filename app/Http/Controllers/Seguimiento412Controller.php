@@ -20,6 +20,9 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use Maatwebsite\Excel\Facades\Excel;
 use App\Exports\Seguimiento412Export;
+use Illuminate\Support\Facades\Log;
+
+
 
 class Seguimiento412Controller extends Controller
 {
@@ -118,201 +121,139 @@ class Seguimiento412Controller extends Controller
      */
     public function store(Request $request)
     {
-
-
-        $campos= [
-            'fecha_consulta' => 'required|string|max:100',
-            'peso_kilos' => 'required',
-            'talla_cm' => 'required',
-            'puntajez' => 'required',
-            'clasificacion' => 'required',
+        // 1) Validación
+        $request->validate([
+            'fecha_consulta'   => 'required|string|max:100',
+            'peso_kilos'       => 'required',
+            'talla_cm'         => 'required',
+            'puntajez'         => 'required',
+            'clasificacion'    => 'required',
             'requerimiento_energia_ftlc' => 'required',
-            // 'fecha_entrega_ftlc' => 'required',
-            'medicamento' => 'required',
-            //  'motivo_reapuertura' => 'required',
-            // 'resultados_seguimientos' => 'required',
-            // 'ips_realiza_seguuimiento' => 'required',
-            'Esquemq_complrto_pai_edad' => 'required',
-
+            'medicamento'      => 'required|array',
+            'Esquemq_complrto_pai_edad'  => 'required',
             'Atecion_primocion_y_mantenimiento_res3280_2018' => 'required',
-            'observaciones' => 'required',
-            // 'fecha_proximo_control' => 'nullable|date|after_or_equal:today',
-            'cargue412_id' => 'required',
-            // 'archivo_pdf' => 'required|mimes:pdf|max:2048',
-
-
-        ];
-
-        $mensajes=[
-            'required'=>'El :attribute es requerido',
-            'fecha_proximo_control.after_or_equal' => 'La fecha de ingreso no puede ser anterior a la fecha actual.',
-      
-        ];
-
-        $this->validate($request, $campos, $mensajes);
-
-        // $datosEmpleado = request()->except('_token');
-        // Seguimiento::insert($datosEmpleado);
-        
-        $seguimientoExistente = Seguimiento_412::where('cargue412_id', $request->cargue412_id)
-        ->where('fecha_proximo_control', '>', Carbon::now())
-        ->first();
-
-        if (!$seguimientoExistente) {
-                
-                $entytistore = new Seguimiento_412;
-                $entytistore->estado = $request->estado;
-                $entytistore->fecha_consulta = $request->fecha_consulta;
-                $entytistore->peso_kilos = $request->peso_kilos;
-                $entytistore->talla_cm = $request->talla_cm;
-                $entytistore->puntajez = $request->puntajez;
-                $entytistore->clasificacion = $request->clasificacion;
-                // $entytistore->requerimiento_energia_ftlc = $request->requerimiento_energia_ftlc;
-                // $entytistore->fecha_entrega_ftlc = $request->fecha_entrega_ftlc;
-                $entytistore->medicamento = implode(',', $request->input('medicamento'));
-                 $entytistore->motivo_reapuertura = $request->motivo_reapuertura;
-                // $entytistore->resultados_seguimientos = $request->resultados_seguimientos;
-                // $entytistore->ips_realiza_seguuimiento = $request->ips_realiza_seguuimiento;
-                $entytistore->Esquemq_complrto_pai_edad = $request->Esquemq_complrto_pai_edad;
-
-                $entytistore->Atecion_primocion_y_mantenimiento_res3280_2018 = $request->Atecion_primocion_y_mantenimiento_res3280_2018;
-               
-                $entytistore->observaciones = $request->observaciones;
-                // if (empty($request->fecha_proximo_control)) { cod para saber cuando un campo esta vacio haga esto
-                    // $entytistore->fecha_proximo_control = date('Y-m-d');
-                // } else {
-                    $entytistore->est_act_menor = $request->est_act_menor;
-                    $entytistore->requerimiento_energia_ftlc = $request->requerimiento_energia_ftlc;
-                    // $entytistore->tratamiento_f75 = $request->tratamiento_f75;
-                    // $entytistore->fecha_recibio_tratf75 = $request->fecha_recibio_tratf75;
-                    $entytistore->perimetro_braqueal = $request->perimetro_braqueal;
-                    $entytistore->fecha_proximo_control = $request->fecha_proximo_control;
-                // }
-                $entytistore->cargue412_id = $request->cargue412_id;
-                $entytistore->user_id = auth()->user()->id;
-                //codigo para subir pdf
-                $file = $request->file('pdf');
-                $request->validate([
-                    'pdf' => [
-                        'required',
-                        'mimes:pdf',
-                        'max:5048', // Maximo 2 MB (2048 KB)
-                    ],
-                ], [
-                    'pdf.required' => 'El archivo PDF es requerido.',
-                    'pdf.mimes' => 'El archivo debe ser un PDF válido.',
-                    'pdf.max' => 'El tamaño del archivo PDF no puede ser mayor a :max kilobytes.',
-                ]);
-                $filename = time() . '_' . $file->getClientOriginalName();
-                $file->storeAs('public/pdf', $filename);//ojo esto se guarda en 
-                //la carpeta storage/public/pdf
-                
-                $entytistore->pdf = $filename;
-               //aqui termina codigo para subir pdf
-
-               
-       
-        if ( $request->estado == 0) {
-            DB::table('cargue412s')
-            ->where('cargue412s.id',  $entytistore->cargue412_id)
-            ->update(['estado' => '0',]);
-            DB::table('seguimiento_412s')
-             ->join('cargue412s', 'cargue412s.id', '=', 'seguimiento_412s.cargue412_id')
-             ->where('cargue412s.id',  $entytistore->cargue412_id)
-             ->update(['estado' => '0',]);
-           } 
-           
-           $entytistore->save();
-
-            //obtener id anterior
-            $registroAnterior = DB::table('seguimiento_412s')
-->where('cargue412_id', $request->cargue412_id)
-    ->where('id', '<', $entytistore->id)
-    ->orderBy('id', 'desc')
-    ->first();
-
-// Actualizar el estado del registro anterior
-if ($registroAnterior) {
-    DB::table('seguimiento_412s')
-        ->where('id', $registroAnterior->id)
-        ->update(['estado' => '0',]);
-}
-           if ( $entytistore->estado == 1) {
-
-           //para enviarle un consulta al correo 
-            // aqui empieza el tema de envio de correos entonces si el estado es 1
-            //creamos una consulta
-           $results = DB::table('cargue412s')->select('cargue412s.numero_identificacion','cargue412s.primer_nombre','cargue412s.segundo_nombre',
-           'cargue412s.primer_apellido','cargue412s.segundo_apellido','seguimiento_412s.id as idseg','seguimiento_412s.fecha_proximo_control as fec')
-          
-           ->where('seguimiento_412s.estado',1)
-           ->where('seguimiento_412s.id', $entytistore->id)
-           ->where('seguimiento_412s.user_id', Auth::User()->id )
-           ->join('seguimiento_412s', 'cargue412s.id', '=', 'seguimiento_412s.cargue412_id')
-            // ->join('seguimientos', 'seguimientos.id', '=', 'seguimientos.sivigilas_id')
-            ->get();
-            
-             $bodyText = ':<br>';
-             
-            foreach ($results as $result) {
-            $bodyText .= 'ID: ' .'<strong>' . $result->idseg . '</strong><br>';
-            $bodyText .= 'Identificación: ' .'<strong>' . $result->numero_identificacion . '</strong><br>';
-            $bodyText .= 'Primer nombre: ' .'<strong>' . $result->primer_nombre . '</strong><br>';
-            $bodyText .= 'Segundo nombre: ' .'<strong>' . $result->segundo_nombre . '</strong><br>';
-            $bodyText .= 'Primer apellido: ' .'<strong>' . $result->primer_apellido . '</strong><br>';
-            $bodyText .= 'Segundo apellido: ' .'<strong>' . $result->segundo_apellido . '</strong><br>';
-            $bodyText .= 'Recuerde que la próxima fecha de control es: ' .'<strong>' . $result->fec . '</strong><br>';
-             }
-            //aqui termina la consulta que enviaremos al cuerpo del correo
-
-             
-
-             
-           $transport = new EsmtpTransport(env('MAIL_HOST'), env('MAIL_PORT'), env('MAIL_ENCRYPTION'));
-           $transport->setUsername(env('MAIL_USERNAME'))
-                     ->setPassword(env('MAIL_PASSWORD'));
-           
-           $mailer = new Mailer($transport);
-           
-           $email = (new Email())
-                   ->from(new Address(env('MAIL_FROM_ADDRESS'), env('MAIL_FROM_NAME')))
-                   ->to(new Address(Auth::user()->email))
-                   ->subject('Recordatorio de control')
-                   ->html('Hola, acabas de realizarle un seguimiento a'.$bodyText.'se solicita gestionarlo lo antes posible ingresando a este enlace <br>
-                   http://app.epsianaswayuu.com/Desnutricion/public/login');
-            
-           if ($mailer->send($email)) {
-               return redirect()->route('new412_seguimiento.index')
-                  ->with('mensaje', 'El seguimiento fue guardado exitosamente');
-           } else {
-            
-               return redirect()->route('new412_seguimiento.index')
-                  ->with('mensaje', 'El seguimiento fue guardado exitosamente');
-           }
-        } else  {
-
-            return redirect()->route('new412_seguimiento.index')
-                  ->with('mensaje', 'El seguimiento fue guardado exitosamente');
+            'observaciones'    => 'required',
+            'cargue412_id'     => 'required|exists:cargue412s,id',
+            'pdf'              => 'required|mimes:pdf|max:5048',
+            'estado'           => 'required|in:0,1',
+        ],[
+            'required' => 'El :attribute es requerido',
+            'pdf.required' => 'El archivo PDF es requerido.',
+            'pdf.mimes'    => 'El archivo debe ser un PDF válido.',
+            'pdf.max'      => 'El tamaño del PDF no puede exceder :max kilobytes.',
+        ]);
+    
+        // 2) Evitar seguimientos duplicados
+        if (Seguimiento_412::where('cargue412_id', $request->cargue412_id)
+            ->where('fecha_proximo_control', '>', now())
+            ->exists()
+        ) {
+            return redirect()
+                ->route('new412_seguimiento.index')
+                ->with('error1', 'No puedes hacer un seguimiento porque la fecha de control no se ha cumplido');
         }
-    } else{
-
-        return redirect()->route('new412_seguimiento.index')
-        ->with('error1', 'No puedes hacer un seguimiento porque la fecha de control no se ha cumplido');
-
+    
+        // 3) Crear seguimiento
+        $seguimiento = new Seguimiento_412($request->except(['_token','_method','medicamento','pdf']));
+        $seguimiento->medicamento = implode(',', $request->medicamento);
+        $seguimiento->user_id     = Auth::id();
+        $seguimiento->estado      = $request->estado;
+    
+        // Subir PDF
+        $file     = $request->file('pdf');
+        $filename = time().'_'.$file->getClientOriginalName();
+        $file->storeAs('public/pdf', $filename);
+        $seguimiento->pdf = $filename;
+        $seguimiento->save();
+    
+        // 4) Actualizar estados
+        DB::table('cargue412s')
+            ->where('id', $seguimiento->cargue412_id)
+            ->update(['estado' => $seguimiento->estado]);
+        if ($prev = Seguimiento_412::where('cargue412_id', $seguimiento->cargue412_id)
+            ->where('id','<',$seguimiento->id)
+            ->latest('id')->first()
+        ) {
+            $prev->update(['estado'=>0]);
+        }
+    
+        // 5) Enviar correo si estado==1
+        $mailSent = false;
+        if ($seguimiento->estado == 1) {
+            $cargue = Cargue412::find($seguimiento->cargue412_id);
+            $user   = $cargue ? User::find($cargue->user_id) : null;
+    
+            if ($user && $user->email) {
+                // Construir bodyText
+                $data = DB::table('seguimiento_412s')
+                    ->join('cargue412s','seguimiento_412s.cargue412_id','=','cargue412s.id')
+                    ->select(
+                        'seguimiento_412s.id as idseg',
+                        'cargue412s.numero_identificacion',
+                        'cargue412s.primer_nombre',
+                        'cargue412s.segundo_nombre',
+                        'cargue412s.primer_apellido',
+                        'cargue412s.segundo_apellido',
+                        'seguimiento_412s.fecha_proximo_control as fec'
+                    )
+                    ->where('seguimiento_412s.id',$seguimiento->id)
+                    ->first();
+    
+                $bodyText = '<br>'
+                    ."ID: <strong>{$data->idseg}</strong><br>"
+                    ."Identificación: <strong>{$data->numero_identificacion}</strong><br>"
+                    ."Primer nombre: <strong>{$data->primer_nombre}</strong><br>"
+                    ."Segundo nombre: <strong>{$data->segundo_nombre}</strong><br>"
+                    ."Primer apellido: <strong>{$data->primer_apellido}</strong><br>"
+                    ."Segundo apellido: <strong>{$data->segundo_apellido}</strong><br>"
+                    ."Recuerde que la próxima fecha de control es: <strong>{$data->fec}</strong><br>";
+    
+                $html = 'Hola, acabas de realizarle un seguimiento a '.$bodyText
+                      .'se solicita gestionarlo lo antes posible ingresando a este enlace <br>'
+                      .url('login');
+    
+                // ——— CAMBIO CLAVE: puerto 465, encryption ssl ———
+                $transport = new EsmtpTransport(
+                    env('MAIL_HOST', 'smtp.gmail.com'),
+                    465,
+                    'ssl'
+                );
+                $transport->setUsername(env('MAIL_USERNAME'));
+                $transport->setPassword(env('MAIL_PASSWORD'));
+    
+                Log::info("SMTP configurado: host=".env('MAIL_HOST')." port=465 encryption=ssl");
+    
+                $mailer = new Mailer($transport);
+                $email  = (new Email())
+                    ->from(new Address(env('MAIL_FROM_ADDRESS'), env('MAIL_FROM_NAME')))
+                    ->to(new Address($user->email))
+                    ->subject('Recordatorio de control')
+                    ->html($html);
+    
+                try {
+                    $mailer->send($email);
+                    $mailSent = true;
+                    Log::info("Correo enviado a {$user->email} (seguimiento ID {$seguimiento->id})");
+                } catch (\Throwable $e) {
+                    Log::warning("Error SMTP: {$e->getMessage()}");
+                }
+            } else {
+                Log::warning("No se envía correo: usuario (ID {$cargue->user_id}) sin email o no encontrado");
+            }
+        }
+    
+        // 6) Redirigir con feedback
+        $flashKey = $mailSent ? 'success' : 'warning';
+        $flashMsg = $mailSent
+            ? 'Seguimiento guardado y correo enviado correctamente.'
+            : 'Seguimiento guardado, pero no se pudo enviar el correo.';
+    
+        return redirect()
+            ->route('new412_seguimiento.index')
+            ->with($flashKey, $flashMsg);
     }
-           //para enviarle un consulta al correo 
-           //$results = DB::table('mi_tabla')->where('condicion', '=', 'valor')->get();
-            // $bodyText = 'La lista de resultados es:<br>';
-            // foreach ($results as $result) {
-            //     $bodyText .= $result->atributo . '<br>';
-            // }
-            // $email = (new Email())
-            //     ->from(new Address(env('MAIL_FROM_ADDRESS'), env('MAIL_FROM_NAME')))
-            //     ->to(new Address('juancamilosuarezcantero@gmail.com'))
-            //     ->subject('Recordatorio de control')
-            //     ->html($bodyText);
-       
-    }
+    
+
 
     /**
      * Display the specified resource.
