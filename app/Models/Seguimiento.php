@@ -1,43 +1,98 @@
 <?php
 
 namespace App\Models;
-use  Maatwebsite\Excel\Concerns\FromCollection;
+
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Carbon\Carbon;
-use App\Models\User;
+
 class Seguimiento extends Model
 {
-  
-
     use HasFactory;
-    public function getDateFormat(){
-        return 'Y-d-m h:m:s';
-      }
 
-      protected $fillable = [
+    /**
+     * Los campos que se pueden asignar masivamente.
+     *
+     * @var array
+     */
+    protected $fillable = [
+        'estado',
+        'fecha_consulta',
+        'peso_kilos',
+        'talla_cm',
+        'puntajez',
+        'clasificacion',
+        'requerimiento_energia_ftlc',
+        'fecha_entrega_ftlc',
+        'medicamento',
+        'motivo_reapuertura',
+        'observaciones',
+        'est_act_menor',
+        'tratamiento_f75',
+        'fecha_recibio_tratf75',
         'fecha_proximo_control',
+        'pdf',
+        'sivigilas_id',
+        'Esquemq_complrto_pai_edad',
+        'Atecion_primocion_y_mantenimiento_res3280_2018',
+        'user_id',
     ];
 
+    /**
+     * Los atributos que deben tratarse como fechas.
+     *
+     * @var array
+     */
+    protected $dates = [
+        'fecha_consulta',
+        'fecha_entrega_ftlc',
+        'fecha_recibio_tratf75',
+        'fecha_proximo_control',
+        'created_at',
+        'updated_at',
+    ];
 
-    public function scopeAlertasProximoControl($query){
-        return $query->where('fecha_proximo_control', Carbon::now()->subDays(2))->count();
-    }
-
-       
-}
-
-class Seguimiento1 implements FromCollection
-{
-
-    public function collection()
+    /**
+     * Formato personalizado para almacenar las fechas en la base.
+     *
+     * @return string
+     */
+    public function getDateFormat(): string
     {
-    return Seguimiento::all();
+        return 'Y-d-m H:i:s';
     }
 
+    /**
+     * Relación con el modelo Sivigila.
+     *
+     * @return BelongsTo
+     */
+    public function sivigila(): BelongsTo
+    {
+        return $this->belongsTo(Sivigila::class, 'sivigilas_id');
+    }
 
-    public function user()
+    /**
+     * Relación con el modelo User.
+     *
+     * @return BelongsTo
+     */
+    public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    /**
+     * Scope para contar alertas de próximo control.
+     *
+     * @param  \Illuminate\Database\Eloquent\Builder  $query
+     * @return int
+     */
+    public function scopeAlertasProximoControl($query): int
+    {
+        return $query->where('fecha_proximo_control', '<=', Carbon::now()->addDays(2))
+                     ->where('estado', 1)
+                     ->count();
     }
 }

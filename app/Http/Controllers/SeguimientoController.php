@@ -19,6 +19,7 @@ use Symfony\Component\Mime\Address;
 use Symfony\Component\Mime\Email;
 use App\Models\User;
 use DataTables;
+use Illuminate\Support\Facades\Log;
 class SeguimientoController extends Controller
 {
 
@@ -232,199 +233,132 @@ class SeguimientoController extends Controller
      * @return \Illuminate\Http\Response
      */
     public function store(Request $request)
-    {   
-        $campos= [
-            'fecha_consulta' => 'required|string|max:100',
-            'peso_kilos' => 'required',
-            'talla_cm' => 'required',
-            'puntajez' => 'required',
-            'clasificacion' => 'required',
-            'requerimiento_energia_ftlc' => 'required',
-            // 'fecha_entrega_ftlc' => 'required',
-            'medicamento' => 'required',
-            //  'motivo_reapuertura' => 'required',
-            // 'resultados_seguimientos' => 'required',
-            // 'ips_realiza_seguuimiento' => 'required',
-            'Esquemq_complrto_pai_edad' => 'required',
+    {
+        // 1) Validación
+        $request->validate([
+            'fecha_consulta'                             => 'required|date',
+            'peso_kilos'                                 => 'required|numeric',
+            'talla_cm'                                   => 'required|numeric',
+            'puntajez'                                   => 'required|numeric',
+            'clasificacion'                              => 'required|string',
+            'requerimiento_energia_ftlc'                 => 'required|string',
+            'fecha_entrega_ftlc'                         => 'nullable|date',
+            'medicamento'                                => 'required|array',
+            'motivo_reapuertura'                         => 'nullable|string',
+            'observaciones'                              => 'required|string',
+            'est_act_menor'                              => 'nullable|string',
+            'tratamiento_f75'                            => 'nullable|string',
+            'fecha_recibio_tratf75'                      => 'nullable|date',
+            'fecha_proximo_control'                      => 'nullable|date|after_or_equal:today',
+            'sivigilas_id'                               => 'required|exists:sivigilas,id',
+            'Esquemq_complrto_pai_edad'                  => 'required|string',
+            'Atecion_primocion_y_mantenimiento_res3280_2018' => 'required|string',
+            'pdf'                                        => 'nullable|mimes:pdf|max:5048',
+            'estado'                                     => 'required|in:0,1',
+        ],[
+            'required' => 'El campo :attribute es obligatorio.',
+            'numeric'  => 'El campo :attribute debe ser numérico.',
+            'date'     => 'El campo :attribute debe ser una fecha válida.',
+        ]);
 
-            'Atecion_primocion_y_mantenimiento_res3280_2018' => 'required',
-            'observaciones' => 'required',
-            // 'fecha_proximo_control' => 'nullable|date|after_or_equal:today',
-            'sivigilas_id' => 'required',
-            // 'archivo_pdf' => 'required|mimes:pdf|max:2048',
-
-
-        ];
-
-        $mensajes=[
-            'required'=>'El :attribute es requerido',
-            'fecha_proximo_control.after_or_equal' => 'La fecha de ingreso no puede ser anterior a la fecha actual.',
-      
-        ];
-
-        $this->validate($request, $campos, $mensajes);
-
-        // $datosEmpleado = request()->except('_token');
-        // Seguimiento::insert($datosEmpleado);
-        
-        $seguimientoExistente = Seguimiento::where('sivigilas_id', $request->sivigilas_id)
-        ->where('fecha_proximo_control', '>', Carbon::now())
-        ->first();
-
-        if (!$seguimientoExistente) {
-                
-                $entytistore = new Seguimiento;
-                $entytistore->estado = $request->estado;
-                $entytistore->fecha_consulta = $request->fecha_consulta;
-                $entytistore->peso_kilos = $request->peso_kilos;
-                $entytistore->talla_cm = $request->talla_cm;
-                $entytistore->puntajez = $request->puntajez;
-                $entytistore->clasificacion = $request->clasificacion;
-                $entytistore->requerimiento_energia_ftlc = $request->requerimiento_energia_ftlc;
-                $entytistore->fecha_entrega_ftlc = $request->fecha_entrega_ftlc;
-                $entytistore->medicamento = implode(',', $request->input('medicamento'));
-                 $entytistore->motivo_reapuertura = $request->motivo_reapuertura;
-                // $entytistore->resultados_seguimientos = $request->resultados_seguimientos;
-                // $entytistore->ips_realiza_seguuimiento = $request->ips_realiza_seguuimiento;
-                $entytistore->Esquemq_complrto_pai_edad = $request->Esquemq_complrto_pai_edad;
-
-                $entytistore->Atecion_primocion_y_mantenimiento_res3280_2018 = $request->Atecion_primocion_y_mantenimiento_res3280_2018;
-               
-                $entytistore->observaciones = $request->observaciones;
-                // if (empty($request->fecha_proximo_control)) { cod para saber cuando un campo esta vacio haga esto
-                    // $entytistore->fecha_proximo_control = date('Y-m-d');
-                // } else {
-                    $entytistore->est_act_menor = $request->est_act_menor;
-                    $entytistore->tratamiento_f75 = $request->tratamiento_f75;
-                    $entytistore->fecha_recibio_tratf75 = $request->fecha_recibio_tratf75;
-                    $entytistore->perimetro_braqueal = $request->perimetro_braqueal;
-                    $entytistore->fecha_proximo_control = $request->fecha_proximo_control;
-                // }
-                $entytistore->sivigilas_id = $request->sivigilas_id;
-                $entytistore->user_id = auth()->user()->id;
-                //codigo para subir pdf
-                $file = $request->file('pdf');
-                $request->validate([
-                    'pdf' => [
-                        'required',
-                        'mimes:pdf',
-                        'max:5048', // Maximo 2 MB (2048 KB)
-                    ],
-                ], [
-                    'pdf.required' => 'El archivo PDF es requerido.',
-                    'pdf.mimes' => 'El archivo debe ser un PDF válido.',
-                    'pdf.max' => 'El tamaño del archivo PDF no puede ser mayor a :max kilobytes.',
-                ]);
-                $filename = time() . '_' . $file->getClientOriginalName();
-                $file->storeAs('public/pdf', $filename);//ojo esto se guarda en 
-                //la carpeta storage/public/pdf
-                
-                $entytistore->pdf = $filename;
-               //aqui termina codigo para subir pdf
-
-               
-       
-        if ( $request->estado == 0) {
-            DB::table('sivigilas')
-            ->where('sivigilas.id',  $entytistore->sivigilas_id)
-            ->update(['estado' => '0',]);
-            DB::table('seguimientos')
-             ->join('sivigilas', 'sivigilas.id', '=', 'seguimientos.sivigilas_id')
-             ->where('sivigilas.id',  $entytistore->sivigilas_id)
-             ->update(['estado' => '0',]);
-           } 
-           
-           $entytistore->save();
-
-            //obtener id anterior
-            $registroAnterior = DB::table('seguimientos')
-->where('sivigilas_id', $request->sivigilas_id)
-    ->where('id', '<', $entytistore->id)
-    ->orderBy('id', 'desc')
-    ->first();
-
-// Actualizar el estado del registro anterior
-if ($registroAnterior) {
-    DB::table('seguimientos')
-        ->where('id', $registroAnterior->id)
-        ->update(['estado' => '0',]);
-}
-           if ( $entytistore->estado == 1) {
-
-           //para enviarle un consulta al correo 
-            // aqui empieza el tema de envio de correos entonces si el estado es 1
-            //creamos una consulta
-           $results = DB::table('sivigilas')->select('sivigilas.num_ide_','sivigilas.pri_nom_','sivigilas.seg_nom_',
-           'sivigilas.pri_ape_','sivigilas.seg_ape_','seguimientos.id as idseg','seguimientos.fecha_proximo_control as fec')
-          
-           ->where('seguimientos.estado',1)
-           ->where('seguimientos.id', $entytistore->id)
-           ->where('seguimientos.user_id', Auth::User()->id )
-           ->join('seguimientos', 'sivigilas.id', '=', 'seguimientos.sivigilas_id')
-            // ->join('seguimientos', 'seguimientos.id', '=', 'seguimientos.sivigilas_id')
-            ->get();
-            
-             $bodyText = ':<br>';
-             
-            foreach ($results as $result) {
-            $bodyText .= 'ID: ' .'<strong>' . $result->idseg . '</strong><br>';
-            $bodyText .= 'Identificación: ' .'<strong>' . $result->num_ide_ . '</strong><br>';
-            $bodyText .= 'Primer nombre: ' .'<strong>' . $result->pri_nom_ . '</strong><br>';
-            $bodyText .= 'Segundo nombre: ' .'<strong>' . $result->seg_nom_ . '</strong><br>';
-            $bodyText .= 'Primer apellido: ' .'<strong>' . $result->pri_ape_ . '</strong><br>';
-            $bodyText .= 'Segundo apellido: ' .'<strong>' . $result->seg_ape_ . '</strong><br>';
-            $bodyText .= 'Recuerde que la próxima fecha de control es: ' .'<strong>' . $result->fec . '</strong><br>';
-             }
-            //aqui termina la consulta que enviaremos al cuerpo del correo
-
-             
-
-             
-           $transport = new EsmtpTransport(env('MAIL_HOST'), env('MAIL_PORT'), env('MAIL_ENCRYPTION'));
-           $transport->setUsername(env('MAIL_USERNAME'))
-                     ->setPassword(env('MAIL_PASSWORD'));
-           
-           $mailer = new Mailer($transport);
-           
-           $email = (new Email())
-                   ->from(new Address(env('MAIL_FROM_ADDRESS'), env('MAIL_FROM_NAME')))
-                   ->to(new Address(Auth::user()->email))
-                   ->subject('Recordatorio de control')
-                   ->html('Hola, acabas de realizarle un seguimiento a'.$bodyText.'se solicita gestionarlo lo antes posible ingresando a este enlace <br>
-                   http://app.epsianaswayuu.com/Desnutricion/public/login');
-            
-           if ($mailer->send($email)) {
-               return redirect()->route('Seguimiento.index')
-                  ->with('mensaje', 'El seguimiento fue guardado exitosamente');
-           } else {
-            
-               return redirect()->route('Seguimiento.index')
-                  ->with('mensaje', 'El seguimiento fue guardado exitosamente');
-           }
-        } else  {
-
-            return redirect()->route('Seguimiento.index')
-                  ->with('mensaje', 'El seguimiento fue guardado exitosamente');
+        // 2) Evitar duplicados futuros
+        if (Seguimiento::where('sivigilas_id', $request->sivigilas_id)
+            ->where('fecha_proximo_control', '>', now())
+            ->exists()
+        ) {
+            return redirect()
+                ->route('Seguimiento.index')
+                ->with('error1', 'No puedes hacer un seguimiento porque la fecha de control no se ha cumplido');
         }
-    } else{
 
-        return redirect()->route('Seguimiento.index')
-        ->with('error1', 'No puedes hacer un seguimiento porque la fecha de control no se ha cumplido');
+        // 3) Crear todo en transacción
+        DB::transaction(function() use ($request, &$seguimiento) {
+            $data = $request->only([
+                'fecha_consulta','peso_kilos','talla_cm','puntajez',
+                'clasificacion','requerimiento_energia_ftlc','fecha_entrega_ftlc',
+                'motivo_reapuertura','observaciones','est_act_menor',
+                'tratamiento_f75','fecha_recibio_tratf75','fecha_proximo_control',
+                'sivigilas_id','Esquemq_complrto_pai_edad',
+                'Atecion_primocion_y_mantenimiento_res3280_2018','estado'
+            ]);
+            $data['medicamento'] = implode(',', $request->medicamento);
+            $data['user_id']     = Auth::id();
 
+            // pdf opcional
+            if ($request->hasFile('pdf')) {
+                $data['pdf'] = $request->file('pdf')->store('pdf','public');
+            }
+
+            $seguimiento = Seguimiento::create($data);
+
+            // actualizar estado en Sivigila
+            Sivigila::where('id', $data['sivigilas_id'])
+                ->update(['estado' => $data['estado']]);
+
+            // desactivar antiguos
+            Seguimiento::where('sivigilas_id', $data['sivigilas_id'])
+                ->where('id','<',$seguimiento->id)
+                ->update(['estado'=>0]);
+        });
+
+        // 4) Enviar correo si es estado=1
+        $mailSent = false;
+        if ($seguimiento->estado == 1) {
+            $sivigila = Sivigila::find($seguimiento->sivigilas_id);
+            $user     = $sivigila ? User::find($sivigila->user_id) : null;
+
+            if ($user && $user->email) {
+                $bodyText = "<br>"
+                    . "ID seguimiento: <strong>{$seguimiento->id}</strong><br>"
+                    . "Paciente: <strong>{$sivigila->pri_nom_} {$sivigila->seg_nom_} "
+                                ."{$sivigila->pri_ape_} {$sivigila->seg_ape_}</strong><br>"
+                    . "Próximo control: <strong>{$seguimiento->fecha_proximo_control}</strong><br>";
+
+                $html = "Hola, se ha registrado un seguimiento para el paciente:<br>"
+                      . $bodyText
+                      . "Por favor gestiona lo antes posible en "
+                      . "<a href=\"".url('login')."\">la aplicación</a>.";
+
+                // SMTP SSL puerto 465
+                $transport = new EsmtpTransport(
+                    env('MAIL_HOST','smtp.gmail.com'),
+                    465,
+                    'ssl'
+                );
+                $transport->setUsername(env('MAIL_USERNAME'));
+                $transport->setPassword(env('MAIL_PASSWORD'));
+
+                Log::info("SMTP configurado: ".env('MAIL_HOST').":465 ssl");
+
+                $mailer = new Mailer($transport);
+                $email  = (new Email())
+                    ->from(new Address(env('MAIL_FROM_ADDRESS'), env('MAIL_FROM_NAME')))
+                    ->to(new Address($user->email))
+                    ->subject('Nuevo seguimiento asignado')
+                    ->html($html);
+
+                try {
+                    $mailer->send($email);
+                    $mailSent = true;
+                    Log::info("Correo de seguimiento enviado a {$user->email}");
+                } catch (\Throwable $e) {
+                    Log::warning("Error SMTP: {$e->getMessage()}");
+                }
+            } else {
+                Log::warning("Usuario ID {$sivigila->user_id} sin email válido");
+            }
+        }
+
+        // 5) Redirigir con mensaje
+        $key = $mailSent ? 'success' : 'warning';
+        $msg = $mailSent
+            ? 'Seguimiento guardado y correo enviado.'
+            : 'Seguimiento guardado, pero no se pudo enviar correo.';
+
+        return redirect()
+            ->route('Seguimiento.index')
+            ->with($key, $msg);
     }
-           //para enviarle un consulta al correo 
-           //$results = DB::table('mi_tabla')->where('condicion', '=', 'valor')->get();
-            // $bodyText = 'La lista de resultados es:<br>';
-            // foreach ($results as $result) {
-            //     $bodyText .= $result->atributo . '<br>';
-            // }
-            // $email = (new Email())
-            //     ->from(new Address(env('MAIL_FROM_ADDRESS'), env('MAIL_FROM_NAME')))
-            //     ->to(new Address('juancamilosuarezcantero@gmail.com'))
-            //     ->subject('Recordatorio de control')
-            //     ->html($bodyText);
-    }
-
     /**
      * Display the specified resource.
      *
@@ -466,112 +400,112 @@ if ($registroAnterior) {
      * @param  \App\Models\Seguimiento  $seguimiento
      * @return \Illuminate\Http\Response
      */
-    public function update(Request $request, Seguimiento $seguimiento,$id)
+    public function update(Request $request, Seguimiento $seguimiento, $id)
     {
-
-
-        $campos= [
+        // 1) Validación
+        $request->validate([
             'fecha_consulta' => 'required|string|max:100',
-            'peso_kilos' => 'required',
-            'talla_cm' => 'required',
-            'puntajez' => 'required',
-            'clasificacion' => 'required',
+            'peso_kilos'     => 'required',
+            'talla_cm'       => 'required',
+            'puntajez'       => 'required',
+            'clasificacion'  => 'required',
             'requerimiento_energia_ftlc' => 'required',
-            // 'fecha_entrega_ftlc' => 'required',
-            'medicamento' => 'required',
-            //  'motivo_reapuertura' => 'required',
-            // 'resultados_seguimientos' => 'required',
-            // 'ips_realiza_seguuimiento' => 'required',
-            'Esquemq_complrto_pai_edad' => 'required',
-
+            'medicamento'    => 'required',
+            'Esquemq_complrto_pai_edad'  => 'required',
             'Atecion_primocion_y_mantenimiento_res3280_2018' => 'required',
-            'observaciones' => 'required',
-            // 'fecha_proximo_control' => 'nullable|date|after_or_equal:today',
-            'sivigilas_id' => 'required',
-            
-            // 'archivo_pdf' => 'required|mimes:pdf|max:2048',
+            'observaciones'  => 'required',
+            'sivigilas_id'   => 'required|exists:sivigilas,id',
+            'estado'         => 'required|in:0,1',
+            'pdf'            => 'nullable|mimes:pdf|max:2048',
+        ], [
+            'required' => 'El campo :attribute es requerido (DEBE LLENARLO PARA CONTINUAR).',
+        ]);
 
+        // 2) Preparamos datos y actualizamos el seguimiento
+        $datos = $request->except(['_token','_method']);
+        $datos['medicamento'] = implode(',', $datos['medicamento']);
 
-        ];
-
-        $mensajes=[
-            'required'=>'El :attribute es requerido  (DEBE LLENARLO PARA CONTINUAR)',
-            'fecha_proximo_control.after_or_equal' => 'La fecha de ingreso no puede ser anterior a la fecha actual.',
-      
-        ];
-
-        $this->validate($request, $campos, $mensajes);
-
-        $datosEmpleado = request()->except(['_token','_method']);
-        $medicamentos = implode(',', $datosEmpleado['medicamento']);
-        $datosEmpleado['medicamento'] = $medicamentos;
-        $seg =  Seguimiento::where('id', $id)->update($datosEmpleado);
-
-        //OJO DEBES MODIFICAR ESTE PEDAZO PARAQUE CUANDO ACTUALIZE FUNCIONE
-        if ($request->estado == 1) {
-            DB::table('sivigilas')
-                ->where('id', $request->sivigilas_id) // Agregar esta línea
-                ->update(['estado' => '1']);
-        } else {
-            DB::table('sivigilas')
-            ->where('id', $request->sivigilas_id) // Agregar esta línea
-                ->update(['estado' => '0']);
+        if ($request->hasFile('pdf')) {
+            $datos['pdf'] = $request->file('pdf')->store('pdf','public');
         }
 
-         //para enviarle un consulta al correo 
-            // aqui empieza el tema de envio de correos entonces si el estado es 1
-            //creamos una consulta
-            $results = DB::table('seguimientos')
-             ->select('motivo_reapuertura', 'seguimientos.id','sivigilas.pri_nom_','sivigilas.seg_nom_',
-             'sivigilas.pri_ape_','sivigilas.seg_ape_')
-             ->where('seguimientos.id', $id)
-             ->join('sivigilas', 'seguimientos.sivigilas_id', '=', 'sivigilas.id')
-             ->get();
-            
-             $bodyText = ':<br>';
-             
-             foreach ($results as $result) {
+        Seguimiento::where('id', $id)->update($datos);
 
-            $bodyText .= 'Id de seguimiento: ' .'<strong>' . $result->id . '</strong><br>';
+        // 3) Reflejar estado en Sivigila
+        DB::table('sivigilas')
+            ->where('id', $request->sivigilas_id)
+            ->update(['estado' => $request->estado ? 1 : 0]);
 
-             $bodyText .= 'Motivo de reapuertura: ' .'<strong>' . $result->motivo_reapuertura . '</strong><br>';
-             $bodyText .= 'Primer nombre: ' .'<strong>' . $result->pri_nom_ . '</strong><br>';
-             $bodyText .= 'Segundo nombre: ' .'<strong>' . $result->seg_nom_ . '</strong><br>';
-             $bodyText .= 'Primer apellido: ' .'<strong>' . $result->pri_ape_ . '</strong><br>';
-             $bodyText .= 'Segundo apellido: ' .'<strong>' . $result->seg_ape_ . '</strong><br>';
+        // 4) Construir body del correo
+        $resultados = DB::table('seguimientos')
+            ->select(
+                'seguimientos.id',
+                'seguimientos.motivo_reapuertura',
+                'sivigilas.pri_nom_',
+                'sivigilas.seg_nom_',
+                'sivigilas.pri_ape_',
+                'sivigilas.seg_ape_'
+            )
+            ->where('seguimientos.id', $id)
+            ->join('sivigilas', 'seguimientos.sivigilas_id', '=', 'sivigilas.id')
+            ->get();
 
-               }
-            //aqui termina la consulta que enviaremos al cuerpo del correo
+        $bodyText = '<br>';
+        foreach ($resultados as $r) {
+            $bodyText .= "Id de seguimiento: <strong>{$r->id}</strong><br>";
+            $bodyText .= "Motivo de reapertura: <strong>{$r->motivo_reapuertura}</strong><br>";
+            $bodyText .= "Primer nombre: <strong>{$r->pri_nom_}</strong><br>";
+            $bodyText .= "Segundo nombre: <strong>{$r->seg_nom_}</strong><br>";
+            $bodyText .= "Primer apellido: <strong>{$r->pri_ape_}</strong><br>";
+            $bodyText .= "Segundo apellido: <strong>{$r->seg_ape_}</strong><br>";
+        }
 
-             
-            $sivigila = Sivigila::find($datosEmpleado['sivigilas_id']);
-            $user = User::find($sivigila->user_id);
-             
-           $transport = new EsmtpTransport(env('MAIL_HOST'), env('MAIL_PORT'), env('MAIL_ENCRYPTION'));
-           $transport->setUsername(env('MAIL_USERNAME'))
-                     ->setPassword(env('MAIL_PASSWORD'));
-           
-           $mailer = new Mailer($transport);
-           
-           $email = (new Email())
-                   ->from(new Address(env('MAIL_FROM_ADDRESS'), env('MAIL_FROM_NAME')))
-                   ->to(new Address($user->email))
-                   ->subject('Recordatorio de control')
-                   ->html('Hola, tu seguimiento acaba de ser actualizado por el administrador debido a  algun inconveniente comunicate
-                   con la EPSI'.$bodyText.'se solicita gestionarlo lo antes posible ingresando a este enlace <br>
-                   http://app.epsianaswayuu.com/Desnutricion/public/login');
-                   if ($mailer->send($email)) {
-            return redirect()->route('Seguimiento.index')
-           ->with('mensaje',' El dato fue agregado a la base de datos Exitosamente..!');
-                   }else{
-                    return redirect()->route('Seguimiento.index')
-           ->with('mensaje',' El dato fue agregado a la base de datos Exitosamente..!');
-            
-                   }
-        
-        return redirect()->route('Seguimiento.index');
-        // return view('seguimiento.index', compact('empleado'),["incomeedit"=>$incomeedit]);
+        // 5) Enviar correo si el estado es 1
+        if ((int)$request->estado === 1) {
+            $sivigila = Sivigila::find($request->sivigilas_id);
+            if ($sivigila && $user = User::find($sivigila->user_id)) {
+                // ── USAR SSL IMPLÍCITO EN PUERTO 465 ──
+                $transport = new EsmtpTransport(
+                    env('MAIL_HOST', 'smtp.gmail.com'),
+                    465,
+                    'ssl'
+                );
+                $transport->setUsername(env('MAIL_USERNAME'));
+                $transport->setPassword(env('MAIL_PASSWORD'));
+
+                // Log de la configuración real:
+                Log::info("SMTP configurado: host=" . env('MAIL_HOST') .
+                          " port=465 encryption=ssl");
+
+                $mailer = new Mailer($transport);
+
+                $email = (new Email())
+                    ->from(new Address(env('MAIL_FROM_ADDRESS'), env('MAIL_FROM_NAME')))
+                    ->to(new Address($user->email))
+                    ->subject('Recordatorio de control')
+                    ->html(
+                        'Hola, tu seguimiento acaba de ser actualizado por el administrador.' .
+                        $bodyText .
+                        ' Se solicita gestionarlo lo antes posible ingresando ' .
+                        '<a href="' . url('login') . '">aquí</a>.'
+                    );
+
+                try {
+                    $mailer->send($email);
+                    Log::info("Correo enviado exitosamente a {$user->email}");
+                } catch (\Throwable $e) {
+                    Log::warning('Error SMTP al enviar correo: ' . $e->getMessage());
+                }
+            } else {
+                Log::warning("No se envía correo: paciente o usuario no encontrado para Seguimiento ID {$id}");
+            }
+        }
+
+        // 6) Redirigir
+        return redirect()->route('Seguimiento.index')
+            ->with('success', 'Seguimiento actualizado correctamente.');
     }
+    
 
     /**
      * Remove the specified resource from storage.

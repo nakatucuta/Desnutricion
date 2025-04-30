@@ -19,7 +19,7 @@ use Symfony\Component\Mime\Email;
 use App\Models\User;
 use Illuminate\Support\Facades\Response;
 use DataTables;
-
+use Illuminate\Support\Facades\Log;
 
 class SivigilaController extends Controller
 {
@@ -460,127 +460,108 @@ class SivigilaController extends Controller
      */
     public function store(Request $request)
     {
-        $campos= [
-            'cod_eve' => 'required',
-            'semana' => 'required',
-            'fec_not' => 'required',
-            'year' => 'required',
-           
-            'tip_ide_' => 'required',
-            'num_ide_' => 'required',
-            'pri_nom_' => 'required',
-            
-            'pri_ape_' => 'required',
-            
-            'edad_' => 'required',
-            'sexo_' => 'required',
-            
-            'fecha_nto_' => 'required',
-            'edad_ges' => 'required',
-            'telefono_' => 'required',
-            'edad_ges' => 'required|numeric|min:0.01',
-            
-            'user_id' => 'required',
+        // 1) Validación
+        $request->validate([
+            'cod_eve'                                      => 'required',
+            'semana'                                       => 'required',
+            'fec_not'                                      => 'required|date',
+            'year'                                         => 'required',
+            'tip_ide_'                                     => 'required',
+            'num_ide_'                                     => 'required',
+            'pri_nom_'                                     => 'required',
+            'pri_ape_'                                     => 'required',
+            'edad_'                                        => 'required',
+            'sexo_'                                        => 'required',
+            'fecha_nto_'                                   => 'required|date',
+            'edad_ges'                                     => 'required|numeric|min:0.01',
+            'telefono_'                                    => 'required',
+            'user_id'                                      => 'required|exists:users,id',
             'Caso_confirmada_desnutricion_etiologia_primaria' => 'required',
-            
-           
-            
-            
-            
-            
-            'nombreips_manejo_hospita' => 'required',
-            
+            'nombreips_manejo_hospita'                     => 'required',
+        ], [
+            'required' => 'El :attribute es requerido',
+            'min'      => 'El :attribute debe ser mayor que cero',
+        ]);
 
-        ];
+        // 2) Crear el registro (mass assignment; asegúrate de tener $fillable en tu modelo)
+        $data = $request->only([
+            'cod_eve','semana','fec_not','year',
+            'tip_ide_','num_ide_','pri_nom_','seg_nom_',
+            'pri_ape_','seg_ape_','edad_','sexo_',
+            'fecha_nto_','edad_ges','telefono_','nom_grupo_',
+            'regimen','Ips_at_inicial','fecha_aten_inicial',
+            'Caso_confirmada_desnutricion_etiologia_primaria',
+            'Ips_manejo_hospitalario','nombreips_manejo_hospita',
+            'user_id'
+        ]);
+        $data['estado'] = 1;
 
-        $mensajes=[
-            'required'=>'El :attribute es requerido',
-            'min' => 'El :attribute debe ser mayor que CERO :min',
-      
-        ];
+        $sivigila = Sivigila::create($data);
 
-        $this->validate($request, $campos, $mensajes);
-        
-            $entytistore = new Sivigila;
-            $entytistore->cod_eve = $request->cod_eve;
-            $entytistore->semana = $request->semana;
-            $entytistore->fec_not = $request->fec_not;
-            $entytistore->year = $request->year;
-            $entytistore->dpto = $request->dpto;
-            $entytistore->mun = $request->mun;
-            $entytistore->tip_ide_ = $request->tip_ide_;
-            $entytistore->num_ide_ = $request->num_ide_;
-            $entytistore->pri_nom_ = $request->pri_nom_;
-                    
-            $entytistore->seg_nom_ = $request->seg_nom_;
-            $entytistore->pri_ape_ = $request->pri_ape_;
-            $entytistore->seg_ape_ = $request->seg_ape_;
-            $entytistore->edad_ = $request->edad_;
-            $entytistore->sexo_ = $request->sexo_;
-            $entytistore->fecha_nto_ = $request->fecha_nto_;
-            $entytistore->edad_ges = $request->edad_ges;
-            $entytistore->telefono_ = $request->telefono_;
-            $entytistore->nom_grupo_ = $request->nom_grupo_;
-            $entytistore->regimen = $request->regimen;
-            $entytistore->Ips_at_inicial = $request->Ips_at_inicial;
-            $entytistore->estado = 1;
-            $entytistore->fecha_aten_inicial = $request->fecha_aten_inicial;
-            
-            // $entytistore->Ips_seguimiento_Ambulatorio = $request->Ips_seguimiento_Ambulatorio;
-            $entytistore->Caso_confirmada_desnutricion_etiologia_primaria = $request->Caso_confirmada_desnutricion_etiologia_primaria;
-            $entytistore->Ips_manejo_hospitalario = $request->Ips_manejo_hospitalario;
-            
-            $entytistore->nombreips_manejo_hospita = $request->nombreips_manejo_hospita;
-            $entytistore->user_id = $request->user_id;
-        
-            $entytistore->save();
-
-            //para enviarle una consulta al correo 
-            // aqui empieza el tema de envio de correos entonces si el estado es 1
-            //creamos una consulta
-            $results = DB::table('sivigilas')
-            ->select('num_ide_', 'pri_nom_','seg_nom_','pri_ape_','seg_ape_','fec_not')
-            ->where('num_ide_', $request->num_ide_)
-            ->where('fec_not', $request->fec_not)
+        // 3) Construir el body del mail
+        $bodyText = '<br>';
+        $results = Sivigila::select('fec_not','num_ide_','pri_nom_','seg_nom_','pri_ape_','seg_ape_')
+            ->where('num_ide_', $sivigila->num_ide_)
+            ->where('fec_not', $sivigila->fec_not)
             ->get();
-            
-             $bodyText = ':<br>';
-             
-            foreach ($results as $result) {
-            $bodyText .= 'Fecha de notificacion: ' .'<strong>' . $result->fec_not . '</strong><br>';
-            $bodyText .= 'Identificación: ' .'<strong>' . $result->num_ide_ . '</strong><br>';
-            $bodyText .= 'Primer Nombre: ' .'<strong>' . $result->pri_nom_ . '</strong><br>';
-            $bodyText .= 'Segundo Nombre: ' .'<strong>' . $result->seg_nom_ . '</strong><br>';
-            $bodyText .= 'Primer Apellido: ' .'<strong>' . $result->pri_ape_ . '</strong><br>';
-            $bodyText .= 'Segundo Apellido: ' .'<strong>' . $result->seg_ape_ . '</strong><br>';
-              }
-            //aqui termina la consulta que enviaremos al cuerpo del correo
 
-             
+        foreach ($results as $r) {
+            $bodyText .= "Fecha de notificación: <strong>{$r->fec_not}</strong><br>";
+            $bodyText .= "Identificación: <strong>{$r->num_ide_}</strong><br>";
+            $bodyText .= "Primer Nombre: <strong>{$r->pri_nom_}</strong><br>";
+            $bodyText .= "Segundo Nombre: <strong>{$r->seg_nom_}</strong><br>";
+            $bodyText .= "Primer Apellido: <strong>{$r->pri_ape_}</strong><br>";
+            $bodyText .= "Segundo Apellido: <strong>{$r->seg_ape_}</strong><br>";
+        }
 
-             
-           $transport = new EsmtpTransport(env('MAIL_HOST'), env('MAIL_PORT'), env('MAIL_ENCRYPTION'));
-           $transport->setUsername(env('MAIL_USERNAME'))
-                     ->setPassword(env('MAIL_PASSWORD'));
-           
-           $mailer = new Mailer($transport);
-           
-           $email = (new Email())
-                   ->from(new Address(env('MAIL_FROM_ADDRESS'), env('MAIL_FROM_NAME')))
-                   ->to(new Address(User::find($request->user_id)->email))
-                   ->subject('Recordatorio de control')
-                   ->html('FAVOR NO CONTESTAR ESTE MENSAJE <br>
-                    Hola, te acaban de asignar un paciente de desnutricion por parte de la
-                   EPSI anas wayuu, se solicita gestionarlo lo antes posible ingresando a este enlace <br>
-                   http://app.epsianaswayuu.com/Desnutricion/public/login'.$bodyText);
-                   if ($mailer->send($email)) {
-            return redirect()->route('sivigila.index')
-           ->with('mensaje',' El dato fue agregado a la base de datos Exitosamente..!');
-                   }else{
-                    return redirect()->route('sivigila.index')
-           ->with('mensaje',' El dato fue agregado a la base de datos Exitosamente..!');
-            
-                   }
+        // 4) Preparar y enviar correo
+        $mailSent = false;
+        $user = User::find($sivigila->user_id);
+
+        if ($user && $user->email) {
+            $loginUrl = url('login');
+            $html = 'FAVOR NO CONTESTAR ESTE MENSAJE<br>'
+                  . 'Hola, te acaban de asignar un paciente de desnutrición (EVENTO 113)por parte de la EPSI Anas Wayuu.<br>'
+                  . 'Por favor, gestiona lo antes posible ingresando al siguiente enlace:<br>'
+                  . "<a href=\"{$loginUrl}\">Ingresar al sistema</a>"
+                  . $bodyText;
+
+            // SMTP SSL en puerto 465
+            $transport = new EsmtpTransport(
+                env('MAIL_HOST', 'smtp.gmail.com'),
+                465,
+                'ssl'
+            );
+            $transport->setUsername(env('MAIL_USERNAME'));
+            $transport->setPassword(env('MAIL_PASSWORD'));
+
+            Log::info("SMTP configurado: host=".env('MAIL_HOST')." port=465 encryption=ssl");
+
+            $mailer = new Mailer($transport);
+            $email  = (new Email())
+                ->from(new Address(env('MAIL_FROM_ADDRESS'), env('MAIL_FROM_NAME')))
+                ->to(new Address($user->email))
+                ->subject('Recordatorio de control')
+                ->html($html);
+
+            try {
+                $mailer->send($email);
+                $mailSent = true;
+                Log::info("Correo enviado a {$user->email} para nuevo registro sivigila ID {$sivigila->id}");
+            } catch (\Throwable $e) {
+                Log::warning("Error SMTP al enviar a {$user->email}: {$e->getMessage()}");
+            }
+        } else {
+            Log::warning("No se envía correo: usuario ID {$sivigila->user_id} sin email o no encontrado");
+        }
+
+        // 5) Redirigir con feedback
+        $msg = $mailSent
+            ? 'El dato fue agregado y el correo se envió correctamente.'
+            : 'El dato fue agregado, pero no se pudo enviar el correo.';
+        return redirect()
+            ->route('sivigila.index')
+            ->with('mensaje', $msg);
     }
 
     /**

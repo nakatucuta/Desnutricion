@@ -9,46 +9,71 @@ use App\Models\User;
 class Sivigila extends Model
 {
     use HasFactory;
-    // protected $fillable = [
-    //     'cod_eve',
-    //     'semana',
-    //     'fec_not',
-    //     'year',
-    //     'dpto',
-    //     'mun',
-    //     'tip_ide_',
-    //     'num_ide_',
-    //     'pri_nom_',
-    //     'seg_nom_',
-    //     'pri_ape_',
-    //     'seg_ape_',
-    //     'sexo_',
-    //     'fecha_nto_',
-    //     'edad_ges',
-    //     'telefono_',
-    //     'nom_grupo_',
-    //     'regimen',
-    //     'Ips_at_inicial',
-    //     'estado',
-    //     'fecha_aten_inicial',
-    //     'Caso_confirmada_desnutricion_etiologia_primaria',
-    //     'Ips_manejo_hospitalario',
-    //     'Esquemq_complrto_pai_edad',
-    //     'Atecion_primocion_y_mantenimiento_res3280_2018',
-    //     'nombreips_manejo_hospita',
-    //     'user_id',
-    //     'created_at',
-    //     'updated_at',
-    // ];
 
+    /**
+     * Los campos que se pueden asignar masivamente.
+     *
+     * @var array
+     */
+    protected $fillable = [
+        'cod_eve',
+        'semana',
+        'fec_not',
+        'year',
+        'dpto',
+        'mun',
+        'tip_ide_',
+        'num_ide_',
+        'pri_nom_',
+        'seg_nom_',
+        'pri_ape_',
+        'seg_ape_',
+        'edad_',
+        'sexo_',
+        'fecha_nto_',
+        'edad_ges',
+        'telefono_',
+        'nom_grupo_',
+        'regimen',
+        'Ips_at_inicial',
+        'estado',
+        'fecha_aten_inicial',
+        'Caso_confirmada_desnutricion_etiologia_primaria',
+        'Ips_manejo_hospitalario',
+        'nombreips_manejo_hospita',
+        'user_id',
+    ];
 
-    public function getDateFormat(){
-        return 'Y-d-m h:m:s';
-        }
-
-        public function user()
+    /**
+     * El formato de fecha para el modelo.
+     *
+     * @return string
+     */
+    public function getDateFormat()
     {
-        return $this->belongsTo(User::class);
+        return 'Y-d-m h:i:s';
+    }
+
+    /**
+     * Convertir atributos a fechas (Carbon).
+     *
+     * @var array
+     */
+    protected $dates = [
+        'fec_not',
+        'fecha_nto_',
+        'fecha_aten_inicial',
+        'created_at',
+        'updated_at',
+    ];
+
+    /**
+     * Define la relación con el usuario.
+     *
+     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
+     */
+    public function user()
+    {
+        return $this->belongsTo(User::class, 'user_id');
     }
 }
-
