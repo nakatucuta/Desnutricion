@@ -112,7 +112,7 @@ class SivigilaController extends Controller
 {
     $year = $request->get('year');
 
-    $query = DB::connection('sqlsrv')
+    $query = DB::connection('sqlsrv_1')
         ->table('DESNUTRICION.dbo.vSiv113CargaOptima as v')
         ->select([
             'v.fec_noti',
