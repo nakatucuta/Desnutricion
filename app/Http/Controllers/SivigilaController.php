@@ -1,7 +1,7 @@
 <?php
 
 namespace App\Http\Controllers;
-use Illuminate\Http\Request;
+use Illuminate\Http\Request;          // ✅  ESTA línea basta
 use Illuminate\Support\Facades\DB;
 use App\Models\MaestroSiv113;
 use App\Models\Sivigila;
@@ -18,8 +18,12 @@ use Symfony\Component\Mime\Address;
 use Symfony\Component\Mime\Email;
 use App\Models\User;
 use Illuminate\Support\Facades\Response;
-use DataTables;
+// use DataTables;
 use Illuminate\Support\Facades\Log;
+use Yajra\DataTables\Facades\DataTables;
+use Carbon\Carbon;
+
+
 
 class SivigilaController extends Controller
 {
@@ -41,212 +45,108 @@ class SivigilaController extends Controller
      * @return \Illuminate\Http\Response
      */
     public function index()
+    {
+        // 1) Distintos años para filtro
+        $years = DB::connection('sqlsrv_1')
+            ->table('maestroSiv113')
+            ->selectRaw('YEAR(fec_not) AS year')
+            ->distinct()
+            ->orderByDesc('year')
+            ->pluck('year');
 
-    {  
-
-
-        
-
-        // con max
-        // $sivigilas = DB::connection('sqlsrv_1')
-        // ->table('maestroSiv113 AS m')
-        // ->select(DB::raw("CAST(MAX(m.fec_not) AS DATE) as fec_noti, m.tip_ide_, m.num_ide_, m.pri_nom_, m.seg_nom_, m.pri_ape_, m.seg_ape_"))
-        // ->where('m.cod_eve', 113)
- 
-        // ->whereBetween(DB::raw("YEAR(m.fec_not)"), [2022, 2023])
- 
-        // ->whereBetween(DB::raw("YEAR(m.fec_not)"), [2023, 2023])
- 
-        // ->groupBy('m.tip_ide_', 'm.num_ide_', 'm.pri_nom_', 'm.seg_nom_', 'm.pri_ape_', 'm.seg_ape_')
-        //  ->orderBy('fec_noti', 'desc')
-        // ->paginate(10000);
-
-        
-        
-       
-        
-
-
-        
-
-       $sivigilas = DB::connection('sqlsrv_1')
-    ->table('maestroSiv113 AS m')
-    ->select(DB::raw("
-        CAST(m.fec_not AS DATE) AS fec_noti,
-        m.tip_ide_,
-        m.num_ide_,
-        m.pri_nom_,
-        m.seg_nom_,
-        m.pri_ape_,
-        m.seg_ape_,
-        m.semana,
-        MAX(m.nom_upgd) AS nom_upgd
-    "))
-    ->join(DB::raw("
-        (SELECT 
-            m.tip_ide_, 
-            m.num_ide_, 
-            MAX(m.fec_not) AS fec_not, 
-            m.semana
-        FROM 
-            maestroSiv113 AS m
-        GROUP BY 
-            m.tip_ide_, 
-            m.num_ide_, 
-            m.semana
-        ) AS s
-    "), function($join) {
-        $join->on('m.tip_ide_', '=', 's.tip_ide_')
-            ->on('m.num_ide_', '=', 's.num_ide_')
-            ->on('m.semana', '=', 's.semana')
-            ->on('m.fec_not', '=', 's.fec_not');
-    })
-    ->where('m.cod_eve', 113)
-    ->whereYear('m.fec_not', '>=', 2024)
-    ->groupBy(
-        'm.semana', 
-        'm.tip_ide_', 
-        'm.num_ide_', 
-        'm.fec_not', 
-        'm.pri_nom_', 
-        'm.seg_nom_', 
-        'm.pri_ape_', 
-        'm.seg_ape_'
-    )
-    ->limit(5000) // Limita los resultados a 5
-
-    ->get();
-
-   
-
-       
-       $T1 = DB::connection('sqlsrv_1')->table('maestroSiv113 AS m')
-       ->select(DB::raw("CAST(m.fec_not AS DATE) AS fec_noti, m.tip_ide_, m.num_ide_, m.pri_nom_, m.seg_nom_, m.pri_ape_, m.seg_ape_"))
-       ->where('m.cod_eve', 113)
-       ->whereBetween(DB::raw("YEAR(m.fec_not)"), [2023, 2023])
-       ->groupBy('m.fec_not', 'm.tip_ide_', 'm.num_ide_', 'm.pri_nom_', 'm.seg_nom_', 'm.pri_ape_', 'm.seg_ape_');
-   
-   $results = DB::connection('sqlsrv_1')->table(DB::raw("({$T1->toSql()}) as A"))
-       ->mergeBindings($T1)
-       ->leftJoin('DESNUTRICION.dbo.sivigilas AS B', function ($join) {
-           $join->on('A.fec_noti', '=', 'B.fec_not')
-               ->on('A.num_ide_', '=', 'B.num_ide_');
-       })
-       ->whereNull('B.num_ide_')
-       ->whereYear('B.created_at', '>', 2023)
-       ->get();
-   
-       
-        $count1234 = $results->count();
-        $sivi2 = DB::table('sivigilas')
-        
-        ->whereBetween(DB::raw('YEAR(fec_not)'), [2024, 2024])
-        ->count('id');
-        $count123 =  $sivi2 - $count1234;
-
-        $totalFilas = DB::connection('sqlsrv_1')
-    ->table('maestroSiv113 AS m')
-    ->where('m.cod_eve', 113)
-    ->whereBetween(DB::raw('YEAR(m.fec_not)'), [2024, 2024])
-    ->count();
-    
-    
-    // Obtener el total de filas
-    $resultados = DB::connection('sqlsrv_1')
-    ->table(DB::raw("(
-        SELECT 
-            CAST(m.fec_not AS DATE) AS fec_noti,
-            m.tip_ide_,
-            m.num_ide_,
-            m.pri_nom_,
-            m.seg_nom_,
-            m.pri_ape_,
-            m.seg_ape_,
-            m.semana,
-            MAX(m.nom_upgd) AS nom_upgd
-        FROM 
-            maestroSiv113 AS m
-        INNER JOIN (
-            SELECT 
-                m.tip_ide_, 
-                m.num_ide_, 
-                MAX(m.fec_not) AS fec_not, 
-                m.semana
-            FROM 
-                maestroSiv113 AS m
-            GROUP BY 
-                m.tip_ide_, 
-                m.num_ide_, 
-                m.semana
-        ) AS s ON m.tip_ide_ = s.tip_ide_
-              AND m.num_ide_ = s.num_ide_
-              AND m.semana = s.semana
-              AND m.fec_not = s.fec_not
-        WHERE 
-            m.cod_eve = 113
-            AND YEAR(m.fec_not) >= 2024
-        GROUP BY 
-            m.semana, 
-            m.tip_ide_, 
-            m.num_ide_, 
-            m.fec_not, 
-            m.pri_nom_, 
-            m.seg_nom_, 
-            m.pri_ape_, 
-            m.seg_ape_
-    ) AS derived"))
-    ->count();
-    
-        
-        
-
-
-
-        
-        $sivi = Sivigila::all();
-      
-        
-        //$datos = MaestroSiv113::orderBy('cod_eve')->paginate();
-        //$students2 = DB::table('maestroSiv113')
-            //->paginate(15);
-
-       // $hola = '1124544296';
-        //$students2 = DB::connection('sqlsrv_1')->select('SELECT * FROM maestroSiv113 ');
-;
-       // $students3 = DB::select('SELECT * FROM sga..maestroSiv113' );
-        //$students2 = Student::on('mysql2')->get();   
-        //$datos['empleados']=Empleado::on('sqlsrv_1')->paginate(20); //aqui estoy guardando enla variable datos 
-        
-        
-       // $students2 = DB::select('SELECT pri_nom_ , count(cod_sub) as hola FROM sga..maestroSiv113 WHERE estrato = 2 
-        //GROUP BY pri_nom_ ' );
-        //$students2 = Student::on('mysql2')->get();  
-        
-        
-        if (Auth::User()->usertype == 2) {
-            $conteo = Seguimiento::where('estado', 1)
-                        ->where('user_id', Auth::user()->id)
-                        ->count('id');
-            }else{
-                $conteo = Seguimiento::where('estado', 1)->count('id');
-    
-            }
-            $otro =  Sivigila::select('sivigilas.num_ide_','sivigilas.pri_nom_','sivigilas.seg_nom_',
-            'sivigilas.pri_ape_','sivigilas.seg_ape_','sivigilas.id as idin','sivigilas.Ips_at_inicial',
-            'seguimientos.id','seguimientos.fecha_proximo_control','seguimientos.estado as est',
-            'seguimientos.user_id as usr')
-            ->orderBy('seguimientos.created_at', 'desc')
-            ->join('seguimientos', 'sivigilas.id', '=', 'seguimientos.sivigilas_id')
-            // ->join('seguimientos', 'seguimientos.id', '=', 'seguimientos.sivigilas_id')
-            ->where('seguimientos.estado',1)
+        // tus contadores…
+        // (reproduzco tu lógica resumida)
+        $missing = DB::connection('sqlsrv_1')
+            ->table('maestroSiv113 as m')
+            ->select('m.tip_ide_','m.num_ide_','m.semana','m.fec_not')
+            ->where('m.cod_eve',113)
+            ->groupBy('m.tip_ide_','m.num_ide_','m.semana','m.fec_not')
+            ->leftJoin('DESNUTRICION.dbo.sivigilas as b', function($j){
+                $j->on('m.num_ide_','b.num_ide_')
+                  ->on('m.fec_not','b.fec_not');
+            })
+            ->whereNull('b.num_ide_')
+            ->whereYear('b.created_at','>',2023)
             ->get();
-        
-        return view('sivigila.index', compact('sivigilas','sivi','conteo','otro','count123','sivi2','resultados','totalFilas'));
+        $countMissing = $missing->count();
 
+        $sivi2 = DB::table('sivigilas')
+            ->whereYear('fec_not',2024)
+            ->count();
 
-       
+        $count123 = $sivi2 - $countMissing;
+
+        $resultados = DB::connection('sqlsrv_1')
+            ->table(DB::raw("(
+                SELECT 
+                  CAST(m.fec_not AS DATE) AS fec_noti,
+                  m.tip_ide_,m.num_ide_,m.pri_nom_,m.seg_nom_,
+                  m.pri_ape_,m.seg_ape_,m.semana,MAX(m.nom_upgd) AS nom_upgd
+                FROM maestroSiv113 AS m
+                WHERE m.cod_eve=113
+                  AND YEAR(m.fec_not)>=2024
+                GROUP BY m.fec_not,m.semana,m.tip_ide_,
+                         m.num_ide_,m.pri_nom_,m.seg_nom_,
+                         m.pri_ape_,m.seg_ape_
+            ) as derived"))
+            ->count();
+
+        // notificaciones
+        if (auth()->user()->usertype==2) {
+            $conteo = Seguimiento::where('estado',1)
+                        ->where('user_id',auth()->id())
+                        ->count();
+        } else {
+            $conteo = Seguimiento::where('estado',1)->count();
+        }
+
+        // pase al view
+        return view('sivigila.index', compact(
+            'years','conteo','sivi2',
+            'count123','resultados'
+        ));
     }
 
+   
+    public function data(Request $request)
+{
+    $year = $request->get('year');
+
+    $query = DB::connection('sqlsrv_1')
+        ->table('PRUEBA_DESNUTRICION.dbo.vSiv113CargaOptima as v')
+        ->select([
+            'v.fec_noti',
+            'v.semana',
+            'v.tip_ide_',
+            'v.num_ide_',
+            'v.pri_nom_',
+            'v.seg_nom_',
+            'v.pri_ape_',
+            'v.seg_ape_',
+            'v.nom_upgd',
+            'v.procesado'
+        ])
+        ->when($year, fn($q) => $q->whereYear('v.fec_noti', $year));
+
+    return DataTables::of($query)
+        ->addColumn('acciones', function ($row) {
+            if ($row->procesado) {
+                return '<button class="btn btn-secondary btn-sm" disabled>
+                          <i class="fas fa-stop"></i> Procesado
+                        </button>';
+            }
+            // ya es YYYY-MM-DD, sin time
+            $url = url("sivigila/{$row->num_ide_}/{$row->fec_noti}/create");
+            return '<a href="'. e($url) .'" class="btn btn-success btn-sm">
+                      <i class="fas fa-zoom-in"></i> Seguimiento
+                    </a>';
+        })
+        ->rawColumns(['acciones'])
+        ->make(true);
+}  
+            
+
+        
     /**
      * Show the form for creating a new resource.
      *

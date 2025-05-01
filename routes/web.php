@@ -85,8 +85,15 @@ Auth::routes();
 
 Route::get('/home', [App\Http\Controllers\HomeController::class, 'index'])->name('home');
 
-Route::resource('sivigila', SivigilaController::class)->middleware(['auth', 'increase_execution_time'])
-->middleware(['auth', \App\Http\Middleware\IncreaseExecutionTime::class]);
+Route::middleware(['auth', \App\Http\Middleware\IncreaseExecutionTime::class])->group(function(){
+    // 👉 Endpoint AJAX (ponle /sivigila/data para que no choque con resource)
+    Route::get('sivigila/data', [SivigilaController::class, 'data'])
+         ->name('sivigila.data');
+
+    // 👉 Resource normal
+    Route::resource('sivigila', SivigilaController::class);
+});
+
 
 Route::resource('revision', RevisionController::class);
 
@@ -100,7 +107,10 @@ Route::get('/new412/{id}/{numero_identificacion}/edit', [Cargue412Controller::cl
 
 Route::resource('Seguimiento', SeguimientoController::class)->middleware('auth');
 Route::get('/search1', 'App\Http\Controllers\SeguimientoController@search')->name('BUSCADOR1');
-Route::get('/sivigila/{num_ide_}/{fec_not}/create', 'App\Http\Controllers\SivigilaController@create')->name('detalle_sivigila');
+Route::get(
+    '/sivigila/{num_ide}/{fec_not}/create',
+    [SivigilaController::class, 'create']
+)->name('detalle_sivigila');
 Route::get('/search', 'App\Http\Controllers\SivigilaController@search')->name('BUSCADOR');
 Route::get('/alert', 'App\Http\Controllers\SeguimientoController@alerta')->name('ALERTA');
 
@@ -160,7 +170,7 @@ Route::get('/download-pdf', 'App\Http\Controllers\SivigilaController@downloadPdf
 
 //RUTAS PARA LAS TABLAS CON JAVA SCRIPT Y DATATABLE
 Route::get('seguimiento/data', [SeguimientoController::class, 'getData'])->name('seguimiento.data');
-Route::get('/obtener-datos-tabla', [SivigilaController::class, 'getData1'])->name('sivigila.data');
+// Route::get('/obtener-datos-tabla', [SivigilaController::class, 'getData1'])->name('sivigila.data');
 Route::post('/sivigila/check-status', [App\Http\Controllers\SivigilaController::class, 'checkStatus'])->name('sivigila.checkStatus');
 Route::post('/sivigila/check-ipsprimaria', [App\Http\Controllers\SivigilaController::class, 'checkIpsPrimaria'])->name('sivigila.ipsprimaria');
 
