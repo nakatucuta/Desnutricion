@@ -20,6 +20,8 @@ use Symfony\Component\Mime\Email;
 use App\Models\User;
 use DataTables;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
+
 class SeguimientoController extends Controller
 {
 
@@ -619,9 +621,20 @@ class SeguimientoController extends Controller
 public function viewPDF($id)
 {
     $seguimiento = Seguimiento::findOrFail($id);
-    $filePath = storage_path('app/public/pdf/' . $seguimiento->pdf);
 
-    return response()->file($filePath);
+    // Si en DB guardas el path completo relativo al disco "public", p.ej. "pdf/archivo.pdf",
+    // úsalo directamente:
+    $relative = $seguimiento->pdf; 
+
+    // Comprueba que exista en el disco "public"
+    if (! Storage::disk('public')->exists($relative) ) {
+        abort(404, "El archivo PDF no fue encontrado.");
+    }
+
+    // Devuelve el fichero
+    return response()->file(
+        Storage::disk('public')->path($relative)
+    );
 }
 public function detallePrestador($id)
 {
