@@ -21,6 +21,7 @@ use App\Models\User;
 use DataTables;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 
 class SeguimientoController extends Controller
 {
@@ -619,37 +620,34 @@ class SeguimientoController extends Controller
 
 // Método para ver el PDF
 
-
 public function viewPDF($id)
-{
-    $seguimiento = Seguimiento::findOrFail($id);
+    {
+        $seguimiento = Seguimiento::findOrFail($id);
 
-    // 1) Coge el valor de la BD
-    $raw = $seguimiento->pdf; // p.ej. "AFQm3Mkk8lxbzBZEFUZ1XuEWP732sTEtezUjXNSV.pdf"
-                            // o "pdf/AFQm3Mkk8lxbzBZEFUZ1XuEWP732sTEtezUjXNSV.pdf"
-                            // o "storage/pdf/…"
+        // 1) Valor bruto de la BD (puede traer "foo.pdf" o "pdf/foo.pdf" o con prefijo storage/)
+        $raw = $seguimiento->pdf;
 
-    // 2) Elimina prefijos redundantes
-    $trimmed = preg_replace('#^(storage/|public/)#', '', $raw);
-    $trimmed = ltrim($trimmed, '/');
+        // 2) Limpiar prefijos redundantes
+        $trimmed = preg_replace('#^(storage/|public/)#', '', $raw);
+        $trimmed = ltrim($trimmed, '/');
 
-    // 3) Si sólo tienes un nombre de archivo, agrégale la carpeta 'pdf/'
-    if (! Str::contains($trimmed, '/')) {
-        $relative = 'pdf/' . $trimmed;
-    } else {
-        $relative = $trimmed;
+        // 3) Si no hay carpeta, asumir 'pdf/'
+        if (! Str::contains($trimmed, '/')) {
+            $relative = 'pdf/' . $trimmed;
+        } else {
+            $relative = $trimmed;
+        }
+
+        // 4) Verificar que exista en el disk 'public'
+        if (! Storage::disk('public')->exists($relative)) {
+            abort(404, "PDF no encontrado en public/{$relative}");
+        }
+
+        // 5) Devolver el archivo
+        return response()->file(
+            Storage::disk('public')->path($relative)
+        );
     }
-
-    // 4) Comprueba que exista realmente en el disco "public"
-    if (! Storage::disk('public')->exists($relative)) {
-        abort(404, "PDF no encontrado en public/$relative");
-    }
-
-    // 5) Devuélvelo
-    return response()->file(
-        Storage::disk('public')->path($relative)
-    );
-}
 
 public function detallePrestador($id)
 {
