@@ -618,24 +618,39 @@ class SeguimientoController extends Controller
 
 
 // Método para ver el PDF
+
+
 public function viewPDF($id)
 {
     $seguimiento = Seguimiento::findOrFail($id);
 
-    // Si en DB guardas el path completo relativo al disco "public", p.ej. "pdf/archivo.pdf",
-    // úsalo directamente:
-    $relative = $seguimiento->pdf; 
+    // 1) Coge el valor de la BD
+    $raw = $seguimiento->pdf; // p.ej. "AFQm3Mkk8lxbzBZEFUZ1XuEWP732sTEtezUjXNSV.pdf"
+                            // o "pdf/AFQm3Mkk8lxbzBZEFUZ1XuEWP732sTEtezUjXNSV.pdf"
+                            // o "storage/pdf/…"
 
-    // Comprueba que exista en el disco "public"
-    if (! Storage::disk('public')->exists($relative) ) {
-        abort(404, "El archivo PDF no fue encontrado.");
+    // 2) Elimina prefijos redundantes
+    $trimmed = preg_replace('#^(storage/|public/)#', '', $raw);
+    $trimmed = ltrim($trimmed, '/');
+
+    // 3) Si sólo tienes un nombre de archivo, agrégale la carpeta 'pdf/'
+    if (! Str::contains($trimmed, '/')) {
+        $relative = 'pdf/' . $trimmed;
+    } else {
+        $relative = $trimmed;
     }
 
-    // Devuelve el fichero
+    // 4) Comprueba que exista realmente en el disco "public"
+    if (! Storage::disk('public')->exists($relative)) {
+        abort(404, "PDF no encontrado en public/$relative");
+    }
+
+    // 5) Devuélvelo
     return response()->file(
         Storage::disk('public')->path($relative)
     );
 }
+
 public function detallePrestador($id)
 {
     // Verifica si el ID está llegando al controlador
