@@ -25,6 +25,7 @@
 
 @section('content_header')
     {{-- botones superiores --}}
+    @include('sivigila.mensajes')
     <div class="mb-3 text-right">
         <a href="{{ route('export2') }}" class="btn btn-success btn-sm"
            style="margin-right:.5rem;border-radius:50px;padding:10px 20px;">
