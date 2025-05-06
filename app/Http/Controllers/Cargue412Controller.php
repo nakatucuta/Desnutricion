@@ -18,6 +18,8 @@ use App\Exports\Cargue412Export;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use App\Mail\RecordatorioControl;        // <-- Importa tu Mailable desde App\Mail
+use Yajra\DataTables\Facades\DataTables;
+use Illuminate\Support\Facades\Cache;
 
 
 class Cargue412Controller extends Controller
@@ -276,115 +278,101 @@ class Cargue412Controller extends Controller
     }
 
 
-    public function showImportForm()
+      // Muestra la vista (no hace queries pesadas)
+      public function showImportForm()
     {
-
-       
-        $seguimientoen113 = DB::table(DB::connection('sqlsrv')->raw('[DESNUTRICION].[dbo].[sivigilas] as a'))
+        $years = DB::connection('sqlsrv_1')
+        ->table('DESNUTRICION.dbo.vCargue412Optima')
+        ->selectRaw('YEAR(fecha_captacion) as year')
         ->distinct()
-        ->select('a.num_ide_ as identificacion')
-        ->join(DB::connection('sqlsrv')->raw('[DESNUTRICION].[dbo].[seguimientos] as b'), 'a.id', '=', 'b.sivigilas_id')
-        ->where('b.estado', 1)
-        ->whereIn('a.num_ide_', function($query) {
-            $query->select('numero_identificacion')
-                  ->from(DB::connection('sqlsrv')->raw('[DESNUTRICION].[dbo].[cargue412s]'));
-        })
-        ->whereIn('a.tip_ide_', function($query) {
-            $query->select('tipo_identificacion')
-                  ->from(DB::connection('sqlsrv')->raw('[DESNUTRICION].[dbo].[cargue412s]'));
-        })
-        ->pluck('identificacion');
+        ->orderByDesc('year')
+        ->pluck('year');
+        return view('new_412.form', compact('years'));
+    }
+
+    // Endpoint para DataTables
+    public function getData(Request $request)
+    {
+        $year = $request->get('year');
     
-    // Establecer estado_anulado a 1 donde se cumple la condición
-    DB::table('cargue412s')
-        ->whereIn('numero_identificacion', $seguimientoen113)
-        ->update(['estado_anulado' => 1]);
+        // 1) Construimos el QueryBuilder sobre la vista optimizada
+        $query = DB::connection('sqlsrv_1')
+            ->table('DESNUTRICION.dbo.vCargue412Optima')
+            // Filtramos por año de fecha_captacion si se envía
+            ->when($year, function($q) use ($year) {
+                $q->whereYear('fecha_captacion', $year);
+            });
     
-    // Establecer estado_anulado a 0 donde NO se cumple la condición
-    DB::table('cargue412s')
-        ->whereNotIn('numero_identificacion', $seguimientoen113)
-        ->update(['estado_anulado' => 0]);
+        // 2) Devolvemos directamente a DataTables, que manejará COUNT, ORDER, PAGINATE, ETC.
+        return DataTables::of($query)
+            ->addColumn('acciones', function($row) {
+                return $this->renderAcciones($row);
+            })
+            ->rawColumns(['acciones'])
+            ->toJson();
+    }
 
-    
-
-
-
-        // Consulta utilizando el modelo Cargue412
-    $sivigilas = Cargue412::from('cargue412s as a')
-    ->select('a.*', 'd.descrip as ips_primaria')
-    ->leftJoin(DB::connection('sqlsrv_1')->raw('[sga].[dbo].[maestroidentificaciones] as b'), function($join) {
-        $join->on('a.tipo_identificacion', '=', 'b.tipoIdentificacion')
-             ->on('a.numero_identificacion', '=', 'b.identificacion');
-    })
-    ->leftJoin(DB::connection('sqlsrv_1')->raw('[sga].[dbo].[maestroips] as c'), 'b.numeroCarnet', '=', 'c.numeroCarnet')
-    ->leftJoin(DB::connection('sqlsrv_1')->raw('[sga].[dbo].[maestroIpsGru] as d'), 'c.idGrupoIps', '=', 'd.id')
-    ->get();
-
-// Preparar los datos para la vista
-foreach ($sivigilas as $student2) {
-    $incomeedit14 = DB::connection('sqlsrv_1')
-        ->table('maestroAfiliados as a')
-        ->join('maestroips as b', 'a.numeroCarnet', '=', 'b.numeroCarnet')
-        ->join('maestroIpsGru as c', 'b.idGrupoIps', '=', 'c.id')
-        ->join('maestroIpsGruDet as d', function ($join) {
-            $join->on('c.id', '=', 'd.idd')
-                ->where('d.servicio', '=', 1);
-        })
-        ->join('refIps as e', 'd.idIps', '=', 'e.idIps')
-        ->select(DB::raw('CAST(e.codigo AS BIGINT) as codigo_habilitacion'))
-        ->where('a.identificacion', $student2->numero_identificacion)
-        ->first();
-
-    if ($incomeedit14 !== null) {
-        $income12 = DB::table('users')
-            ->select('name', 'id', 'codigohabilitacion')
-            ->where('codigohabilitacion', $incomeedit14->codigo_habilitacion)
-            ->first();
-
-        if ($income12 === null) {
-            $student2->displayText = 'Sin datos, NO ASIGNAR hasta confirmar prestador primario';
-            $student2->textColor = 'red';
-        } else {
-            $student2->displayText = $income12->name;
-            $student2->textColor = 'black'; // Color negro (o cualquier color por defecto)
+    /**
+     * Genera el HTML de las acciones según procesado y user_id.
+     */
+    protected function renderAcciones($row)
+    {
+        $token = csrf_token();
+        // 1) Si ya procesado en evento 113
+        if ($row->procesado) {
+            return <<<HTML
+<div class="alert alert-warning text-center p-2" style="font-size:.8rem">
+  <i class="fas fa-exclamation-triangle mr-1"></i>
+  <strong>¡Atención!</strong><br> YA TIENE SEGUIMIENTO EN EVENTO 113
+</div>
+HTML;
         }
-    } else {
-        $student2->displayText = 'Sin datos, NO ASIGNAR hasta confirmar prestador primario';
-        $student2->textColor = 'red';
+
+        // 2) URLs y formulario oculto
+        $editUrl = url("/new412/{$row->id}/{$row->numero_identificacion}/edit");
+        $delUrl  = route('new412.destroy', $row->id);
+        $formId  = "del-{$row->id}";
+
+        $deleteForm = <<<HTML
+<form id="{$formId}" action="{$delUrl}" method="POST" style="display:none">
+  <input type="hidden" name="_method" value="DELETE">
+  <input type="hidden" name="_token" value="{$token}">
+</form>
+HTML;
+
+        // 3) Si no tiene user_id: permitir borrar y editar
+        if (is_null($row->user_id)) {
+            return <<<HTML
+<a href="{$delUrl}" class="btn btn-danger btn-sm"
+   onclick="event.preventDefault(); if(confirm('¿Eliminar registro?')) document.getElementById('{$formId}').submit();">
+  <i class="fas fa-trash"></i>
+</a>
+{$deleteForm}
+<a href="{$editUrl}" class="btn btn-success btn-sm">
+  <i class="fas fa-edit"></i>
+</a>
+HTML;
+        }
+
+        // 4) Ya tiene user_id: mostrar procesado + permitir editar y borrar
+        return <<<HTML
+<a class="btn btn-secondary btn-sm" title="Procesado">
+  <i class="fas fa-stop"></i> Procesado
+</a>
+<a href="{$editUrl}" class="btn btn-success btn-sm">
+  <i class="fas fa-tools"></i>
+</a>
+<a href="{$delUrl}" class="btn btn-danger btn-sm"
+   onclick="event.preventDefault(); if(confirm('¿Eliminar registro?')) document.getElementById('{$formId}').submit();">
+  <i class="fas fa-trash"></i>
+</a>
+{$deleteForm}
+HTML;
     }
-}
-
-
-
-
-
-        // $sivigilas = Cargue412::from('cargue412s as a')
-        // ->select('a.*', 'd.descrip as ips_primaria')
-        // ->leftJoin(DB::connection('sqlsrv_1')->raw('[sga].[dbo].[maestroidentificaciones] as b'), function($join) {
-        //     $join->on('a.tipo_identificacion', '=', 'b.tipoIdentificacion')
-        //          ->on('a.numero_identificacion', '=', 'b.identificacion');
-        // })
-        // ->leftJoin(DB::connection('sqlsrv_1')->raw('[sga].[dbo].[maestroips] as c'), 'b.numeroCarnet', '=', 'c.numeroCarnet')
-        // ->leftJoin(DB::connection('sqlsrv_1')->raw('[sga].[dbo].[maestroIpsGru] as d'), 'c.idGrupoIps', '=', 'd.id')
-        // ->get();
-
-        //OTRA FROMA DE HACERLO 
-        // $sivigilas = DB::table(DB::raw('[DESNUTRICION]..[cargue412s] AS [a]'))
-        // ->select(
-        //     'a.*',
-        //     'd.descrip as ips_primaria'
-        // )
-        // ->leftJoin(DB::raw('[sga]..[maestroidentificaciones] AS [b]'), function($join) {
-        //     $join->on('a.tipo_identificacion', '=', 'b.tipoIdentificacion')
-        //          ->on('a.numero_identificacion', '=', 'b.identificacion');
-        // })
-        // ->leftJoin(DB::raw('[sga]..[maestroips] AS [c]'), 'b.numeroCarnet', '=', 'c.numeroCarnet')
-        // ->leftJoin(DB::raw('[sga]..[maestroIpsGru] AS [d]'), 'c.idGrupoIps', '=', 'd.id')
-        // ->get();
-        return view('new_412.form',compact('sivigilas','seguimientoen113'));
-
-        
-    }
+    
+    
+    
+    
 
     public function importExcel(Request $request)
     {

@@ -157,7 +157,15 @@ Route::get('/nuevo', 'App\Http\Controllers\SivigilaController@create1')->name('c
 
 
 //RUTAS PARA EL CARGUE DE LA  INFORMACION
-Route::get('/import-excel', [Cargue412Controller::class, 'showImportForm'])->name('import-excel-form')->middleware('auth');
+// Formulario + DataTable
+Route::get('/import-excel', [Cargue412Controller::class, 'showImportForm'])
+     ->name('import-excel-form')
+     ->middleware('auth');
+
+// Endpoint AJAX
+Route::get('/import-excel/data', [Cargue412Controller::class, 'getData'])
+     ->name('import-excel-data')
+     ->middleware('auth');
 Route::post('/import-excel', [Cargue412Controller::class, 'importExcel'])->name('import-excel')->middleware('auth');
 
 //RUTA PARA DESCARGAR MANUAL

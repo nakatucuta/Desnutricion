@@ -1,377 +1,244 @@
 @extends('adminlte::page')
 
-@section('title', 'Anas wayuu')
+@section('title', 'Anas Wayuu')
 
 @section('content_header')
 
+    <h1 class="executive-title">Importar Excel y Tabla 412</h1>
+@stop
 
-
-
-            @section('content')
-            <br>
-            <a href="{{route('export7')}}" class="btn btn-success btn-sm"
-            style="float: right; margin-right: 1rem; position: relative; right: 0; border-radius: 50px; padding: 10px 20px; font-weight: bold; letter-spacing: 1px; background-color: #28a745;">
+@section('content')
+<div class="container-fluid mt-5">
+    {{-- Botón de exportar --}}
+    <div class="row mb-3">
+        <div class="col">
+            <a href="{{ route('export7') }}" class="btn btn-success btn-sm float-right">
                 <i class="fas fa-file-export mr-2"></i> EXPORTAR
             </a>
-            @include('new_412.mensajes')
-            {{-- @if ($message = Session::get('success'))
-            <div class="alert alert-success text-center">
-                <strong>{{ $message }}</strong>
-            </div>
-            @endif --}}
-            
-            <div class="container mt-5">
-                <div class="row">
-                    <div class="col-md-6 offset-md-3">
-                        <form action="{{ route('import-excel') }}" method="POST" enctype="multipart/form-data" class="form-horizontal" id="file-upload-form">
-                            @csrf
-                            <div class="form-group">
-                                <!-- Área de arrastrar y soltar -->
-                                <div id="drag-drop-area" class="drag-drop-area">
-                                    <p>Arrastra y suelta un archivo aquí o haz clic para seleccionar un archivo</p>
-                                    <input type="file" name="file" class="form-control" style="display: none;">
-                                </div>
-                            </div>
-                            <div class="form-group text-center">
-                                <button type="submit" class="btn btn-primary">Importar Excel</button>
-                            </div>
-                        </form>
-                    </div>
+        </div>
+    </div>
+
+    {{-- Formulario de importación --}}
+    <div class="row mb-4 justify-content-center">
+        <div class="col-md-6">
+            <form action="{{ route('import-excel') }}"
+                  method="POST"
+                  enctype="multipart/form-data"
+                  id="file-upload-form">
+                @csrf
+                <div id="drag-drop-area" class="drag-drop-area mb-2">
+                    <p id="file-instructions">
+                        Arrastra y suelta un archivo aquí o haz clic para seleccionar uno
+                    </p>
+                    <input type="file"
+                           name="file"
+                           accept=".xls,.xlsx"
+                           class="file-input">
                 </div>
-                
-            </div>
-            
-            
+                <div class="text-center">
+                    <button type="submit" class="btn btn-primary">Importar Excel</button>
+                </div>
+            </form>
+        </div>
+    </div>
 
+    {{-- Filtro por año --}}
+    <div class="row mb-2">
+        <div class="col-auto">
+            <label for="filter-year" class="mr-2">Filtrar año captación:</label>
+            <select id="filter-year" class="form-control form-control-sm">
+                <option value="">Todos</option>
+                @foreach($years as $y)
+                    <option value="{{ $y }}">{{ $y }}</option>
+                @endforeach
+            </select>
+        </div>
+    </div>
 
-         
-
-
-
-            <table class="table table-hover table-striped table-bordered" style="border: 1px solid #000000;" id="sivigila"> 
-                <thead class="table table-hover table-info table-bordered" style="background-color: #d9f2e6; border: 1px solid #000000;">
+    {{-- Tabla Sivigilas con DataTables server-side --}}
+    <div class="row">
+        <div class="col-12">
+            <table id="sivigila" class="table table-striped table-bordered" style="min-width:1200px;">
+                <thead>
                     <tr>
-                        <th style="font-size: smaller;" scope="col">Fecha cargue</th>
-                        <th style="font-size: smaller;" scope="col">Id</th>
-                        {{-- <th style="font-size: smaller;" scope="col">Número de Orden</th> --}}
-                        <th style="font-size: smaller;" scope="col">Nombre Coperante</th>
-                        <th style="font-size: smaller;" scope="col">Fecha de Captación</th>
-                        <th style="font-size: smaller;" scope="col">Municipio</th>
-                        {{-- <th style="font-size: smaller;" scope="col">Nombre Ranchería</th> --}}
-                        {{-- <th style="font-size: smaller;" scope="col">Ubicación Casa</th> --}}
-                        <th style="font-size: smaller;" scope="col">Nombre Cuidador</th>
-                        {{-- <th style="font-size: smaller;" scope="col">Identificación Cuidador</th> --}}
-                        {{-- <th style="font-size: smaller;" scope="col">Teléfono Cuidador</th> --}}
-                        {{-- <th style="font-size: smaller;" scope="col">Nombre EAPB Cuidador</th> --}}
-                        {{-- <th style="font-size: smaller;" scope="col">Nombre Autoridad Trad. Ancestral</th>
-                        <th style="font-size: smaller;" scope="col">Datos de Contacto Autoridad</th> --}}
-                        <th style="font-size: smaller;" scope="col">Primer Nombre</th>
-                        {{-- <th style="font-size: smaller;" scope="col">Segundo Nombre</th>
-                        <th style="font-size: smaller;" scope="col">Primer Apellido</th>
-                        <th style="font-size: smaller;" scope="col">Segundo Apellido</th> --}}
-                        <th style="font-size: smaller;" scope="col">Tipo de Identificación</th>
-                        <th style="font-size: smaller;" scope="col">Número de Identificación</th>
-                        <th style="font-size: smaller;" scope="col">Sexo</th>
-                        {{-- <th style="font-size: smaller;" scope="col">Fecha de Nacimiento del Niño</th> --}}
-                        <th style="font-size: smaller;" scope="col">Edad en Meses</th>
-                        <th style="font-size: smaller;" scope="col">Ips Primaria</th>
-                        {{-- <th style="font-size: smaller;" scope="col">Validacion</th> --}}
-                        <th style="font-size: smaller;" scope="col">Acciones</th>
-                        {{-- <th style="font-size: smaller;" scope="col">Regimen de Afiliación</th>
-                        <th style="font-size: smaller;" scope="col">Nombre EAPB Menor</th>
-                        <th style="font-size: smaller;" scope="col">Peso (kg)</th>
-                        <th style="font-size: smaller;" scope="col">Longitud/Talla (cm)</th>
-                        <th style="font-size: smaller;" scope="col">Perímetro Braquial</th>
-                        <th style="font-size: smaller;" scope="col">Signos de Peligro de Infección Respiratoria</th>
-                        <th style="font-size: smaller;" scope="col">Sexo y Signos de Desnutrición</th>
-                        <th style="font-size: smaller;" scope="col">Puntaje Z</th>
-                        <th style="font-size: smaller;" scope="col">Clasificación Antropométrica</th>
-                        <th style="font-size: smaller;" scope="col">Acciones</th> --}}
+                        <th>Fecha cargue</th>
+                        <th>Id</th>
+                        <th>Nombre Coperante</th>
+                        <th>Fecha Captación</th>
+                        <th>Municipio</th>
+                        <th>Nombre Cuidador</th>
+                        <th>Primer Nombre</th>
+                        <th>Tipo de Identificación</th>
+                        <th>Número de Identificación</th>
+                        <th>Sexo</th>
+                        <th>Edad en Meses</th>
+                        <th>IPS Primaria</th>
+                        <th>Acciones</th>
                     </tr>
                 </thead>
-                <tbody id="table">
-                    @foreach($sivigilas as $student2)
-
-                    
-
-
-                    <tr>
-                        <td><small>{{ $student2->created_at }}</small></td>
-                        <td><small>{{ $student2->id }}</small></td>
-                        {{-- <td><small>{{ $student2->numero_orden }}</small></td> --}}
-                        <td><small>{{ $student2->nombre_coperante }}</small></td>
-                        <td><small>{{ $student2->fecha_captacion }}</small></td>
-                        <td><small>{{ $student2->municipio }}</small></td>
-                        {{-- <td><small>{{ $student2->nombre_rancheria }}</small></td> --}}
-                        {{-- <td><small>{{ $student2->ubicacion_casa }}</small></td> --}}
-                        <td><small>{{ $student2->nombre_cuidador }}</small></td>
-                        {{-- <td><small>{{ $student2->identioficacion_cuidador }}</small></td> --}}
-                        {{-- <td><small>{{ $student2->telefono_cuidador }}</small></td> --}}
-                        {{-- <td><small>{{ $student2->nombre_eapb_cuidador }}</small></td>
-                        <td><small>{{ $student2->nombre_autoridad_trad_ansestral }}</small></td>
-                        <td><small>{{ $student2->datos_contacto_autoridad }}</small></td> --}}
-                        <td><small>{{ $student2->primer_nombre.' '.$student2->segundo_nombre.' '.$student2->primer_apellido.' '.
-                            $student2->segundo_apellido }} </small> </td>
-                        {{-- <td><small>{{ $student2->primer_nombre }}</small></td>
-                        <td><small>{{ $student2->segundo_nombre }}</small></td>
-                        <td><small>{{ $student2->primer_apellido }}</small></td>
-                        <td><small>{{ $student2->segundo_apellido }}</small></td> --}}
-                        <td><small>{{ $student2->tipo_identificacion }}</small></td>
-                        <td><small>{{ $student2->numero_identificacion }}</small></td>
-                        <td><small>{{ $student2->sexo }}</small></td>
-                        {{-- <td><small>{{ $student2->fecha_nacimieto_nino }}</small></td> --}}
-                        <td><small>{{ $student2->edad_meses }}</small></td>
-                        <td style="color: {{ $student2->textColor }}"><small>{{ $student2->displayText }}</small></td>
-                        {{-- <td>
-                            <small>
-                                @if ($seguimientoen113->contains($student2->numero_identificacion))
-                                    
-                                <span class="badge badge-warning d-block text-wrap" style="white-space: normal; font-size: 0.875rem;">
-                                        NO ASIGNAR YA QUE TIENE UN SEGUIMIENTO ACTIVO EN EVENTO 113
-                                    </span>
-                                @endif
-                            </small>
-                        </td> --}}
-                        <td><small> 
-                            @if ($seguimientoen113->contains($student2->numero_identificacion))
-                            <div class="alert alert-warning text-center" role="alert" style="background-color: #ffcc00; color: #333; padding: 10px; border-radius: 5px; position: relative; font-size: 0.8rem;">
-                                <div class="d-flex flex-column align-items-center">
-                                    <i class="fas fa-exclamation-triangle" style="font-size: 1.2rem; margin-bottom: 5px; animation: colorChange 3s infinite;"></i>
-                                    <span>
-                                        <strong>¡Atención!</strong> NO ASIGNAR YA QUE TIENE UN SEGUIMIENTO ACTIVO EN EVENTO 113
-                                    </span>
-                                </div>
-                            </div>
-                            
-                            @else
-                            @if ($student2->user_id === null)
-                            <!-- El campo user_id es NULL -->
-
-                            <!-- El campo user_id no es NULL -->
-                            <a href="{{ route('new412.destroy', $student2->id) }}"
-                                onclick="event.preventDefault();
-                                         if(confirm('¿Está seguro de que desea eliminar el producto?')) {
-                                             document.getElementById('delete-form-{{$student2->id}}').submit();
-                                         }" class="btn  btn-danger btn-sm">
-                                 <i class="fas fa-trash"></i>
-                             </a>
-                             <form id="delete-form-{{$student2->id}}" action="{{ route('new412.destroy', $student2->id) }}"
-                                   method="POST" style="display: none;">
-                                 @method('DELETE')
-                                 @csrf
-                             </form>
-                         
-                             <a class="btn btn-success btn-sm" href="{{ url('/new412/' . $student2->id . '/' . $student2->numero_identificacion . '/edit') }}" class="ref">
-                                 <i class="fas fa-edit"></i>
-                             </a>
-                            
-                        @else
-                        <a href="" onclick="return false;" title="DETALLE" class="btn  btn-secondary btn-sm">
-                            <span class="icon-zoom-in" ></span>Procesado <i class="fas fa-stop"></i></a>
-
-
-                            <a class="btn btn-success btn-sm" href="{{ url('/new412/' . $student2->id . '/' . $student2->numero_identificacion . '/edit') }}" class="ref">
-                                <i class="fas fa-tools"></i>
-
-                                <a href="{{ route('new412.destroy', $student2->id) }}"
-                                    onclick="event.preventDefault();
-                                             if(confirm('¿Está seguro de que desea eliminar el producto?')) {
-                                                 document.getElementById('delete-form-{{$student2->id}}').submit();
-                                             }" class="btn  btn-danger btn-sm">
-                                     <i class="fas fa-trash"></i>
-                                 </a>
-                                 <form id="delete-form-{{$student2->id}}" action="{{ route('new412.destroy', $student2->id) }}"
-                                       method="POST" style="display: none;">
-                                     @method('DELETE')
-                                     @csrf
-                                 </form>
-                            </a>
-                        @endif
-
-
-                        @endif
-                            
-                        </small></td>
-                        {{-- <td><small>{{ $student2->regimen_afiliacion }}</small></td>
-                        <td><small>{{ $student2->nombre_eapb_menor }}</small></td>
-                        <td><small>{{ $student2->peso_kg }}</small></td>
-                        <td><small>{{ $student2->logitud_talla_cm }}</small></td>
-                        <td><small>{{ $student2->perimetro_braqueal }}</small></td>
-                        <td><small>{{ $student2->signos_peligro_infeccion_respiratoria }}</small></td>
-                        <td><small>{{ $student2->sexosignos_desnutricion }}</small></td>
-                        <td><small>{{ $student2->puntaje_z }}</small></td>
-                        <td><small>{{ $student2->calsificacion_antropometrica }}</small></td> --}}
-                         <!-- Columna de acciones -->
-                    </tr>
-                    @endforeach 
-                </tbody>
+                <tbody></tbody>
             </table>
+        </div>
+    </div>
+</div>
+@stop
 
-
-            @section('css')
+@section('css')
 <link rel="stylesheet" href="{{ asset('vendor/DataTables/css/dataTables.bootstrap.css') }}">
 <link rel="stylesheet" href="{{ asset('vendor/DataTables/css/jquery.dataTables.css') }}">
+<style>
+.drag-drop-area {
+    position: relative;
+    height: 200px;
+    border: 2px dashed #ccc;
+    border-radius: 5px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+}
+.drag-drop-area:hover { background-color: #f9f9f9; }
+.drag-drop-area.drag-over { background-color: #e8f4ff !important; }
+.drag-drop-area .file-input {
+    position: absolute; width:100%; height:100%; top:0; left:0; opacity:0;
+}
+#file-instructions { z-index:1; color:#666; }
+/* Centramos el processing overlay */
+.dataTables_wrapper .dataTables_processing {
+    top: 50%;
+    left: 50%;
+    width: auto;
+    height: auto;
+    padding: .5em 1em;
+    margin-left: -1.5em;
+    margin-top: -1.5em;
+    border-radius: .3em;
+    background: rgba(255,255,255,0.8);
+}
 
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11.3.4/dist/sweetalert2.all.min.js"></script>
 
+
+.title-wrapper {
+      text-align: center; /* centra todo su contenido */
+      margin: 20px 0;
+    }
+    .executive-title {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      font-size: 36px;
+      font-weight: 700;
+      color: #2C3E50;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.2);
+      padding: 10px 20px;
+      background: linear-gradient(135deg, #ecf0f1, #bdc3c7);
+      border-radius: 8px;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
+      border-left: 6px solid #2980b9;
+      display: inline-block; /* ocupa sólo el ancho del contenido */
+    }
+</style>
 @stop
-            @section('js')
 
-
+@section('js')
 <script src="{{ asset('vendor/jquery/jquery.min.js') }}"></script>
 <script src="{{ asset('vendor/DataTables/js/jquery.dataTables.min.js') }}"></script>
 <script src="{{ asset('vendor/DataTables/js/dataTables.bootstrap5.min.js') }}"></script>
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11.3.4/dist/sweetalert2.all.min.js"></script>
 
-<style> 
-
-.dataTables_filter input {
-  width: 500px !important;
-  height: 100%;
-  background-color: #555 ;
-  border: solid 3px !important;
-  border-radius: 20px !important;
-  color: rgb(64, 125, 232);
-  padding: 10px !important;
-  font-weight: bold !important;
-}
-
-.dataTables_filter label {
-  font-weight: bold !important ;
-}
-
- .dataTables_length label {
-  
-  font-weight: bold !important;
-} 
-
-.dataTables_length select {
-  display: flex ;
-  border: solid 3px !important;
-  border-radius: 20px !important;
-  align-items: center !important;
-  margin-bottom: 10px !important;
-  color: rgb(64, 125, 232) !important;
-}
-
-
-.drag-drop-area {
-    border: 2px dashed #ccc;
-    border-radius: 5px;
-    padding: 20px;
-    text-align: center;
-    cursor: pointer;
-}
-
-.drag-drop-area:hover {
-    background-color: #f9f9f9;
-}
-
-.drag-over {
-    background-color: #e8f4ff;
-}
-
- @keyframes colorChange {
-        0% { color: #ff3333; }
-        25% { color: #ffcc00; }
-        50% { color: #33cc33; }
-        75% { color: #3399ff; }
-        100% { color: #ff3333; }
-    }
-
-
-            </style>
-
-            <script>
-                $(document).ready(function () {
-                  $('#sivigila').DataTable({
-              
-                    "language":{
-              
-                          "search": "BUSCAR",
-                          "lengthMenu": "Mostrar _MENU_ registros",
-                          "info": "Mostrando pagina _PAGE_ de _PAGES_",
-                          "paginate": {
-                          "first": "Primero",
-                          "last": "Último",
-                          "next": "Siguiente",
-                          "previous": "Anterior"
-                                         }
-              
-              
-                            }
-              
-                  });
-              });
-
-
-
-              
-              </script>  
-
-{{-- JAVA SCRIPT PARA EL DRAG AND DROG --}}
 <script>
-document.addEventListener("DOMContentLoaded", function() {
-    var dragDropArea = document.getElementById('drag-drop-area');
-    var inputFile = dragDropArea.querySelector('input[type="file"]');
-    var fileNameDisplay = document.createElement('p'); // Crear un elemento <p> para mostrar el nombre del archivo
-    dragDropArea.appendChild(fileNameDisplay); // Añadir el elemento <p> al área de arrastrar y soltar
+$(function() {
+  // Inicializar DataTable con spinner en lugar de texto
+  var table = $('#sivigila').DataTable({
+    processing: true,
+    serverSide: true,
+    deferRender: true,
+    stateSave: true,
+    pageLength: 10,
+    language: {
+      processing: '<div class="spinner-border text-primary" role="status"><span class="sr-only">Cargando...</span></div>',
+      search:     "BUSCAR",
+      lengthMenu: "Mostrar _MENU_ registros",
+      info:       "Mostrando página _PAGE_ de _PAGES_",
+      paginate: {
+        first:    "Primero",
+        last:     "Último",
+        next:     "Siguiente",
+        previous: "Anterior"
+      }
+    },
+    ajax: {
+      url: '{!! route('import-excel-data') !!}',
+      data: function(d) {
+        d.year = $('#filter-year').val();
+      }
+    },
+    order: [[0,'desc']],
+    columns: [
+      { data:'fecha_cargue',          name:'fecha_cargue' },
+      { data:'id',                    name:'id' },
+      { data:'nombre_coperante',      name:'nombre_coperante' },
+      { data:'fecha_captacion',       name:'fecha_captacion' },
+      { data:'municipio',             name:'municipio' },
+      { data:'nombre_cuidador',       name:'nombre_cuidador' },
+      { data:'nombres_completos',     name:'nombres_completos' },
+      { data:'tipo_identificacion',   name:'tipo_identificacion' },
+      { data:'numero_identificacion', name:'numero_identificacion' },
+      { data:'sexo',                  name:'sexo' },
+      { data:'edad_meses',            name:'edad_meses' },
+      { data:'ips_primaria',          name:'ips_primaria' },
+      { data:'acciones',              orderable:false, searchable:false }
+    ]
+  });
 
-    dragDropArea.onclick = function () {
-        inputFile.click();
-    };
+  // Cuando cambie el año, recargamos
+  $('#filter-year').on('change', function(){
+    table.ajax.reload();
+  });
 
-    inputFile.onchange = function () {
-        validateAndDisplayFile(inputFile.files);
-    };
+  // Drag & drop y validación de archivo
+  const area  = $('#drag-drop-area'),
+        input = area.find('.file-input'),
+        info  = $('#file-instructions');
 
-    dragDropArea.ondragover = dragDropArea.ondragenter = function(evt) {
-        evt.preventDefault();
-        dragDropArea.classList.add('drag-over');
-    };
+  area.on('click',    () => input.trigger('click'));
+  input.on('change',  e => showFile(e.target.files));
+  area.on('dragover dragenter', e => { e.preventDefault(); area.addClass('drag-over'); });
+  area.on('dragleave drop',     e => { e.preventDefault(); area.removeClass('drag-over'); });
+  area.on('drop',               e => {
+    input[0].files = e.originalEvent.dataTransfer.files;
+    showFile(input[0].files);
+  });
 
-    dragDropArea.ondragleave = function() {
-        dragDropArea.classList.remove('drag-over');
-    };
-
-    dragDropArea.ondrop = function(evt) {
-        evt.preventDefault();
-        dragDropArea.classList.remove('drag-over');
-        
-        // Obtiene el archivo desde el evento de arrastrar y soltar
-        inputFile.files = evt.dataTransfer.files;
-        validateAndDisplayFile(inputFile.files);
-    };
-
-    function validateAndDisplayFile(files) {
-    if (files.length > 0) {
-        var file = files[0];
-        if (file.type === "application/vnd.ms-excel" || file.type === "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet") {
-            fileNameDisplay.textContent = `Archivo cargado: ${file.name}`;
-            // Restablecer estilos en caso de éxito
-            fileNameDisplay.style.background = ""; // Color de fondo por defecto
-            fileNameDisplay.style.color = ""; // Color de texto por defecto
-        } else {
-            fileNameDisplay.textContent = "Por favor, sube un archivo Excel (.xls, .xlsx)";
-            // Establecer el color de fondo a rojo y el texto a blanco
-            fileNameDisplay.style.background = "red";
-            fileNameDisplay.style.color = "white";
-            fileNameDisplay.style.padding = "10px"; // Agregar algo de padding para mejor estética
-            fileNameDisplay.style.borderRadius = "5px"; // Bordes redondeados para mejor estética
-            fileNameDisplay.style.marginTop = "10px"; // Espacio sobre el mensaje de error
-            // Restablecer el valor del input file si el archivo no es válido
-            inputFile.value = "";
-        }
+  function showFile(files) {
+    if (!files.length) return;
+    const f  = files[0],
+          ok = [
+            'application/vnd.ms-excel',
+            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+          ];
+    if (ok.includes(f.type)) {
+      info.text(`Archivo seleccionado: ${f.name}`).css({ background:'', color:'' });
+    } else {
+      info.text('Solo archivos Excel (.xls, .xlsx)')
+          .css({ background:'red', color:'white', padding:'5px', borderRadius:'3px' });
+      input.val('');
     }
-}
+  }
+
+  // SweetAlert de mensajes de sesión
+  @if(Session::has('mensaje'))
+    Swal.fire({ icon:'info',    title:'Mensaje',       text:"{{ Session::get('mensaje') }}",    confirmButtonText:'Cerrar' });
+  @endif
+  @if(Session::has('success'))
+    Swal.fire({ icon:'success', title:'Éxito',         text:"{{ Session::get('success') }}",    confirmButtonText:'Cerrar' });
+  @endif
+  @if(Session::has('error1'))
+    Swal.fire({ icon:'error',   title:'Error de Cargue', html:`{!! nl2br(e(Session::get('error1'))) !!}`, confirmButtonText:'Cerrar', width:'940px' });
+  @endif
+  @if($errors->any())
+    Swal.fire({ icon:'error', title:'Errores', html:`<ul>@foreach($errors->all() as $e)<li>{{ $e }}</li>@endforeach</ul>`, confirmButtonText:'Cerrar' });
+  @endif
 });
-
-
-
 </script>
 @stop
-
-@stop
-
-
-
