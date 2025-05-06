@@ -3,7 +3,6 @@
 @section('title', 'Anas Wayuu')
 
 @section('content_header')
-
     <h1 class="executive-title">Importar Excel y Tabla 412</h1>
 @stop
 
@@ -45,8 +44,8 @@
     {{-- Filtro por año --}}
     <div class="row mb-2">
         <div class="col-auto">
-            <label for="filter-year" class="mr-2">Filtrar año captación:</label>
-            <select id="filter-year" class="form-control form-control-sm">
+            <label for="filter-year-412" class="mr-2">Filtrar año captación:</label>
+            <select id="filter-year-412" class="form-control form-control-sm">
                 <option value="">Todos</option>
                 @foreach($years as $y)
                     <option value="{{ $y }}">{{ $y }}</option>
@@ -55,10 +54,10 @@
         </div>
     </div>
 
-    {{-- Tabla Sivigilas con DataTables server-side --}}
+    {{-- Tabla 412 con DataTables server-side --}}
     <div class="row">
         <div class="col-12">
-            <table id="sivigila" class="table table-striped table-bordered" style="min-width:1200px;">
+            <table id="new412-table" class="table table-striped table-bordered" style="min-width:1200px;">
                 <thead>
                     <tr>
                         <th>Fecha cargue</th>
@@ -103,40 +102,20 @@
     position: absolute; width:100%; height:100%; top:0; left:0; opacity:0;
 }
 #file-instructions { z-index:1; color:#666; }
-/* Centramos el processing overlay */
+/* Centramos el spinner */
 .dataTables_wrapper .dataTables_processing {
-    top: 50%;
-    left: 50%;
-    width: auto;
-    height: auto;
-    padding: .5em 1em;
-    margin-left: -1.5em;
-    margin-top: -1.5em;
-    border-radius: .3em;
-    background: rgba(255,255,255,0.8);
+    position: absolute !important;
+    top: 50% !important;
+    left: 50% !important;
+    width: auto !important;
+    height: auto !important;
+    margin-left: -30px !important;
+    margin-top: -30px !important;
+    background: transparent !important;
+    border: none !important;
+    pointer-events: none !important;
+    z-index: 10 !important;
 }
-
-
-
-.title-wrapper {
-      text-align: center; /* centra todo su contenido */
-      margin: 20px 0;
-    }
-    .executive-title {
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      font-size: 36px;
-      font-weight: 700;
-      color: #2C3E50;
-      text-transform: uppercase;
-      letter-spacing: 2px;
-      text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.2);
-      padding: 10px 20px;
-      background: linear-gradient(135deg, #ecf0f1, #bdc3c7);
-      border-radius: 8px;
-      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
-      border-left: 6px solid #2980b9;
-      display: inline-block; /* ocupa sólo el ancho del contenido */
-    }
 </style>
 @stop
 
@@ -148,8 +127,8 @@
 
 <script>
 $(function() {
-  // Inicializar DataTable con spinner en lugar de texto
-  var table = $('#sivigila').DataTable({
+  // Inicializar DataTable exclusivo para la tabla 412
+  var table412 = $('#new412-table').DataTable({
     processing: true,
     serverSide: true,
     deferRender: true,
@@ -170,7 +149,7 @@ $(function() {
     ajax: {
       url: '{!! route('import-excel-data') !!}',
       data: function(d) {
-        d.year = $('#filter-year').val();
+        d.year = $('#filter-year-412').val();
       }
     },
     order: [[0,'desc']],
@@ -191,9 +170,9 @@ $(function() {
     ]
   });
 
-  // Cuando cambie el año, recargamos
-  $('#filter-year').on('change', function(){
-    table.ajax.reload();
+  // Recargar al cambiar año
+  $('#filter-year-412').on('change', function(){
+    table412.ajax.reload();
   });
 
   // Drag & drop y validación de archivo
@@ -226,7 +205,7 @@ $(function() {
     }
   }
 
-  // SweetAlert de mensajes de sesión
+  // SweetAlert para mensajes de sesión
   @if(Session::has('mensaje'))
     Swal.fire({ icon:'info',    title:'Mensaje',       text:"{{ Session::get('mensaje') }}",    confirmButtonText:'Cerrar' });
   @endif
@@ -237,7 +216,7 @@ $(function() {
     Swal.fire({ icon:'error',   title:'Error de Cargue', html:`{!! nl2br(e(Session::get('error1'))) !!}`, confirmButtonText:'Cerrar', width:'940px' });
   @endif
   @if($errors->any())
-    Swal.fire({ icon:'error', title:'Errores', html:`<ul>@foreach($errors->all() as $e)<li>{{ $e }}</li>@endforeach</ul>`, confirmButtonText:'Cerrar' });
+    Swal.fire({ icon:'error', title:'Errores encontrados', html:`<ul>@foreach($errors->all() as $e)<li>{{ $e }}</li>@endforeach</ul>`, confirmButtonText:'Cerrar' });
   @endif
 });
 </script>
