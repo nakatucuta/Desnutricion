@@ -262,6 +262,8 @@ class SeguimientoController extends Controller
             'required' => 'El campo :attribute es obligatorio.',
             'numeric'  => 'El campo :attribute debe ser numérico.',
             'date'     => 'El campo :attribute debe ser una fecha válida.',
+            'after_or_equal' => 'El campo :attribute debe ser igual o posterior a :date.',
+
         ]);
 
         // 2) Evitar duplicados futuros
