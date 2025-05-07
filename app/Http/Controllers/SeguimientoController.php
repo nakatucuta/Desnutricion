@@ -262,7 +262,7 @@ class SeguimientoController extends Controller
             'required' => 'El campo :attribute es obligatorio.',
             'numeric'  => 'El campo :attribute debe ser numérico.',
             'date'     => 'El campo :attribute debe ser una fecha válida.',
-            'after_or_equal' => 'El campo :attribute debe ser igual o posterior a :date.',
+            'after_or_equal' => 'El campo :attribute debe ser igual o posterior a LA FECHA ACTUAL NO PUEDE COLOCAR UNA  FECHA DE PROXIMO SEGUIMIENTO MENOR A LA  ACTUAL.',
 
         ]);
 
