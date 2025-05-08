@@ -212,6 +212,7 @@ class SeguimientoController extends Controller
      */
     public function create()
     {
+        $yearActual = Carbon::now()->year;
 
         $incomeedit = DB::table('sivigilas')
         ->select('sivigilas.num_ide_','sivigilas.pri_nom_','sivigilas.seg_nom_',
@@ -219,7 +220,7 @@ class SeguimientoController extends Controller
         // ->join('seguimientos', 'sivigilas.id', '=', 'seguimientos.sivigilas_id')
         ->where('sivigilas.estado', '=', 1)
         ->where('user_id', Auth::user()->id)
-        ->whereYear('sivigilas.created_at', '>', 2023) 
+        ->whereYear('sivigilas.created_at', '=', $yearActual) 
         ->get();
 
         $income12 =  DB::connection('sqlsrv_1')->table('refIps')->select('descrip')
@@ -657,22 +658,26 @@ public function detallePrestador($id)
     \Log::info('ID recibido en el controlador: ' . $id);
 
     // Realiza la consulta para obtener los detalles del prestador
-$detalles = DB::table('DESNUTRICION.dbo.cargue412s')
-    ->join('DESNUTRICION.dbo.users', 'cargue412s.user_id', '=', 'users.id')
-    ->leftJoin('DESNUTRICION.dbo.seguimiento_412s', 'cargue412s.id', '=', 'seguimiento_412s.cargue412_id')
-    ->where('users.id', $id) // Filtrar por el ID del usuario (dinámico)
-    ->whereNull('seguimiento_412s.cargue412_id') // Filtro para registros sin seguimiento
-    ->whereRaw('YEAR(cargue412s.created_at) > ?', [2023]) // Filtro para los registros creados después de 2023
-    ->select(
-        'cargue412s.primer_nombre',
-        'cargue412s.segundo_nombre',
-        'cargue412s.primer_apellido',
-        'cargue412s.segundo_apellido',
-        'cargue412s.tipo_identificacion',
-        'cargue412s.numero_identificacion',
-        'cargue412s.fecha_captacion',
-    )
+    $detalles = DB::table('DESNUTRICION.dbo.cargue412s as cgr')
+    ->join('DESNUTRICION.dbo.users as usr', 'usr.id', '=', 'cgr.user_id')
+    ->leftJoin('DESNUTRICION.dbo.seguimiento_412s as seg', 'seg.cargue412_id', '=', 'cgr.id')
+    ->where('cgr.user_id', $id)                             // solo registros asignados al usuario $id
+    ->whereNull('seg.id')                                   // que no tengan NINGÚN seguimiento en seguimiento_412s
+    ->whereRaw('YEAR(cgr.fecha_captacion) = YEAR(GETDATE())')// cuya fecha_captacion sea del año actual
+    ->select([
+        'cgr.primer_nombre',
+        'cgr.segundo_nombre',
+        'cgr.primer_apellido',
+        'cgr.segundo_apellido',
+        'cgr.tipo_identificacion',
+        'cgr.numero_identificacion',
+        'cgr.fecha_captacion',
+        'usr.id           as asignado_id',
+        'usr.name         as asignado_nombre',
+        'usr.email        as asignado_email',
+    ])
     ->get();
+
 
 
         
@@ -726,33 +731,41 @@ public function graficaBarras()
         $clasificaciones_labels[] = $clasificacion->clasificacion;
         $clasificaciones_data[] = $clasificacion->total;
     }
-    $results = DB::table('DESNUTRICION.dbo.users AS a')
+    $results = DB::table('DESNUTRICION.dbo.users as a')
     ->select(
         'a.id',
         'a.name',
-        DB::raw("COUNT(CASE WHEN c.sivigilas_id IS NULL THEN 1 ELSE NULL END) AS total_Sin_Seguimientos"),
-        DB::raw('COUNT(DISTINCT b.id) AS cant_casos_asignados')
+        // cambiamos el alias aquí para que sea EXACTAMENTE igual al que usas en Blade
+        DB::raw("COUNT(CASE WHEN c.sivigilas_id IS NULL THEN 1 END) AS total_Sin_Seguimientos"),
+        DB::raw("COUNT(DISTINCT b.id) AS cant_casos_asignados")
     )
-    ->join('DESNUTRICION.dbo.sivigilas AS b', 'a.id', '=', 'b.user_id')
-    ->leftJoin('DESNUTRICION.dbo.seguimientos AS c', 'b.id', '=', 'c.sivigilas_id')
-    ->whereRaw('YEAR(b.created_at) > ?', [2023])
+    ->join('DESNUTRICION.dbo.sivigilas as b', 'a.id', '=', 'b.user_id')
+    ->leftJoin('DESNUTRICION.dbo.seguimientos as c', 'b.id', '=', 'c.sivigilas_id')
+    // ->where('b.user_id', 6)
+    ->whereRaw('YEAR(b.fec_not) = YEAR(GETDATE())')
     ->groupBy('a.id', 'a.name')
-    ->orderBy(DB::raw('COUNT(b.id)'), 'desc')
     ->get();
 
-    $results_412 = DB::table('DESNUTRICION.dbo.users AS a')
+
+    $results_412 = DB::table('DESNUTRICION.dbo.users as a')
     ->select(
         'a.id',
         'a.name',
+        // Cuenta los cargues sin ningún seguimiento
         DB::raw("COUNT(CASE WHEN c.cargue412_id IS NULL THEN 1 ELSE NULL END) AS total_Sin_Seguimientos"),
-        DB::raw('COUNT(DISTINCT b.id) AS cant_casos_asignados')
+        // Cuenta el total de cargues asignados
+        DB::raw("COUNT(DISTINCT b.id) AS cant_casos_asignados")
     )
-    ->join('DESNUTRICION.dbo.cargue412s AS b', 'a.id', '=', 'b.user_id')
-    ->leftJoin('DESNUTRICION.dbo.seguimiento_412s AS c', 'b.id', '=', 'c.cargue412_id')
-    ->whereRaw('YEAR(b.created_at) > ?', [2023])
+    ->join('DESNUTRICION.dbo.cargue412s as b', 'a.id', '=', 'b.user_id')
+    ->leftJoin('DESNUTRICION.dbo.seguimiento_412s as c', function($join) {
+        $join->on('c.cargue412_id', '=', 'b.id');
+    })
+    // Sólo registros de este año, con base en la fecha de captación
+    ->whereRaw('YEAR(b.fecha_captacion) = YEAR(GETDATE())')
     ->groupBy('a.id', 'a.name')
-    ->orderBy(DB::raw('COUNT(b.id)'), 'desc')
+    ->orderBy('cant_casos_asignados', 'desc')
     ->get();
+
 
 
 
@@ -860,23 +873,26 @@ public function detallePrestador_113($id)
     \Log::info('ID recibido en el controlador: ' . $id);
 
     // Realiza la consulta para obtener los detalles del prestador según la consulta proporcionada
-    $detalles = DB::table('DESNUTRICION.dbo.sivigilas AS siv')
-        ->join('DESNUTRICION.dbo.users AS usr', 'siv.user_id', '=', 'usr.id') // Unión con la tabla de usuarios
-        ->leftJoin('DESNUTRICION.dbo.seguimientos AS seg', 'siv.id', '=', 'seg.sivigilas_id') // Unión con la tabla de seguimientos
-        ->where('usr.id', $id) // Filtro por el ID del usuario
-        ->whereNull('seg.sivigilas_id') // Filtro para los registros sin seguimientos
-        ->whereRaw('YEAR(siv.created_at) > ?', [2023]) // Filtro para los registros creados después del año 2023
-        ->select(
-            'siv.tip_ide_',
-            'siv.num_ide_',
-            'siv.pri_nom_',
-            'siv.seg_nom_',
-            'siv.pri_ape_',
-            'siv.seg_ape_',
-            'siv.semana',
-            //'usr.name' // Añadido el nombre del usuario
-        )
-        ->get();
+    $detalles = DB::table('DESNUTRICION.dbo.sivigilas as siv')
+    ->join('DESNUTRICION.dbo.users as usr', 'usr.id', '=', 'siv.user_id')
+    ->leftJoin('DESNUTRICION.dbo.seguimientos as seg', 'seg.sivigilas_id', '=', 'siv.id')
+    ->where('siv.user_id', $id)                            // solo pacientes asignados al prestador $id
+    ->whereNull('seg.id')                                 // que no tengan NINGÚN seguimiento
+    ->whereRaw('YEAR(siv.fec_not) = YEAR(GETDATE())')     // cuya fec_not es del año actual
+    ->select([
+        'siv.tip_ide_',
+        'siv.num_ide_',
+        'siv.pri_nom_',
+        'siv.seg_nom_',
+        'siv.pri_ape_',
+        'siv.seg_ape_',
+        'siv.semana',
+        'usr.id        as asignado_id',
+        'usr.name      as asignado_nombre',
+        'usr.email     as asignado_email',
+    ])
+    ->get();
+
 
     // Verificación en logs
     if ($detalles->isEmpty()) {
