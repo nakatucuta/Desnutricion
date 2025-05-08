@@ -253,7 +253,7 @@ class SeguimientoController extends Controller
             'est_act_menor'                              => 'nullable|string',
             'tratamiento_f75'                            => 'nullable|string',
             'fecha_recibio_tratf75'                      => 'nullable|date',
-            'fecha_proximo_control'                      => 'nullable|date|after_or_equal:today',
+            'fecha_proximo_control'                      => 'nullable|date',  //|after_or_equal:today
             'sivigilas_id'                               => 'required|exists:sivigilas,id',
             'Esquemq_complrto_pai_edad'                  => 'required|string',
             'Atecion_primocion_y_mantenimiento_res3280_2018' => 'required|string',
