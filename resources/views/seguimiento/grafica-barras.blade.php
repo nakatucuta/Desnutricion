@@ -128,15 +128,7 @@
             <br>
             <div class="row">
           
-    @else
-        <div class="content">
-            <div class="tables-container row">
-                <div class="box box-primary">
-                    <p class="center-text">ESTADISTICAS NO DISPONIBLES</p>
-                </div>
-            </div>
-        </div>
-    
+   
 
 @stop
 
