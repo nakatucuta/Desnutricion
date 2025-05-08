@@ -518,7 +518,7 @@ return [
             'label'       => '***',  
             'label_color' => 'primary',
             'icon_color'  => 'blue',
-            'can'         => 'view-statistics', 
+            // 'can'         => 'view-statistics', 
            
         ],
 

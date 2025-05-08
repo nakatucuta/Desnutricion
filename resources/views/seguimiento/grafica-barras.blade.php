@@ -7,7 +7,7 @@
 
 @section('content')
 
-    @if (auth()->user()->usertype == 1 || auth()->user()->usertype == 3)
+
 
         <div class="content">
             <div class="tables-container row">
@@ -136,7 +136,7 @@
                 </div>
             </div>
         </div>
-    @endif
+    
 
 @stop
 
