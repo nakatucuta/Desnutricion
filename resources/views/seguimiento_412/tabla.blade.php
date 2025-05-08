@@ -78,14 +78,14 @@
                   <i class="far fa-file-pdf"></i>   </a> 
 
                   
-                  @if ($student2->estado == 1)
+                  {{-- @if ($student2->estado == 1)
                   <a class="btn btn-primary btn-sm" href="{{ route('seguimiento_ocasional.create', ['id' => $student2->id]) }}" class="ref">
                       <i class="fas fa-plus"></i>
                   </a> 
    
                   @else 
                   
-              @endif
+              @endif --}}
              
 
                     {{-- <a href="{{route('Seguimiento.destroy', $student2->id)}}"
@@ -180,14 +180,14 @@
              <a href="{{ route('seguimiento.view-pdf_412', $student2->id) }}" target="_blank" class="btn btn-info btn-sm">
               <i class="far fa-file-pdf"></i>   </a>
             
-               @if ($student2->estado == 1)
+               {{-- @if ($student2->estado == 1)
                <a class="btn btn-primary btn-sm" href="{{ route('seguimiento_ocasional.create', ['id' => $student2->id]) }}" class="ref">
                    <i class="fas fa-plus"></i>
                </a> 
 
                @else 
                
-           @endif
+           @endif --}}
            
            
            
