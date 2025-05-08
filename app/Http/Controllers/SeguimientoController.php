@@ -220,7 +220,7 @@ class SeguimientoController extends Controller
         // ->join('seguimientos', 'sivigilas.id', '=', 'seguimientos.sivigilas_id')
         ->where('sivigilas.estado', '=', 1)
         ->where('user_id', Auth::user()->id)
-        ->whereYear('sivigilas.created_at', '=', $yearActual) 
+        >whereYear('sivigilas.created_at', '>', 2023)  // ->whereYear('sivigilas.created_at', '=', $yearActual) 
         ->get();
 
         $income12 =  DB::connection('sqlsrv_1')->table('refIps')->select('descrip')
