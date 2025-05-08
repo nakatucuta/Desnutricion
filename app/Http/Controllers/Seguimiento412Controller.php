@@ -99,14 +99,14 @@ class Seguimiento412Controller extends Controller
         ->where('user_id', Auth::user()->id)->get();
 
         
-        $yearActual = Carbon::now()->year;
+        // $yearActual = Carbon::now()->year;
         $incomeedit = DB::table('cargue412s')
         ->select('cargue412s.numero_identificacion','cargue412s.primer_nombre','cargue412s.segundo_nombre',
         'cargue412s.primer_apellido','cargue412s.segundo_apellido','cargue412s.id as idin')
         // ->join('seguimientos', 'cargue412s.id', '=', 'seguimientos.cargue412s_id')
         ->where('cargue412s.estado', '=', 1)
         ->where('user_id', Auth::user()->id)
-        >whereYear('cargue412s.created_at', '>', 2023)// ->whereYear('cargue412s.created_at', '=', $yearActual) 
+        ->whereYear('cargue412s.created_at', '>', 2023)// ->whereYear('cargue412s.created_at', '=', $yearActual) 
         ->get();
 
         $income12 =  DB::connection('sqlsrv_1')->table('refIps')->select('descrip')
