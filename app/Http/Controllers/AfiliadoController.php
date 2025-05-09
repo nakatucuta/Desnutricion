@@ -252,6 +252,9 @@ class AfiliadoController extends Controller
      */
     public function importExcel(Request $request)
     {
+
+        set_time_limit(0);
+        ini_set('memory_limit','1024M'); // o más si hace falta
         // Validar que se haya subido un archivo y que sea de tipo 'xlsx' o 'xls'
         $request->validate([
             'file' => 'required|mimes:xlsx,xls',
