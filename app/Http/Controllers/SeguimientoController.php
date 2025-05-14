@@ -179,22 +179,31 @@ class SeguimientoController extends Controller
 }
 
 
-    public function viewPDF($id)
-    {
-        $s = Seguimiento::findOrFail($id);
+public function viewPDF($id)
+{
+    $seguimiento = Seguimiento::findOrFail($id);
+    $nombreArchivo = $seguimiento->pdf;
 
-        // Aseguramos que el nombre no traiga slash al inicio
-        $fileName = ltrim($s->pdf, '/');
-        $path     = storage_path('app/public/' . $fileName);
+    // Ruta 1: raíz de /public
+    $ruta1 = $nombreArchivo;
 
-        Log::info("viewPDF: intentando servir $path");
-        if (! file_exists($path)) {
-            Log::error("viewPDF ERROR: no existe $path");
-            abort(404, "PDF no encontrado");
-        }
+    // Ruta 2: subcarpeta /public/pdf
+    $ruta2 = 'pdf/' . $nombreArchivo;
 
-        return response()->file($path);
+    if (Storage::disk('public')->exists($ruta1)) {
+        \Log::info("viewPDF: encontrado en disk(public): {$ruta1}");
+        return redirect(Storage::url($ruta1));
     }
+
+    if (Storage::disk('public')->exists($ruta2)) {
+        \Log::info("viewPDF: encontrado en disk(public): {$ruta2}");
+        return redirect(Storage::url($ruta2));
+    }
+
+    // No encontrado en ninguna de las dos rutas
+    \Log::error("viewPDF ERROR: no existe en disk(public): {$ruta1} ni {$ruta2}");
+    abort(404, 'El archivo PDF no se encuentra disponible.');
+}
 
     /**
      * Show the form for creating a new resource.
