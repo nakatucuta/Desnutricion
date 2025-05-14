@@ -18,10 +18,11 @@ use Symfony\Component\Mailer\Transport\Smtp\EsmtpTransport;
 use Symfony\Component\Mime\Address;
 use Symfony\Component\Mime\Email;
 use App\Models\User;
-use DataTables;
+// use DataTables;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Yajra\DataTables\Facades\DataTables;
 
 class SeguimientoController extends Controller
 {
@@ -47,163 +48,153 @@ class SeguimientoController extends Controller
      *
      * @return \Illuminate\Http\Response
      */
-    public function index(Request $request)
+    public function data(Request $request)
     {
-        // 1) Si es una petición AJAX (o tiene 'search'), devolvemos JSON con la tabla filtrada.
-        if ($request->ajax()) {
-            // Toma la variable 'search' (o 'busqueda') de la petición
-            $search = $request->input('search') ?? $request->input('busqueda');
+        $user = Auth::user();
     
-            // Dependiendo del usertype, usas la consulta que corresponda.
-            if (Auth::user()->usertype == 2) {
-                // Para usertype == 2:
-                $query = Sivigila::select(
-                        'sivigilas.num_ide_',
-                        'sivigilas.pri_nom_',
-                        'sivigilas.seg_nom_',
-                        'sivigilas.pri_ape_',
-                        'sivigilas.seg_ape_',
-                        'seguimientos.id as id',
-                        'sivigilas.Ips_at_inicial',
-                        'seguimientos.fecha_consulta',
-                        'seguimientos.fecha_proximo_control',
-                        'seguimientos.estado',
-                        'seguimientos.motivo_reapuertura',
-                        'sivigilas.semana',
-                        'sivigilas.created_at as creado'
-                    )
-                    ->join('seguimientos', 'sivigilas.id', '=', 'seguimientos.sivigilas_id')
-                    ->where('seguimientos.user_id', Auth::user()->id)
-                    ->whereYear('seguimientos.created_at', '>', 2023)
-                    ->orderBy('seguimientos.created_at', 'desc');
-    
-                // Si llega algo en search, filtra por num_ide_
-                if (!empty($search)) {
-                    $query->where('sivigilas.num_ide_', 'LIKE', "%{$search}%");
-                }
-    
-                // Retornamos todos los resultados filtrados (sin paginar)
-                $incomeedit = $query->get();
-            } else {
-                // Para usertype != 2:
-                $query = Seguimiento::select(
-                        's.num_ide_',
-                        's.pri_nom_',
-                        's.seg_nom_',
-                        's.pri_ape_',
-                        's.seg_ape_',
-                        'users.name',
-                        'seguimientos.id as id',
-                        'seguimientos.fecha_consulta',
-                        'seguimientos.fecha_proximo_control',
-                        'seguimientos.estado',
-                        'seguimientos.motivo_reapuertura',
-                        's.semana',
-                        's.created_at as creado'
-                    )
-                    ->join('sivigilas as s', 's.id', '=', 'seguimientos.sivigilas_id')
-                    ->join('users', 'users.id', '=', 's.user_id')
-                    ->whereYear('seguimientos.created_at', '>', 2023)
-                    ->orderBy('seguimientos.created_at', 'desc');
-    
-                if (!empty($search)) {
-                    $query->where('s.num_ide_', 'LIKE', "%{$search}%");
-                }
-    
-                $incomeedit = $query->get();
-            }
-    
-            // Devolvemos un JSON con la misma clave que tu JS espera ("incomeedit")
-            return response()->json([
-                'incomeedit' => $incomeedit
+        $query = DB::table('vw_seguimientos')
+            ->select([
+                'id',
+                'creado',
+                'num_ide',
+                'semana',
+                'nombre',
+                'estado',
+                DB::raw("CASE WHEN '{$user->usertype}' = 1 THEN usuario_ips ELSE usuario_ips END as ips"),
+                'fecha_proximo_control',
+                'motivo_reapuertura',
+                'user_id',
             ]);
+    
+        // ✅ FILTRADO DE ACCESO
+        if (!in_array($user->usertype, [1, 3])) {
+            $query->where('user_id', $user->id);
+        }
+        
+    
+        // — filtros de "estado" (abiertos/cerrados)
+        if ($request->filled('estado')) {
+            if ($request->estado === '1') {
+                $query->where('estado', 1);
+            } elseif ($request->estado === '0') {
+                $query->where('estado', '!=', 1);
+            }
         }
     
-        // 2) Si NO es AJAX, seguimos con la lógica normal que retorna la vista.
-    
-        $user_id = Auth::User()->usertype;
-        $user_id1 = Auth::User()->id == '2';
-    
-        if (Auth::User()->usertype == 2) {
-            $incomeedit = Sivigila::select(
-                    'sivigilas.num_ide_',
-                    'sivigilas.pri_nom_',
-                    'sivigilas.seg_nom_',
-                    'sivigilas.pri_ape_',
-                    'sivigilas.seg_ape_',
-                    'seguimientos.id as idin',
-                    'sivigilas.Ips_at_inicial',
-                    'seguimientos.fecha_consulta',
-                    'seguimientos.id',
-                    'seguimientos.fecha_proximo_control',
-                    'seguimientos.estado',
-                    'seguimientos.id',
-                    'seguimientos.motivo_reapuertura',
-                    'sivigilas.semana',
-                    'sivigilas.created_at as creado'
-                )
-                ->orderBy('seguimientos.created_at', 'desc')
-                ->join('seguimientos', 'sivigilas.id', '=', 'seguimientos.sivigilas_id')
-                ->where('seguimientos.user_id', Auth::user()->id)
-                ->whereYear('seguimientos.created_at', '>', 2023)
-                ->paginate(10);
-        } else {
-            $incomeedit = Seguimiento::select(
-                    's.num_ide_',
-                    's.pri_nom_',
-                    's.seg_nom_',
-                    's.pri_ape_',
-                    's.seg_ape_',
-                    'seguimientos.id as idin',
-                    'users.name',
-                    'seguimientos.fecha_consulta',
-                    'seguimientos.fecha_proximo_control',
-                    'seguimientos.estado',
-                    'seguimientos.id',
-                    'seguimientos.motivo_reapuertura',
-                    's.semana',
-                    's.created_at as creado'
-                )
-                ->orderBy('seguimientos.created_at', 'desc')
-                ->whereYear('seguimientos.created_at', '>', 2023)
-                ->join('sivigilas as s', 's.id', '=', 'seguimientos.sivigilas_id')
-                ->join('users', 'users.id', '=', 's.user_id')
-                ->paginate(10);
+        // — filtro "próximos"
+        if ($request->proximo === '1') {
+            $query->whereNotNull('fecha_proximo_control')
+                  ->whereDate('fecha_proximo_control', '>=', Carbon::today());
         }
     
-        if (Auth::User()->usertype == 2) {
-            $conteo = Seguimiento::where('estado', 1)
-                        ->where('user_id', Auth::user()->id)
-                        ->count('id');
-        } else {
-            $conteo = Seguimiento::where('estado', 1)
-                        ->whereYear('seguimientos.created_at', '>', 2023)
-                        ->count('id');
-        }
-    
-        $seguimientos = Seguimiento::all()->where('estado', 1);
-    
-        $otro =  Sivigila::select(
-                    'sivigilas.num_ide_',
-                    'sivigilas.pri_nom_',
-                    'sivigilas.seg_nom_',
-                    'sivigilas.pri_ape_',
-                    'sivigilas.seg_ape_',
-                    'sivigilas.id as idin',
-                    'sivigilas.Ips_at_inicial',
-                    'seguimientos.id',
-                    'seguimientos.fecha_proximo_control',
-                    'seguimientos.estado as est',
-                    'seguimientos.user_id as usr'
-                )
-                ->orderBy('seguimientos.created_at', 'desc')
-                ->join('seguimientos', 'sivigilas.id', '=', 'seguimientos.sivigilas_id')
-                ->where('seguimientos.estado', 1)
-                ->get();
-    
-        return view('seguimiento.index', compact('incomeedit','seguimientos','conteo','otro'));
+        return DataTables::of($query)
+            ->editColumn('creado', fn($r) => Carbon::parse($r->creado)->format('Y-m-d'))
+            ->editColumn('fecha_proximo_control', fn($r) =>
+                $r->fecha_proximo_control
+                    ? Carbon::parse($r->fecha_proximo_control)->format('Y-m-d')
+                    : '-'
+            )
+            ->editColumn('estado', fn($r) =>
+                $r->estado == 1
+                    ? '<span class="badge badge-success">Abierto</span>'
+                    : '<span class="badge badge-secondary">Cerrado</span>'
+            )
+            ->addColumn('acciones', function($r) use ($user) {
+                $html  = '<a href="'.route('Seguimiento.edit',$r->id).'" class="btn btn-success btn-sm"><i class="fas fa-edit"></i></a> ';
+                if (!empty($r->motivo_reapuertura)) {
+                    $html .= '<a href="'.route('detalleseguimiento',$r->id).'" class="btn btn-primary btn-sm"><i class="far fa-eye"></i></a> ';
+                }
+                $html .= '<a href="'.route('seguimiento.view-pdf',$r->id).'" target="_blank" class="btn btn-info btn-sm"><i class="far fa-file-pdf"></i></a> ';
+                if ($user->usertype != 2) {
+                    $html .= '<form action="'.route('Seguimiento.destroy',$r->id).'" method="POST" style="display:inline">'
+                           . csrf_field().method_field('DELETE') .
+                           '<button onclick="return confirm(\'¿Seguro?\')" class="btn btn-danger btn-sm"><i class="fas fa-trash"></i></button>'
+                           .'</form>';
+                }
+                return $html;
+            })
+            ->rawColumns(['estado','acciones'])
+            ->filter(function($builder) use ($request) {
+                if ($search = $request->input('search.value')) {
+                    $builder->where('num_ide', 'like', "%{$search}%");
+                }
+            })
+            ->toJson();
     }
     
+    /**
+     * 2) Vista principal: contadores + tabla.
+     */
+    public function index()
+{
+    $user = Auth::user();
+    $isAdmin = in_array($user->usertype, [1, 3]);
+
+    // ABIERTO
+    $conteo = Seguimiento::where('estado', 1)
+                ->when(!$isAdmin, fn($q) => $q->where('user_id', $user->id))
+                ->whereYear('created_at', '>', 2023)
+                ->count();
+
+    // PRÓXIMOS
+    $otro = DB::table('sivigilas')
+        ->join('seguimientos', 'sivigilas.id', '=', 'seguimientos.sivigilas_id')
+        ->select([
+            'sivigilas.num_ide_',
+            'sivigilas.pri_nom_',
+            'sivigilas.seg_nom_',
+            'sivigilas.pri_ape_',
+            'sivigilas.seg_ape_',
+            'sivigilas.id as idin',
+            'sivigilas.Ips_at_inicial',
+            'seguimientos.id as seguimiento_id',
+            'seguimientos.fecha_proximo_control',
+            'seguimientos.estado as est',
+            'seguimientos.user_id as usr',
+            'seguimientos.estado as estado',
+
+        ])
+        ->where('seguimientos.estado', 1)
+        ->when(!$isAdmin, fn($q) => $q->where('seguimientos.user_id', $user->id))
+        ->orderBy('seguimientos.created_at', 'desc')
+        ->get();
+
+    // CERRADOS
+    $cerrados = Seguimiento::where('estado', '!=', 1)
+                ->when(!$isAdmin, fn($q) => $q->where('user_id', $user->id))
+                ->whereYear('created_at', '>', 2023)
+                ->count();
+
+    // Para mantener compatibilidad si la vista usa esta colección
+    $seguimientos = Seguimiento::where('estado', 1)
+                      ->when(!$isAdmin, fn($q) => $q->where('user_id', $user->id))
+                      ->get();
+
+    return view('seguimiento.index', compact(
+        'conteo',
+        'seguimientos',
+        'otro',
+        'cerrados'
+    ));
+}
+
+
+    public function viewPDF($id)
+    {
+        $s = Seguimiento::findOrFail($id);
+
+        // Aseguramos que el nombre no traiga slash al inicio
+        $fileName = ltrim($s->pdf, '/');
+        $path     = storage_path('app/public/' . $fileName);
+
+        Log::info("viewPDF: intentando servir $path");
+        if (! file_exists($path)) {
+            Log::error("viewPDF ERROR: no existe $path");
+            abort(404, "PDF no encontrado");
+        }
+
+        return response()->file($path);
+    }
 
     /**
      * Show the form for creating a new resource.
@@ -623,34 +614,34 @@ class SeguimientoController extends Controller
 
 // Método para ver el PDF
 
-public function viewPDF($id)
-    {
-        $seguimiento = Seguimiento::findOrFail($id);
+// public function viewPDF($id)
+//     {
+//         $seguimiento = Seguimiento::findOrFail($id);
 
-        // 1) Valor bruto de la BD (puede traer "foo.pdf" o "pdf/foo.pdf" o con prefijo storage/)
-        $raw = $seguimiento->pdf;
+//         // 1) Valor bruto de la BD (puede traer "foo.pdf" o "pdf/foo.pdf" o con prefijo storage/)
+//         $raw = $seguimiento->pdf;
 
-        // 2) Limpiar prefijos redundantes
-        $trimmed = preg_replace('#^(storage/|public/)#', '', $raw);
-        $trimmed = ltrim($trimmed, '/');
+//         // 2) Limpiar prefijos redundantes
+//         $trimmed = preg_replace('#^(storage/|public/)#', '', $raw);
+//         $trimmed = ltrim($trimmed, '/');
 
-        // 3) Si no hay carpeta, asumir 'pdf/'
-        if (! Str::contains($trimmed, '/')) {
-            $relative = 'pdf/' . $trimmed;
-        } else {
-            $relative = $trimmed;
-        }
+//         // 3) Si no hay carpeta, asumir 'pdf/'
+//         if (! Str::contains($trimmed, '/')) {
+//             $relative = 'pdf/' . $trimmed;
+//         } else {
+//             $relative = $trimmed;
+//         }
 
-        // 4) Verificar que exista en el disk 'public'
-        if (! Storage::disk('public')->exists($relative)) {
-            abort(404, "PDF no encontrado en public/{$relative}");
-        }
+//         // 4) Verificar que exista en el disk 'public'
+//         if (! Storage::disk('public')->exists($relative)) {
+//             abort(404, "PDF no encontrado en public/{$relative}");
+//         }
 
-        // 5) Devolver el archivo
-        return response()->file(
-            Storage::disk('public')->path($relative)
-        );
-    }
+//         // 5) Devolver el archivo
+//         return response()->file(
+//             Storage::disk('public')->path($relative)
+//         );
+//     }
 
 public function detallePrestador($id)
 {

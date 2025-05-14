@@ -103,9 +103,18 @@ Route::resource('new412_seguimiento', Seguimiento412Controller::class);
 Route::get('/new412/{id}/{numero_identificacion}/edit', [Cargue412Controller::class, 'edit'])->name('editvariables');
 
 
+// Ruta para ver el PDF
+Route::get('/seguimiento/view-pdf/{id}', 'App\Http\Controllers\SeguimientoController@viewPDF')->name('seguimiento.view-pdf');
 
 
-Route::resource('Seguimiento', SeguimientoController::class)->middleware('auth');
+// web.php
+Route::get('/Seguimiento/data', [SeguimientoController::class, 'data'])
+     ->name('Seguimiento.data')
+     ->middleware('auth');
+
+Route::resource('Seguimiento', SeguimientoController::class)
+     ->middleware('auth');
+
 Route::get('/search1', 'App\Http\Controllers\SeguimientoController@search')->name('BUSCADOR1');
 Route::get(
     '/sivigila/{num_ide}/{fec_not}/create',
@@ -135,8 +144,6 @@ Route::get('/Seguimiento/{id}/detail', 'App\Http\Controllers\SeguimientoControll
 
 
 
-// Ruta para ver el PDF
-Route::get('/seguimiento/view-pdf/{id}', 'App\Http\Controllers\SeguimientoController@viewPDF')->name('seguimiento.view-pdf');
 
 // Ruta para ver el PDF seguimiento 412
 Route::get('/seguimiento_412/view-pdf/{id}', 'App\Http\Controllers\Seguimiento412Controller@viewPDF')->name('seguimiento.view-pdf_412');

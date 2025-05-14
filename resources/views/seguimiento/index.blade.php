@@ -8,13 +8,29 @@
   {{-- MENSAJES --}}
 @include('seguimiento.mensajes')
 
-  {{-- MODAL NOTIFICACIONES --}}
-@include('seguimiento.modal_notificaciones')
-<div>
-    <h1 style="font-family: 'Helvetica Neue', sans-serif; 
+@include('seguimiento.modal_notificaciones', ['conteo' => $conteo, 'otro' => $otro])
+
+<div style="text-align: left; margin: 20px 0;">
+  <h1 style="
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    font-size: 24px;
     font-weight: 700;
-    font-size: 2rem;">Seguimientos</h1>
+    color: #2C3E50;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.15);
+    padding: 8px 16px;
+    background: linear-gradient(135deg, #ecf0f1, #bdc3c7);
+    border-radius: 6px;
+    box-shadow: 0 3px 8px rgba(0, 0, 0, 0.1);
+    border-left: 5px solid #2980b9;
+    display: inline-block;
+  ">
+    Seguimientos Evento 113
+  </h1>
 </div>
+
+
   <br>
 <a href="{{route('Seguimiento.create')}}" title="DETALLE" 
   class="btn btn-primary btn-sm" style="border-radius: 50px;
@@ -27,13 +43,13 @@
 
 {{-- secion del reporte general --}}
 
-<a href="{{route('export3')}}" 
+{{-- <a href="{{route('export3')}}" 
 class="btn btn-success btn-sm"
  style=" margin-right: 0; position: relative; right: 0;
   border-radius: 50px; padding: 10px 20px; font-weight: bold; letter-spacing: 1px;
    background-color: #28a745;">
   <i class="fas fa-book mr-2"></i>
-</a>
+</a> --}}
 
   {{-- seccion del primer reporte --}}
   <a href="{{route('export')}}" class="btn btn-success btn-sm 
@@ -41,7 +57,7 @@ class="btn btn-success btn-sm"
   style="float: right; margin-right: 0; position: relative; right: 0; 
   border-radius: 50px; padding: 10px 20px; font-weight: bold; letter-spacing: 1px; 
   background-color: #28a745;"><i class="fas fa-file-export mr-2"></i> EXPORTAR</a>
-  <br> <strong>Total {{ $incomeedit->total() }} </strong><br>
+  {{-- <br> <strong>Total {{ $incomeedit->total() }} </strong><br> --}}
   
 @stop
 
@@ -54,7 +70,9 @@ class="btn btn-success btn-sm"
             
 
 @section('css')
+
 @include('seguimiento.css') 
+
 @stop
 
 @section('js')
