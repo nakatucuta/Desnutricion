@@ -60,6 +60,7 @@ class SeguimientoController extends Controller
                 'semana',
                 'nombre',
                 'estado',
+                'fec_creado',
                 DB::raw("CASE WHEN '{$user->usertype}' = 1 THEN usuario_ips ELSE usuario_ips END as ips"),
                 'fecha_proximo_control',
                 'motivo_reapuertura',
@@ -72,6 +73,13 @@ class SeguimientoController extends Controller
         }
         
     
+
+
+        // — filtro por año (campo fec_creado)
+        if ($request->filled('anio')) {
+            $query->whereYear('creado', $request->anio);
+        }
+
         // — filtros de "estado" (abiertos/cerrados)
         if ($request->filled('estado')) {
             if ($request->estado === '1') {

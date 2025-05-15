@@ -24,13 +24,24 @@
     </div>
   </div>
 
-  {{-- Exportar + buscador --}}
-  <div class="d-flex justify-content-between mb-3">
-    <a href="{{route('export3')}}"  class="btn btn-success btn-sm">
+  <div class="d-flex justify-content-between mb-3 align-items-center flex-wrap gap-2">
+    {{-- Botón exportar --}}
+    <a href="{{ route('export3') }}" class="btn btn-success btn-sm">
       <i class="fas fa-file-export"></i> Exportar
     </a>
-    {{-- <input type="text" id="search" class="form-control w-25" placeholder="Buscar identificación" autocomplete="off"> --}}
+  
+    {{-- Filtro por año con estilo --}}
+    <div class="d-flex align-items-center">
+      <label for="filtroAnio" class="mb-0 mr-2 text-dark font-weight-bold">Año:</label>
+      <select id="filtroAnio" class="form-control form-control-sm shadow-sm border rounded-pill" style="min-width: 120px;">
+        <option value="">Todos</option>
+        @for($año = now()->year; $año >= 2022; $año--)
+          <option value="{{ $año }}">{{ $año }}</option>
+        @endfor
+      </select>
+    </div>
   </div>
+  
 
   {{-- DataTable --}}
   <table id="seguimiento" class="table table-striped table-bordered w-100">
@@ -54,9 +65,7 @@
 
 @section('css')
 <link rel="stylesheet" href="{{ asset('vendor/DataTables/css/dataTables.bootstrap4.min.css') }}">
-
 <style>
-  /* Alineación horizontal y vertical perfecta entre selector y buscador */
   div.dataTables_wrapper .dataTables_length,
   div.dataTables_wrapper .dataTables_filter {
     display: inline-flex;
@@ -65,16 +74,12 @@
     margin-top: 0 !important;
     vertical-align: middle;
   }
-
   div.dataTables_wrapper .dataTables_length {
     float: left;
   }
-
   div.dataTables_wrapper .dataTables_filter {
     float: right;
   }
-
-  /* Estilo mejorado del input de búsqueda */
   div.dataTables_wrapper .dataTables_filter input {
     margin-left: 0.5rem;
     height: 38px;
@@ -82,18 +87,14 @@
     border: 1px solid #ced4da;
     border-radius: 30px;
     background-color: #f8f9fa;
-    transition: all 0.3s ease;
     box-shadow: inset 0 1px 2px rgba(0,0,0,0.05);
   }
-
   div.dataTables_wrapper .dataTables_filter input:focus {
     border-color: #5dade2;
     background-color: #fff;
     outline: none;
     box-shadow: 0 0 5px rgba(93, 173, 226, 0.5);
   }
-
-  /* Estilo del select para longitud */
   div.dataTables_wrapper .dataTables_length select {
     height: 38px;
     padding: 0.375rem 0.75rem;
@@ -102,7 +103,6 @@
     background-color: #f8f9fa;
     border: 1px solid #ced4da;
   }
-
   div.dataTables_wrapper .dataTables_length select:focus {
     border-color: #5dade2;
     background-color: #fff;
@@ -110,8 +110,6 @@
     box-shadow: 0 0 5px rgba(93, 173, 226, 0.5);
   }
 </style>
-
-
 @stop
 
 @section('js')
@@ -123,16 +121,16 @@
   $(function(){
     var estadoFilter  = '';
     var proximoFilter = '';
-  
+
     var table = $('#seguimiento').DataTable({
       processing: true,
       serverSide: true,
-  
       ajax: {
         url: '{!! route("Seguimiento.data") !!}',
         data: d => {
           d.estado  = estadoFilter;
           d.proximo = proximoFilter;
+          d.anio    = $('#filtroAnio').val(); // <-- filtro por año
         }
       },
       columns: [
@@ -155,7 +153,6 @@
         info:           "Mostrando _START_ a _END_ de _TOTAL_ registros",
         infoEmpty:      "Mostrando 0 a 0 de 0 registros",
         infoFiltered:   "(filtrado de _MAX_ registros en total)",
-        infoPostFix:    "",
         loadingRecords: "Cargando registros...",
         zeroRecords:    "No se encontraron resultados",
         emptyTable:     "No hay datos disponibles en esta tabla",
@@ -171,15 +168,14 @@
         }
       }
     });
-  
-    $('#search').on('keyup', function(){
-      table.column(2).search(this.value).draw();
+
+    $('#filtroAnio').on('change', function(){
+      table.ajax.reload();
     });
-  
+
     $('#filter-abiertos').click(()=>{ estadoFilter = '1'; proximoFilter = ''; table.ajax.reload(); });
     $('#filter-cerrados').click(()=>{ estadoFilter = '0'; proximoFilter = ''; table.ajax.reload(); });
     $('#filter-proximos').click(()=>{ estadoFilter = ''; proximoFilter = '1'; table.ajax.reload(); });
   });
-  </script>
-  
+</script>
 @stop
