@@ -21,6 +21,7 @@ use Illuminate\Http\Request;
 use Maatwebsite\Excel\Facades\Excel;
 use App\Exports\Seguimiento412Export;
 use Illuminate\Support\Facades\Log;
+use Yajra\DataTables\Facades\DataTables;
 
 
 
@@ -32,61 +33,127 @@ class Seguimiento412Controller extends Controller
     /**
      * Display a listing of the resource.
      */
-    public function index( Request $request )
-    {
-        $busqueda = $request->busqueda;
-        $busqueda = $request->busqueda;
-        $user_id = Auth::User()->usertype;
-        $user_id1 = Auth::User()->id == '2';
-        //pra mostrar lo que cada usuario ingrese 
+    public function index()
+{
+    $user = Auth::user();
 
-        if (Auth::User()->usertype == 2) {
-            $incomeedit = Cargue412::select('cargue412s.numero_identificacion','cargue412s.primer_nombre','cargue412s.segundo_nombre',
-            'cargue412s.primer_apellido','cargue412s.segundo_apellido','seguimiento_412s.id as idin',
-            'seguimiento_412s.fecha_proximo_control','seguimiento_412s.id',
-            'seguimiento_412s.estado','seguimiento_412s.id','cargue412s.nombre_coperante','seguimiento_412s.created_at')
-            ->orderBy('seguimiento_412s.created_at', 'desc')
-            ->join('seguimiento_412s', 'cargue412s.id', '=', 'seguimiento_412s.cargue412_id')
-            ->where('seguimiento_412s.user_id', Auth::user()->id)
-            ->whereYear('seguimiento_412s.created_at', '>', 2023) // Agregar la condición para el año
-            ->paginate(3000);
-        
-        } else {  
+     // Contador de casos abiertos
+     $conteo = DB::table('seguimiento_412s')
+     ->when($user->usertype == 2, fn($q) => $q->where('user_id', $user->id))
+     ->where('estado', 1)
+     ->whereYear('created_at', '>', 2023)
+     ->count();
 
-            $incomeedit = Cargue412::select('cargue412s.numero_identificacion','cargue412s.primer_nombre','cargue412s.segundo_nombre',
-            'cargue412s.primer_apellido','cargue412s.segundo_apellido','seguimiento_412s.id as idin',
-            'seguimiento_412s.fecha_proximo_control','seguimiento_412s.id',
-            'seguimiento_412s.estado','seguimiento_412s.id','cargue412s.nombre_coperante','seguimiento_412s.created_at')
-            ->orderBy('seguimiento_412s.created_at', 'desc')
-            ->join('seguimiento_412s', 'cargue412s.id', '=', 'seguimiento_412s.cargue412_id')
-         
-            ->whereYear('seguimiento_412s.created_at', '>', 2023) // Agregar la condición para el año
-            ->paginate(3000);
+ // Contador de próximos controles (fecha_proximo_control futura)
+ $otro = DB::table('seguimiento_412s')
+     ->when($user->usertype == 2, fn($q) => $q->where('user_id', $user->id))
+     ->where('estado', 1)
+     ->whereNotNull('fecha_proximo_control')
+     ->whereDate('fecha_proximo_control', '>', now())
+     ->get();
 
-        } 
+ // Contador de cerrados
+ $cerrados = DB::table('seguimiento_412s')
+     ->when($user->usertype == 2, fn($q) => $q->where('user_id', $user->id))
+     ->where('estado', 0)
+     ->whereYear('created_at', '>', 2023)
+     ->count();
 
-        if (Auth::User()->usertype == 2) {
-        $conteo = Seguimiento_412::where('estado', 1)
-                    ->where('user_id', Auth::user()->id)
-                    ->count('id');
-        }else{
-            $conteo = Seguimiento_412::where('estado', 1)
-            ->whereYear('seguimiento_412s.created_at', '>', 2023)
-            ->count('id');
-
-        }
-        $seguimiento_412s = Seguimiento_412::all()->where('estado',1);
-        $otro =  Cargue412::select('cargue412s.numero_identificacion','cargue412s.primer_nombre','cargue412s.segundo_nombre',
-        'cargue412s.primer_apellido','cargue412s.segundo_apellido','cargue412s.id as idin',
-        'seguimiento_412s.id','seguimiento_412s.estado as est',
-        'seguimiento_412s.user_id as usr')
-        ->orderBy('seguimiento_412s.created_at', 'desc')
+    $otro = DB::table('cargue412s')
         ->join('seguimiento_412s', 'cargue412s.id', '=', 'seguimiento_412s.cargue412_id')
-        // ->join('seguimiento_412s', 'seguimiento_412s.id', '=', 'seguimiento_412s.cargue412s_id')
-        ->where('seguimiento_412s.estado',1)
+        ->select(
+            'cargue412s.numero_identificacion',
+            'cargue412s.primer_nombre',
+            'cargue412s.segundo_nombre',
+            'cargue412s.primer_apellido',
+            'cargue412s.segundo_apellido',
+            'cargue412s.id as idin',
+            'seguimiento_412s.id',
+            'seguimiento_412s.estado as est',
+            'seguimiento_412s.user_id as usr'
+        )
+        ->where('seguimiento_412s.estado', 1)
+        ->orderByDesc('seguimiento_412s.created_at')
         ->get();
-        return view('seguimiento_412.index',compact('incomeedit','seguimiento_412s','conteo','otro'));
+
+        return view('seguimiento_412.index', compact('conteo', 'otro', 'cerrados'));
     }
+
+// PARA EL DATATABLE
+public function data(Request $request)
+{
+    $user = Auth::user();
+
+    $query = DB::table('vw_seguimientos_412')
+        ->select([
+            'seguimiento_id',
+            'estado',
+            'seguimiento_created_at',
+            'fecha_proximo_control',
+            'seguimiento_user_id',
+            'motivo_reapuertura',
+            'numero_identificacion',
+            'nombre_completo',
+            'nombre_coperante'
+        ]);
+
+    // FILTRO POR USUARIO
+    if ($user->usertype == 2) {
+        $query->where('seguimiento_user_id', $user->id);
+    }
+
+    // FILTRO POR ESTADO (1 = abierto, 0 = cerrado)
+    if ($request->filled('estado')) {
+        $query->where('estado', $request->estado);
+    }
+
+    // FILTRO POR PRÓXIMO CONTROL
+    if ($request->filled('proximo')) {
+        $query->whereNotNull('fecha_proximo_control')
+              ->whereDate('fecha_proximo_control', '>', now());
+    }
+
+    return DataTables::of($query)
+        ->setRowId('seguimiento_id')
+        ->editColumn('seguimiento_created_at', fn($r) =>
+            \Carbon\Carbon::parse($r->seguimiento_created_at)->format('Y-m-d')
+        )
+        ->editColumn('fecha_proximo_control', function ($r) {
+            return $r->fecha_proximo_control
+                ? \Carbon\Carbon::parse($r->fecha_proximo_control)->format('Y-m-d')
+                : ($r->seguimiento_created_at
+                    ? \Carbon\Carbon::parse($r->seguimiento_created_at)->format('Y-m-d')
+                    : 'Finalizado');
+        })
+        ->editColumn('estado', function ($r) {
+            return $r->estado == 1
+                ? '<span class="badge badge-success">Abierto</span>'
+                : '<span class="badge badge-secondary">Cerrado</span>';
+        })
+        ->addColumn('acciones', function ($r) use ($user) {
+            $btn = '<a href="' . route('new412_seguimiento.edit', $r->seguimiento_id) . '" class="btn btn-success btn-sm"><i class="fas fa-edit"></i></a> ';
+
+            if ($r->motivo_reapuertura) {
+                $btn .= '<a href="' . route('detalleseguimiento', $r->seguimiento_id) . '" class="btn btn-primary btn-sm"><i class="far fa-eye"></i></a> ';
+            }
+
+            $btn .= '<a href="' . route('seguimiento.view-pdf_412', $r->seguimiento_id) . '" target="_blank" class="btn btn-info btn-sm"><i class="far fa-file-pdf"></i></a> ';
+
+            if ($user->usertype != 3) {
+                $btn .= '<form action="' . route('new412_seguimiento.destroy', $r->seguimiento_id) . '" method="POST" style="display:inline">'
+                    . csrf_field() . method_field('DELETE') .
+                    '<button onclick="return confirm(\'¿Seguro?\')" class="btn btn-danger btn-sm"><i class="fas fa-trash"></i></button>'
+                    . '</form>';
+            }
+
+            return $btn;
+        })
+        ->rawColumns(['estado', 'acciones'])
+        ->toJson();
+}
+
+
+
 
     /**
      * Show the form for creating a new resource.

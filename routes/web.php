@@ -100,6 +100,11 @@ Route::resource('revision', RevisionController::class);
 Route::resource('seguimiento_ocasional', SeguimientoOcasionalController::class)->middleware('auth');
 Route::resource('new412', Cargue412Controller::class);
 Route::resource('new412_seguimiento', Seguimiento412Controller::class);
+
+// Ruta adicional para DataTables (AJAX)
+Route::get('new412_seguimiento-data', [Seguimiento412Controller::class, 'data'])
+     ->name('new412_seguimiento.data');
+     
 Route::get('/new412/{id}/{numero_identificacion}/edit', [Cargue412Controller::class, 'edit'])->name('editvariables');
 
 

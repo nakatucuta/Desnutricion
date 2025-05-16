@@ -24,16 +24,17 @@
     </div>
   </div>
 
-  <div class="d-flex justify-content-between mb-3 align-items-center flex-wrap gap-2">
-    {{-- Botón exportar --}}
-    <a href="{{ route('export3') }}" class="btn btn-success btn-sm">
-      <i class="fas fa-file-export"></i> Exportar
-    </a>
-  
-    {{-- Filtro por año con estilo --}}
-    <div class="d-flex align-items-center">
+  {{-- Encabezado de controles --}}
+  <div class="row mb-3 align-items-center">
+    <div class="col-md-6 d-flex align-items-center gap-2">
+      {{-- Botón exportar --}}
+      <a href="{{ route('export3') }}" class="btn btn-success btn-sm mr-3">
+        <i class="fas fa-file-export"></i> Exportar
+      </a>
+
+      {{-- Filtro por año --}}
       <label for="filtroAnio" class="mb-0 mr-2 text-dark font-weight-bold">Año:</label>
-      <select id="filtroAnio" class="form-control form-control-sm shadow-sm border rounded-pill" style="min-width: 120px;">
+      <select id="filtroAnio" class="form-control form-control-sm shadow-sm border rounded-pill" style="width: 120px;">
         <option value="">Todos</option>
         @for($año = now()->year; $año >= 2022; $año--)
           <option value="{{ $año }}">{{ $año }}</option>
@@ -41,9 +42,8 @@
       </select>
     </div>
   </div>
-  
 
-  {{-- DataTable --}}
+  {{-- Tabla --}}
   <table id="seguimiento" class="table table-striped table-bordered w-100">
     <thead class="bg-info">
       <tr>
@@ -59,55 +59,65 @@
       </tr>
     </thead>
   </table>
+</div>
 
+{{-- Spinner de carga --}}
+<div id="overlay-spinner">
+  <div class="spinner-container">
+    <div class="spinner-border text-primary" role="status" style="width: 4rem; height: 4rem;">
+      <span class="sr-only">Cargando...</span>
+    </div>
+    <strong class="text-dark mt-3 d-block">Cargando datos, por favor espere...</strong>
+  </div>
 </div>
 @stop
 
 @section('css')
 <link rel="stylesheet" href="{{ asset('vendor/DataTables/css/dataTables.bootstrap4.min.css') }}">
 <style>
-  div.dataTables_wrapper .dataTables_length,
-  div.dataTables_wrapper .dataTables_filter {
-    display: inline-flex;
-    align-items: center;
+  .dataTables_filter {
+    float: right !important;
     margin-bottom: 1rem;
-    margin-top: 0 !important;
-    vertical-align: middle;
   }
-  div.dataTables_wrapper .dataTables_length {
-    float: left;
-  }
-  div.dataTables_wrapper .dataTables_filter {
-    float: right;
-  }
-  div.dataTables_wrapper .dataTables_filter input {
-    margin-left: 0.5rem;
-    height: 38px;
-    padding: 0.375rem 0.75rem;
+
+  .dataTables_filter input {
+    border-radius: 20px;
     border: 1px solid #ced4da;
-    border-radius: 30px;
-    background-color: #f8f9fa;
-    box-shadow: inset 0 1px 2px rgba(0,0,0,0.05);
+    padding: 6px 12px;
   }
-  div.dataTables_wrapper .dataTables_filter input:focus {
-    border-color: #5dade2;
-    background-color: #fff;
-    outline: none;
-    box-shadow: 0 0 5px rgba(93, 173, 226, 0.5);
+
+  .dataTables_length {
+    float: left !important;
+    margin-top: 10px;
   }
-  div.dataTables_wrapper .dataTables_length select {
-    height: 38px;
-    padding: 0.375rem 0.75rem;
-    margin: 0 0.5rem;
-    border-radius: 6px;
-    background-color: #f8f9fa;
-    border: 1px solid #ced4da;
+
+  #overlay-spinner {
+    display: none;
+    position: fixed;
+    z-index: 9999;
+    background: rgba(255, 255, 255, 0.85);
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
   }
-  div.dataTables_wrapper .dataTables_length select:focus {
-    border-color: #5dade2;
-    background-color: #fff;
-    outline: none;
-    box-shadow: 0 0 5px rgba(93, 173, 226, 0.5);
+
+  .spinner-container {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center;
+  }
+
+  .spinner-border {
+    width: 4rem;
+    height: 4rem;
+  }
+
+  .selected-callout {
+    box-shadow: 0 0 10px rgba(0, 123, 255, 0.5);
+    border: 2px solid #007bff;
   }
 </style>
 @stop
@@ -122,7 +132,7 @@
     var estadoFilter  = '';
     var proximoFilter = '';
 
-    var table = $('#seguimiento').DataTable({
+    const table = $('#seguimiento').DataTable({
       processing: true,
       serverSide: true,
       ajax: {
@@ -130,8 +140,10 @@
         data: d => {
           d.estado  = estadoFilter;
           d.proximo = proximoFilter;
-          d.anio    = $('#filtroAnio').val(); // <-- filtro por año
-        }
+          d.anio    = $('#filtroAnio').val();
+        },
+        beforeSend: () => $('#overlay-spinner').fadeIn(200),
+        complete:   () => $('#overlay-spinner').fadeOut(200)
       },
       columns: [
         { data: 'id',                    name: 'id' },
@@ -169,13 +181,30 @@
       }
     });
 
-    $('#filtroAnio').on('change', function(){
+    $('#filtroAnio').on('change', () => table.ajax.reload());
+
+    function activarFiltro(id) {
+      $('#filter-abiertos, #filter-cerrados, #filter-proximos').removeClass('selected-callout');
+      $(id).addClass('selected-callout');
+    }
+
+    $('#filter-abiertos').click(() => {
+      estadoFilter = '1'; proximoFilter = '';
+      activarFiltro('#filter-abiertos');
       table.ajax.reload();
     });
 
-    $('#filter-abiertos').click(()=>{ estadoFilter = '1'; proximoFilter = ''; table.ajax.reload(); });
-    $('#filter-cerrados').click(()=>{ estadoFilter = '0'; proximoFilter = ''; table.ajax.reload(); });
-    $('#filter-proximos').click(()=>{ estadoFilter = ''; proximoFilter = '1'; table.ajax.reload(); });
+    $('#filter-cerrados').click(() => {
+      estadoFilter = '0'; proximoFilter = '';
+      activarFiltro('#filter-cerrados');
+      table.ajax.reload();
+    });
+
+    $('#filter-proximos').click(() => {
+      estadoFilter = ''; proximoFilter = '1';
+      activarFiltro('#filter-proximos');
+      table.ajax.reload();
+    });
   });
 </script>
 @stop
