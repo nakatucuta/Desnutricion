@@ -113,6 +113,11 @@ public function data(Request $request)
               ->whereDate('fecha_proximo_control', '>', now());
     }
 
+    // ✅ FILTRO POR AÑO DE seguimiento_created_at
+    if ($request->filled('anio')) {
+        $query->whereYear('seguimiento_created_at', $request->anio);
+    }
+
     return DataTables::of($query)
         ->setRowId('seguimiento_id')
         ->editColumn('seguimiento_created_at', fn($r) =>
@@ -151,6 +156,7 @@ public function data(Request $request)
         ->rawColumns(['estado', 'acciones'])
         ->toJson();
 }
+
 
 
 

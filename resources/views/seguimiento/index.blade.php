@@ -40,7 +40,9 @@
     background-color: #007bff;">
     <i class="icon-zoom-in mr-2"></i> NUEVO SEGUIMIENTO
 </a>
-
+<a href="{{ route('export3') }}" class="btn btn-success btn-sm mr-3">
+  <i class="fas fa-file-export"></i> Exportar
+</a>
 {{-- secion del reporte general --}}
 
 {{-- <a href="{{route('export3')}}" 

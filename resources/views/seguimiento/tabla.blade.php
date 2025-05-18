@@ -28,9 +28,7 @@
   <div class="row mb-3 align-items-center">
     <div class="col-md-6 d-flex align-items-center gap-2">
       {{-- Botón exportar --}}
-      <a href="{{ route('export3') }}" class="btn btn-success btn-sm mr-3">
-        <i class="fas fa-file-export"></i> Exportar
-      </a>
+    
 
       {{-- Filtro por año --}}
       <label for="filtroAnio" class="mb-0 mr-2 text-dark font-weight-bold">Año:</label>
