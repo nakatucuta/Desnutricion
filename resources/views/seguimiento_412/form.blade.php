@@ -22,13 +22,21 @@
                     <div class="col-md-6 ">
                         <div class="form-group">
                             <label for="Nombre">Paciente</label>
-                        <select class="person " name="cargue412_id" id="cargue412_id"  style="width: 100%">
-                            <option value="">SELECCIONE</option>
-                            @foreach($incomeedit as $developer)
-                            <option  value="{{$developer->idin }}">{{$developer->idin.' '.$developer->numero_identificacion.' '.$developer->primer_nombre.' '.$developer->segundo_nombre.' '.$developer->primer_apellido.' '.$developer->segundo_apellido }}</option>
-                            @endforeach
+                            <select class="person" name="cargue412_id" id="cargue412_id" style="width: 100%">
+                                <option value="">SELECCIONE</option>
+                                @foreach($incomeedit as $developer)
+                                    <option value="{{ $developer->idin }}">
+                                        ({{ $developer->created_at ? \Carbon\Carbon::parse($developer->created_at)->format('Y-m-d') : 'SIN FECHA' }})
+                                        {{ $developer->idin }}
+                                        {{ $developer->numero_identificacion }}
+                                        {{ $developer->primer_nombre }}
+                                        {{ $developer->segundo_nombre }}
+                                        {{ $developer->primer_apellido }}
+                                        {{ $developer->segundo_apellido }}
+                                    </option>
+                                @endforeach
+                            </select>
                             
-                          </select>
                     </div>
                 </div>
 

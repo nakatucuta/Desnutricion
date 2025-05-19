@@ -175,7 +175,7 @@ public function data(Request $request)
         // $yearActual = Carbon::now()->year;
         $incomeedit = DB::table('cargue412s')
         ->select('cargue412s.numero_identificacion','cargue412s.primer_nombre','cargue412s.segundo_nombre',
-        'cargue412s.primer_apellido','cargue412s.segundo_apellido','cargue412s.id as idin')
+        'cargue412s.primer_apellido','cargue412s.segundo_apellido','cargue412s.id as idin','cargue412s.created_at')
         // ->join('seguimientos', 'cargue412s.id', '=', 'seguimientos.cargue412s_id')
         ->where('cargue412s.estado', '=', 1)
         ->where('user_id', Auth::user()->id)
