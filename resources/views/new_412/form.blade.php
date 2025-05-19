@@ -20,19 +20,11 @@
     {{-- Formulario de importación --}}
     <div class="row mb-4 justify-content-center">
         <div class="col-md-6">
-            <form action="{{ route('import-excel') }}"
-                  method="POST"
-                  enctype="multipart/form-data"
-                  id="file-upload-form">
+            <form action="{{ route('import-excel') }}" method="POST" enctype="multipart/form-data" id="file-upload-form">
                 @csrf
                 <div id="drag-drop-area" class="drag-drop-area mb-2">
-                    <p id="file-instructions">
-                        Arrastra y suelta un archivo aquí o haz clic para seleccionar uno
-                    </p>
-                    <input type="file"
-                           name="file"
-                           accept=".xls,.xlsx"
-                           class="file-input">
+                    <p id="file-instructions">Arrastra y suelta un archivo aquí o haz clic para seleccionar uno</p>
+                    <input type="file" name="file" accept=".xls,.xlsx" class="file-input">
                 </div>
                 <div class="text-center">
                     <button type="submit" class="btn btn-primary">Importar Excel</button>
@@ -65,8 +57,7 @@
                         <th>Nombre Coperante</th>
                         <th>Fecha Captación</th>
                         <th>Municipio</th>
-                        <th>Nombre Cuidador</th>
-                        <th>Primer Nombre</th>
+                        <th>Nombre del Paciente</th>
                         <th>Tipo de Identificación</th>
                         <th>Número de Identificación</th>
                         <th>Sexo</th>
@@ -102,7 +93,6 @@
     position: absolute; width:100%; height:100%; top:0; left:0; opacity:0;
 }
 #file-instructions { z-index:1; color:#666; }
-/* Centramos el spinner */
 .dataTables_wrapper .dataTables_processing {
     position: absolute !important;
     top: 50% !important;
@@ -116,29 +106,21 @@
     pointer-events: none !important;
     z-index: 10 !important;
 }
-
-
-
-
-.title-wrapper {
-      text-align: center; /* centra todo su contenido */
-      margin: 20px 0;
-    }
-    .executive-title {
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      font-size: 36px;
-      font-weight: 700;
-      color: #2C3E50;
-      text-transform: uppercase;
-      letter-spacing: 2px;
-      text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.2);
-      padding: 10px 20px;
-      background: linear-gradient(135deg, #ecf0f1, #bdc3c7);
-      border-radius: 8px;
-      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
-      border-left: 6px solid #2980b9;
-      display: inline-block; /* ocupa sólo el ancho del contenido */
-    }
+.executive-title {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    font-size: 36px;
+    font-weight: 700;
+    color: #2C3E50;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.2);
+    padding: 10px 20px;
+    background: linear-gradient(135deg, #ecf0f1, #bdc3c7);
+    border-radius: 8px;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
+    border-left: 6px solid #2980b9;
+    display: inline-block;
+}
 </style>
 @stop
 
@@ -147,10 +129,8 @@
 <script src="{{ asset('vendor/DataTables/js/jquery.dataTables.min.js') }}"></script>
 <script src="{{ asset('vendor/DataTables/js/dataTables.bootstrap5.min.js') }}"></script>
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11.3.4/dist/sweetalert2.all.min.js"></script>
-
 <script>
 $(function() {
-  // Inicializar DataTable exclusivo para la tabla 412
   var table412 = $('#new412-table').DataTable({
     processing: true,
     serverSide: true,
@@ -182,7 +162,6 @@ $(function() {
       { data:'nombre_coperante',      name:'nombre_coperante' },
       { data:'fecha_captacion',       name:'fecha_captacion' },
       { data:'municipio',             name:'municipio' },
-      { data:'nombre_cuidador',       name:'nombre_cuidador' },
       { data:'nombres_completos',     name:'nombres_completos' },
       { data:'tipo_identificacion',   name:'tipo_identificacion' },
       { data:'numero_identificacion', name:'numero_identificacion' },
@@ -193,12 +172,10 @@ $(function() {
     ]
   });
 
-  // Recargar al cambiar año
   $('#filter-year-412').on('change', function(){
     table412.ajax.reload();
   });
 
-  // Drag & drop y validación de archivo
   const area  = $('#drag-drop-area'),
         input = area.find('.file-input'),
         info  = $('#file-instructions');
@@ -228,7 +205,6 @@ $(function() {
     }
   }
 
-  // SweetAlert para mensajes de sesión
   @if(Session::has('mensaje'))
     Swal.fire({ icon:'info',    title:'Mensaje',       text:"{{ Session::get('mensaje') }}",    confirmButtonText:'Cerrar' });
   @endif
