@@ -224,7 +224,7 @@ public function viewPDF($id)
 
         $incomeedit = DB::table('sivigilas')
         ->select('sivigilas.num_ide_','sivigilas.pri_nom_','sivigilas.seg_nom_',
-        'sivigilas.pri_ape_','sivigilas.seg_ape_','sivigilas.id as idin')
+        'sivigilas.pri_ape_','sivigilas.seg_ape_','sivigilas.id as idin','sivigilas.fec_not')
         // ->join('seguimientos', 'sivigilas.id', '=', 'seguimientos.sivigilas_id')
         ->where('sivigilas.estado', '=', 1)
         ->where('user_id', Auth::user()->id)
