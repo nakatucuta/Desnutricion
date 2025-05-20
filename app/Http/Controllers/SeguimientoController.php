@@ -108,19 +108,37 @@ class SeguimientoController extends Controller
                     : '<span class="badge badge-secondary">Cerrado</span>'
             )
             ->addColumn('acciones', function($r) use ($user) {
-                $html  = '<a href="'.route('Seguimiento.edit',$r->id).'" class="btn btn-success btn-sm"><i class="fas fa-edit"></i></a> ';
+                $dropdown = '<div class="dropdown">
+                    <button class="btn btn-sm btn-acciones dropdown-toggle" type="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                        <i class="fas fa-cogs mr-1"></i> Acciones
+                    </button>
+                    <div class="dropdown-menu dropdown-menu-right shadow animated--fade-in">';
+            
+                $dropdown .= '<a class="dropdown-item" href="'.route('Seguimiento.edit', $r->id).'">
+                                <i class="fas fa-edit mr-2 text-success"></i>Editar</a>';
+            
                 if (!empty($r->motivo_reapuertura)) {
-                    $html .= '<a href="'.route('detalleseguimiento',$r->id).'" class="btn btn-primary btn-sm"><i class="far fa-eye"></i></a> ';
+                    $dropdown .= '<a class="dropdown-item" href="'.route('detalleseguimiento', $r->id).'">
+                                    <i class="far fa-eye mr-2 text-primary"></i>Ver Detalles</a>';
                 }
-                $html .= '<a href="'.route('seguimiento.view-pdf',$r->id).'" target="_blank" class="btn btn-info btn-sm"><i class="far fa-file-pdf"></i></a> ';
+            
+                $dropdown .= '<a class="dropdown-item" href="'.route('seguimiento.view-pdf', $r->id).'" target="_blank">
+                                <i class="far fa-file-pdf mr-2 text-danger"></i>Ver PDF</a>';
+            
                 if ($user->usertype != 2) {
-                    $html .= '<form action="'.route('Seguimiento.destroy',$r->id).'" method="POST" style="display:inline">'
-                           . csrf_field().method_field('DELETE') .
-                           '<button onclick="return confirm(\'¿Seguro?\')" class="btn btn-danger btn-sm"><i class="fas fa-trash"></i></button>'
-                           .'</form>';
+                    $dropdown .= '<form method="POST" action="'.route('Seguimiento.destroy', $r->id).'" onsubmit="return confirm(\'¿Seguro que deseas eliminar?\')" style="display:inline;">
+                                    '.csrf_field().method_field('DELETE').'
+                                    <button class="dropdown-item text-danger" type="submit">
+                                        <i class="fas fa-trash-alt mr-2"></i>Eliminar
+                                    </button>
+                                  </form>';
                 }
-                return $html;
+            
+                $dropdown .= '</div></div>';
+                return $dropdown;
             })
+            
+            
             ->rawColumns(['estado','acciones'])
             ->filter(function($builder) use ($request) {
                 if ($search = $request->input('search.value')) {

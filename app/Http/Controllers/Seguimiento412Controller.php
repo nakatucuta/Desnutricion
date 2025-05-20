@@ -136,23 +136,36 @@ public function data(Request $request)
                 : '<span class="badge badge-secondary">Cerrado</span>';
         })
         ->addColumn('acciones', function ($r) use ($user) {
-            $btn = '<a href="' . route('new412_seguimiento.edit', $r->seguimiento_id) . '" class="btn btn-success btn-sm"><i class="fas fa-edit"></i></a> ';
-
+            $dropdown = '<div class="dropdown">
+                <button class="btn btn-sm btn-acciones dropdown-toggle" type="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                    <i class="fas fa-cogs mr-1"></i> Acciones
+                </button>
+                <div class="dropdown-menu dropdown-menu-right shadow animated--fade-in">';
+        
+            $dropdown .= '<a class="dropdown-item" href="' . route('new412_seguimiento.edit', $r->seguimiento_id) . '">
+                            <i class="fas fa-edit text-success mr-2"></i>Editar</a>';
+        
             if ($r->motivo_reapuertura) {
-                $btn .= '<a href="' . route('detalleseguimiento', $r->seguimiento_id) . '" class="btn btn-primary btn-sm"><i class="far fa-eye"></i></a> ';
+                $dropdown .= '<a class="dropdown-item" href="' . route('detalleseguimiento', $r->seguimiento_id) . '">
+                                <i class="far fa-eye text-primary mr-2"></i>Ver Detalles</a>';
             }
-
-            $btn .= '<a href="' . route('seguimiento.view-pdf_412', $r->seguimiento_id) . '" target="_blank" class="btn btn-info btn-sm"><i class="far fa-file-pdf"></i></a> ';
-
+        
+            $dropdown .= '<a class="dropdown-item" href="' . route('seguimiento.view-pdf_412', $r->seguimiento_id) . '" target="_blank">
+                            <i class="far fa-file-pdf text-danger mr-2"></i>Ver PDF</a>';
+        
             if ($user->usertype != 3) {
-                $btn .= '<form action="' . route('new412_seguimiento.destroy', $r->seguimiento_id) . '" method="POST" style="display:inline">'
-                    . csrf_field() . method_field('DELETE') .
-                    '<button onclick="return confirm(\'¿Seguro?\')" class="btn btn-danger btn-sm"><i class="fas fa-trash"></i></button>'
-                    . '</form>';
+                $dropdown .= '<form method="POST" action="' . route('new412_seguimiento.destroy', $r->seguimiento_id) . '" onsubmit="return confirm(\'¿Seguro que deseas eliminar?\')" style="display:inline;">
+                                ' . csrf_field() . method_field('DELETE') . '
+                                <button class="dropdown-item text-danger" type="submit">
+                                    <i class="fas fa-trash-alt mr-2"></i>Eliminar
+                                </button>
+                              </form>';
             }
-
-            return $btn;
+        
+            $dropdown .= '</div></div>';
+            return $dropdown;
         })
+        
         ->rawColumns(['estado', 'acciones'])
         ->toJson();
 }
@@ -353,78 +366,89 @@ public function data(Request $request)
     /**
      * Update the specified resource in storage.
      */
-    public function update(Request $request, Seguimiento_412 $seguimiento_412,$id)
+    public function update(Request $request, Seguimiento_412 $seguimiento_412, $id)
     {
-        $datosEmpleado = request()->except(['_token','_method']);
+        $datosEmpleado = $request->except(['_token','_method']);
         $medicamentos = implode(',', $datosEmpleado['medicamento']);
         $datosEmpleado['medicamento'] = $medicamentos;
-        $seg =  Seguimiento_412::where('id', $id)->update($datosEmpleado);
-
-        //OJO DEBES MODIFICAR ESTE PEDAZO PARAQUE CUANDO ACTUALIZE FUNCIONE
+    
+        Seguimiento_412::where('id', $id)->update($datosEmpleado);
+    
+        DB::table('cargue412s')
+            ->where('id', $request->cargue412_id)
+            ->update(['estado' => $request->estado == 1 ? '1' : '0']);
+    
+        // Envío de correo solo si estado == 1
+        $mailSent = false;
         if ($request->estado == 1) {
-            DB::table('cargue412s')
-                ->where('id', $request->cargue412_id) // Agregar esta línea
-                ->update(['estado' => '1']);
-        } else {
-            DB::table('cargue412s')
-            ->where('id', $request->cargue412_id) // Agregar esta línea
-                ->update(['estado' => '0']);
+            $seguimiento = Seguimiento_412::find($id);
+            $cargue = Cargue412::find($seguimiento->cargue412_id);
+            $user = $cargue ? User::find($cargue->user_id) : null;
+    
+            if ($user && $user->email) {
+                $data = DB::table('seguimiento_412s')
+                    ->join('cargue412s', 'seguimiento_412s.cargue412_id', '=', 'cargue412s.id')
+                    ->select(
+                        'seguimiento_412s.id as idseg',
+                        'seguimiento_412s.motivo_reapuertura',
+                        'cargue412s.numero_identificacion',
+                        'cargue412s.primer_nombre',
+                        'cargue412s.segundo_nombre',
+                        'cargue412s.primer_apellido',
+                        'cargue412s.segundo_apellido',
+                        'seguimiento_412s.fecha_proximo_control as fec'
+                    )
+                    ->where('seguimiento_412s.id', $id)
+                    ->first();
+    
+                $bodyText = '<br>'
+                    ."<strong>ID:</strong> {$data->idseg}<br>"
+                    ."<strong>Identificación:</strong> {$data->numero_identificacion}<br>"
+                    ."<strong>Motivo reapertura:</strong> {$data->motivo_reapuertura}<br>"
+                    ."<strong>Nombre:</strong> {$data->primer_nombre} {$data->segundo_nombre} {$data->primer_apellido} {$data->segundo_apellido}<br>"
+                    ."<strong>Próximo control:</strong> {$data->fec}<br>";
+    
+                $html = 'Hola, tu seguimiento fue actualizado por el administrador:<br>'
+                      . $bodyText
+                      . 'Por favor, gestiona el caso accediendo al sistema:<br>'
+                      . url('login');
+    
+                // Configurar transporte SMTP manualmente con puerto 465 y ssl
+                $transport = new EsmtpTransport(
+                    env('MAIL_HOST', 'smtp.gmail.com'),
+                    465,
+                    'ssl'
+                );
+                $transport->setUsername(env('MAIL_USERNAME'));
+                $transport->setPassword(env('MAIL_PASSWORD'));
+    
+                $mailer = new Mailer($transport);
+                $email = (new Email())
+                    ->from(new Address(env('MAIL_FROM_ADDRESS'), env('MAIL_FROM_NAME')))
+                    ->to(new Address($user->email))
+                    ->subject('Recordatorio de control actualizado')
+                    ->html($html);
+    
+                try {
+                    $mailer->send($email);
+                    $mailSent = true;
+                    Log::info("Correo enviado a {$user->email} (seguimiento ID {$id})");
+                } catch (\Throwable $e) {
+                    Log::warning("Error al enviar correo: " . $e->getMessage());
+                }
+            }
         }
-
-         //para enviarle un consulta al correo 
-            // aqui empieza el tema de envio de correos entonces si el estado es 1
-            //creamos una consulta
-            $results = DB::table('seguimiento_412s')
-             ->select('motivo_reapuertura', 'seguimiento_412s.id','cargue412s.primer_nombre','cargue412s.segundo_nombre',
-             'cargue412s.primer_apellido','cargue412s.segundo_apellido')
-             ->where('seguimiento_412s.id', $id)
-             ->join('cargue412s', 'seguimiento_412s.cargue412_id', '=', 'cargue412s.id')
-             ->get();
-            
-             $bodyText = ':<br>';
-             
-             foreach ($results as $result) {
-
-            $bodyText .= 'Id de seguimiento: ' .'<strong>' . $result->id . '</strong><br>';
-
-             $bodyText .= 'Motivo de reapuertura: ' .'<strong>' . $result->motivo_reapuertura . '</strong><br>';
-             $bodyText .= 'Primer nombre: ' .'<strong>' . $result->primer_nombre . '</strong><br>';
-             $bodyText .= 'Segundo nombre: ' .'<strong>' . $result->segundo_nombre . '</strong><br>';
-             $bodyText .= 'Primer apellido: ' .'<strong>' . $result->primer_apellido . '</strong><br>';
-             $bodyText .= 'Segundo apellido: ' .'<strong>' . $result->segundo_apellido . '</strong><br>';
-
-               }
-            //aqui termina la consulta que enviaremos al cuerpo del correo
-
-             
-            $sivigila = Cargue412::find($datosEmpleado['cargue412_id']);
-            $user = User::find($sivigila->user_id);
-             
-           $transport = new EsmtpTransport(env('MAIL_HOST'), env('MAIL_PORT'), env('MAIL_ENCRYPTION'));
-           $transport->setUsername(env('MAIL_USERNAME'))
-                     ->setPassword(env('MAIL_PASSWORD'));
-           
-           $mailer = new Mailer($transport);
-           
-           $email = (new Email())
-                   ->from(new Address(env('MAIL_FROM_ADDRESS'), env('MAIL_FROM_NAME')))
-                   ->to(new Address($user->email))
-                   ->subject('Recordatorio de control')
-                   ->html('Hola, tu seguimiento acaba de ser actualizado por el administrador debido a  algun inconveniente comunicate
-                   con la EPSI'.$bodyText.'se solicita gestionarlo lo antes posible ingresando a este enlace <br>
-                   http://app.epsianaswayuu.com/Desnutricion/public/login');
-                   if ($mailer->send($email)) {
-            return redirect()->route('Seguimiento.index')
-           ->with('mensaje',' El dato fue agregado a la base de datos Exitosamente..!');
-                   }else{
-                    return redirect()->route('Seguimiento.index')
-           ->with('mensaje',' El dato fue agregado a la base de datos Exitosamente..!');
-            
-                   }
-        
-        return redirect()->route('Seguimiento_412.index');
-        // return view('seguimiento.index', compact('empleado'),["incomeedit"=>$incomeedit]);
+    
+        $flashKey = $mailSent ? 'success' : 'warning';
+        $flashMsg = $mailSent
+            ? 'Seguimiento actualizado y correo enviado correctamente.'
+            : 'Seguimiento actualizado, pero no se pudo enviar el correo.';
+    
+        return redirect()
+            ->route('new412_seguimiento.index')
+            ->with($flashKey, $flashMsg);
     }
+    
 
     /**
      * Remove the specified resource from storage.

@@ -255,4 +255,42 @@
   to   { opacity: 1; transform: translateY(0); }
 } */
 
+
+
+/* Botón Acciones Estilizado */
+.btn-acciones {
+  background: linear-gradient(135deg, #007bff, #0056b3);
+  border: none;
+  color: #fff;
+  padding: 8px 16px;
+  border-radius: 30px;
+  font-weight: 600;
+  font-size: 0.9rem;
+  letter-spacing: 0.5px;
+  box-shadow: 0 4px 12px rgba(0, 123, 255, 0.4);
+  transition: all 0.3s ease-in-out;
+  display: inline-flex;
+  align-items: center;
+}
+
+.btn-acciones i {
+  font-size: 1rem;
+}
+
+.btn-acciones:hover {
+  transform: scale(1.03);
+  box-shadow: 0 6px 16px rgba(0, 123, 255, 0.6);
+  color: #fff;
+}
+
+/* Opcional: animación sutil en el dropdown */
+.dropdown-menu.animated--fade-in {
+  animation: fadeIn 0.2s ease-in-out;
+}
+/* @keyframes fadeIn {
+  from { opacity: 0; transform: translateY(5px); }
+  to { opacity: 1; transform: translateY(0); }
+} */
+
+
 </style>
