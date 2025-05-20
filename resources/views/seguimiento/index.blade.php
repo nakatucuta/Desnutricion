@@ -32,34 +32,31 @@
 
 
   <br>
-<a href="{{route('Seguimiento.create')}}" title="DETALLE" 
-  class="btn btn-primary btn-sm" style="border-radius: 50px;
-    padding: 10px 20px;
-    font-weight: bold;
-    letter-spacing: 1px;
-    background-color: #007bff;">
-    <i class="icon-zoom-in mr-2"></i> NUEVO SEGUIMIENTO
+  <a href="{{ route('Seguimiento.create') }}" title="Nuevo seguimiento"
+  class="btn btn-nuevo-seguimiento">
+  <i class="fas fa-plus-circle"></i> Nuevo Seguimiento
 </a>
-<a href="{{ route('export3') }}" class="btn btn-success btn-sm mr-3">
-  <i class="fas fa-file-export"></i> Exportar
-</a>
-{{-- secion del reporte general --}}
 
-{{-- <a href="{{route('export3')}}" 
-class="btn btn-success btn-sm"
- style=" margin-right: 0; position: relative; right: 0;
-  border-radius: 50px; padding: 10px 20px; font-weight: bold; letter-spacing: 1px;
-   background-color: #28a745;">
-  <i class="fas fa-book mr-2"></i>
-</a> --}}
 
-  {{-- seccion del primer reporte --}}
-  <a href="{{route('export')}}" class="btn btn-success btn-sm 
-  rounded-pill py-2 px-3" 
-  style="float: right; margin-right: 0; position: relative; right: 0; 
-  border-radius: 50px; padding: 10px 20px; font-weight: bold; letter-spacing: 1px; 
-  background-color: #28a745;"><i class="fas fa-file-export mr-2"></i> EXPORTAR</a>
-  {{-- <br> <strong>Total {{ $incomeedit->total() }} </strong><br> --}}
+{{-- Selector elegante para exportar --}}
+<div class="dropdown export-dropdown" style="float: right;">
+  <button class="btn btn-exportar dropdown-toggle shadow-sm"
+          type="button" id="dropdownExport"
+          data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+    <i class="fas fa-file-export mr-2"></i> Exportar Reporte
+  </button>
+  <div class="dropdown-menu dropdown-menu-right"
+       aria-labelledby="dropdownExport">
+    <a class="dropdown-item" href="{{ route('export3') }}">
+      📄 Reporte General
+    </a>
+    <a class="dropdown-item" href="{{ route('export') }}">
+      📊 Reporte por Casos
+    </a>
+  </div>
+</div>
+
+
   
 @stop
 
@@ -73,11 +70,24 @@ class="btn btn-success btn-sm"
 
 @section('css')
 
+
 @include('seguimiento.css') 
+
+
+<style>
+ 
+</style>
 
 @stop
 
 @section('js')
+<script>
+  document.getElementById('exportSelector').addEventListener('change', function () {
+    const url = this.value;
+    if (url) window.location.href = url;
+  });
+</script>
+
 @include('seguimiento.javascript') 
 @stop
 

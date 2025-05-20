@@ -30,18 +30,38 @@
     </h1>
   </div>
 <br>
-<a href="{{ route('new412_seguimiento.create') }}" title="DETALLE"
-   class="btn btn-primary btn-sm" style="border-radius: 50px;
-   padding: 10px 20px; font-weight: bold; letter-spacing: 1px; background-color: #007bff;">
-   <i class="icon-zoom-in mr-2"></i> NUEVO SEGUIMIENTO
+<br>
+
+<a href="{{ route('new412_seguimiento.create') }}" title="Nuevo seguimiento"
+class="btn btn-nuevo-seguimiento">
+<i class="fas fa-plus-circle"></i> Nuevo Seguimiento
 </a>
 
-<a href="{{ route('export6') }}" class="btn btn-success btn-sm rounded-pill py-2 px-3" 
+{{-- <a href="{{ route('export6') }}" class="btn btn-success btn-sm rounded-pill py-2 px-3" 
    style="float: right; margin-right: 0; position: relative; right: 0; 
    border-radius: 50px; padding: 10px 20px; font-weight: bold; letter-spacing: 1px; 
    background-color: #28a745;">
    <i class="fas fa-file-export mr-2"></i> EXPORTAR
-</a>
+</a> --}}
+
+
+<div class="dropdown export-dropdown" style="float: right;">
+    <button class="btn btn-exportar dropdown-toggle shadow-sm"
+            type="button" id="dropdownExport"
+            data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+      <i class="fas fa-file-export mr-2"></i> Exportar Reporte
+    </button>
+    <div class="dropdown-menu dropdown-menu-right"
+         aria-labelledby="dropdownExport">
+      <a class="dropdown-item" href="{{ route('export6') }}">
+        📄 Reporte General
+      </a>
+      {{-- <a class="dropdown-item" href="{{ route('export') }}">
+        📊 Reporte por Casos
+      </a> --}}
+    </div>
+  </div>
+  
 
 {{-- Ya no usamos incomeedit->total() --}}
 {{-- <br> <strong>Total {{ $incomeedit->total() }} </strong><br> --}}

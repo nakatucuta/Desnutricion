@@ -22,3 +22,29 @@ Aplicar degradado verde al sidebar (parte superior)
 .main-header .navbar-nav .nav-link {
     color: #ffffff !important;
 }*/
+/* Logo más grande y elegante */
+.custom-logo {
+    height: 60px !important;
+    width: 60px !important;
+    object-fit: cover;
+    border-radius: 12px;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+    margin-top: -3px;
+    margin-left: 5px;
+}
+
+/* Mejorar contenedor del logo (sidebar) */
+.brand-link {
+    /* background: linear-gradient(to right, #003366, #0056b3); */
+    padding: 0.9rem 1rem;
+    display: flex;
+    align-items: center;
+    border-bottom: 3px solid #00264d;
+}
+
+.brand-text {
+    font-size: 1.3rem;
+    color: #fff !important;
+    text-shadow: 1px 1px 3px rgba(0,0,0,0.4);
+    margin-left: 10px;
+}

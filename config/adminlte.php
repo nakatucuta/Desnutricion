@@ -64,9 +64,12 @@ return [
     |
     */
 
-    'logo' => '<span style="color: #ffffff"><b>Anas</b>Wayuu</span>',
-    'logo_img' => 'vendor/adminlte/dist/img/logo.png',
-    'logo_img_class' => 'brand-image img-circle elevation-3',
+'logo' => '<span class="brand-text font-weight-bold">Anas <b>Wayuu</b></span>',
+
+'logo_img' => 'vendor/adminlte/dist/img/logo.png',
+
+'logo_img_class' => 'brand-image custom-logo', // Cambia a una clase personalizada
+
     'logo_img_xl' => null,
     'logo_img_xl_class' => 'brand-image-xs',
     'logo_img_alt' => 'Anas Wayuu',
