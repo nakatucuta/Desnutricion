@@ -239,21 +239,58 @@ public function viewPDF($id)
     public function create()
     {
         $yearActual = Carbon::now()->year;
-
+    
         $incomeedit = DB::table('sivigilas')
-        ->select('sivigilas.num_ide_','sivigilas.pri_nom_','sivigilas.seg_nom_',
-        'sivigilas.pri_ape_','sivigilas.seg_ape_','sivigilas.id as idin','sivigilas.fec_not')
-        // ->join('seguimientos', 'sivigilas.id', '=', 'seguimientos.sivigilas_id')
-        ->where('sivigilas.estado', '=', 1)
-        ->where('user_id', Auth::user()->id)
-        ->whereYear('sivigilas.created_at', '>', 2023)  // ->whereYear('sivigilas.created_at', '=', $yearActual) 
-        ->get();
+            ->select(
+                'sivigilas.num_ide_',
+                'sivigilas.pri_nom_',
+                'sivigilas.seg_nom_',
+                'sivigilas.pri_ape_',
+                'sivigilas.seg_ape_',
+                'sivigilas.id as idin',
+                'sivigilas.fec_not'
+            )
+            ->where('sivigilas.estado', 1)
+            ->where('user_id', Auth::id())
+            ->whereYear('sivigilas.created_at', '>', 2023)
+            ->get();
+    
+        $income12 = DB::connection('sqlsrv_1')
+            ->table('refIps')->select('descrip')
+            ->where('codigoDepartamento', 44)
+            ->get();
+    
+        return view('seguimiento.create', compact('incomeedit','income12'));
+    }
 
-        $income12 =  DB::connection('sqlsrv_1')->table('refIps')->select('descrip')
-        ->where('refIps.codigoDepartamento', 44)
-        ->get();
+    // AJAX: devuelve JSON con hasta 30 pacientes buscados
+    public function searchPacientes(Request $request)
+    {
+        $q = $request->get('q', '');
 
-        return view('seguimiento.create',compact('incomeedit','income12'));
+        $lista = DB::table('sivigilas')
+            ->select('id as idin', 'pri_nom_', 'pri_ape_', 'fec_not')
+            ->where('estado', 1)
+            ->where('user_id', Auth::id())
+            ->where(function($w) use ($q) {
+                $w->where('pri_nom_', 'like', "%{$q}%")
+                  ->orWhere('pri_ape_', 'like', "%{$q}%")
+                  ->orWhere('id', 'like', "%{$q}%");
+            })
+            ->limit(30)
+            ->get();
+
+        $result = $lista->map(function($p){
+            $fecha = $p->fec_not
+                ? Carbon::parse($p->fec_not)->format('Y-m-d')
+                : 'SIN FECHA';
+            return [
+                'idin' => $p->idin,
+                'text' => "({$fecha}) {$p->pri_nom_} {$p->pri_ape_}"
+            ];
+        });
+
+        return response()->json($result);
     }
 
     /**
@@ -310,7 +347,7 @@ public function viewPDF($id)
                 'clasificacion','requerimiento_energia_ftlc','fecha_entrega_ftlc',
                 'motivo_reapuertura','observaciones','est_act_menor',
                 'tratamiento_f75','fecha_recibio_tratf75','fecha_proximo_control',
-                'sivigilas_id','Esquemq_complrto_pai_edad',
+                'sivigilas_id','Esquemq_complrto_pai_edad','perimetro_braqueal',
                 'Atecion_primocion_y_mantenimiento_res3280_2018','estado'
             ]);
             $data['medicamento'] = implode(',', $request->medicamento);

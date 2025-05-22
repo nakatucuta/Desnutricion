@@ -119,6 +119,12 @@ Route::get('/Seguimiento/data', [SeguimientoController::class, 'data'])
 
 Route::resource('Seguimiento', SeguimientoController::class)
      ->middleware('auth');
+     
+     // Para que Select2 AJAX busque pacientes
+Route::get('Seguimiento/search-pacientes', [SeguimientoController::class, 'searchPacientes'])
+->name('seguimiento.searchPacientes')
+->middleware('auth');
+
 
 Route::get('/search1', 'App\Http\Controllers\SeguimientoController@search')->name('BUSCADOR1');
 Route::get(

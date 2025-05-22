@@ -36,6 +36,7 @@ class Seguimiento extends Model
         'sivigilas_id',
         'Esquemq_complrto_pai_edad',
         'Atecion_primocion_y_mantenimiento_res3280_2018',
+        'perimetro_braqueal',
         'user_id',
     ];
 

@@ -1,348 +1,383 @@
-
+{{-- resources/views/seguimiento/form.blade.php --}}
 @include('seguimiento.mensajes')
 
-
-<div class="row">
-    <div class="col-lg-12">
-        <div class="card card-info card-outline card-tabs">
-            <div class="card-header">
-                <h2 class="card-title text-center">
-                      <i class="far fa-hospital" style="font-size: 45px; color: #3333ff; "></i>
-                      Seguimiento
-                      <i class="bi bi-plus"></i>
-                      <i class="fas fa-user-md" style="font-size: 45px; color: #3333ff;"></i>
-                </h2>
-
-                
-            </div>
-            
-            <div class="card-body">
-
-                <div class="row">
-                    <div class="col-md-6 ">
-                        <div class="form-group">
-                            <label for="Nombre">Paciente</label>
-                            <select class="person" name="sivigilas_id" id="sivigilas_id" style="width: 100%">
-                                <option value="">SELECCIONE</option>
-                                @foreach($incomeedit as $developer)
-                                    <option value="{{ $developer->idin }}">
-                                        ({{ $developer->fec_not ? \Carbon\Carbon::parse($developer->fec_not)->format('Y-m-d') : 'SIN FECHA' }})
-                                        {{ $developer->idin }}
-                                        {{ $developer->num_ide_ }}
-                                        {{ $developer->pri_nom_ }}
-                                        {{ $developer->seg_nom_ }}
-                                        {{ $developer->pri_ape_ }}
-                                        {{ $developer->seg_ape_ }}
-                                    </option>
-                                @endforeach
-                            </select>
-                            
-                            
-                    </div>
-                </div>
-
-
-                <div class="col-sm-6">
-                    <div class="form-group">
-                        <label for="Nombre">Fecha Consulta</label> {{-- el isset pregunta si el archivo esta seleccionado lo muestre sino no muestra nada por eso las comillas vacias al final --}}
-                        <input class="form-control" type="date" name="fecha_consulta" id = 'fecha_consulta'
-                        value="">
-                    </div>
-                    </div>
-             </div>
-
-
-           
-                <div class="row">
-
-
-
-
-
-
-
+{{-- Card: Título Seguimiento --}}
+<div class="card card-custom mb-4">
+  <div class="card-header text-center">
+    <h2 class="card-title text-white">
+      <i class="fas fa-hospital-user"></i>
+      Seguimiento
+      <i class="fas fa-user-md"></i>
+    </h2>
+  </div>
 </div>
 
-<div class="row">
-    <div class="col-sm-6">
-        <div class="form-group">
-            <label for="Nombre"> Talla en centimetros</label> {{-- el isset pregunta si el archivo esta seleccionado lo muestre sino no muestra nada por eso las comillas vacias al final --}}
-            <input class="form-control" type="number" step="0.01" name="talla_cm" id = 'talla_cm'
-            value="">
-        </div>
-        </div>
+<form id="update-form" action="{{ url('Seguimiento') }}" method="POST" enctype="multipart/form-data">
+  @csrf
 
-        <div class="col-sm-6">
-            <div class="form-group">
-                <label for="Nombre">Peso En Kilos y un decimal</label> {{-- el isset pregunta si el archivo esta seleccionado lo muestre sino no muestra nada por eso las comillas vacias al final --}}
-                <input class="form-control" type="number" step="0.0001" name="peso_kilos" id = 'peso_kilos'
-                value="">
-            </div>
-            </div>
+  {{-- Card: Datos Paciente --}}
+  <div class="card card-custom mb-4">
+    <div class="card-header"><i class="fas fa-user"></i> Datos Paciente</div>
+    <div class="card-body">
+      <div class="row g-3">
+        <div class="col-12 col-md-6">
+          <label for="sivigilas_id">Paciente</label>
+          <div class="input-group">
+            {{-- <span class="input-group-text"><i class="fas fa-user"></i></span> --}}
+            <select id="sivigilas_id" name="sivigilas_id" class="form-control select2" required>
+              <option value="">Seleccione...</option>
+              @foreach($incomeedit as $dev)
+                <option value="{{ $dev->idin }}" {{ old('sivigilas_id')==$dev->idin?'selected':'' }}>
+                  ({{ $dev->fec_not ? \Carbon\Carbon::parse($dev->fec_not)->format('Y-m-d') : 'SIN FECHA' }})
+                  {{ $dev->idin }} {{ $dev->num_ide_ }}
+                  {{ $dev->pri_nom_ }} {{ $dev->seg_nom_ }}
+                  {{ $dev->pri_ape_ }} {{ $dev->seg_ape_ }}
+                </option>
+              @endforeach
+            </select>
+          </div>
+          @error('sivigilas_id')<small class="text-danger">{{ $message }}</small>@enderror
+        </div>
+        <div class="col-12 col-md-6">
+          <label for="fecha_consulta">Fecha Consulta</label>
+          <div class="input-group">
+            <span class="input-group-text"><i class="fas fa-calendar-alt"></i></span>
+            <input
+              type="date"
+              id="fecha_consulta"
+              name="fecha_consulta"
+              class="form-control"
+              value="{{ old('fecha_consulta') }}"
+              required>
+          </div>
+          @error('fecha_consulta')<small class="text-danger">{{ $message }}</small>@enderror
+        </div>
+      </div>
     </div>
+  </div>
 
- <div class="row">
-        <div class="col-sm-6">
-            <div class="form-group">
-                <label for="Nombre">Calificacion </label> {{-- el isset pregunta si el archivo esta seleccionado lo muestre sino no muestra nada por eso las comillas vacias al final --}}
-                <select class="person2 " name="clasificacion" id="clasificacion"  style="width: 100% ">
-                    <option  value="">SELECCIONAR</option>
-                    <option  value="DESNUTRICION AGUDA MODERADA">DESNUTRICION AGUDA MODERADA</option>
-                    <option  value="DESNUTRICION AGUDA SEVERA">DESNUTRICION AGUDA SEVERA</option>
-                    <option  value="DESNUTRICION AGUDA SEVERA TIPO KWASHIORKOR">DESNUTRICION AGUDA SEVERA TIPO KWASHIORKOR</option>
-                    <option  value="DESNUTRICION AGUDA SEVERA TIPO MARASMO">DESNUTRICION AGUDA SEVERA TIPO MARASMO</option>
-                    <option  value="DESNUTRICION AGUDA SEVERA MIXTA">DESNUTRICION AGUDA SEVERA MIXTA</option>
-                    <option  value="RIESGO DE DESNUTRICION">RIESGO DE DESNUTRICION</option>
-                    <option  value="RIESGO DE DESNUTRICION AGUDA">RIESGO DE DESNUTRICION AGUDA</option>
-                    <option  value="BUSQUEDA FALLIDA">BUSQUEDA FALLIDA</option>
-                    <option  value="PESO ADECUADO PARA LA TALLA">PESO ADECUADO PARA LA TALLA</option>
-                    
-                  </select>
-            </div>
-            </div>
-        
-            <div class="col-sm-6">
-                <div class="form-group">
-                    <label for="Nombre">Puntaje z (peso / talla)</label> {{-- el isset pregunta si el archivo esta seleccionado lo muestre sino no muestra nada por eso las comillas vacias al final --}}
-                    <input class="form-control" type="number" step="0.0001" name="puntajez" id = 'puntajez'
-                    value="">
-                </div>
-                </div>                       
-        
-     
+  {{-- Card: Antropometría --}}
+  <div class="card card-custom mb-4">
+    <div class="card-header"><i class="fas fa-ruler-combined"></i> Antropometría</div>
+    <div class="card-body">
+      <div class="row g-3">
+        <div class="col-12 col-md-4">
+          <label for="talla_cm">Talla (cm)</label>
+          <div class="input-group">
+            <span class="input-group-text"><i class="fas fa-ruler"></i></span>
+            <input
+              type="number"
+              step="0.01"
+              id="talla_cm"
+              name="talla_cm"
+              class="form-control"
+              value="{{ old('talla_cm') }}"
+              required>
+          </div>
+          @error('talla_cm')<small class="text-danger">{{ $message }}</small>@enderror
         </div>
-
-        <div class="row">
-            <div class="col-sm-6">
-                <div class="form-group">
-                    <label for="Nombre"> Perimetro Braqueal <br> </label> {{-- el isset pregunta si el archivo esta seleccionado lo muestre sino no muestra nada por eso las comillas vacias al final --}}
-                   <input class="form-control" type="text" name="perimetro_braqueal" id = 'perimetro_braqueal'
-                       value="">
-                       </div>
-                
-                </div>
-        
-        
-                <div class="col-sm-6">
-                    <div class="form-group">
-                        <label for="Nombre"> Requerimiento De Energia FTLC <br> </label> {{-- el isset pregunta si el archivo esta seleccionado lo muestre sino no muestra nada por eso las comillas vacias al final --}}
-                       <input class="form-control" type="text" name="requerimiento_energia_ftlc" id = 'requerimiento_energia_ftlc'
-                           value="">
-                           </div>
-                           </div>
-
-                        </div>
-                        <div class="row">
-
-                            {{-- <div class="col-sm-6">
-                                <div class="form-group">
-                                    <label for="Nombre"> Recomendacion De Manejo </label> 
-                                    
-
-                                    <textarea name="recomendaciones_manejo" id="recomendaciones_manejo" value="{{ isset($empleado->recomendaciones_manejo)?$empleado->recomendaciones_manejo:old('recomendaciones_manejo')}}" class="form-control" rows="5" maxlength="600"></textarea>
-                         
-                                </div>
-                                </div> --}}
-
-                              
-                                
-                                    </div>
-                                    
-
-                                    <div class="row">
-                                        
-                                
-                                        <div class="col-sm-6">
-                                            <div class="form-group">
-                                                <label for="Nombre"> Observaciones </label> {{-- el isset pregunta si el archivo esta seleccionado lo muestre sino no muestra nada por eso las comillas vacias al final --}}
-                                                
-
-                                                <textarea name="observaciones" id="observaciones" value="{{ isset($empleado->observaciones)?$empleado->observaciones:old('observaciones')}}" class="form-control" rows="5" maxlength="600"></textarea>
-                         
-                                            </div>
-                                            </div>
-                                            {{-- <div class="col-sm-6">
-                                                <div class="form-group">
-                                                    <label for="Nombre"> Resultados de Seguimientos </label> 
-                
-                                                    <textarea name="resultados_seguimientos" id="resultados_seguimientos" value="{{ isset($empleado->resultados_seguimientos)?$empleado->resultados_seguimientos:old('resultados_seguimientos')}}" class="form-control" rows="5" maxlength="600"></textarea>
-                                         
-                                                </div>
-                                                </div> --}}
-
-                                                <div class="col-sm-6">
-                                                    <div class="form-group">
-                                                      <label for="medicamento">Medicamento</label>
-                                                      <select class="js-example-basic-multiple" name="medicamento[]" multiple="multiple" style="width: 100%">
-                                                        <option value="23072-2">albendazol 200MG</option>
-                                                        <option value="54114-1">albendazol 400MG</option>
-                                                        <option value="35662-18">Acido folico</option>
-                                                        <option value="31063-1">Vitamina A</option>
-                                                        <option value="27440-3">Hierro</option>
-                                                        <option value="NO APLICA">NO APLICA</option>
-                                                        <!-- Agrega más opciones aquí -->
-                                                      </select>
-                                                    </div>
-                                                  </div>
-                                           
-                                            </div>
-
-                                            <div class="row">
-                                                <div class="col-sm-3">
-                                                    <div class="form-group">
-                                                    <label for="Nombre">Estado actual del menor</label>
-                                                    <select class="person2 " name="est_act_menor" id="est_act_menor"  style="width: 100% ">
-                                                    <option  value="">SELECCIONAR</option>
-                                                    <option  value="PESO ADECUADO PARA LA TALLA">PESO ADECUADO PARA LA TALLA</option>
-                                                    <option  value="RIESGO DE DESNUTRICIÓN AGUDA ">RIESGO DE DESNUTRICIÓN AGUDA</option>
-                                                    <option  value="DESNUTRICION AGUDA MODERADA">DESNUTRICION AGUDA MODERADA</option>
-                                                    <option  value="RIESGO DE DESNUTRICIÓN AGUDA SEVERA">DESNUTRICIÓN AGUDA SEVERA</option>
-                                                    <option  value="DESNUTRICIÓN AGUDA SEVERA TIPO MARASMO">DESNUTRICIÓN AGUDA SEVERA TIPO MARASMO</option>
-                                                    <option  value="DESNUTRICIÓN AGUDA SEVERA TIPO KWASHIORKOR">DESNUTRICIÓN AGUDA SEVERA TIPO KWASHIORKOR</option>
-                                                    <option  value="DESNUTRICIÓN AGUDA SEVERA TIPO MIXTA">DESNUTRICIÓN AGUDA SEVERA TIPO MIXTA</option>
-                                                    <option  value="EN PROCESO DE RECUPERACION">EN PROCESO DE RECUPERACION</option>
-                                                    <option  value="BUSQUEDA FALLIDA ">BUSQUEDA FALLIDA</option>
-                                                    <option  value="PROCESO DE RECUPERACION">PROCESO DE RECUPERACION</option>
-                                                    <option  value="RECUPERADO">RECUPERADO</option>
-                                                    <option  value="FALLECIDO">FALLECIDO</option>
-                                                    
-                                                    
-                                                    
-                                                  </select>
-                                                    </div>
-                                                    </div>
-                                            
-                                            
-                                                    <div class="col-sm-4">
-                                                        <div class="form-group">
-                                                            <label for="Nombre">Tratamiento f75</label>
-                                                            <select class="person2 " name="tratamiento_f75" id="tratamiento_f75"  style="width: 100% ">
-                                                            <option  value="">SELECCIONAR</option>
-                                                            <option  value="SI">SI</option>
-                                                            <option  value="NO">NO</option>
-                                                            
-                                                            
-                                                          </select>
-                                                        </div>
-                                                    </div>
-                                            
-                                            
-                                                        <div class="col-sm-4">
-                                                            <div class="form-group" id="input_oculto1">
-                                                                <label for="Nombre"> Fecha en la que recibe tratamiento f75 </label> {{-- el isset pregunta si el archivo esta seleccionado lo muestre sino no muestra nada por eso las comillas vacias al final --}}
-                                                                <input class="form-control" type="date" name="fecha_recibio_tratf75" id = 'fecha_recibio_tratf75'
-                                                                value="">
-                                                            </div>
-                            
-                                                            
-                                                            </div>
-                                            
-                            
-                            
-                                                            
-                                                           
-                                            
-                                                </div>
-                                            
-                                            
-                                                <div class="row">
-                                                    <div class="col-lg-12 ">
-                                                        <div class="card card-info card-outline ">
-                                                    <center><h6 class=""> <strong>DEMANDA INDUCIDA</strong></h6></center>
-                                            
-                                                </div>
-                                                    </div>
-                                                        </div>
-            
-                                                <div class="row">
-                                                    <div class="col-sm-6">
-                                                        <div class="form-group">
-                                                            <label for="Nombre">Esquema pai completo para la edad</label>
-                                                            <select class="person2 " name="Esquemq_complrto_pai_edad" id="Esquemq_complrto_pai_edad"  style="width: 100% ">
-                                                            <option  value="">SELECCIONAR</option>
-                                                            <option  value="INCOMPLETO">INCOMPLETO</option>
-                                                            <option  value="INCOMPLETO">COMPLETO</option>
-                                                            
-                                                            
-                                                          </select>
-                                                    </div>
-                                                        </div>
-                                                    
-                                                                                   
-                                                    
-                                                        <div class="col-sm-6">
-                                                            <div class="form-group">
-                                                                <label for="Nombre">Atencion en la ruta de promocion y mantenimieto </label>
-                                                                <select class="person2 " name="Atecion_primocion_y_mantenimiento_res3280_2018" id="Atecion_primocion_y_mantenimiento_res3280_2018"  style="width: 100% ">
-                                                                    <option  value="0">SELECCIONAR</option>
-                                                                    <option  value="SI">SI</option>
-                                                                    <option  value="NO">NO</option>
-                                                                </select>
-                                                            </div>
-                                                            </div>
-                                                    
-                                                    
-                                                    </div>
-                                            <div class="row">
-                                                <div class="col-md-4">
-                                                    <div class="form-group" >
-                                                        <label for="Nombre">Desea cerrar el caso ?</label>
-                                                        <select class="person2 " name="estado" id="estado"  style="width: 100% ">
-                                                        <option  value="">SELECCIONAR</option>
-                                                        <option  value="1">ABIERTO</option>
-                                                        <option  value="0">CERRADO</option>
-                                                        
-                                                      </select>
-                                                </div>
-                                               
-                                                </div>
-                                                    <div class="col-md-4 " >
-                                                    <div class="form-group" id="input_oculto">
-                                                        <label for="Nombre"> Fecha Proximo Seguimiento </label> {{-- el isset pregunta si el archivo esta seleccionado lo muestre sino no muestra nada por eso las comillas vacias al final --}}
-                                                         <input class="form-control" type="date" name="fecha_proximo_control" id="fecha_proximo_control" value="{{ isset($empleado->fecha_proximo_control) ? $empleado->fecha_proximo_control : old('fecha_proximo_control') }}" {{-- min="{{ date('Y-m-d') }}" --}} > 
-                                                    </div>
-                                                    
-
-
-                                                   
-                                                    </div>
-                                                    <div class="col-md-4">
-                                                        <div class="form-group" id="inputsuperoculto">
-                                                            <label for="Nombre"> Fecha de entrega FTLC </label> {{-- el isset pregunta si el archivo esta seleccionado lo muestre sino no muestra nada por eso las comillas vacias al final --}}
-                                                            <input class="form-control" type="date" name="fecha_entrega_ftlc" id = 'fecha_entrega_ftlc'
-                                                            value="">
-                                                        </div>
-                                                        </div>
-                                    
-                                         </div>
-                                           
-                                         <div class="form-group">
-                                            <label for="pdf">PDF:</label>
-                                            <input type="file" name="pdf" class="form-control-file" required>
-                                            
-                                        </div>
-
-            
-
-                           
-
-
-                                        <button id="update-btn" class="btn btn-success" type="button" onclick="submitForm()">
-                                            <span id="button-text">ENVIAR</span>
-                                            <span id="loading-icon" class="spinner-border spinner-border-sm" role="status" aria-hidden="true" style="display: none;"></span>
-                                            <span id="sending-text" style="display: none;">Enviando correo...</span>
-                                        </button>
-            <a  class="btn btn-primary" href="{{url('Seguimiento')}}" class="btn  btn-success"> REGRESAR</a>
+        <div class="col-12 col-md-4">
+          <label for="peso_kilos">Peso (kg)</label>
+          <div class="input-group">
+            <span class="input-group-text"><i class="fas fa-weight-hanging"></i></span>
+            <input
+              type="number"
+              step="0.0001"
+              id="peso_kilos"
+              name="peso_kilos"
+              class="form-control"
+              value="{{ old('peso_kilos') }}"
+              required>
+          </div>
+          @error('peso_kilos')<small class="text-danger">{{ $message }}</small>@enderror
         </div>
+        <div class="col-12 col-md-4">
+          <label for="puntajez">Puntaje Z</label>
+          <div class="input-group">
+            <span class="input-group-text"><i class="fas fa-chart-line"></i></span>
+            <input
+              type="number"
+              step="0.0001"
+              id="puntajez"
+              name="puntajez"
+              class="form-control"
+              value="{{ old('puntajez') }}"
+              required>
+          </div>
+          @error('puntajez')<small class="text-danger">{{ $message }}</small>@enderror
+        </div>
+      </div>
+      <div class="row g-3 mt-2">
+        <div class="col-12 col-md-6">
+          <label for="perimetro_braqueal">Perímetro Braquial</label>
+          <div class="input-group">
+            <span class="input-group-text"><i class="fas fa-expand-arrows-alt"></i></span>
+            <input
+              type="text"
+              id="perimetro_braqueal"
+              name="perimetro_braqueal"
+              class="form-control"
+              value="{{ old('perimetro_braqueal') }}"
+              required>
+          </div>
+          @error('perimetro_braqueal')<small class="text-danger">{{ $message }}</small>@enderror
+        </div>
+        <div class="col-12 col-md-6">
+          <label for="requerimiento_energia_ftlc">Energía FTLC</label>
+          <div class="input-group">
+            <span class="input-group-text"><i class="fas fa-bolt"></i></span>
+            <input
+              type="text"
+              id="requerimiento_energia_ftlc"
+              name="requerimiento_energia_ftlc"
+              class="form-control"
+              value="{{ old('requerimiento_energia_ftlc') }}"
+              required>
+          </div>
+          @error('requerimiento_energia_ftlc')<small class="text-danger">{{ $message }}</small>@enderror
+        </div>
+      </div>
     </div>
+  </div>
+
+  {{-- Card: Manejo y Observaciones --}}
+  <div class="card card-custom mb-4">
+    <div class="card-header"><i class="fas fa-notes-medical"></i> Manejo y Observaciones</div>
+    <div class="card-body">
+      <div class="row g-3">
+        <div class="col-12 col-md-6">
+          <label for="clasificacion">Clasificación</label>
+          <div class="input-group">
+            <span class="input-group-text"><i class="fas fa-clipboard-list"></i></span>
+            <select
+              id="clasificacion"
+              name="clasificacion"
+              class="form-control select2"
+              required>
+              <option value="">Seleccione...</option>
+              @foreach([
+                'DESNUTRICION AGUDA MODERADA',
+                'DESNUTRICION AGUDA SEVERA',
+                'DESNUTRICION AGUDA SEVERA TIPO KWASHIORKOR',
+                'DESNUTRICION AGUDA SEVERA TIPO MARASMO',
+                'DESNUTRICION AGUDA SEVERA MIXTA',
+                'RIESGO DE DESNUTRICION',
+                'RIESGO DE DESNUTRICION AGUDA',
+                'BUSQUEDA FALLIDA',
+                'PESO ADECUADO PARA LA TALLA'
+              ] as $opt)
+                <option value="{{ $opt }}" {{ old('clasificacion')==$opt?'selected':'' }}>
+                  {{ ucwords(strtolower($opt)) }}
+                </option>
+              @endforeach
+            </select>
+          </div>
+          @error('clasificacion')<small class="text-danger">{{ $message }}</small>@enderror
         </div>
-            </div>
-                </div>
-                    </div>
+        <div class="col-12 col-md-6">
+          <label for="observaciones">Observaciones</label>
+          <textarea
+            id="observaciones"
+            name="observaciones"
+            class="form-control"
+            rows="4"
+            maxlength="600">{{ old('observaciones') }}</textarea>
+          @error('observaciones')<small class="text-danger">{{ $message }}</small>@enderror
+        </div>
+      </div>
 
-                    
-                        </div>
-   
+      {{-- Medicamento --}}
+      <div class="row g-3 mt-2">
+        <div class="col-12">
+          <label for="medicamento">Medicamento</label>
+          <div class="input-group">
+            <span class="input-group-text"><i class="fas fa-pills"></i></span>
+            <select
+              id="medicamento"
+              name="medicamento[]"
+              class="form-control select2-multiple"
+              multiple>
+              <option value="23072-2" {{ collect(old('medicamento'))->contains('23072-2')?'selected':'' }}>Albendazol 200mg</option>
+              <option value="54114-1" {{ collect(old('medicamento'))->contains('54114-1')?'selected':'' }}>Albendazol 400mg</option>
+              <option value="35662-18" {{ collect(old('medicamento'))->contains('35662-18')?'selected':'' }}>Ácido Fólico</option>
+              <option value="31063-1" {{ collect(old('medicamento'))->contains('31063-1')?'selected':'' }}>Vitamina A</option>
+              <option value="27440-3" {{ collect(old('medicamento'))->contains('27440-3')?'selected':'' }}>Hierro</option>
+              <option value="NO APLICA" {{ collect(old('medicamento'))->contains('NO APLICA')?'selected':'' }}>No Aplica</option>
+            </select>
+          </div>
+          @error('medicamento')<small class="text-danger">{{ $message }}</small>@enderror
+        </div>
+      </div>
+    </div>
+  </div>
 
+  {{-- Card: Demanda Inducida --}}
+  <div class="card card-custom mb-4">
+    <div class="card-header"><strong>Demanda Inducida</strong></div>
+    <div class="card-body">
+      <div class="row g-3">
+        <div class="col-12 col-md-6">
+          <label for="Esquemq_complrto_pai_edad">Esquema PAI</label>
+          <div class="input-group">
+            <span class="input-group-text"><i class="fas fa-syringe"></i></span>
+            <select
+              id="Esquemq_complrto_pai_edad"
+              name="Esquemq_complrto_pai_edad"
+              class="form-control select2"
+              required>
+              <option value="">Seleccione...</option>
+              <option value="INCOMPLETO" {{ old('Esquemq_complrto_pai_edad')=='INCOMPLETO'?'selected':'' }}>Incompleto</option>
+              <option value="COMPLETO"   {{ old('Esquemq_complrto_pai_edad')=='COMPLETO'?'selected':'' }}>Completo</option>
+            </select>
+          </div>
+          @error('Esquemq_complrto_pai_edad')<small class="text-danger">{{ $message }}</small>@enderror
+        </div>
+        <div class="col-12 col-md-6">
+          <label for="Atecion_primocion_y_mantenimiento_res3280_2018">Promoción/Mantenimiento</label>
+          <div class="input-group">
+            <span class="input-group-text"><i class="fas fa-route"></i></span>
+            <select
+              id="Atecion_primocion_y_mantenimiento_res3280_2018"
+              name="Atecion_primocion_y_mantenimiento_res3280_2018"
+              class="form-control select2"
+              required>
+              <option value="">Seleccione...</option>
+              <option value="SI" {{ old('Atecion_primocion_y_mantenimiento_res3280_2018')=='SI'?'selected':'' }}>Sí</option>
+              <option value="NO" {{ old('Atecion_primocion_y_mantenimiento_res3280_2018')=='NO'?'selected':'' }}>No</option>
+            </select>
+          </div>
+          @error('Atecion_primocion_y_mantenimiento_res3280_2018')<small class="text-danger">{{ $message }}</small>@enderror
+        </div>
+      </div>
+    </div>
+  </div>
 
-                    
+  {{-- Card: Cierre de Caso --}}
+<div class="card card-custom mb-4">
+    <div class="card-header"><i class="fas fa-check-circle"></i> Cierre de Caso</div>
+    <div class="card-body">
+      <div class="row g-3">
+        {{-- Estado actual del menor --}}
+        <div class="col-12 col-md-4">
+          <label for="est_act_menor">Estado actual del menor</label>
+          <select
+            id="est_act_menor"
+            name="est_act_menor"
+            class="form-control select2"
+            required>
+            <option value="">Seleccione...</option>
+            @foreach([
+              'PESO ADECUADO PARA LA TALLA',
+              'RIESGO DE DESNUTRICIÓN AGUDA',
+              'DESNUTRICION AGUDA MODERADA',
+              'DESNUTRICIÓN AGUDA SEVERA',
+              'DESNUTRICIÓN AGUDA SEVERA TIPO MARASMO',
+              'DESNUTRICIÓN AGUDA SEVERA TIPO KWASHIORKOR',
+              'DESNUTRICIÓN AGUDA SEVERA MIXTA',
+              'EN PROCESO DE RECUPERACION',
+              'BUSQUEDA FALLIDA',
+              'PROCESO DE RECUPERACION',
+              'RECUPERADO',
+              'FALLECIDO'
+            ] as $opt)
+              <option value="{{ $opt }}"
+                {{ old('est_act_menor')==$opt ? 'selected':'' }}>
+                {{ ucwords(strtolower($opt)) }}
+              </option>
+            @endforeach
+          </select>
+        </div>
+  
+        {{-- Tratamiento f75 --}}
+        <div class="col-12 col-md-4">
+          <label for="tratamiento_f75">Tratamiento f75</label>
+          <select
+            id="tratamiento_f75"
+            name="tratamiento_f75"
+            class="form-control select2"
+            required>
+            <option value="">Seleccione...</option>
+            @foreach(['SI','NO'] as $opt)
+              <option value="{{ $opt }}"
+                {{ old('tratamiento_f75')==$opt ? 'selected':'' }}>
+                {{ $opt }}
+              </option>
+            @endforeach
+          </select>
+        </div>
+  
+        {{-- Fecha recibe f75 (oculto/visible) --}}
+        <div class="col-12 col-md-4" id="row_fecha_recibio_tratf75" style="display:none;">
+          <label for="fecha_recibio_tratf75">Fecha recibió tratamiento f75</label>
+          <input
+            type="date"
+            id="fecha_recibio_tratf75"
+            name="fecha_recibio_tratf75"
+            class="form-control"
+            value="{{ old('fecha_recibio_tratf75') }}">
+        </div>
+  
+        {{-- Estado cierre --}}
+        <div class="col-12 col-md-4">
+          <label for="estado">Estado</label>
+          <select
+            id="estado"
+            name="estado"
+            class="form-control select2"
+            required>
+            <option value="">Seleccione...</option>
+            <option value="1" {{ old('estado')=='1' ? 'selected':'' }}>Abierto</option>
+            <option value="0" {{ old('estado')=='0' ? 'selected':'' }}>Cerrado</option>
+          </select>
+        </div>
+  
+        {{-- Próximo Seguimiento --}}
+        <div class="col-12 col-md-4" id="input_oculto">
+          <label for="fecha_proximo_control">Próx. Seguimiento</label>
+          <input
+            type="date"
+            id="fecha_proximo_control"
+            name="fecha_proximo_control"
+            class="form-control"
+            value="{{ old('fecha_proximo_control') }}">
+        </div>
+  
+        {{-- Fecha Entrega FTLC --}}
+        <div class="col-12 col-md-4">
+          <label for="fecha_entrega_ftlc">Entrega FTLC</label>
+          <input
+            type="date"
+            id="fecha_entrega_ftlc"
+            name="fecha_entrega_ftlc"
+            class="form-control"
+            value="{{ old('fecha_entrega_ftlc') }}">
+        </div>
+  
+        {{-- PDF Adjunto --}}
+        <div class="col-12">
+          <label for="pdf">PDF Adjunto</label>
+          <input
+            type="file"
+            id="pdf"
+            name="pdf"
+            class="form-control-file"
+            required>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {{-- Botones --}}
+  <div class="text-center mb-5">
+    <button
+      id="update-btn"
+      type="button"
+      class="btn-gradient btn-lg mx-2"
+      onclick="submitForm()">
+      <i class="fas fa-paper-plane"></i> Enviar
+    </button>
+    <a href="{{ url('Seguimiento') }}" class="btn btn-secondary btn-lg mx-2">
+      <i class="fas fa-arrow-left"></i> Regresar
+    </a>
+  </div>
+</form>
