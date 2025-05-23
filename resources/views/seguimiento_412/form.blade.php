@@ -338,7 +338,7 @@
               <span id="loading-icon" class="spinner-border spinner-border-sm" style="display:none;"></span>
               <span id="sending-text" style="display:none;">Enviando correo…</span>
             </button>
-            <a href="{{ url('Seguimiento') }}" class="btn btn-secondary btn-lg mx-2">REGRESAR</a>
+            <a href="{{ url('new412_seguimiento') }}" class="btn btn-secondary btn-lg mx-2">REGRESAR</a>
           </div>
 
         </form>
