@@ -199,7 +199,9 @@ public function data(Request $request)
         ->where('refIps.codigoDepartamento', 44)
         ->get();
 
-        return view('seguimiento_412.create',compact('incomeedit','income12','sivigilas2030'));
+        return view('seguimiento_412.create', compact('incomeedit','income12','sivigilas2030'))
+        ->with('empleado', null);
+ 
     }
 
     /**

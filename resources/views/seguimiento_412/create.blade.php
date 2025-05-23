@@ -10,134 +10,104 @@
 
 
 {{-- boton para abrir la modal --}}
+{{-- Botón que abre la modal --}}
 <br>
 <button type="button" class="btn btn-primary btn-sm" style="border-radius: 50px; padding: 10px 20px; font-weight: bold; letter-spacing: 1px; background-color: #007bff;" data-toggle="modal" data-target="#exampleModal">
   <i class="icon-zoom-in mr-2"></i> CLICK AQUI PARA VER TODOS LOS DATOS
 </button>
 <br>
 
-  {{-- aqui termina el boton --}}
-  
-  
-  <div class="modal fade" id="exampleModal" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
-    <div class="modal-dialog">
-      <div class="modal-content">
-        <div class="modal-header">
-          <h5 class="modal-title" id="exampleModalLabel">NOTIFICACIONES</h5>
-          <button type="button" class="close" data-dismiss="modal" aria-label="Cerrar">
-            <span aria-hidden="true">&times;</span>
-          </button>
-        </div>
-        <div class="modal-body">
-
-
-
-
-<table class="table table-hover table-striped table-bordered" style="border: 1px solid #000000;" id="sivigila"> 
-  <thead class="table table-hover table-info table-bordered" style="background-color: #d9f2e6; border: 1px solid #000000;">
-      <tr>
-        <th style="font-size: smaller;" scope="col">Id</th>
-        <th style="font-size: smaller;" scope="col">nombre coperante</th>
-        <th style="font-size: smaller;" scope="col">nombre profesional</th>
-        <th style="font-size: smaller;" scope="col">numero profesional</th>
-        <th style="font-size: smaller;" scope="col">fecha captacion</th>
-          {{-- <th style="font-size: smaller;" scope="col">Número de Orden</th> --}}
-          {{-- <th style="font-size: smaller;" scope="col">Nombre Coperante</th> --}}
-
-          <th style="font-size: smaller;" scope="col">nombre_cuidador</th>
-          <th style="font-size: smaller;" scope="col">identioficacion_cuidador</th>
-          <th style="font-size: smaller;" scope="col">telefono_cuidador</th>
-          <th style="font-size: smaller;" scope="col">nombre_eapb_cuidador</th>
-
-
-          <th style="font-size: smaller;" scope="col">nombre_autoridad_trad_ansestral</th>
-          <th style="font-size: smaller;" scope="col">datos_contacto_autoridad</th>
-
-          <th style="font-size: smaller;" scope="col">Tipo ID</th>
-          <th style="font-size: smaller;" scope="col">Identificacion</th>
-          <th style="font-size: smaller;" scope="col">Nombre</th>
-
-          <th style="font-size: smaller;" scope="col">sexo</th>
-          <th style="font-size: smaller;" scope="col">fecha_nacimieto_nino</th>
-          <th style="font-size: smaller;" scope="col">edad_meses</th>
-
-          <th style="font-size: smaller;" scope="col">regimen_afiliacion</th>
-          <th style="font-size: smaller;" scope="col">nombre_eapb_menor</th>
-          <th style="font-size: smaller;" scope="col">peso_kg</th>
-          <th style="font-size: smaller;" scope="col">logitud_talla_cm</th>
-          <th style="font-size: smaller;" scope="col">perimetro_braqueal</th>
-          <th style="font-size: smaller;" scope="col">signos_peligro_infeccion_respiratoria</th>
-          <th style="font-size: smaller;" scope="col">sexosignos_desnutricion</th>
-          <th style="font-size: smaller;" scope="col">puntaje_z</th>
-          <th style="font-size: smaller;" scope="col">calsificacion_antropometrica</th>
-
-          <th style="font-size: smaller;" scope="col">Municipio</th>
-          <th style="font-size: smaller;" scope="col">uds</th>
-          <th style="font-size: smaller;" scope="col">Nombre rancheria</th>
-          {{-- <th style="font-size: smaller;" scope="col">Nombre Ranchería</th> --}}
-          {{-- <th style="font-size: smaller;" scope="col">Ubicación Casa</th> --}}
-          <th style="font-size: smaller;" scope="col">Ubicacion casa</th>
-        
-  </thead>
-  <tbody id="table">
-      @foreach($sivigilas2030 as $student2)
-      <tr>
-        <td><small>{{ $student2->id }}</small></td>
-        <td><small>{{ $student2->nombre_coperante }}</small></td>
-        <td><small>{{ $student2->nombre_profesional }}</small></td>
-        <td><small>{{ $student2->numero_profesional }}</small></td>
-           <td><small>{{ $student2->fecha_captacion }}</small></td> 
-           
-           <td><small>{{ $student2->nombre_cuidador }}</small></td>
-           <td><small>{{ $student2->identioficacion_cuidador }}</small></td>
-           <td><small>{{ $student2->telefono_cuidador }}</small></td>
-           <td><small>{{ $student2->nombre_eapb_cuidador }}</small></td>
-
-
-           <td><small>{{ $student2->nombre_autoridad_trad_ansestral }}</small></td>
-           <td><small>{{ $student2->datos_contacto_autoridad }}</small></td>
-        
-
-
-          <td><small>{{ $student2->tipo_identificacion }}</small></td> 
-          <td><small>{{ $student2->numero_identificacion }}</small></td> 
-          <td><small>{{ $student2->primer_nombre.' '.$student2->segundo_nombre.' '.$student2->primer_apellido.' '.
-            $student2->segundo_apellido }} </small> </td>
-
-          <td><small>{{ $student2->sexo }}</small></td>
-          <td><small>{{ $student2->fecha_nacimieto_nino }}</small></td>
-          <td><small>{{ $student2->edad_meses }}</small></td>
-
-          <td><small>{{ $student2->regimen_afiliacion }}</small></td>
-          <td><small>{{ $student2->nombre_eapb_menor }}</small></td>
-          <td><small>{{ $student2->peso_kg }}</small></td>
-          <td><small>{{ $student2->logitud_talla_cm }}</small></td>
-          <td><small>{{ $student2->perimetro_braqueal }}</small></td>
-          <td><small>{{ $student2->signos_peligro_infeccion_respiratoria }}</small></td>
-          <td><small>{{ $student2->sexosignos_desnutricion }}</small></td>
-          <td><small>{{ $student2->puntaje_z }}</small></td>
-          <td><small>{{ $student2->calsificacion_antropometrica }}</small></td>
-
-          <td><small>{{ $student2->municipio }}</small></td>
-          <td><small>{{ $student2->uds }}</small></td>
-          <td><small>{{ $student2->nombre_rancheria }}</small></td>
-          {{-- <td><small>{{ $student2->nombre_rancheria }}</small></td> --}}
-          {{-- <td><small>{{ $student2->ubicacion_casa }}</small></td> --}}
-          <td><small>{{ $student2->ubicacion_casa }}</small></td>
-          
-      </tr>
-      @endforeach 
-  </tbody>
-</table>
-<div class="modal-footer">
-  <button type="button" class="btn btn-secondary" data-dismiss="modal">Cerrar</button>
-  {{-- <button type="button" class="btn btn-primary">Guardar cambios</button> --}}
-</div>
-</div>
-</div>
+{{-- Modal con tabla --}}
+<div class="modal fade" id="exampleModal" tabindex="-1" role="dialog" aria-labelledby="exampleModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-xl" role="document"> {{-- <- Cambiado a modal-xl --}}
+    <div class="modal-content">
+      <div class="modal-header bg-primary text-white">
+        <h5 class="modal-title" id="exampleModalLabel">NOTIFICACIONES</h5>
+        <button type="button" class="close text-white" data-dismiss="modal" aria-label="Cerrar">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <div class="modal-body p-0" style="overflow-x: auto; max-height: 80vh;">
+        <table class="table table-hover table-striped table-bordered mb-0" style="border: 1px solid #000;" id="sivigila">
+          <thead class="table-info text-center">
+            <tr>
+              <th style="font-size: smaller;">Id</th>
+              <th style="font-size: smaller;">nombre coperante</th>
+              <th style="font-size: smaller;">nombre profesional</th>
+              <th style="font-size: smaller;">numero profesional</th>
+              <th style="font-size: smaller;">fecha captacion</th>
+              <th style="font-size: smaller;">nombre cuidador</th>
+              <th style="font-size: smaller;">identificación cuidador</th>
+              <th style="font-size: smaller;">teléfono cuidador</th>
+              <th style="font-size: smaller;">EAPB cuidador</th>
+              <th style="font-size: smaller;">Autoridad ancestral</th>
+              <th style="font-size: smaller;">Contacto autoridad</th>
+              <th style="font-size: smaller;">Tipo ID</th>
+              <th style="font-size: smaller;">Identificación</th>
+              <th style="font-size: smaller;">Nombre</th>
+              <th style="font-size: smaller;">Sexo</th>
+              <th style="font-size: smaller;">Fecha nacimiento</th>
+              <th style="font-size: smaller;">Edad (meses)</th>
+              <th style="font-size: smaller;">Régimen</th>
+              <th style="font-size: smaller;">EAPB menor</th>
+              <th style="font-size: smaller;">Peso</th>
+              <th style="font-size: smaller;">Talla</th>
+              <th style="font-size: smaller;">Perímetro braquial</th>
+              <th style="font-size: smaller;">Signos infección</th>
+              <th style="font-size: smaller;">Signos desnutrición</th>
+              <th style="font-size: smaller;">Z</th>
+              <th style="font-size: smaller;">Clasificación</th>
+              <th style="font-size: smaller;">Municipio</th>
+              <th style="font-size: smaller;">UDS</th>
+              <th style="font-size: smaller;">Ranchería</th>
+              <th style="font-size: smaller;">Ubicación</th>
+            </tr>
+          </thead>
+          <tbody>
+            @foreach($sivigilas2030 as $student2)
+            <tr>
+              <td><small>{{ $student2->id }}</small></td>
+              <td><small>{{ $student2->nombre_coperante }}</small></td>
+              <td><small>{{ $student2->nombre_profesional }}</small></td>
+              <td><small>{{ $student2->numero_profesional }}</small></td>
+              <td><small>{{ $student2->fecha_captacion }}</small></td>
+              <td><small>{{ $student2->nombre_cuidador }}</small></td>
+              <td><small>{{ $student2->identioficacion_cuidador }}</small></td>
+              <td><small>{{ $student2->telefono_cuidador }}</small></td>
+              <td><small>{{ $student2->nombre_eapb_cuidador }}</small></td>
+              <td><small>{{ $student2->nombre_autoridad_trad_ansestral }}</small></td>
+              <td><small>{{ $student2->datos_contacto_autoridad }}</small></td>
+              <td><small>{{ $student2->tipo_identificacion }}</small></td>
+              <td><small>{{ $student2->numero_identificacion }}</small></td>
+              <td><small>{{ $student2->primer_nombre }} {{ $student2->segundo_nombre }} {{ $student2->primer_apellido }} {{ $student2->segundo_apellido }}</small></td>
+              <td><small>{{ $student2->sexo }}</small></td>
+              <td><small>{{ $student2->fecha_nacimieto_nino }}</small></td>
+              <td><small>{{ $student2->edad_meses }}</small></td>
+              <td><small>{{ $student2->regimen_afiliacion }}</small></td>
+              <td><small>{{ $student2->nombre_eapb_menor }}</small></td>
+              <td><small>{{ $student2->peso_kg }}</small></td>
+              <td><small>{{ $student2->logitud_talla_cm }}</small></td>
+              <td><small>{{ $student2->perimetro_braqueal }}</small></td>
+              <td><small>{{ $student2->signos_peligro_infeccion_respiratoria }}</small></td>
+              <td><small>{{ $student2->sexosignos_desnutricion }}</small></td>
+              <td><small>{{ $student2->puntaje_z }}</small></td>
+              <td><small>{{ $student2->calsificacion_antropometrica }}</small></td>
+              <td><small>{{ $student2->municipio }}</small></td>
+              <td><small>{{ $student2->uds }}</small></td>
+              <td><small>{{ $student2->nombre_rancheria }}</small></td>
+              <td><small>{{ $student2->ubicacion_casa }}</small></td>
+            </tr>
+            @endforeach
+          </tbody>
+        </table>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-dismiss="modal">Cerrar</button>
+      </div>
+    </div>
+  </div>
 </div>
 
-</div>
 
 
 
@@ -235,71 +205,10 @@
     
     @section('js')
        
-    <script type="text/javascript">
-           $(document).ready(function() {
-                $('#est_act_menor').on('change', function() {
-                    if ($(this).val() == 'RECUPERADO') {
-                        $('.col-sm-4').hide();
-                        $('.col-md-6').hide();
-                        $('#inputsuperoculto').hide();
-                    
-                    } else {
-                    
-                    $('.col-sm-4').show();
-                    $('.col-md-6').show();
-                    $('#inputsuperoculto').show();
-                    }
-                });
-                });
 
-             $(document).ready(function(){
-             $('#estado').on('change', function() {
-                 if ( this.value == '1')
-                 $("#input_oculto").show();
-                 else
-                 $("#input_oculto").hide();
-             });
-            
-                });
-
-
-
-                 $(document).ready(function(){
-             $('#tratamiento_f75').on('change', function() {
-                 if ( this.value == 'SI')
-                 $("#input_oculto1").show();
-                 else
-                 $("#input_oculto1").hide();
-             });
-            
-         });
-
-         $(document).ready(function() {
-    $('.js-example-basic-multiple').select2();
-});
-    </script>
 
 <script>
-  $(document).ready(function () {
-    $('#sivigila').DataTable({
-        "language": {
-            "search": "BUSCAR",
-            "lengthMenu": "Mostrar _MENU_ registros",
-            "info": "Mostrando pagina _PAGE_ de _PAGES_",
-            "paginate": {
-                "first": "Primero",
-                "last": "Último",
-                "next": "Siguiente",
-                "previous": "Anterior"
-            }
-        },
-        "paging": true, // Activar paginación
-        "lengthChange": false, // Desactivar el cambio de cantidad de registros mostrados
-        "searching": true, // Habilitar la función de búsqueda
-        "info": false, // Desactivar la información de la tabla (registros mostrados, registros totales, etc.)
-        "pageLength": 1 // Mostrar solo un registro por página
-    });
-});
+
 
 
 function submitForm() {

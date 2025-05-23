@@ -1,302 +1,236 @@
-
 @extends('adminlte::page')
 
-@section('title', 'Anas wayuu')
+@section('title', 'Editar Seguimiento')
 
-@section('content_header')
-
+@section('css')
+<link rel="stylesheet" href="/css/admin_custom.css">
+<style>
+  .card-custom {
+    background: #fff;
+    border-radius: 1rem;
+    box-shadow: 0 .5rem 1rem rgba(0,0,0,0.15);
+    border: none;
+    margin-bottom: 1.5rem;
+  }
+  .card-custom .card-header {
+    background: linear-gradient(135deg,#1d9bf0,#17bf63);
+    color: #fff;
+    font-weight: 600;
+    border-top-left-radius: 1rem;
+    border-top-right-radius: 1rem;
+    text-align: center;
+  }
+  .btn-gradient {
+    background: linear-gradient(45deg,#1d9bf0,#17bf63);
+    color: #fff;
+    border: none;
+    border-radius: .75rem;
+    padding: .75rem 1.5rem;
+    transition: opacity .3s;
+  }
+  .btn-gradient:hover {
+    opacity: .9;
+  }
+  .input-group-text {
+    background: #f0f2f5;
+    border: none;
+    border-radius: .75rem 0 0 .75rem;
+  }
+  .form-control {
+    border-radius: 0 .75rem .75rem 0;
+  }
+</style>
 @stop
+
 @section('content')
+@include('seguimiento_412.mensajes')
 
 <form action="{{url('/new412_seguimiento/'.$empleado->id)}}" method="post" enctype="multipart/form-data">
-    @csrf
-    {{method_field('PATCH')}}
-    
-   
-    
+  @csrf
+  {{method_field('PATCH')}}
 
-
-
-
-    <br>
-    @include('seguimiento_412.mensajes')
-    
-    
-    <div class="row">
-        <div class="col-lg-12">
-            <div class="card card-info card-outline card-tabs">
-                <div class="card-header">
-                    <h2 class="card-title text-center">
-                          <i class="far fa-hospital" style="font-size: 45px; color: #3333ff; "></i>
-                          Seguimiento
-                          <i class="bi bi-plus"></i>
-                          <i class="fas fa-user-md" style="font-size: 45px; color: #3333ff;"></i>
-                    </h2>
-    
-                    
-                </div>
-                
-                <div class="card-body">
-    
-                    <div class="row">
-                        <div class="col-md-6 ">
-                            <div class="form-group">
-                                <label for="Nombre">Paciente</label>
-                            <select class="person " name="cargue412_id" id="cargue412_id"  style="width: 100%">
-                                
-                                @foreach($incomeedit as $developer)
-                                <option  value="{{$developer->idin }}">{{$developer->idin.' '.$developer->numero_identificacion.' '.$developer->primer_nombre.' '.$developer->segundo_nombre.' '.$developer->primer_apellido.' '.$developer->segundo_apellido }}</option>
-                                @endforeach
-                                
-                              </select>
-                        </div>
-                    </div>
-    
-    
-                    <div class="col-sm-6">
-                        <div class="form-group">
-                            <label for="Nombre">Fecha Consulta</label> {{-- el isset pregunta si el archivo esta seleccionado lo muestre sino no muestra nada por eso las comillas vacias al final --}}
-                            <input class="form-control" type="date" name="fecha_consulta" id = 'fecha_consulta'
-                            value="{{$empleado->fecha_consulta}}">
-                        </div>
-                        </div>
-                 </div>
-    
-    
-               
-                    <div class="row">
-    
-    
-    
-    
-    
-    
-    
+  {{-- ============================== ENCABEZADO ============================== --}}
+  <div class="card card-custom">
+    <div class="card-header">
+      <h2><i class="far fa-hospital"></i> Seguimiento <i class="fas fa-user-md"></i></h2>
     </div>
-    
-    <div class="row">
-        <div class="col-sm-6">
-            <div class="form-group">
-                <label for="Nombre"> Talla en centimetros</label> {{-- el isset pregunta si el archivo esta seleccionado lo muestre sino no muestra nada por eso las comillas vacias al final --}}
-                <input class="form-control" type="number" step="0.01" name="talla_cm" id = 'talla_cm'
-                value="{{$empleado->talla_cm}}">
+    <div class="card-body">
+
+      {{-- ========================= DATOS DEL PACIENTE ========================= --}}
+      <div class="card card-custom">
+        <div class="card-header">Datos del Paciente</div>
+        <div class="card-body">
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label>Paciente</label>
+              <select class="person form-control" name="cargue412_id" id="cargue412_id" required>
+                <option value="">Seleccione...</option>
+                @foreach($incomeedit as $developer)
+                  <option value="{{$developer->idin}}" {{ $developer->idin == $empleado->cargue412_id ? 'selected' : '' }}>
+                    {{ $developer->idin.' '.$developer->numero_identificacion.' '.$developer->primer_nombre.' '.$developer->segundo_nombre.' '.$developer->primer_apellido.' '.$developer->segundo_apellido }}
+                  </option>
+                @endforeach
+              </select>
             </div>
+            <div class="col-md-6">
+              <label>Fecha Consulta</label>
+              <input type="date" name="fecha_consulta" class="form-control" value="{{$empleado->fecha_consulta}}" required>
             </div>
-    
-            <div class="col-sm-6">
-                <div class="form-group">
-                    <label for="Nombre">Peso En Kilos y un decimal</label> {{-- el isset pregunta si el archivo esta seleccionado lo muestre sino no muestra nada por eso las comillas vacias al final --}}
-                    <input class="form-control" type="number" step="0.0001" name="peso_kilos" id = 'peso_kilos'
-                    value="{{$empleado->peso_kilos}}">
-                </div>
-                </div>
+          </div>
         </div>
-    
-     <div class="row">
-            <div class="col-sm-6">
-                <div class="form-group">
-                    <label for="Nombre">Calificacion </label> {{-- el isset pregunta si el archivo esta seleccionado lo muestre sino no muestra nada por eso las comillas vacias al final --}}
-                    <select class="person2 " name="clasificacion" id="clasificacion"  style="width: 100% ">
-                        
-                        <option  value="{{$empleado->clasificacion}}">{{$empleado->clasificacion}}</option>
-                       
-                      </select>
-                </div>
-                </div>
-            
-                <div class="col-sm-6">
-                    <div class="form-group">
-                        <label for="Nombre">Puntaje z (peso / talla)</label> {{-- el isset pregunta si el archivo esta seleccionado lo muestre sino no muestra nada por eso las comillas vacias al final --}}
-                        <input class="form-control" type="number" step="0.0001" name="puntajez" id = 'puntajez'
-                        value="{{$empleado->puntajez}}">
-                    </div>
-                    </div>                       
-            
-         
+      </div>
+
+      {{-- ======================== DATOS ANTROPOMÉTRICOS ======================== --}}
+      <div class="card card-custom">
+        <div class="card-header">Datos Antropométricos</div>
+        <div class="card-body">
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label>Talla en centímetros</label>
+              <input type="number" step="0.01" name="talla_cm" class="form-control" value="{{$empleado->talla_cm}}">
             </div>
-    
-            <div class="row">
-                <div class="col-sm-6">
-                    <div class="form-group">
-                        <label for="Nombre"> Perimetro Braqueal </label> {{-- el isset pregunta si el archivo esta seleccionado lo muestre sino no muestra nada por eso las comillas vacias al final --}}
-                        <input class="form-control" type="text" name="perimetro_braqueal" id = 'perimetro_braqueal'
-                        value="{{$empleado->perimetro_braqueal}}">
-                    </div>
-                    </div>
-            
-            
-                    <div class="col-sm-6">
-                        <div class="form-group">
-                            <label for="Nombre"> Requerimiento De Energia FTLC <br> </label> {{-- el isset pregunta si el archivo esta seleccionado lo muestre sino no muestra nada por eso las comillas vacias al final --}}
-                           <input class="form-control" type="text" name="requerimiento_energia_ftlc" id = 'requerimiento_energia_ftlc'
-                           value="{{$empleado->requerimiento_energia_ftlc}}">
-                               </div>
-                               </div>
-    
-                            </div>
-                            <div class="row">
-                                <div class="col-sm-6">
-                                    <div class="form-group">
-                                        <label for="Nombre">Esquema pai completo para la edad</label>
-                                        <select class="person2 " name="Esquemq_complrto_pai_edad" id="Esquemq_complrto_pai_edad"  style="width: 100% ">
-                                            <option  value="{{$empleado->Esquemq_complrto_pai_edad}}">{{$empleado->Esquemq_complrto_pai_edad}}</option>
-                                        
-                                        
-                                      </select>
-                                </div>
-                                        </div>
-                                
-                                
-                                </div>
-                            <div class="row">
-    
-                                <div class="col-sm-6">
-                                    <div class="form-group">
-                                        <label for="Nombre"> Observaciones </label> {{-- el isset pregunta si el archivo esta seleccionado lo muestre sino no muestra nada por eso las comillas vacias al final --}}
-                                        
-
-                                        <textarea name="observaciones" id="observaciones" 
-                                         class="form-control" rows="5" maxlength="600">{{$empleado->observaciones}}</textarea>
-                 
-                                    </div>
-                                    </div>
-    
-                                    <div class="col-sm-6">
-                                        <div class="form-group">
-                                            <label for="medicamento">Medicamento</label>
-                                            <select class="js-example-basic-multiple" name="medicamento[]" multiple="multiple" style="width: 100%">
-                                                <option value="23072-2" {{ in_array('23072-2', explode(',', $empleado->medicamento)) ? 'selected' : '' }}>albendazol 200MG</option>
-                                                <option value="54114-1" {{ in_array('54114-1', explode(',', $empleado->medicamento)) ? 'selected' : '' }}>albendazol 400MG</option>
-                                                <option value="35662-18" {{ in_array('35662-18', explode(',', $empleado->medicamento)) ? 'selected' : '' }}>Acido folico</option>
-                                                <option value="31063-1" {{ in_array('31063-1', explode(',', $empleado->medicamento)) ? 'selected' : '' }}>Vitamina A</option>
-                                                <option value="27440-3" {{ in_array('27440-3', explode(',', $empleado->medicamento)) ? 'selected' : '' }}>Hierro</option>
-                                                <!-- Agrega más opciones aquí -->
-                                            </select>
-                                        </div>
-                                    </div>
-                                    
-                                    
-                                    
-                                    
-                                        </div>
-    
-                                        <div class="row">
-                                            
-                                    
-                                            <div class="col-sm-6">
-                                                
-                                                </div>
-                                                <div class="col-sm-6">
-                                                    
-                                                    </div>
-                                               
-                                                </div>
-    
-                                                <div class="row">
-                                                    <div class="col-sm-3">
-                                                        <div class="form-group">
-                                                        <label for="Nombre">Estado actual del menor</label>
-                                                        <select class="person2 " name="est_act_menor" id="est_act_menor"  style="width: 100% ">
-                                                        <option  value="{{$empleado->est_act_menor}}">{{$empleado->est_act_menor}}</option>
-                                                       
-                                                        
-                                                      </select>
-                                                        </div>
-                                                        </div>
-                                                
-                                                
-                                                        <div class="col-sm-4">
-                                                         
-                                                                
-                                                                </div>
-                                                
-                                
-                                
-                                                                
-                                                               
-                                                
-                                                    </div>
-                                                
-                                                
-                                                @if(Auth::user()->usertype == 2)
-
-                                                @else
-                                                <div class="row">
-                                                    <div class="col-md-6">
-                                                        <div class="form-group" >
-                                                            <label for="Nombre">Desea modificar el estado del caso ?</label>
-                                                            <select class="person2 " name="estado" id="estado"  style="width: 100% ">
-                                                            <option  value="{{$empleado->estado}}"></option>
-                                                            <option  value="1">ABIERTO</option>
-                                                            <option  value="0">CERRADO</option>
-                                                            
-                                                          </select>
-                                                    </div>
-                                                   
-                                                    </div>
-                                                        <div class="col-md-6 " >
-                                                        <div class="form-group" id="input_oculto">
-                                                            <label for="Nombre"> Fecha Proximo Seguimiento </label> {{-- el isset pregunta si el archivo esta seleccionado lo muestre sino no muestra nada por eso las comillas vacias al final --}}
-                                                            <input class="form-control" type="date" name="fecha_proximo_control" id="fecha_proximo_control" 
-                                                            value="{{$empleado->fecha_proximo_control}}">
-                                                        </div>
-                                                        </div>
-                                                
-                                        
-                                             </div>
-
-
-                                             <div class="row">
-
-                                                <div class="col-sm-12">
-                                                    <div class="form-group">
-                                                        <label for="Nombre"> Motivo de reapuertura </label> {{-- el isset pregunta si el archivo esta seleccionado lo muestre sino no muestra nada por eso las comillas vacias al final --}}
-                                                        
-                
-                                                        <textarea name="motivo_reapuertura" id="motivo_reapuertura" 
-                                                         class="form-control" rows="5" maxlength="1000">{{$empleado->motivo_reapuertura}}</textarea>
-                                 
-                                                    </div>
-                                                    </div>
-                                             </div>
-                                               
-    
-                                             @endif
-                
-    
-                               
-    
-    
-    <input class="btn btn-success" type="submit" value="enviar">
-                <a  class="btn btn-primary" href="{{url('Seguimiento')}}" class="btn  btn-success"> REGRESAR</a>
+            <div class="col-md-6">
+              <label>Peso en kilos</label>
+              <input type="number" step="0.0001" name="peso_kilos" class="form-control" value="{{$empleado->peso_kilos}}">
             </div>
+            <div class="col-md-6">
+              <label>Perímetro braquial</label>
+              <input type="text" name="perimetro_braqueal" class="form-control" value="{{$empleado->perimetro_braqueal}}">
+            </div>
+            <div class="col-md-6">
+              <label>Requerimiento energía FTLC</label>
+              <input type="text" name="requerimiento_energia_ftlc" class="form-control" value="{{$empleado->requerimiento_energia_ftlc}}">
+            </div>
+          </div>
         </div>
-            </div>
-                </div>
-                    </div>
-                        </div>
-    
-                        
-                            </div>
-       
-    
-    
-                        
-               
-    </form>
+      </div>
 
-    
-       
-    
-    @stop
-            
-    @section('css')
-        <link rel="stylesheet" href="/css/admin_custom.css">
-    @stop
-    
-    @section('js')
-        <script>   $(document).ready(function() {
-            $('.js-example-basic-multiple').select2();
-        }); </script>
-    @stop
-    
+      {{-- =========================== EVALUACIÓN =========================== --}}
+      <div class="card card-custom">
+        <div class="card-header">Evaluación</div>
+        <div class="card-body">
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label>Clasificación</label>
+              <select name="clasificacion" class="person2 form-control" required>
+                <option value="{{$empleado->clasificacion}}">{{$empleado->clasificacion}}</option>
+                <option value="DESNUTRICION AGUDA MODERADA">DESNUTRICION AGUDA MODERADA</option>
+                <option value="DESNUTRICION AGUDA SEVERA">DESNUTRICION AGUDA SEVERA</option>
+                <option value="KWASHIORKOR">KWASHIORKOR</option>
+                <option value="MARASMO">MARASMO</option>
+                <option value="MIXTA">MIXTA</option>
+                <option value="RIESGO">RIESGO</option>
+                <option value="BUSQUEDA FALLIDA">BUSQUEDA FALLIDA</option>
+              </select>
+            </div>
+            <div class="col-md-6">
+              <label>Puntaje Z</label>
+              <input type="number" step="0.0001" name="puntajez" class="form-control" value="{{$empleado->puntajez}}">
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {{-- ======================= OBSERVACIONES Y MEDICAMENTOS ======================= --}}
+      <div class="card card-custom">
+        <div class="card-header">Observaciones y Medicamentos</div>
+        <div class="card-body">
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label>Observaciones</label>
+              <textarea name="observaciones" class="form-control" rows="5">{{$empleado->observaciones}}</textarea>
+            </div>
+            <div class="col-md-6">
+              <label>Medicamento</label>
+              <select class="js-example-basic-multiple form-control" name="medicamento[]" multiple>
+                @foreach(["23072-2" => "albendazol 200MG", "54114-1" => "albendazol 400MG", "35662-18" => "Acido folico", "31063-1" => "Vitamina A", "27440-3" => "Hierro"] as $key => $label)
+                  <option value="{{ $key }}" {{ in_array($key, explode(',', $empleado->medicamento)) ? 'selected' : '' }}>{{ $label }}</option>
+                @endforeach
+              </select>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {{-- =========================== ESTADO Y DEMANDA =========================== --}}
+      <div class="card card-custom">
+        <div class="card-header">Estado del Menor y Demanda</div>
+        <div class="card-body">
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label>Estado actual del menor</label>
+              <select name="est_act_menor" class="person2 form-control">
+                <option value="{{$empleado->est_act_menor}}">{{$empleado->est_act_menor}}</option>
+                <option value="RECUPERADO">RECUPERADO</option>
+                <option value="FALLECIDO">FALLECIDO</option>
+                <option value="EN PROCESO DE RECUPERACION">EN PROCESO DE RECUPERACION</option>
+              </select>
+            </div>
+            <div class="col-md-6">
+              <label>Esquema PAI</label>
+              <select name="Esquemq_complrto_pai_edad" class="person2 form-control">
+                <option value="{{$empleado->Esquemq_complrto_pai_edad}}">{{$empleado->Esquemq_complrto_pai_edad}}</option>
+                <option value="INCOMPLETO">INCOMPLETO</option>
+                <option value="COMPLETO">COMPLETO</option>
+              </select>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      @if(Auth::user()->usertype != 2)
+      {{-- ===================== SEGUIMIENTO Y MOTIVO DE REAPERTURA ===================== --}}
+      <div class="card card-custom">
+        <div class="card-header">Seguimiento</div>
+        <div class="card-body">
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label>¿Desea modificar el estado del caso?</label>
+              <select name="estado" class="person2 form-control">
+                <option value="{{$empleado->estado}}">{{ $empleado->estado == 1 ? 'ABIERTO' : 'CERRADO' }}</option>
+                <option value="1">ABIERTO</option>
+                <option value="0">CERRADO</option>
+              </select>
+            </div>
+            <div class="col-md-6" id="input_oculto">
+              <label>Fecha Próximo Seguimiento</label>
+              <input type="date" name="fecha_proximo_control" class="form-control" value="{{$empleado->fecha_proximo_control}}">
+            </div>
+          </div>
+          <div class="row g-3 mt-3">
+            <div class="col-md-12">
+              <label>Motivo de reapertura</label>
+              <textarea name="motivo_reapuertura" class="form-control" rows="4">{{$empleado->motivo_reapuertura}}</textarea>
+            </div>
+          </div>
+        </div>
+      </div>
+      @endif
+
+      {{-- ============================ BOTONES ============================ --}}
+      <div class="text-center mt-4">
+        <button type="submit" class="btn-gradient btn-lg">ENVIAR</button>
+        <a href="{{url('new412_seguimiento')}}" class="btn btn-secondary btn-lg mx-2">REGRESAR</a>
+      </div>
+
+    </div>
+  </div>
+</form>
+@stop
+
+@section('js')
+<script>
+  $(function() {
+    $('.js-example-basic-multiple').select2();
+    $('.person, .person2').select2();
+
+    $('#estado').on('change', function() {
+      if (this.value == '0') {
+        $('#input_oculto').hide();
+      } else {
+        $('#input_oculto').show();
+      }
+    }).trigger('change');
+  });
+</script>
+@stop
