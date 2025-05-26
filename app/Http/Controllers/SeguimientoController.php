@@ -320,7 +320,7 @@ public function viewPDF($id)
             'sivigilas_id'                               => 'required|exists:sivigilas,id',
             'Esquemq_complrto_pai_edad'                  => 'required|string',
             'Atecion_primocion_y_mantenimiento_res3280_2018' => 'required|string',
-            'pdf'                                        => 'nullable|mimes:pdf|max:5048',
+            'pdf'                                        => 'required|nullable|mimes:pdf|max:5048',
             'estado'                                     => 'required|in:0,1',
         ],[
             'required' => 'El campo :attribute es obligatorio.',
