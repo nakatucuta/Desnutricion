@@ -29,16 +29,16 @@ class SivigilaController extends Controller
 {
 
 
-    public function __construct(){/*3.se crea este contruct en el controlador a trabajar*/
+    // public function __construct(){/*3.se crea este contruct en el controlador a trabajar*/
 
-        $this->middleware('auth');
-        $this->middleware('Admin_sivigila', ['only' =>'create']);
-         $this->middleware('Admin_sivigila', ['only' =>'index']);
-        $this->middleware('Admin_sivigila', ['only' =>'show']);
+    //     $this->middleware('auth');
+    //     $this->middleware('Admin_sivigila', ['only' =>'create']);
+    //      $this->middleware('Admin_sivigila', ['only' =>'index']);
+    //     $this->middleware('Admin_sivigila', ['only' =>'show']);
         
        
 
-    }
+    // }
     /**
      * Display a listing of the resource.
      *
