@@ -12,7 +12,6 @@ use Maatwebsite\Excel\Events\AfterSheet;
 
 class VacunaExport implements FromQuery, WithHeadings, ShouldAutoSize, WithEvents
 {
-
     use Exportable;
 
     protected $startDate;
@@ -22,22 +21,17 @@ class VacunaExport implements FromQuery, WithHeadings, ShouldAutoSize, WithEvent
     {
         $this->startDate = $startDate;
         $this->endDate = $endDate;
-    
-        // Aumentar el tiempo de ejecución y el límite de memoria
-        ini_set('max_execution_time', 600); // 10 minutos
-        ini_set('memory_limit', '8G'); // Aumentar el límite de memoria a 512MB o ajustarlo según sea necesario
+
+        ini_set('max_execution_time', 600);
+        ini_set('memory_limit', '8G');
     }
-
-
 
     public function query()
     {
-        // Construcción de la consulta base
-        $query = DB::table('DESNUTRICION.dbo.vacunas as a') // Asegúrate de que el esquema es correcto
+        $query = DB::table('PRUEBA_DESNUTRICION.dbo.vacunas as a')
             ->join('afiliados as b', 'b.id', '=', 'a.afiliado_id')
             ->join('referencia_vacunas as d', 'a.vacunas_id', '=', 'd.id')
             ->join('users', 'users.id', '=', 'a.user_id')
-
             ->select(
                 'users.name',
                 'b.fecha_atencion',
@@ -48,9 +42,16 @@ class VacunaExport implements FromQuery, WithHeadings, ShouldAutoSize, WithEvent
                 'b.primer_apellido',
                 'b.segundo_apellido',
                 'b.fecha_nacimiento',
-                'b.edad_anos',
-                'b.edad_meses',
-                'b.edad_dias',
+                
+                DB::raw('DATEDIFF(YEAR, b.fecha_nacimiento, a.fecha_vacuna) as edad_anos'),
+                DB::raw('DATEDIFF(MONTH, b.fecha_nacimiento, a.fecha_vacuna) % 12 as edad_meses'),
+                DB::raw('
+                CASE 
+                    WHEN DATEDIFF(DAY, DATEADD(MONTH, DATEDIFF(MONTH, b.fecha_nacimiento, a.fecha_vacuna), b.fecha_nacimiento), a.fecha_vacuna) < 0 
+                    THEN 0 
+                    ELSE DATEDIFF(DAY, DATEADD(MONTH, DATEDIFF(MONTH, b.fecha_nacimiento, a.fecha_vacuna), b.fecha_nacimiento), a.fecha_vacuna) 
+                END as edad_dias
+            '),
                 'b.total_meses',
                 'b.esquema_completo',
                 'b.sexo',
@@ -115,8 +116,7 @@ class VacunaExport implements FromQuery, WithHeadings, ShouldAutoSize, WithEvent
                 'b.cuidador_telefono',
                 'b.cuidador_celular',
                 'b.esquema_vacunacion',
-                // Aquí empiezan los campos de vacunas
-                'd.nombre as vacuna_nombre', // Proporciona alias explícitos
+                'd.nombre as vacuna_nombre',
                 'a.docis',
                 'a.laboratorio',
                 'a.lote',
@@ -137,146 +137,58 @@ class VacunaExport implements FromQuery, WithHeadings, ShouldAutoSize, WithEvent
             )
             ->orderBy('a.created_at', 'desc');
 
- // Aplicar filtro de fechas si existen
- if ($this->startDate && $this->endDate) {
-    $query->whereBetween('a.fecha_vacuna', [$this->startDate, $this->endDate]);
-}
-// dd($query->toSql(), $this->startDate, $this->endDate);
+        if ($this->startDate && $this->endDate) {
+            $query->whereBetween('a.fecha_vacuna', [$this->startDate, $this->endDate]);
+        }
 
-return $query;
-
-
-}
+        return $query;
+    }
 
     public function headings(): array
     {
         return [
-            'Prestador',
-            'Fecha de Atención',
-            'Tipo de Identificación',
-            'Número de Identificación',
-            'Primer Nombre',
-            'Segundo Nombre',
-            'Primer Apellido',
-            'Segundo Apellido',
-            'Fecha de Nacimiento',
-            'Edad (Años)',
-            'Edad (Meses)',
-            'Edad (Días)',
-            'Total de Meses',
-            'Esquema Completo',
-            'Sexo',
-            'Género',
-            'Orientación Sexual',
-            'Edad Gestacional',
-            'País de Nacimiento',
-            'Estatus Migratorio',
-            'Lugar de Atención del Parto',
-            'Régimen',
-            'Aseguradora',
-            'Pertenencia Étnica',
-            'Desplazado',
-            'Discapacitado',
-            'Fallecido',
-            'Víctima de Conflicto',
-            'Estudia',
-            'País de Residencia',
-            'Departamento de Residencia',
-            'Municipio de Residencia',
-            'Comuna',
-            'Área',
-            'Dirección',
-            'Teléfono Fijo',
-            'Celular',
-            'Email',
-            'Autoriza Llamadas',
-            'Autoriza Correos',
-            'Contraindicación Vacuna',
-            'Enfermedad Contraindicación',
-            'Reacción a Biológicos',
-            'Síntomas Reacción',
-            'Condición Usuaria',
-            'Fecha Última Menstruación',
-            'Semanas de Gestación',
-            'Fecha Probable de Parto',
-            'Embarazos Previos',
-            'Fecha Antecedente',
-            'Tipo de Antecedente',
-            'Descripción del Antecedente',
-            'Observaciones Especiales',
-            'Madre Tipo de Identificación',
-            'Madre Identificación',
-            'Madre Primer Nombre',
-            'Madre Segundo Nombre',
-            'Madre Primer Apellido',
-            'Madre Segundo Apellido',
-            'Madre Correo',
-            'Madre Teléfono',
-            'Madre Celular',
-            'Madre Régimen',
-            'Madre Pertenencia Étnica',
-            'Madre Desplazada',
-            'Cuidador Tipo de Identificación',
-            'Cuidador Identificación',
-            'Cuidador Primer Nombre',
-            'Cuidador Segundo Nombre',
-            'Cuidador Primer Apellido',
-            'Cuidador Segundo Apellido',
-            'Cuidador Parentesco',
-            'Cuidador Correo',
-            'Cuidador Teléfono',
-            'Cuidador Celular',
-            'Esquema de Vacunación',
-            'Nombre de la Vacuna',
-            'Dosis',
-            'Laboratorio',
-            'Lote',
-            'Jeringa',
-            'Lote de Jeringa',
-            'Diluyente',
-            'Lote de Diluyente',
-            'Observación',
-            'Gotero',
-            'Tipo Neumococo',
-            'Número de Frascos Utilizados',
-            'Fecha de Vacunación',
-            'Responsable',
-            'Fuente Ingresado en PAIWEB',
-            'Motivo No Ingreso',
-            'Observaciones',
-            'Fecha de Creación'
+            'Prestador', 'Fecha de Atención', 'Tipo de Identificación', 'Número de Identificación',
+            'Primer Nombre', 'Segundo Nombre', 'Primer Apellido', 'Segundo Apellido',
+            'Fecha de Nacimiento', 'Edad (Años)', 'Edad (Meses)', 'Edad (Días)',
+            'Total de Meses', 'Esquema Completo', 'Sexo', 'Género', 'Orientación Sexual', 'Edad Gestacional',
+            'País de Nacimiento', 'Estatus Migratorio', 'Lugar de Atención del Parto', 'Régimen', 'Aseguradora',
+            'Pertenencia Étnica', 'Desplazado', 'Discapacitado', 'Fallecido', 'Víctima de Conflicto', 'Estudia',
+            'País de Residencia', 'Departamento de Residencia', 'Municipio de Residencia', 'Comuna', 'Área',
+            'Dirección', 'Teléfono Fijo', 'Celular', 'Email', 'Autoriza Llamadas', 'Autoriza Correos',
+            'Contraindicación Vacuna', 'Enfermedad Contraindicación', 'Reacción a Biológicos', 'Síntomas Reacción',
+            'Condición Usuaria', 'Fecha Última Menstruación', 'Semanas de Gestación', 'Fecha Probable de Parto',
+            'Embarazos Previos', 'Fecha Antecedente', 'Tipo de Antecedente', 'Descripción del Antecedente',
+            'Observaciones Especiales', 'Madre Tipo de Identificación', 'Madre Identificación', 'Madre Primer Nombre',
+            'Madre Segundo Nombre', 'Madre Primer Apellido', 'Madre Segundo Apellido', 'Madre Correo',
+            'Madre Teléfono', 'Madre Celular', 'Madre Régimen', 'Madre Pertenencia Étnica', 'Madre Desplazada',
+            'Cuidador Tipo de Identificación', 'Cuidador Identificación', 'Cuidador Primer Nombre',
+            'Cuidador Segundo Nombre', 'Cuidador Primer Apellido', 'Cuidador Segundo Apellido',
+            'Cuidador Parentesco', 'Cuidador Correo', 'Cuidador Teléfono', 'Cuidador Celular', 'Esquema de Vacunación',
+            'Nombre de la Vacuna', 'Dosis', 'Laboratorio', 'Lote', 'Jeringa', 'Lote de Jeringa', 'Diluyente',
+            'Lote de Diluyente', 'Observación', 'Gotero', 'Tipo Neumococo', 'Número de Frascos Utilizados',
+            'Fecha de Vacunación', 'Responsable', 'Fuente Ingresado en PAIWEB', 'Motivo No Ingreso',
+            'Observaciones', 'Fecha de Creación'
         ];
     }
-
-
 
     public function registerEvents(): array
     {
         return [
-            AfterSheet::class    => function(AfterSheet $event) {
-                // $cellRange3 = 'A2:AT2'; //RANGO PARA LOS FILTROS
-                // $cellRange1 = 'AO1:AP1'; // All headers
-                // $cellRange2 = 'AQ1:AT1';
-                 $cellRange = 'A1:CP1'; // All headers
-                
-                //  $event->sheet->getDelegate()->mergeCells($cellRange2);
-                //  $event->sheet->getDelegate()->mergeCells($cellRange1);//ojo debes buscar la
+            AfterSheet::class => function(AfterSheet $event) {
+                $cellRange = 'A1:CP1';
                 $event->sheet->getDelegate()->getStyle($cellRange)->getFont()->setSize(14);
-                 $event->sheet->getDelegate()->getStyle($cellRange)->getFont()->setBold(true);
-                 $event->sheet->getDelegate()->getStyle($cellRange)->getFill()
-               ->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)
-                 ->getStartColor()->setARGB('e6ffe6');
-                 $event->sheet->getDelegate()->getStyle($cellRange)->getAlignment()->setHorizontal('center');
-                 $event->sheet->setAutoFilter($cellRange);
-                 $event->sheet->getDelegate()->getStyle('B2:CP2000')->applyFromArray([
-                     'alignment' => [
-                         'horizontal' => \PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_LEFT,
-                     ]
-                 ]
-                );
-
-                 
-             },
-         ];
+                $event->sheet->getDelegate()->getStyle($cellRange)->getFont()->setBold(true);
+                $event->sheet->getDelegate()->getStyle($cellRange)->getFill()
+                    ->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)
+                    ->getStartColor()->setARGB('e6ffe6');
+                $event->sheet->getDelegate()->getStyle($cellRange)->getAlignment()->setHorizontal('center');
+                $event->sheet->setAutoFilter($cellRange);
+                $event->sheet->getDelegate()->getStyle('B2:CP2000')->applyFromArray([
+                    'alignment' => [
+                        'horizontal' => \PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_LEFT,
+                    ]
+                ]);
+            },
+        ];
     }
 }
