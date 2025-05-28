@@ -28,7 +28,7 @@ class VacunaExport implements FromQuery, WithHeadings, ShouldAutoSize, WithEvent
 
     public function query()
     {
-        $query = DB::table('PRUEBA_DESNUTRICION.dbo.vacunas as a')
+        $query = DB::table('DESNUTRICION.dbo.vacunas as a')
             ->join('afiliados as b', 'b.id', '=', 'a.afiliado_id')
             ->join('referencia_vacunas as d', 'a.vacunas_id', '=', 'd.id')
             ->join('users', 'users.id', '=', 'a.user_id')
