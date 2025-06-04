@@ -138,18 +138,26 @@
                                 <label class="custom-file-label" for="excel_file">Elegir archivo</label>
                             </div>
                         </div>
-                        <button type="submit" class="btn btn-success btn-block">Importar</button>
+                        <button type="submit" class="btn btn-success btn-block">
+                            <i class="fas fa-file-upload"></i> Importar
+                        </button>
                     </form>
-
+                    
                     <!-- Botón para ver resultados -->
                     <a href="{{ route('excel.import.table') }}" class="btn btn-info btn-block mt-3">
-                        Ver Resultados
+                        <i class="fas fa-table"></i> Ver Resultados
                     </a>
-
+                    
+                    <!-- Botón para subir Historias Clínicas -->
+                    <a href="{{ route('tamizajes.upload-zip.form') }}" class="btn btn-danger btn-block mt-3">
+                        <i class="fas fa-file-pdf"></i> Subir Historias Clínicas
+                    </a>
+                    
                     <!-- Botón que abre el modal para generar el reporte por fecha -->
                     <button class="btn btn-secondary btn-block mt-3" data-toggle="modal" data-target="#reporteModal">
-                        Generar reporte por fecha
+                        <i class="fas fa-calendar-alt"></i> Generar reporte por fecha
                     </button>
+                    
                 </div>
             </div>
         </div>

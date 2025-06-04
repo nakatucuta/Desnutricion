@@ -13,6 +13,7 @@ use App\Http\Controllers\EmailController;
 use App\Exports\vacunaExport;
 use Illuminate\Http\Request;
 use App\Http\Controllers\TamizajeController;
+use App\Http\Controllers\TamizajePdfController;
 
 
 /*
@@ -237,3 +238,21 @@ Route::get('/excel-import/table', [TamizajeController::class, 'table'])->name('e
 // Nueva ruta para generar el Excel
 Route::post('/excel-import/generate-excel', [TamizajeController::class, 'generateExcel'])
      ->name('excel.import.generate-excel')->middleware('auth');
+
+
+
+
+     // Formulario para subir el ZIP
+Route::get('/tamizajes/upload-zip', [TamizajePdfController::class, 'showUploadForm'])
+->name('tamizajes.upload-zip.form')
+->middleware('auth');
+
+// Procesar el ZIP subido
+Route::post('/tamizajes/upload-zip', [TamizajePdfController::class, 'handleZipUpload'])
+->name('tamizajes.upload-zip')
+->middleware('auth');
+
+// Mostrar PDFs al hacer clic en número de identificación
+Route::get('/tamizajes/{numero}/pdfs', [TamizajePdfController::class, 'showPdfsByPerson'])
+->name('tamizajes.show-pdfs')
+->middleware('auth');

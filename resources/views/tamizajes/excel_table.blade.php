@@ -65,7 +65,11 @@
                                 <tr>
                                     <td>{{ $t->id }}</td>
                                     <td>{{ $t->tipo_identificacion }}</td>
-                                    <td>{{ $t->numero_identificacion }}</td>
+                                    <td>
+                                        <a href="{{ route('tamizajes.show-pdfs', ['numero' => $t->numero_identificacion]) }}" class="text-primary">
+                                          {{ $t->numero_identificacion }}
+                                        </a>
+                                      </td>
                                     <td>{{ $t->fecha_tamizaje }}</td>
                                     <td>{{ optional($t->tipo)->nombre }}</td>
                                     <td>{{ optional($t->resultado)->code }}</td>

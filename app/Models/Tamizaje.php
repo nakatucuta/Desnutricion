@@ -34,6 +34,21 @@ class Tamizaje extends Model
     //     'fecha_tamizaje' => 'datetime:Y-m-d',
     // ];
 
+
+
+     // Relación “un tamizaje tiene muchos PDFs”
+     public function pdfs()
+     {
+         return $this->hasMany(TamizajePdf::class);
+     }
+ 
+     // (Opcional) Relación filtrando por persona
+     public function personPdfs()
+     {
+         return $this->hasMany(TamizajePdf::class, 'numero_identificacion', 'numero_identificacion')
+                     ->where('tipo_identificacion', $this->tipo_identificacion);
+     }
+
     public function tipo()
     {
         return $this->belongsTo(TipoTamizaje::class, 'tipo_tamizaje_id');
