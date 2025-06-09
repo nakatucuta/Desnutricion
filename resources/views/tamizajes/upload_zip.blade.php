@@ -3,9 +3,9 @@
 @section('title', 'Subir ZIP de PDFs - PAI')
 
 @section('content_header')
-    <h1 class="text-center">Subida Masiva de PDFs para Tamizajes</h1>
+    <h1 class="text-center">Subida Masiva de RESULTADOS para Tamizajes</h1>
     <p class="text-center text-muted">
-        Sube un archivo ZIP que contenga todos los PDFs.<br>
+        Sube un archivo ZIP que contenga todos los PDFS.<br>
         Cada PDF debe nombrarse con la convención: <code>TIPO_NUMERO_*&lt;algo&gt;*.pdf</code>.<br>
         Ejemplo: <code>CC_12345678_historia.pdf</code> o <code>TI_87654321_resultados.pdf</code>.
     </p>

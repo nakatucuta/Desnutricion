@@ -150,7 +150,7 @@
                     
                     <!-- Botón para subir Historias Clínicas -->
                     <a href="{{ route('tamizajes.upload-zip.form') }}" class="btn btn-danger btn-block mt-3">
-                        <i class="fas fa-file-pdf"></i> Subir Historias Clínicas
+                        <i class="fas fa-file-pdf"></i> Subir Resultados
                     </a>
                     
                     <!-- Botón que abre el modal para generar el reporte por fecha -->
