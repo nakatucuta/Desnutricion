@@ -14,7 +14,7 @@ use App\Exports\vacunaExport;
 use Illuminate\Http\Request;
 use App\Http\Controllers\TamizajeController;
 use App\Http\Controllers\TamizajePdfController;
-
+use App\Http\Controllers\GesTipo1Controller;
 
 /*
 |--------------------------------------------------------------------------
@@ -232,7 +232,15 @@ Route::get('/excel-import', [TamizajeController::class, 'index'])->name('excel.i
 Route::post('/excel-import', [TamizajeController::class, 'import'])->name('excel.import')->middleware('auth');
 
 // Nueva ruta para la vista de la tabla
-Route::get('/excel-import/table', [TamizajeController::class, 'table'])->name('excel.import.table')->middleware('auth');
+// listado con Datatables
+Route::get('/excel-import/table', [TamizajeController::class, 'table'])
+     ->name('excel.import.table')
+     ->middleware('auth');
+
+// detalle de un tamizaje
+Route::get('/tamizajes/{tamizaje}', [TamizajeController::class, 'show'])
+     ->name('tamizajes.show')
+     ->middleware('auth');
 
 
 // Nueva ruta para generar el Excel
@@ -256,3 +264,18 @@ Route::post('/tamizajes/upload-zip', [TamizajePdfController::class, 'handleZipUp
 Route::get('/tamizajes/{numero}/pdfs', [TamizajePdfController::class, 'showPdfsByPerson'])
 ->name('tamizajes.show-pdfs')
 ->middleware('auth');
+
+
+// RUTAS  GESTANTES
+
+
+Route::get('gestantes/import', [GesTipo1Controller::class, 'showImportForm'])
+     ->name('ges_tipo1.import.form');
+
+Route::post('gestantes/import', [GesTipo1Controller::class, 'import'])
+     ->name('ges_tipo1.import');
+
+     Route::get('gestantes', [GesTipo1Controller::class, 'index'])
+     ->name('ges_tipo1.index');
+     Route::get('gestantes/{id}', [GesTipo1Controller::class, 'show'])
+     ->name('ges_tipo1.show');

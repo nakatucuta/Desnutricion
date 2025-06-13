@@ -13,6 +13,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth; // ESTE ES EL CORRECTO
 use App\Exports\TamizajesExport;    // Export personalizado
 use Illuminate\Support\Facades\Log;
+use Yajra\DataTables\Facades\DataTables;  // <-- este use faltaba
 
 class TamizajeController extends Controller
 {
@@ -314,54 +315,186 @@ class TamizajeController extends Controller
 }
 
     
-    
+public function table(Request $request)
+{
+    if ($request->ajax()) {
+        // Leemos de la vista ligera y juntamos con tamizajes para filtrar por user_id
+        $query = DB::table('dbo.vw_tamizajes_fast as v')
+            ->join('tamizajes as t', 'v.id', '=', 't.id')
+            ->select([
+                'v.id',
+                'v.tipo_identificacion',
+                'v.numero_identificacion',
+                'v.nombre_completo',
+                'v.fecha_tamizaje',
+                'v.tipo_tamizaje',
+                'v.codigo_resultado',
+                'v.descripcion_codigo',
+                'v.valor_laboratorio',
+                'v.descript_resultado',
+                'v.usuario',
+                'v.created_at',
+            ]);
 
-    
+        // Si es usertype 2, limitar al propio user_id (comparamos ==, no ===)
+        if (Auth::user()->usertype == 2) {
+            $query->where('t.user_id', Auth::id());
+        }
 
-    public function table(Request $request)
-    {
-        // Construimos la query base con las relaciones
-        $query = Tamizaje::with(['tipo','resultado','user'])
-                         ->orderBy('tamizajes.id', 'desc'); // Orden por defecto (ajústalo a tu gusto)
-    
-        // Si viene "?sort=user", filtramos por user_id = Auth::id() y NO paginamos
-        if ($request->get('sort') === 'user') {
-            $query->where('user_id', Auth::id());
-            $tamizajes = $query->get(); // Trae todos los registros sin paginar
-        } else {
-            // De lo contrario, paginamos
-            $tamizajes = $query->paginate(10);
-        }
-    
-        // Retornamos la vista
-        return view('tamizajes.excel_table', compact('tamizajes'));
+        return DataTables::query($query)
+            ->addColumn('acciones', function($row){
+                $url = route('tamizajes.show', ['tamizaje' => $row->id]);
+                return <<<HTML
+                <a href="{$url}" class="btn btn-sm btn-info" title="Ver detalle">
+                    <i class="fas fa-eye"></i>
+                </a>
+                HTML;
+            })
+            ->rawColumns(['acciones'])
+            ->editColumn('created_at', function($row){
+                return \Carbon\Carbon::parse($row->created_at)
+                                     ->format('Y-m-d H:i');
+            })
+            ->toJson();
     }
-    
-    
-    public function generateExcel(Request $request)
-    {
-        // Obtenemos el rango de fechas del formulario
-        $startDate = $request->input('start_date');
-        $endDate   = $request->input('end_date');
-    
-        // Construimos la query base (orden por id desc)
-        $query = Tamizaje::with(['tipo', 'resultado','user'])
-                         ->orderBy('tamizajes.id', 'desc');
-    
-        // Si ambas fechas están presentes, filtramos por created_at
-        if ($startDate && $endDate) {
-            $query->whereBetween('created_at', [$startDate, $endDate]);
-        }
-    
-        // Obtenemos la colección final
-        $tamizajes = $query->get();
-    
-        // Retornamos la descarga usando la clase export personalizada
-        return Excel::download(
-            new TamizajesExport($tamizajes),
-            'reporte_tamizajes_' . now()->format('Ymd_His') . '.xlsx'
-        );
+
+    return view('tamizajes.excel_table');
+}
+
+
+
+public function show($id)
+{
+    $tamizaje = DB::table('tamizajes')
+        ->join('tipo_tamizajes',      'tamizajes.tipo_tamizaje_id',    '=', 'tipo_tamizajes.id')
+        ->join('resultado_tamizajes', 'tamizajes.resultado_tamizaje_id','=', 'resultado_tamizajes.id')
+        ->leftJoin('users',           'tamizajes.user_id',              '=', 'users.id')
+        ->join(DB::raw('sga..maestroafiliados as i'),
+              'tamizajes.numero_carnet', '=', 'i.numerocarnet')
+              ->join(DB::raw('sga..datossocioeconomicos as j'),
+              'j.numerocarnet', '=', 'i.numerocarnet')
+        ->select([
+            // Todas las columnas de tamizajes
+            'tamizajes.id',
+            'tamizajes.tipo_identificacion',
+            'tamizajes.numero_identificacion',
+            'tamizajes.numero_carnet',
+            'tamizajes.fecha_tamizaje',
+            'tamizajes.tipo_tamizaje_id',
+            'tamizajes.resultado_tamizaje_id',
+            'tamizajes.user_id',
+            'tamizajes.created_at',
+            'tamizajes.updated_at',
+
+            // Datos del afiliado
+            'i.primerNombre',
+            'i.segundoNombre',
+            'i.primerApellido',
+            'i.segundoApellido',
+            'j.direccion',
+            'j.telefono',
+            // Si tienes más campos en maestroafiliados, agrégalos aquí:
+            // 'i.sexo', 'i.fechaNacimiento', etc.
+
+            // Concatenado para mostrar el nombre completo
+            DB::raw("CONCAT(
+                i.primerNombre, ' ',
+                COALESCE(i.segundoNombre, ''), ' ',
+                i.primerApellido, ' ',
+                COALESCE(i.segundoApellido, '')
+            ) as nombre_completo"),
+
+            // Datos de tipo y resultado
+            'tipo_tamizajes.nombre       as tipo_tamizaje',
+            'resultado_tamizajes.code    as codigo_resultado',
+            'resultado_tamizajes.description as descripcion_codigo',
+
+            // Valor y descripción del resultado
+            'tamizajes.valor_laboratorio',
+            'tamizajes.descript_resultado',
+
+            // Usuario que registró
+            'users.name                  as usuario',
+        ])
+        ->where('tamizajes.id', $id)
+        ->first();
+
+    if (! $tamizaje) {
+        abort(404, 'Tamizaje no encontrado');
     }
+
+    return view('tamizajes.show', compact('tamizaje'));
+} 
+    
+public function generateExcel(Request $request) 
+{
+    // Rango de fechas
+    $startDate = $request->input('start_date');
+    $endDate   = $request->input('end_date');
+
+    // Construimos la consulta con todos los joins y campos
+    $tamizajes = DB::table('tamizajes')
+        ->join('tipo_tamizajes',      'tamizajes.tipo_tamizaje_id',     '=', 'tipo_tamizajes.id')
+        ->join('resultado_tamizajes', 'tamizajes.resultado_tamizaje_id', '=', 'resultado_tamizajes.id')
+        ->leftJoin('users',           'tamizajes.user_id',               '=', 'users.id')
+        ->join(DB::raw('sga..maestroafiliados as i'),
+              'tamizajes.numero_carnet', '=', 'i.numerocarnet')
+        ->join(DB::raw('sga..datossocioeconomicos as j'),
+              'j.numerocarnet', '=', 'i.numerocarnet')
+        // Filtrado por rango de fecha si se indicó
+        ->when($startDate && $endDate, function($q) use($startDate, $endDate) {
+            return $q->whereBetween('tamizajes.fecha_tamizaje', [$startDate, $endDate]);
+        })
+        ->select([
+            // columnas de tamizajes
+            'tamizajes.id',
+            'tamizajes.tipo_identificacion',
+            'tamizajes.numero_identificacion',
+            'tamizajes.numero_carnet',
+            'tamizajes.fecha_tamizaje',
+            'tamizajes.tipo_tamizaje_id',
+            'tamizajes.resultado_tamizaje_id',
+            'tamizajes.user_id',
+            'tamizajes.created_at',
+            'tamizajes.updated_at',
+
+            // datos del afiliado
+            'i.primerNombre',
+            'i.segundoNombre',
+            'i.primerApellido',
+            'i.segundoApellido',
+            'j.direccion',
+            'j.telefono',
+
+            // nombre completo concatenado
+            DB::raw("CONCAT(
+                i.primerNombre, ' ',
+                COALESCE(i.segundoNombre, ''), ' ',
+                i.primerApellido, ' ',
+                COALESCE(i.segundoApellido, '')
+            ) as nombre_completo"),
+
+            // datos de tipo y resultado
+            'tipo_tamizajes.nombre       as tipo_tamizaje',
+            'resultado_tamizajes.code    as codigo_resultado',
+            'resultado_tamizajes.description as descripcion_codigo',
+
+            // valor y descripción del resultado
+            'tamizajes.valor_laboratorio',
+            'tamizajes.descript_resultado',
+
+            // usuario que registró
+            'users.name                  as usuario',
+        ])
+        ->orderBy('tamizajes.id', 'desc')
+        ->get();
+
+    // Descarga el Excel con todos los campos
+    return Excel::download(
+        new TamizajesExport($tamizajes),
+        'reporte_tamizajes_' . now()->format('Ymd_His') . '.xlsx'
+    );
+}
     
 
 
