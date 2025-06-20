@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use App\Models\Afiliado;
 use App\Models\vacuna;
+use App\Models\Tamizaje;
 class batch_verifications extends Model
 {
     use HasFactory;
@@ -36,4 +37,10 @@ class batch_verifications extends Model
     {
         return $this->hasMany(vacuna::class);
     }
+
+    public function tamizajes()
+    {
+        return $this->hasMany(Tamizaje::class);
+    }
 }
+

@@ -8,9 +8,9 @@
 @stop
 
 @section('content_header')
-    <div class="header-container">
+    {{-- <div class="header-container">
         <h1 class="executive-title">TAMIZAJES</h1>
-    </div>
+    </div> --}}
     <div class="container text-center mb-4">
         <h1 class="display-4 font-weight-bold text-primary">Resultados de Tamizajes</h1>
         <p class="lead">Esta tabla muestra todos los registros almacenados con sus usuarios asociados.</p>
@@ -19,14 +19,14 @@
 
 @section('content')
 <div class="container">
-    <div class="row mb-3">
+    {{-- <div class="row mb-10"> --}}
         <div class="col text-right">
             <a href="{{ route('excel.import.index') }}" class="btn btn-warning btn-lg">
                 <i class="fas fa-arrow-left"></i> Regresar
             </a>
         </div>
     </div>
-
+<br>
     
     <div class="card shadow-sm animate__fadeInUp">
         <div class="card-header bg-info text-white">
@@ -54,7 +54,7 @@
             </table>
         </div>
     </div>
-</div>
+{{-- </div> --}}
 @stop
 
 @section('js')
@@ -72,9 +72,10 @@ $(function() {
             {
                 data: 'numero_identificacion',
                 render: function(v) {
-                    const url = '{!! route("tamizajes.show-pdfs", ":numero") !!}'
-                                .replace(':numero', v);
-                    return `<a href="${url}" class="text-primary">${v}</a>`;
+                    // plantilla de Blade: generamos la URL con un placeholder ":numero"
+                    let tpl = '{!! route("tamizajes.show-pdfs", ":numero") !!}';
+                    // lo reemplazamos en tiempo de cliente
+                    return `<a href="${tpl.replace(':numero', v)}" class="text-primary">${v}</a>`;
                 }
             },
             // Nueva columna

@@ -87,13 +87,13 @@ class GesTipo1Controller extends Controller
         $gestante = GesTipo1::findOrFail($id);
 
         // 2) Obtiene los PDFs relacionados (por tipo y número de identificación)
-        $pdfs = TamizajePdf::where('tipo_identificacion', $gestante->tipo_identificacion)
-                          ->where('numero_identificacion', $gestante->numero_identificacion)
-                          ->orderByDesc('created_at')
-                          ->get();
+        // $pdfs = TamizajePdf::where('tipo_identificacion', $gestante->tipo_identificacion)
+        //                   ->where('numero_identificacion', $gestante->numero_identificacion)
+        //                   ->orderByDesc('created_at')
+        //                   ->get();
 
         // 3) Envía ambos a la vista
-        return view('ges_tipo1.show', compact('gestante', 'pdfs'));
+        return view('ges_tipo1.show', compact('gestante'));
     }
 
 }

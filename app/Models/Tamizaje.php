@@ -24,7 +24,7 @@ class Tamizaje extends Model
         'user_id',
         'valor_laboratorio',  // <- Nuevo campo
         'descript_resultado',  // <- nuevo campo
-
+        'batch_verifications_id',
     ];
     // protected $dateFormat = 'Y-m-d H:i:s';
 
@@ -64,5 +64,10 @@ class Tamizaje extends Model
     return $this->belongsTo(User::class, 'user_id');
 }
 
+
+public function getBatchVerificationsID()
+{
+    return $this->batch_verifications_id;
+}
     
 }

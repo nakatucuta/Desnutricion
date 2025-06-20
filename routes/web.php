@@ -251,20 +251,25 @@ Route::post('/excel-import/generate-excel', [TamizajeController::class, 'generat
 
 
      // Formulario para subir el ZIP
+// Primero la ruta “fija”
 Route::get('/tamizajes/upload-zip', [TamizajePdfController::class, 'showUploadForm'])
-->name('tamizajes.upload-zip.form')
-->middleware('auth');
+    ->name('tamizajes.upload-zip.form')
+    ->middleware('auth');
 
-// Procesar el ZIP subido
 Route::post('/tamizajes/upload-zip', [TamizajePdfController::class, 'handleZipUpload'])
-->name('tamizajes.upload-zip')
-->middleware('auth');
+    ->name('tamizajes.upload-zip')
+    ->middleware('auth');
 
-// Mostrar PDFs al hacer clic en número de identificación
-Route::get('/tamizajes/{numero}/pdfs', [TamizajePdfController::class, 'showPdfsByPerson'])
-->name('tamizajes.show-pdfs')
-->middleware('auth');
+// Después la ruta genérica
+Route::get('/tamizajes/{tamizaje}', [TamizajeController::class, 'show'])
+    ->where('tamizaje', '[0-9]+')   // opcionalmente le ponemos restricción numérica
+    ->name('tamizajes.show')
+    ->middleware('auth');
 
+    
+    Route::get('/tamizajes/{numero}/pdfs', [TamizajePdfController::class, 'showPdfsByPerson'])
+    ->name('tamizajes.show-pdfs')
+    ->middleware('auth');
 
 // RUTAS  GESTANTES
 
