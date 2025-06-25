@@ -720,7 +720,7 @@ public function index_api(Request $request)
    // Consulta básica (puedes agregar filtros más adelante)
    $query = DB::connection('sqlsrv_1')
    ->table('maestroafiliados')
-   ->limit(10); // 🔹 Aquí limitas a 10 resultados
+   ->limit(1); // 🔹 Aquí limitas a 10 resultados
 
 // Ejecuta y devuelve como JSON
 $datos = $query->get();
