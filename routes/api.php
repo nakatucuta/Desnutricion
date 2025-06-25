@@ -15,7 +15,8 @@ use App\Http\Controllers\SivigilaController;
 */
 
 // ✔️ Ruta pública para consumo desde apps externas
-Route::get('/sivigila/data', [SivigilaController::class, 'data']);
+Route::get('/afiliados', [SivigilaController::class, 'index_api']);
+
 
 // ✔️ Ruta protegida con token (opcional, si usas Sanctum)
 Route::middleware('auth:sanctum')->get('/user', function (Request $request) {

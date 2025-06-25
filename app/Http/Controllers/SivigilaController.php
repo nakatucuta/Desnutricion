@@ -31,10 +31,11 @@ class SivigilaController extends Controller
 
     public function __construct(){/*3.se crea este contruct en el controlador a trabajar*/
 
-        $this->middleware('auth');
+        // $this->middleware('auth');
         $this->middleware('Admin_sivigila', ['only' =>'create']);
          $this->middleware('Admin_sivigila', ['only' =>'index']);
         $this->middleware('Admin_sivigila', ['only' =>'show']);
+        $this->middleware('auth')->except('index_api');
         
        
 
@@ -714,7 +715,23 @@ class SivigilaController extends Controller
 
 
 
-    
+public function index_api(Request $request)
+{
+   // Consulta básica (puedes agregar filtros más adelante)
+   $query = DB::connection('sqlsrv_1')
+   ->table('maestroafiliados')
+   ->limit(10); // 🔹 Aquí limitas a 10 resultados
+
+// Ejecuta y devuelve como JSON
+$datos = $query->get();
+
+return response()->json([
+   'status' => 'success',
+   'data' => $datos
+], 200);
+}
+
+
 
         }
 
