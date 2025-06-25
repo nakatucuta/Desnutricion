@@ -717,19 +717,39 @@ class SivigilaController extends Controller
 
 public function index_api(Request $request)
 {
-   // Consulta básica (puedes agregar filtros más adelante)
-   $query = DB::connection('sqlsrv_1')
-   ->table('maestroafiliados')
-   ->limit(1); // 🔹 Aquí limitas a 10 resultados
+    // Validamos que los dos parámetros vengan en la petición
+    $request->validate([
+        'tipoIdentificacion' => 'required|string',
+        'identificacion'     => 'required|string',
+    ]);
 
-// Ejecuta y devuelve como JSON
-$datos = $query->get();
+    $tipo = $request->input('tipoIdentificacion');
+    $id   = $request->input('identificacion');
 
-return response()->json([
-   'status' => 'success',
-   'data' => $datos
-], 200);
+    // Hacemos la consulta filtrando por los dos campos
+    $datos = DB::connection('sqlsrv_1')
+        ->table('maestroafiliados')
+        ->where('tipoIdentificacion', $tipo)
+        ->where('identificacion', $id)
+        ->limit(1)
+        ->get();
+
+    // Si no se encontró nada, devolvemos un 404 con mensaje claro
+    if ($datos->isEmpty()) {
+        return response()->json([
+            'status'  => 'error',
+            'message' => 'No es afiliado de Anas Wayuu',
+            'data'    => [],
+        ], 404);
+    }
+
+    // Si hay resultado, lo devolvemos en data[]
+    return response()->json([
+        'status' => 'success',
+        'data'   => $datos,
+    ], 200);
 }
+
 
 
 
