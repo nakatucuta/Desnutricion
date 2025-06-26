@@ -166,7 +166,7 @@ class VacunaExport implements FromQuery, WithHeadings, ShouldAutoSize, WithEvent
     public function headings(): array
     {
         return [
-            'Prestador', 'Fecha de Atención', 'Tipo de Identificación', 'Número de Identificación',
+            'Prestador','IPS PRIMARIA', 'Fecha de Atención', 'Tipo de Identificación', 'Número de Identificación',
             'Primer Nombre', 'Segundo Nombre', 'Primer Apellido', 'Segundo Apellido',
             'Fecha de Nacimiento', 'Edad (Años)', 'Edad (Meses)', 'Edad (Días)',
             'Total de Meses', 'Esquema Completo', 'Sexo', 'Género', 'Orientación Sexual', 'Edad Gestacional',
