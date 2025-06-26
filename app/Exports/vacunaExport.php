@@ -20,145 +20,144 @@ class VacunaExport implements FromQuery, WithHeadings, ShouldAutoSize, WithEvent
     public function __construct($startDate, $endDate)
     {
         $this->startDate = $startDate;
-        $this->endDate = $endDate;
+        $this->endDate   = $endDate;
 
         ini_set('max_execution_time', 600);
-        ini_set('memory_limit', '8G');
+        ini_set('memory_limit',    '8G');
     }
 
     public function query()
     {
-       $query = DB::table('DESNUTRICION.dbo.vacunas as a')
-    ->join('afiliados as b', 'b.id', '=', 'a.afiliado_id')
-    ->join('referencia_vacunas as d', 'd.id', '=', 'a.vacunas_id')
-    ->join('users as u', 'u.id', '=', 'a.user_id')
-    ->leftJoin('SGA..maestroIps as j', 'b.numero_Carnet', '=', 'j.numeroCarnet')
-    ->leftJoin('SGA..maestroIpsGru as k', 'j.idGrupoIps', '=', 'k.id')
-    ->select([
-        'u.name',
-        'k.descrip as ips_primaria',
-        'b.fecha_atencion',
-        'b.tipo_identificacion',
-        'b.numero_identificacion',
-        'b.primer_nombre',
-        'b.segundo_nombre',
-        'b.primer_apellido',
-        'b.segundo_apellido',
-        'b.fecha_nacimiento',
-        DB::raw('DATEDIFF(YEAR, b.fecha_nacimiento, a.fecha_vacuna) AS edad_anos'),
-        DB::raw('DATEDIFF(MONTH, b.fecha_nacimiento, a.fecha_vacuna) % 12 AS edad_meses'),
-        DB::raw("
-            CASE
-                WHEN DATEDIFF(
-                       DAY,
-                       DATEADD(
-                           MONTH,
-                           DATEDIFF(MONTH, b.fecha_nacimiento, a.fecha_vacuna),
-                           b.fecha_nacimiento
-                       ),
-                       a.fecha_vacuna
-                     ) < 0
-                THEN 0
-                ELSE DATEDIFF(
-                       DAY,
-                       DATEADD(
-                           MONTH,
-                           DATEDIFF(MONTH, b.fecha_nacimiento, a.fecha_vacuna),
-                           b.fecha_nacimiento
-                       ),
-                       a.fecha_vacuna
-                     )
-            END AS edad_dias
-        "),
-        'b.total_meses',
-        'b.esquema_completo',
-        'b.sexo',
-        'b.genero',
-        'b.orientacion_sexual',
-        'b.edad_gestacional',
-        'b.pais_nacimiento',
-        'b.estatus_migratorio',
-        'b.lugar_atencion_parto',
-        'b.regimen',
-        'b.aseguradora',
-        'b.pertenencia_etnica',
-        'b.desplazado',
-        'b.discapacitado',
-        'b.fallecido',
-        'b.victima_conflicto',
-        'b.estudia',
-        'b.pais_residencia',
-        'b.departamento_residencia',
-        'b.municipio_residencia',
-        'b.comuna',
-        'b.area',
-        'b.direccion',
-        'b.telefono_fijo',
-        'b.celular',
-        'b.email',
-        'b.autoriza_llamadas',
-        'b.autoriza_correos',
-        'b.contraindicacion_vacuna',
-        'b.enfermedad_contraindicacion',
-        'b.reaccion_biologicos',
-        'b.sintomas_reaccion',
-        'b.condicion_usuaria',
-        'b.fecha_ultima_menstruacion',
-        'b.semanas_gestacion',
-        'b.fecha_prob_parto',
-        'b.embarazos_previos',
-        'b.fecha_antecedente',
-        'b.tipo_antecedente',
-        'b.descripcion_antecedente',
-        'b.observaciones_especiales',
-        'b.madre_tipo_identificacion',
-        'b.madre_identificacion',
-        'b.madre_primer_nombre',
-        'b.madre_segundo_nombre',
-        'b.madre_primer_apellido',
-        'b.madre_segundo_apellido',
-        'b.madre_correo',
-        'b.madre_telefono',
-        'b.madre_celular',
-        'b.madre_regimen',
-        'b.madre_pertenencia_etnica',
-        'b.madre_desplazada',
-        'b.cuidador_tipo_identificacion',
-        'b.cuidador_identificacion',
-        'b.cuidador_primer_nombre',
-        'b.cuidador_segundo_nombre',
-        'b.cuidador_primer_apellido',
-        'b.cuidador_segundo_apellido',
-        'b.cuidador_parentesco',
-        'b.cuidador_correo',
-        'b.cuidador_telefono',
-        'b.cuidador_celular',
-        'b.esquema_vacunacion',
-        'd.nombre as vacuna_nombre',
-        'a.docis',
-        'a.laboratorio',
-        'a.lote',
-        'a.jeringa',
-        'a.lote_jeringa',
-        'a.diluyente',
-        'a.lote_diluyente',
-        'a.observacion',
-        'a.gotero',
-        'a.tipo_neumococo',
-        'a.num_frascos_utilizados',
-        'a.fecha_vacuna',
-        'a.responsable',
-        'a.fuen_ingresado_paiweb',
-        'a.motivo_noingreso',
-        'a.observaciones',
-        'a.created_at',
-    ])
-    ->orderBy('a.created_at', 'desc');
-
-
-        if ($this->startDate && $this->endDate) {
-            $query->whereBetween('a.fecha_vacuna', [$this->startDate, $this->endDate]);
-        }
+        $query = DB::table('DESNUTRICION.dbo.vacunas as a')
+            ->join('afiliados as b',          'b.id',           '=', 'a.afiliado_id')
+            ->join('referencia_vacunas as d','d.id',           '=', 'a.vacunas_id')
+            ->join('users as u',              'u.id',           '=', 'a.user_id')
+            // aquí corregimos el esquema vacío => añadimos dbo
+            ->leftJoin('SGA.dbo.maestroIps as j',    'b.numero_Carnet', '=', 'j.numeroCarnet')
+            ->leftJoin('SGA.dbo.maestroIpsGru as k', 'j.idGrupoIps',    '=', 'k.id')
+            ->select([
+                'u.name',
+                'k.descrip as ips_primaria',
+                'b.fecha_atencion',
+                'b.tipo_identificacion',
+                'b.numero_identificacion',
+                'b.primer_nombre',
+                'b.segundo_nombre',
+                'b.primer_apellido',
+                'b.segundo_apellido',
+                'b.fecha_nacimiento',
+                DB::raw('DATEDIFF(YEAR, b.fecha_nacimiento, a.fecha_vacuna) AS edad_anos'),
+                DB::raw('DATEDIFF(MONTH, b.fecha_nacimiento, a.fecha_vacuna) % 12 AS edad_meses'),
+                DB::raw("
+                    CASE
+                        WHEN DATEDIFF(
+                               DAY,
+                               DATEADD(
+                                   MONTH,
+                                   DATEDIFF(MONTH, b.fecha_nacimiento, a.fecha_vacuna),
+                                   b.fecha_nacimiento
+                               ),
+                               a.fecha_vacuna
+                             ) < 0
+                        THEN 0
+                        ELSE DATEDIFF(
+                               DAY,
+                               DATEADD(
+                                   MONTH,
+                                   DATEDIFF(MONTH, b.fecha_nacimiento, a.fecha_vacuna),
+                                   b.fecha_nacimiento
+                               ),
+                               a.fecha_vacuna
+                             )
+                    END AS edad_dias
+                "),
+                'b.total_meses',
+                'b.esquema_completo',
+                'b.sexo',
+                'b.genero',
+                'b.orientacion_sexual',
+                'b.edad_gestacional',
+                'b.pais_nacimiento',
+                'b.estatus_migratorio',
+                'b.lugar_atencion_parto',
+                'b.regimen',
+                'b.aseguradora',
+                'b.pertenencia_etnica',
+                'b.desplazado',
+                'b.discapacitado',
+                'b.fallecido',
+                'b.victima_conflicto',
+                'b.estudia',
+                'b.pais_residencia',
+                'b.departamento_residencia',
+                'b.municipio_residencia',
+                'b.comuna',
+                'b.area',
+                'b.direccion',
+                'b.telefono_fijo',
+                'b.celular',
+                'b.email',
+                'b.autoriza_llamadas',
+                'b.autoriza_correos',
+                'b.contraindicacion_vacuna',
+                'b.enfermedad_contraindicacion',
+                'b.reaccion_biologicos',
+                'b.sintomas_reaccion',
+                'b.condicion_usuaria',
+                'b.fecha_ultima_menstruacion',
+                'b.semanas_gestacion',
+                'b.fecha_prob_parto',
+                'b.embarazos_previos',
+                'b.fecha_antecedente',
+                'b.tipo_antecedente',
+                'b.descripcion_antecedente',
+                'b.observaciones_especiales',
+                'b.madre_tipo_identificacion',
+                'b.madre_identificacion',
+                'b.madre_primer_nombre',
+                'b.madre_segundo_nombre',
+                'b.madre_primer_apellido',
+                'b.madre_segundo_apellido',
+                'b.madre_correo',
+                'b.madre_telefono',
+                'b.madre_celular',
+                'b.madre_regimen',
+                'b.madre_pertenencia_etnica',
+                'b.madre_desplazada',
+                'b.cuidador_tipo_identificacion',
+                'b.cuidador_identificacion',
+                'b.cuidador_primer_nombre',
+                'b.cuidador_segundo_nombre',
+                'b.cuidador_primer_apellido',
+                'b.cuidador_segundo_apellido',
+                'b.cuidador_parentesco',
+                'b.cuidador_correo',
+                'b.cuidador_telefono',
+                'b.cuidador_celular',
+                'b.esquema_vacunacion',
+                'd.nombre as vacuna_nombre',
+                'a.docis',
+                'a.laboratorio',
+                'a.lote',
+                'a.jeringa',
+                'a.lote_jeringa',
+                'a.diluyente',
+                'a.lote_diluyente',
+                'a.observacion',
+                'a.gotero',
+                'a.tipo_neumococo',
+                'a.num_frascos_utilizados',
+                'a.fecha_vacuna',
+                'a.responsable',
+                'a.fuen_ingresado_paiweb',
+                'a.motivo_noingreso',
+                'a.observaciones',
+                'a.created_at',
+            ])
+            ->when($this->startDate && $this->endDate, function($q) {
+                $q->whereBetween('a.fecha_vacuna', [$this->startDate, $this->endDate]);
+            })
+            ->orderBy('a.created_at', 'desc');
 
         return $query;
     }
@@ -166,7 +165,7 @@ class VacunaExport implements FromQuery, WithHeadings, ShouldAutoSize, WithEvent
     public function headings(): array
     {
         return [
-            'Prestador','IPS PRIMARIA', 'Fecha de Atención', 'Tipo de Identificación', 'Número de Identificación',
+            'Prestador', 'IPS PRIMARIA', 'Fecha de Atención', 'Tipo de Identificación', 'Número de Identificación',
             'Primer Nombre', 'Segundo Nombre', 'Primer Apellido', 'Segundo Apellido',
             'Fecha de Nacimiento', 'Edad (Años)', 'Edad (Meses)', 'Edad (Días)',
             'Total de Meses', 'Esquema Completo', 'Sexo', 'Género', 'Orientación Sexual', 'Edad Gestacional',
@@ -186,7 +185,7 @@ class VacunaExport implements FromQuery, WithHeadings, ShouldAutoSize, WithEvent
             'Nombre de la Vacuna', 'Dosis', 'Laboratorio', 'Lote', 'Jeringa', 'Lote de Jeringa', 'Diluyente',
             'Lote de Diluyente', 'Observación', 'Gotero', 'Tipo Neumococo', 'Número de Frascos Utilizados',
             'Fecha de Vacunación', 'Responsable', 'Fuente Ingresado en PAIWEB', 'Motivo No Ingreso',
-            'Observaciones', 'Fecha de Creación'
+            'Observaciones', 'Fecha de Creación',
         ];
     }
 
@@ -195,17 +194,22 @@ class VacunaExport implements FromQuery, WithHeadings, ShouldAutoSize, WithEvent
         return [
             AfterSheet::class => function(AfterSheet $event) {
                 $cellRange = 'A1:CP1';
-                $event->sheet->getDelegate()->getStyle($cellRange)->getFont()->setSize(14);
-                $event->sheet->getDelegate()->getStyle($cellRange)->getFont()->setBold(true);
-                $event->sheet->getDelegate()->getStyle($cellRange)->getFill()
-                    ->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)
-                    ->getStartColor()->setARGB('e6ffe6');
-                $event->sheet->getDelegate()->getStyle($cellRange)->getAlignment()->setHorizontal('center');
-                $event->sheet->setAutoFilter($cellRange);
-                $event->sheet->getDelegate()->getStyle('B2:CP2000')->applyFromArray([
+                $sheet     = $event->sheet->getDelegate();
+
+                // Estilo cabeceras
+                $sheet->getStyle($cellRange)->getFont()->setSize(14)->setBold(true);
+                $sheet->getStyle($cellRange)
+                      ->getFill()
+                      ->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)
+                      ->getStartColor()->setARGB('e6ffe6');
+                $sheet->getStyle($cellRange)->getAlignment()->setHorizontal('center');
+                $sheet->setAutoFilter($cellRange);
+
+                // Alineación datos
+                $sheet->getStyle('B2:CP2000')->applyFromArray([
                     'alignment' => [
                         'horizontal' => \PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_LEFT,
-                    ]
+                    ],
                 ]);
             },
         ];
