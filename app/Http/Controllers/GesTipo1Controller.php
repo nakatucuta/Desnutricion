@@ -7,16 +7,18 @@ use Illuminate\Http\Request;
 use Maatwebsite\Excel\Facades\Excel;
 // Atrapa verdaderamente cualquier error
 use App\Models\GesTipo1;
-use DataTables;
-
+use Illuminate\Support\Facades\Auth;
+use Yajra\DataTables\Facades\DataTables;
+use App\Exports\GesTipo1Export;
 use Throwable;
+use App\Models\batch_verifications;
+
+
 
 class GesTipo1Controller extends Controller
 {
-    /**
-     * GET /gestantes/import
-     * Muestra el formulario de subida
-     */
+
+    
     public function showImportForm()
     {
         return view('ges_tipo1.import');
@@ -36,7 +38,7 @@ class GesTipo1Controller extends Controller
             Excel::import(new GesTipo1Import, $request->file('excel_file'));
 
             return redirect()
-                ->route('ges_tipo1.import.form')
+                ->route('ges_tipo3.import')
                 ->with('success', 'Datos importados correctamente.');
         }
         catch (Throwable $e) {
@@ -47,53 +49,71 @@ class GesTipo1Controller extends Controller
     }
 
 
-    public function index(Request $request)
-    {
-        if ($request->ajax()) {
-            $query = GesTipo1::query()->select([
-                'id',
-                'primer_nombre',
-                'segundo_nombre',
-                'primer_apellido',
-                'segundo_apellido',
-                'no_id_del_usuario',
-                'numero_carnet',
-                'fecha_de_nacimiento',
-                'fecha_probable_de_parto',
-                // añade aquí otros campos si quieres:
-                //'pais_de_la_nacionalidad',
-                //'municipio_de_residencia_habitual',
-            ]);
+   public function index(Request $request)
+{
+    if ($request->ajax()) {
+        $query = GesTipo1::query()->select([
+            'id',
+            'primer_nombre',
+            'segundo_nombre',
+            'primer_apellido',
+            'segundo_apellido',
+            'no_id_del_usuario',
+            'numero_carnet',
+            'fecha_de_nacimiento',
+            'fecha_probable_de_parto',
+            'tipo_de_identificacion_de_la_usuaria',
+        ]);
 
-            return DataTables::of($query)
-                ->addColumn('full_name', function($row) {
-                    return trim("{$row->primer_nombre} {$row->segundo_nombre} {$row->primer_apellido} {$row->segundo_apellido}");
-                })
-                ->addColumn('acciones', function($row) {
-                    $show = route('ges_tipo1.show', $row->id);
-                    return "<a href=\"{$show}\" class=\"btn btn-sm btn-primary\">Ver</a>";
-                })
-                ->rawColumns(['acciones'])
-                ->make(true);
-        }
 
-        return view('ges_tipo1.index');
+          // 2) Si es usuario tipo 2 (p.ej. “gestor”), limitar sólo a sus propios registros
+            if (Auth::user()->usertype == 2) {
+                $query->where('user_id', Auth::id());
+            }
+        return DataTables::of($query)
+            ->addColumn('full_name', function($row) {
+                return trim("{$row->primer_nombre} {$row->segundo_nombre} {$row->primer_apellido} {$row->segundo_apellido}");
+            })
+            ->addColumn('acciones', function($row) {
+                $show = route('ges_tipo1.show', $row->id);
+                return <<<HTML
+<a href="{$show}" class="btn btn-sm btn-gradient">
+    <i class="fas fa-eye mr-1"></i> Ver
+</a>
+HTML;
+            })
+            ->rawColumns(['acciones'])
+            ->make(true);
     }
 
+    return view('ges_tipo1.index');
+}
 
-    public function show($id)
+
+
+   public function show($id)
     {
-        // 1) Carga la gestante
-        $gestante = GesTipo1::findOrFail($id);
+        // Cargamos la gestante y sus Tipo3 asociados
+        $gestante = GesTipo1::with('tipo3')->findOrFail($id);
 
-        // 2) Obtiene los PDFs relacionados (por tipo y número de identificación)
-        // $pdfs = TamizajePdf::where('tipo_identificacion', $gestante->tipo_identificacion)
-        //                   ->where('numero_identificacion', $gestante->numero_identificacion)
-        //                   ->orderByDesc('created_at')
-        //                   ->get();
-
-        // 3) Envía ambos a la vista
         return view('ges_tipo1.show', compact('gestante'));
     }
 
+
+
+    public function exportTipo1(Request $request)
+{
+    $request->validate([
+        'from' => 'required|date',
+        'to'   => 'required|date|after_or_equal:from',
+    ]);
+
+    $from = $request->query('from');
+    $to   = $request->query('to');
+
+    return Excel::download(
+        new GesTipo1Export($from, $to),
+        "gestantes_created_{$from}_to_{$to}.xlsx"
+    );
+}
 }

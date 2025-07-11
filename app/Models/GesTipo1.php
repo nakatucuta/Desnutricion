@@ -3,7 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
-
+use App\Models\batch_verifications;
 class GesTipo1 extends Model
 {
     public function getDateFormat(){
@@ -45,6 +45,7 @@ class GesTipo1 extends Model
         'periodo_intergenesico',
         'embarazo_multiple',
         'metodo_de_concepcion',
+        'batch_verifications_id',
     ];
 
     // Relación inversa: cada registro pertenece a un usuario
@@ -52,4 +53,15 @@ class GesTipo1 extends Model
     {
         return $this->belongsTo(\App\Models\User::class);
     }
+
+    public function tipo3()
+{
+    return $this->hasMany(GesTipo3::class, 'ges_tipo1_id');
+}
+
+  public function batchverification()
+    {
+        return $this->belongsTo(batch_verifications::class, 'batch_verifications_id');
+    }
+
 }

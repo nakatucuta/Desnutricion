@@ -11,9 +11,23 @@ use Maatwebsite\Excel\Concerns\WithStartRow;
 use PhpOffice\PhpSpreadsheet\Shared\Date;
 use Carbon\Carbon;                             // ← para comparar fechas
 use Exception;
-
+use App\Models\batch_verifications;
 class GesTipo1Import implements ToCollection, WithStartRow
 {
+     private $batch_verifications_id; // Almacena el ID único para esta importación
+
+    public function __construct()
+    {
+        // Creando una única instancia de Batch_verification al inicio de la importación
+        $verificacion = new batch_verifications([
+            'fecha_cargue' => Carbon::now(),
+        ]);
+        $verificacion->save();
+
+        // Almacenar el ID para su uso posterior
+        $this->batch_verifications_id = $verificacion->id;
+    }
+
     public function startRow(): int
     {
         return 2; // saltamos la fila de encabezados
@@ -108,6 +122,7 @@ class GesTipo1Import implements ToCollection, WithStartRow
                 'periodo_intergenesico'                               => $row[28],
                 'embarazo_multiple'                                   => $row[29],
                 'metodo_de_concepcion'                                => $row[30],
+                'batch_verifications_id' => $this->batch_verifications_id ?? null,
             ];
         }
 

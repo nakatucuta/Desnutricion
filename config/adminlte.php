@@ -448,6 +448,31 @@ return [
                 // Aquí puedes agregar más elementos de menú si deseas
             ],
         ],
+
+        
+
+           [
+            'text'    => 'Gestantes (cargue)',
+            'icon'    => 'fas fa-notes-medical', // Aquí reemplazas el icono
+            'submenu' => [
+
+                  [
+                    'text'        => 'Cargue',
+                    'url'         => 'gestantes/import',
+                    'icon'        => 'fas fa-upload',
+                    'label'       => '',  
+                    'label_color' => 'success',
+                ],
+                [
+                    'text'        => 'Tipo 3',
+                    'url'         => 'gestantes/tipo3/import',
+                    'icon'        => 'fas fa-upload',
+                    'label'       => '',  
+                    'label_color' => 'success',
+                ],
+                // Aquí puedes agregar más elementos de menú si deseas
+            ],
+        ],
         
        
          

@@ -7,6 +7,8 @@ use Illuminate\Database\Eloquent\Model;
 use App\Models\Afiliado;
 use App\Models\vacuna;
 use App\Models\Tamizaje;
+use App\Models\GesTipo1;
+use App\Models\GesTipo3;
 class batch_verifications extends Model
 {
     use HasFactory;
@@ -41,6 +43,16 @@ class batch_verifications extends Model
     public function tamizajes()
     {
         return $this->hasMany(Tamizaje::class);
+    }
+
+      public function Gestipo1()
+    {
+        return $this->hasMany(GesTipo1::class);
+    }
+
+       public function Gestipo3()
+    {
+        return $this->hasMany(GesTipo3::class);
     }
 }
 

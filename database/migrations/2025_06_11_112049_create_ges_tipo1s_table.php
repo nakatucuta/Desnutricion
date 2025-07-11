@@ -18,6 +18,12 @@ class CreateGesTipo1sTable extends Migration
                   ->on('users')
                   ->onDelete('cascade');
 
+                    $table->unsignedInteger('batch_verifications_id');
+            $table->foreign('batch_verifications_id')
+                  ->references('id')
+                  ->on('batch_verifications')
+                  ->onDelete('cascade');
+
             // Campos existentes...
             $table->string('tipo_de_registro');
             $table->integer('consecutivo');

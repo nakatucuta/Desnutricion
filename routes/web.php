@@ -15,6 +15,7 @@ use Illuminate\Http\Request;
 use App\Http\Controllers\TamizajeController;
 use App\Http\Controllers\TamizajePdfController;
 use App\Http\Controllers\GesTipo1Controller;
+use App\Http\Controllers\GesTipo3Controller;
 
 /*
 |--------------------------------------------------------------------------
@@ -284,3 +285,15 @@ Route::post('gestantes/import', [GesTipo1Controller::class, 'import'])
      ->name('ges_tipo1.index');
      Route::get('gestantes/{id}', [GesTipo1Controller::class, 'show'])
      ->name('ges_tipo1.show');
+
+     //tipo 3 
+
+     Route::get('gestantes/tipo3/import', [GesTipo3Controller::class,'showImportForm'])
+     ->name('ges_tipo3.import.form');
+
+Route::post('gestantes/tipo3/import', [GesTipo3Controller::class,'import'])
+     ->name('ges_tipo3.import');
+
+     //RUTAS REPORTE EN EXCEL
+Route::get('gestantes/export/tipo1', [GesTipo1Controller::class, 'exportTipo1'])->name('ges_tipo1.export');
+Route::get('gestantes/export/tipo3', [GesTipo3Controller::class, 'exportTipo3'])->name('ges_tipo3.export');

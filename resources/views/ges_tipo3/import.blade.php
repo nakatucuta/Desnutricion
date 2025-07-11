@@ -1,25 +1,24 @@
-{{-- resources/views/ges_tipo1/import.blade.php --}}
+{{-- resources/views/ges_tipo3/import.blade.php --}}
 @extends('adminlte::page')
 
-@section('title', 'Importar Gestantes - PAI')
+@section('title', 'Importar Tipo 3')
 
 @section('content_header')
 <div class="header-container d-flex align-items-center justify-content-center mb-4">
     <img src="{{ asset('vendor/adminlte/dist/img/logo.png') }}"
          alt="Escudo"
          class="header-logo mr-3">
-    <h1 class="executive-title mb-0">IMPORTAR GESTANTES (TIPO 2)</h1>
+    <h1 class="executive-title mb-0">IMPORTAR TIPO 3</h1>
 </div>
 @stop
 
 @section('content')
 <div class="container position-relative">
-
     {{-- Overlay de bienvenida --}}
     <div id="welcomeOverlay">
         <div class="welcome-content animate__animated animate__fadeInDown text-center">
             <img src="{{ asset('vendor/adminlte/dist/img/logo.png') }}" alt="Escudo" class="welcome-logo mb-3">
-            <h2 class="mb-2">Bienvenido al proceso de cargue</h2>
+            <h2 class="mb-2">Bienvenido al proceso de cargue TIPO 3</h2>
             <div class="spinner-border text-info" role="status">
                 <span class="sr-only">Cargando...</span>
             </div>
@@ -33,7 +32,7 @@
     <div class="row mb-4 justify-content-center">
         <div class="col-md-6 text-center">
             <a href="{{ route('ges_tipo1.index') }}" class="btn btn-gradient-info btn-lg mx-2">
-                <i class="fas fa-table mr-1"></i> Ver datos
+                <i class="fas fa-table mr-1"></i> Ver registros
             </a>
             <a href="{{ url()->previous() }}" class="btn btn-gradient-warning btn-lg mx-2">
                 <i class="fas fa-arrow-left mr-1"></i> Regresar
@@ -47,11 +46,11 @@
             <div class="card shadow-sm border-info animate__animated animate__fadeInUp">
                 <div class="card-header bg-info text-white">
                     <h4 class="card-title mb-0">
-                        <i class="fas fa-file-excel mr-2"></i> Subir archivo Excel
+                        <i class="fas fa-file-excel mr-2"></i> Subir archivo Excel - Tipo 3
                     </h4>
                 </div>
                 <div class="card-body">
-                    <form id="importForm" action="{{ route('ges_tipo1.import') }}" method="POST" enctype="multipart/form-data">
+                    <form id="importForm" action="{{ route('ges_tipo3.import') }}" method="POST" enctype="multipart/form-data">
                         @csrf
                         <div class="custom-file mb-3">
                             <input
@@ -138,12 +137,12 @@
         align-items: center;
         justify-content: center;
     }
+    .welcome-logo {
+        width: 100px;
+    }
     .welcome-content h2 {
         color: #17a2b8;
         margin-bottom: 1rem;
-    }
-    .welcome-logo {
-        width: 100px;
     }
 
     /* Loading Overlay */
