@@ -181,11 +181,12 @@ class SivigilaController extends Controller
         $incomeedit3 = DB::connection('sqlsrv_1')->table('maestroSiv113')->selectRaw('MAX(edad_)')
         ->where('num_ide_', $num_ide_)->VALUE('edad_'); //LA EDAD MAYOR ->selectRaw('MAX(edad_)')
 
-        $incomeedit4 = DB::connection('sqlsrv_1')->table('maestroSiv113')->selectRaw('CAST(year(year)AS INT )')
-        
-        ->where('num_ide_', $num_ide_)
-        ->whereRaw('CAST(fec_not AS DATE) = ?', [$fecha_casteada])
-        ->VALUE('year'); //ULTIMO AÑO DE REPORTE O AÑO MAYOR ->selectRaw('MAX(CAST(year(year)AS INT ))')
+        $incomeedit4 = DB::connection('sqlsrv_1')
+    ->table('maestroSiv113')
+    ->where('num_ide_', $num_ide_)
+    ->whereDate('fec_not', $fecha_casteada)               // en vez de whereRaw(CAST...)
+    ->selectRaw('MAX(CAST([year] AS INT)) AS ultimo_anio')
+    ->value('ultimo_anio');
 
 
 
