@@ -23,7 +23,10 @@ class GesTipo1Export implements FromQuery, WithHeadings, WithMapping
     public function query()
     {
         $query = GesTipo1::query()
-            ->whereBetween('created_at', [$this->from, $this->to]);
+           ->whereRaw(
+                "CONVERT(varchar(8), created_at, 112) BETWEEN ? AND ?",
+                [ $this->from, $this->to ]
+            );
 
         if (Auth::user()->usertype === 2) {
             $query->where('user_id', Auth::id());

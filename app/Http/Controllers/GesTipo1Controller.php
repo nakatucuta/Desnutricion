@@ -12,7 +12,7 @@ use Yajra\DataTables\Facades\DataTables;
 use App\Exports\GesTipo1Export;
 use Throwable;
 use App\Models\batch_verifications;
-
+use Carbon\Carbon;
 
 
 class GesTipo1Controller extends Controller
@@ -108,8 +108,9 @@ HTML;
         'to'   => 'required|date|after_or_equal:from',
     ]);
 
-    $from = $request->query('from');
-    $to   = $request->query('to');
+      // Lo formateamos a YYYYMMDD para la comparación de SQL Server
+        $from = Carbon::parse($request->query('from'))->format('Ymd');
+        $to   = Carbon::parse($request->query('to'))->format('Ymd');
 
     return Excel::download(
         new GesTipo1Export($from, $to),

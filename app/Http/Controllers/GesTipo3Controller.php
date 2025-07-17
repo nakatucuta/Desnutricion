@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 use Maatwebsite\Excel\Facades\Excel;
 use App\Imports\GesTipo3Import;
 use App\Exports\GesTipo3Export;
+use Carbon\Carbon;
 class GesTipo3Controller extends Controller
 {
     public function showImportForm()
@@ -44,8 +45,9 @@ class GesTipo3Controller extends Controller
         'to'   => 'required|date|after_or_equal:from',
     ]);
 
-    $from = $request->query('from');
-    $to   = $request->query('to');
+ 
+        $from = Carbon::parse($request->query('from'))->format('Ymd');
+        $to   = Carbon::parse($request->query('to'))->format('Ymd');
 
     return Excel::download(
         new GesTipo3Export($from, $to),

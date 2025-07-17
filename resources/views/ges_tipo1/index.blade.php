@@ -11,7 +11,7 @@
     </div>
     <div>
         <button class="btn btn-gradient btn-lg mr-2" data-toggle="modal" data-target="#exportTipo1Modal">
-            <i class="fas fa-file-excel mr-1"></i> Exportar Tipo 1
+            <i class="fas fa-file-excel mr-1"></i> Exportar Tipo 2
         </button>
         <button class="btn btn-gradient btn-lg" data-toggle="modal" data-target="#exportTipo3Modal">
             <i class="fas fa-file-excel mr-1"></i> Exportar Tipo 3

@@ -453,7 +453,8 @@ return [
 
            [
             'text'    => 'Gestantes (cargue)',
-            'icon'    => 'fas fa-notes-medical', // Aquí reemplazas el icono
+            'icon' => 'fas fa-baby-carriage',
+
             'submenu' => [
 
                   [
