@@ -141,25 +141,12 @@
               <textarea name="observaciones" class="form-control" rows="5">{{$empleado->observaciones}}</textarea>
             </div>
             <div class="col-md-6">
-             <label>Medicamento</label>
-<select class="js-example-basic-multiple form-control" name="medicamento[]" multiple>
-  @php
-      // Convierte el string en un array
-      $medicamentosSeleccionados = explode(',', $empleado->medicamento);
-  @endphp
-
-  @foreach(["23072-2" => "albendazol 200MG", 
-            "54114-1" => "albendazol 400MG", 
-            "35662-18" => "Acido folico", 
-            "31063-1" => "Vitamina A", 
-            "27440-3" => "Hierro"] as $key => $label)
-    <option value="{{ $key }}" 
-        {{ in_array($key, $medicamentosSeleccionados) ? 'selected' : '' }}>
-        {{ $label }}
-    </option>
-  @endforeach
-</select>
-
+              <label>Medicamento</label>
+              <select class="js-example-basic-multiple form-control" name="medicamento[]" multiple>
+                @foreach(["23072-2" => "albendazol 200MG", "54114-1" => "albendazol 400MG", "35662-18" => "Acido folico", "31063-1" => "Vitamina A", "27440-3" => "Hierro","NO APLICA" => "NO APLICA"] as $key => $label)
+                  <option value="{{ $key }}" {{ in_array($key, explode(',', $empleado->medicamento)) ? 'selected' : '' }}>{{ $label }}</option>
+                @endforeach
+              </select>
             </div>
           </div>
         </div>
