@@ -275,7 +275,7 @@ class Cargue412Controller extends Controller
       public function showImportForm()
     {
         $years = DB::connection('sqlsrv_1')
-        ->table('DESNUTRICION.dbo.vCargue412Optima')
+        ->table('PRUEBA_DESNUTRICION.dbo.vCargue412Optima')
         ->selectRaw('YEAR(fecha_captacion) as year')
         ->distinct()
         ->orderByDesc('year')
@@ -290,7 +290,7 @@ class Cargue412Controller extends Controller
     
         // 1) Construimos el QueryBuilder sobre la vista optimizada
         $query = DB::connection('sqlsrv_1')
-            ->table('DESNUTRICION.dbo.vCargue412Optima')
+            ->table('PRUEBA_DESNUTRICION.dbo.vCargue412Optima')
             // Filtramos por año de fecha_captacion si se envía
             ->when($year, function($q) use ($year) {
                 $q->whereYear('fecha_captacion', $year);

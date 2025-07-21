@@ -137,7 +137,11 @@
         <div class="card-body">
           <div class="row g-3">
             <div class="col-md-6">
-              <label>Medicamento</label>
+              <label>Observaciones</label>
+              <textarea name="observaciones" class="form-control" rows="5">{{$empleado->observaciones}}</textarea>
+            </div>
+            <div class="col-md-6">
+             <label>Medicamento</label>
 <select class="js-example-basic-multiple form-control" name="medicamento[]" multiple>
   @php
       // Convierte el string en un array
