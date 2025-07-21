@@ -7,6 +7,10 @@ use Maatwebsite\Excel\Facades\Excel;
 use App\Imports\GesTipo3Import;
 use App\Exports\GesTipo3Export;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Storage;
+use App\Mail\DataImportedMail;
 class GesTipo3Controller extends Controller
 {
     public function showImportForm()
@@ -14,27 +18,47 @@ class GesTipo3Controller extends Controller
         return view('ges_tipo3.import');
     }
 
-   public function import(Request $request)
-{
-    // 1) Validar el archivo Excel
-    $request->validate([
-        'excel_file' => 'required|file|mimes:xlsx,xls'
-    ]);
+  public function import(Request $request)
+    {
+        $request->validate([
+            'excel_file' => 'required|file|mimes:xlsx,xls'
+        ]);
 
-    try {
-        // 2) Ejecutar el import
-        Excel::import(new GesTipo3Import, $request->file('excel_file'));
+        // 1) Guardar temporalmente el archivo
+        $file       = $request->file('excel_file');
+        $storedPath = $file->store('imports');
+        $fullPath   = storage_path('app/' . $storedPath);
 
-        // 3) Éxito → redirigir al listado de gestantes con mensaje
-        return redirect()
-            ->route('ges_tipo1.index')
-            ->with('success', '¡Datos ges_tipo3 importados correctamente!');
-    } catch (\Exception $e) {
-        // 4) Error → vuelve a la misma vista de import con el mensaje de error
-        return back()
-            ->with('error', nl2br($e->getMessage()));
+        try {
+            // 2) Crear la instancia del importador y ejecutar
+            $importer = new GesTipo3Import();
+            Excel::import($importer, $fullPath);
+
+            // 3) Obtener los registros recién insertados
+            $records = $importer->inserted;
+
+            // 4) Destinatarios fijos + correo del usuario actual
+            $recipients = [
+                
+                'jsuarez@epsianaswayuu.com',
+                Auth::user()->email,
+            ];
+
+            // 5) Enviar el correo con la colección
+            Mail::to($recipients)
+                ->send(new DataImportedMail($records));
+
+            // 6) Redirigir con mensaje de éxito
+            return redirect()
+                ->route('ges_tipo1.index')
+                ->with('success', '¡Datos ges_tipo3 importados correctamente y notificación enviada!');
+        } catch (\Exception $e) {
+            // 7) En caso de error, volver con el mensaje
+            return back()
+                ->with('error', nl2br($e->getMessage()));
+        }
     }
-}
+
 
 
 

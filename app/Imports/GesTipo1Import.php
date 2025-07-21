@@ -12,27 +12,43 @@ use PhpOffice\PhpSpreadsheet\Shared\Date;
 use Carbon\Carbon;                             // ← para comparar fechas
 use Exception;
 use App\Models\batch_verifications;
+
 class GesTipo1Import implements ToCollection, WithStartRow
 {
-     private $batch_verifications_id; // Almacena el ID único para esta importación
+    private $batch_verifications_id; // Almacena el ID único para esta importación
 
+    /**
+     * Constructor: crea y guarda el batch_verification, guarda su ID.
+     */
     public function __construct()
     {
-        // Creando una única instancia de Batch_verification al inicio de la importación
         $verificacion = new batch_verifications([
             'fecha_cargue' => Carbon::now(),
         ]);
         $verificacion->save();
 
-        // Almacenar el ID para su uso posterior
         $this->batch_verifications_id = $verificacion->id;
     }
 
-    public function startRow(): int
+    /**
+     * Este método permite al controlador recuperar el batch ID.
+     */
+    public function getBatchVerificationsId(): int
     {
-        return 2; // saltamos la fila de encabezados
+        return $this->batch_verifications_id;
     }
 
+    /**
+     * Empezamos en la fila 2 (cabeceras en la 1).
+     */
+    public function startRow(): int
+    {
+        return 2;
+    }
+
+    /**
+     * Recorre cada fila, valida y arma el array de inserción.
+     */
     public function collection(Collection $rows)
     {
         $toInsert     = [];
@@ -40,7 +56,7 @@ class GesTipo1Import implements ToCollection, WithStartRow
         $yaExistentes = [];
 
         foreach ($rows as $row) {
-            // 1) Convertir fechas Excel a Y-m-d
+            // 1) Convertir fechas de Excel a Y-m-d
             $fechaN = $row[12];
             if (is_numeric($fechaN)) {
                 $fechaN = Date::excelToDateTimeObject($fechaN)->format('Y-m-d');
@@ -50,44 +66,40 @@ class GesTipo1Import implements ToCollection, WithStartRow
                 $fechaP = Date::excelToDateTimeObject($fechaP)->format('Y-m-d');
             }
 
-            // 2) Forzar identificaciones como strings
+            // 2) Identificación como string
             $tipoIdent = trim((string) $row[6]);
             $noId      = trim((string) $row[7]);
 
-            // 3) Validación: si YA existe en ges_tipo1
+            // 3) Si ya existe y su FPP no pasó, saltar y acumular error
             if ($existing = GesTipo1::where('tipo_de_identificacion_de_la_usuaria', $tipoIdent)
                                     ->where('no_id_del_usuario', $noId)
                                     ->first())
             {
-                // Comparamos la FECHA ACTUAL con fecha_probable_de_parto
                 $hoy = Carbon::today();
                 $fp  = Carbon::parse($fechaP);
 
-                if ($hoy->gt($fp)) {
-                    // La fecha probable de parto ya pasó → permitimos reinsertar
-                } else {
-                    // Aún no pasa → NO permitimos e informamos
+                if ($hoy->lte($fp)) {
                     $nombreCompleto = trim("{$row[10]} {$row[11]} {$row[8]} {$row[9]}");
                     $yaExistentes[] = "{$nombreCompleto} (ID: {$noId}) — fecha_probable_de_parto: {$fechaP}";
                     continue;
                 }
             }
 
-            // 4) Buscar numeroCarnet en sqlsrv_1
+            // 4) Buscar carnet en conexión externa
             $numeroCarnet = DB::connection('sqlsrv_1')
                 ->table('maestroIdentificaciones')
                 ->where('identificacion',    $noId)
                 ->where('tipoIdentificacion', $tipoIdent)
                 ->value('numeroCarnet');
 
-            // 5) Si no tiene carnet, acumular y saltar
+            // 5) Si no hay carnet, acumular y saltar
             if (! $numeroCarnet) {
                 $nombreCompleto = trim("{$row[10]} {$row[11]} {$row[8]} {$row[9]}");
                 $sinCarnet[]    = "{$nombreCompleto} (ID: {$noId})";
                 continue;
             }
 
-            // 6) Preparar datos para inserción (incluyendo user_id)
+            // 6) Preparar datos para insertar
             $toInsert[] = [
                 'user_id'   => Auth::id(),
                 'tipo_de_registro'                                    => $row[0],
@@ -122,23 +134,23 @@ class GesTipo1Import implements ToCollection, WithStartRow
                 'periodo_intergenesico'                               => $row[28],
                 'embarazo_multiple'                                   => $row[29],
                 'metodo_de_concepcion'                                => $row[30],
-                'batch_verifications_id' => $this->batch_verifications_id ?? null,
+                'batch_verifications_id'                              => $this->batch_verifications_id,
             ];
         }
 
-        // 7) Si hay duplicados, abortar con mensaje
+        // 7) Si hay duplicados pendientes, abortar
         if (! empty($yaExistentes)) {
-            $lista = implode("\n", $yaExistentes);
             throw new Exception(
-                "Import DETENIDO: los siguientes usuarios NO fueron importados porque YA EXISTEN y su fecha_probable_de_parto no ha pasado:\n\n{$lista}"
+                "Import DETENIDO: usuarios ya existen y su FPP no ha pasado:\n\n"
+                . implode("\n", $yaExistentes)
             );
         }
 
-        // 8) Si hay usuarios sin carnet, abortar con mensaje
+        // 8) Si faltan carnets, abortar
         if (! empty($sinCarnet)) {
-            $lista = implode("\n", $sinCarnet);
             throw new Exception(
-                "Import DETENIDO: los siguientes usuarios NO están afiliados o no tienen número de carnet:\n\n{$lista}"
+                "Import DETENIDO: usuarios sin carnet:\n\n"
+                . implode("\n", $sinCarnet)
             );
         }
 
