@@ -7,6 +7,7 @@ use App\Models\GesTipo3;
 use App\Models\batch_verifications;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Maatwebsite\Excel\Concerns\ToCollection;
 use Maatwebsite\Excel\Concerns\WithStartRow;
 use PhpOffice\PhpSpreadsheet\Shared\Date;
@@ -37,16 +38,33 @@ class GesTipo3Import implements ToCollection, WithStartRow
 
     public function collection(Collection $rows)
     {
-        $sinPadre = [];
+        // 0) Traer lista de códigos CUPS válidos
+        $validCups = DB::connection('sqlsrv_1')
+            ->table('refcups')
+            ->pluck('codigo')
+            ->map(fn($c) => trim((string)$c))
+            ->toArray();
+
+        $sinPadre    = [];
+        $invalidCups = [];
 
         foreach ($rows as $row) {
-            // 1) Parsear fechas
+            // extraer y limpiar el código CUPS
+            $cups = trim((string)($row[5] ?? ''));
+
+            // 1) Validar CUPS
+            if ($cups === '' || ! in_array($cups, $validCups, true)) {
+                $invalidCups[] = $cups ?: '(vacío)';
+                continue;
+            }
+
+            // 2) Parsear fechas
             $fechaTec    = $this->parseDate($row[4]);
             $fechaPost   = $this->optionalDate($row[13]);
             $fechaSalida = $this->optionalDate($row[15]);
             $fechaTerm   = $this->optionalDate($row[16]);
 
-            // 2) Buscar padre en ges_tipo1
+            // 3) Buscar padre en ges_tipo1
             $tipoIdent = trim((string)$row[2]);
             $noId      = trim((string)$row[3]);
 
@@ -59,14 +77,14 @@ class GesTipo3Import implements ToCollection, WithStartRow
                 continue;
             }
 
-            // 3) Bools de suministro
+            // 4) Bools de suministro
             $asa   = isset($row[9])  ? ((int)$row[9]  > 0) : null;
             $fol   = isset($row[10]) ? ((int)$row[10] > 0) : null;
             $fer   = isset($row[11]) ? ((int)$row[11] > 0) : null;
             $calc  = isset($row[12]) ? ((int)$row[12] > 0) : null;
             $metPo = isset($row[14]) ? ((int)$row[14] > 0) : null;
 
-            // 4) Preparar datos
+            // 5) Preparar datos
             $data = [
                 'ges_tipo1_id'                                         => $padre->id,
                 'tipo_de_registro'                                     => $row[0]  ?? null,
@@ -74,7 +92,7 @@ class GesTipo3Import implements ToCollection, WithStartRow
                 'tipo_identificacion_de_la_usuaria'                    => $tipoIdent,
                 'no_id_del_usuario'                                    => $noId,
                 'fecha_tecnologia_en_salud'                            => $fechaTec,
-                'codigo_cups_de_la_tecnologia_en_salud'                => $row[5]  ?? null,
+                'codigo_cups_de_la_tecnologia_en_salud'                => $cups,
                 'finalidad_de_la_tecnologia_en_salud'                  => $row[6]  ?? null,
                 'clasificacion_riesgo_gestacional'                     => is_numeric($row[7])  ? (int)$row[7]  : null,
                 'clasificacion_riesgo_preeclampsia'                    => is_numeric($row[8])  ? (int)$row[8]  : null,
@@ -96,14 +114,23 @@ class GesTipo3Import implements ToCollection, WithStartRow
                 'user_id'                                              => Auth::id(),
             ];
 
-            // 5) Crear y acumular
+            // 6) Crear y acumular
             $model = GesTipo3::create($data);
             $this->inserted[] = $model;
         }
 
+        // 7) Si hay códigos CUPS inválidos, abortar
+        if (! empty($invalidCups)) {
+            throw new Exception(
+                'Import DETENIDO: los siguientes códigos CUPS NO existen en SGA: '
+                . implode(', ', array_unique($invalidCups))
+            );
+        }
+
+        // 8) Si faltan padres, abortar
         if (! empty($sinPadre)) {
             throw new Exception(
-                'Abortado: sin padre en ges_tipo1 para identificadores: '
+                'Import DETENIDO: sin relación en ges_tipo2 para identificadores: '
                 . implode(', ', $sinPadre)
             );
         }
