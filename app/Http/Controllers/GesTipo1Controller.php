@@ -51,6 +51,7 @@ class GesTipo1Controller extends Controller
 
             // 5) Definir destinatarios: fijos + el usuario autenticado
             $recipients = [
+                'rutamp@epsianaswayuu.com',
                 'jsuarez@epsianaswayuu.com',
                 auth()->user()->email,
             ];

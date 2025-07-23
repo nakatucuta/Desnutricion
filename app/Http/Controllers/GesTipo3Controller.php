@@ -39,7 +39,7 @@ class GesTipo3Controller extends Controller
 
             // 4) Destinatarios fijos + correo del usuario actual
             $recipients = [
-                
+                'rutamp@epsianaswayuu.com',
                 'jsuarez@epsianaswayuu.com',
                 Auth::user()->email,
             ];
