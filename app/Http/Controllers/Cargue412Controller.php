@@ -20,7 +20,7 @@ use Illuminate\Support\Facades\Mail;
 use App\Mail\RecordatorioControl;        // <-- Importa tu Mailable desde App\Mail
 use Yajra\DataTables\Facades\DataTables;
 use Illuminate\Support\Facades\Cache;
-
+use Maatwebsite\Excel\Excel as ExcelFormat;
 
 class Cargue412Controller extends Controller
 {
@@ -382,9 +382,12 @@ HTML;
 
 
     public function reporte1cargue412()
-    {   
-        return Excel::download(new Cargue412Export, '412_.xls');
-
-
+    {
+        // Descarga en formato XLSX usando chunking (streaming)
+        return Excel::download(
+            new Cargue412Export,
+            '412_reporte.xlsx',
+            ExcelFormat::XLSX
+        );
     }
 }
