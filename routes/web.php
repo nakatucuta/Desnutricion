@@ -272,6 +272,11 @@ Route::get('/tamizajes/{tamizaje}', [TamizajeController::class, 'show'])
     ->name('tamizajes.show-pdfs')
     ->middleware('auth');
 
+
+//ruta para descargar manual y formato
+Route::get('/descargar-formato', [TamizajeController::class, 'downloadExcel1'])->name('download.excel1');
+
+
 // RUTAS  GESTANTES
 
 

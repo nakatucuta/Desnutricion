@@ -91,7 +91,7 @@
 
 <div class="header-container">
     <h1 class="executive-title">CARGUE TAMIZAJE</h1>
-    <a href="{{ route('download.excel') }}" class="btn btn-download">
+    <a href="{{ route('download.excel1') }}" class="btn btn-download">
         Descargar Formato
     </a>
 </div>

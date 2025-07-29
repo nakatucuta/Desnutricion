@@ -15,6 +15,8 @@ use App\Exports\TamizajesExport;    // Export personalizado
 use Illuminate\Support\Facades\Log;
 use Yajra\DataTables\Facades\DataTables;  // <-- este use faltaba
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Storage;
+use ZipArchive;
 class TamizajeController extends Controller
 {
 
@@ -830,6 +832,40 @@ public function generateExcel(Request $request)
 }
     
 
+
+ public function downloadExcel1()
+{
+    // Rutas de los archivos que deseas incluir en el ZIP
+    $excelPath = 'public/carguetamizajes.xlsx';
+    $pdfPath = 'public/Doc1.pdf';  // Cambia esta ruta al archivo PDF que deseas descargar
+
+    // Verificar si los archivos existen
+    if (!Storage::exists($excelPath) || !Storage::exists($pdfPath)) {
+        abort(404, 'Uno o ambos archivos no existen.');
+    }
+
+    // Crear un archivo ZIP
+    $zipFileName = 'documentos.zip';
+    $zipFilePath = storage_path($zipFileName);  // Ubicación temporal del archivo ZIP
+
+    $zip = new ZipArchive;
+
+    if ($zip->open($zipFilePath, ZipArchive::CREATE) === TRUE) {
+        // Agregar el archivo Excel
+        $zip->addFile(Storage::path($excelPath), 'carguetamizajes.xlsx');
+
+        // Agregar el archivo PDF
+        $zip->addFile(Storage::path($pdfPath), 'Doc1.pdf');
+
+        // Cerrar el archivo ZIP
+        $zip->close();
+    } else {
+        abort(500, 'No se pudo crear el archivo ZIP.');
+    }
+
+    // Descargar el archivo ZIP
+    return response()->download($zipFilePath)->deleteFileAfterSend(true);  // Elimina el ZIP después de la descarga
+}
 
     
 }
