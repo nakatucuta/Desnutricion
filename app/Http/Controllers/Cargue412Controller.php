@@ -395,7 +395,7 @@ public function reporte1cargue412()
         fputcsv($handle, [
             'id',
             'ips_primaria',
-            'nombre_profesional',
+            'IPS_ASIGNADA',
             'primer_nombre',
             'segundo_nombre',
             'primer_apellido',
