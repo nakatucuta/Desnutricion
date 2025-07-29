@@ -380,171 +380,173 @@ HTML;
         return redirect()->route('import-excel-form')->with('success', 'Datos importados correctamente');
     }
 
+public function reporte1cargue412()
+{
+    $fileName = '412_reporte.csv';
+    $headers = [
+        'Content-Type'        => 'text/csv',
+        'Content-Disposition' => "attachment; filename=\"$fileName\"",
+    ];
 
-    public function reporte1cargue412()
-    {
-        $fileName = '412_reporte.csv';
-        $headers = [
-            'Content-Type'        => 'text/csv',
-            'Content-Disposition' => "attachment; filename=\"$fileName\"",
-        ];
+    $callback = function() {
+        $handle = fopen('php://output', 'w');
 
-        $callback = function() {
-            $handle = fopen('php://output', 'w');
+        // 1) Encabezados en el mismo orden
+        fputcsv($handle, [
+            'id',
+            'ips_primaria',
+            'nombre_profesional',
+            'primer_nombre',
+            'segundo_nombre',
+            'primer_apellido',
+            'segundo_apellido',
+            'tipo_identificacion',
+            'numero_identificacion',
+            'sexo',
+            'fecha_nacimieto_nino',
+            'edad_meses',
+            'regimen_afiliacion',
+            'nombre_eapb_menor',
+            'peso_kg',
+            'logitud_talla_cm',
+            'perimetro_braqueal',
+            'signos_peligro_infeccion_respiratoria',
+            'sexosignos_desnutricion',
+            'puntaje_z',
+            'calsificacion_antropometrica',
+            // el resto a tu parecer:
+            'numero_orden',
+            'nombre_coperante',
+            'fecha_captacion',
+            'municipio',
+            'nombre_rancheria',
+            'ubicacion_casa',
+            'nombre_cuidador',
+            'identioficacion_cuidador',
+            'telefono_cuidador',
+            'nombre_eapb_cuidador',
+            'nombre_autoridad_trad_ansestral',
+            'datos_contacto_autoridad',
+            'estado',
+            'user_id',
+            'created_at',
+            'updated_at',
+            'numero_profesional',
+            'uds',
+        ]);
 
-            // 1) Escribimos los encabezados en el mismo orden
-            fputcsv($handle, [
-                'IPS ASIGNADA',
-                'PRESTADOR PRIMARIO',
-                'id',
-                'numero_orden',
-                'nombre_coperante',
-                'fecha_captacion',
-                'municipio',
-                'nombre_rancheria',
-                'ubicacion_casa',
-                'nombre_cuidador',
-                'identioficacion_cuidador',
-                'telefono_cuidador',
-                'nombre_eapb_cuidador',
-                'nombre_autoridad_trad_ansestral',
-                'datos_contacto_autoridad',
-                'primer_nombre',
-                'segundo_nombre',
-                'primer_apellido',
-                'segundo_apellido',
-                'tipo_identificacion',
-                'numero_identificacion',
-                'sexo',
-                'fecha_nacimieto_nino',
-                'edad_meses',
-                'regimen_afiliacion',
-                'nombre_eapb_menor',
-                'peso_kg',
-                'logitud_talla_cm',
-                'perimetro_braqueal',
-                'signos_peligro_infeccion_respiratoria',
-                'sexosignos_desnutricion',
-                'puntaje_z',
-                'calsificacion_antropometrica',
-                'estado',
-                'user_id',
-                'created_at',
-                'updated_at',
-                'numero_profesional',
-                'uds',
-            ]);
+        // 2) Leer y escribir en chunks
+        Cargue412::from('cargue412s as a')
+            ->select(
+                'a.id',
+                'd.descrip as ips_primaria',
+                'u.name as nombre_profesional',
+                'a.primer_nombre',
+                'a.segundo_nombre',
+                'a.primer_apellido',
+                'a.segundo_apellido',
+                'a.tipo_identificacion',
+                'a.numero_identificacion',
+                'a.sexo',
+                'a.fecha_nacimieto_nino',
+                'a.edad_meses',
+                'a.regimen_afiliacion',
+                'a.nombre_eapb_menor',
+                'a.peso_kg',
+                'a.logitud_talla_cm',
+                'a.perimetro_braqueal',
+                'a.signos_peligro_infeccion_respiratoria',
+                'a.sexosignos_desnutricion',
+                'a.puntaje_z',
+                'a.calsificacion_antropometrica',
+                // resto de campos:
+                'a.numero_orden',
+                'a.nombre_coperante',
+                'a.fecha_captacion',
+                'a.municipio',
+                'a.nombre_rancheria',
+                'a.ubicacion_casa',
+                'a.nombre_cuidador',
+                'a.identioficacion_cuidador',
+                'a.telefono_cuidador',
+                'a.nombre_eapb_cuidador',
+                'a.nombre_autoridad_trad_ansestral',
+                'a.datos_contacto_autoridad',
+                'a.estado',
+                'a.user_id',
+                'a.created_at',
+                'a.updated_at',
+                'a.numero_profesional',
+                'a.uds'
+            )
+            ->leftJoin(
+                DB::connection('sqlsrv_1')->raw('[sga].[dbo].[maestroidentificaciones] as b'),
+                function($join) {
+                    $join->on('a.tipo_identificacion', '=', 'b.tipoIdentificacion')
+                         ->on('a.numero_identificacion', '=', 'b.identificacion');
+                }
+            )
+            ->leftJoin(
+                DB::connection('sqlsrv_1')->raw('[sga].[dbo].[maestroips] as c'),
+                'b.numeroCarnet', '=', 'c.numeroCarnet'
+            )
+            ->leftJoin(
+                DB::connection('sqlsrv_1')->raw('[sga].[dbo].[maestroIpsGru] as d'),
+                'c.idGrupoIps', '=', 'd.id'
+            )
+            ->leftJoin('users as u', 'u.id', '=', 'a.user_id')
+            ->orderBy('a.id', 'asc')
+            ->chunk(500, function($rows) use ($handle) {
+                foreach ($rows as $row) {
+                    fputcsv($handle, [
+                        $row->id,
+                        $row->ips_primaria,
+                        $row->nombre_profesional,
+                        $row->primer_nombre,
+                        $row->segundo_nombre,
+                        $row->primer_apellido,
+                        $row->segundo_apellido,
+                        $row->tipo_identificacion,
+                        $row->numero_identificacion,
+                        $row->sexo,
+                        $row->fecha_nacimieto_nino,
+                        $row->edad_meses,
+                        $row->regimen_afiliacion,
+                        $row->nombre_eapb_menor,
+                        $row->peso_kg,
+                        $row->logitud_talla_cm,
+                        $row->perimetro_braqueal,
+                        $row->signos_peligro_infeccion_respiratoria,
+                        $row->sexosignos_desnutricion,
+                        $row->puntaje_z,
+                        $row->calsificacion_antropometrica,
+                        // resto de campos:
+                        $row->numero_orden,
+                        $row->nombre_coperante,
+                        $row->fecha_captacion,
+                        $row->municipio,
+                        $row->nombre_rancheria,
+                        $row->ubicacion_casa,
+                        $row->nombre_cuidador,
+                        $row->identioficacion_cuidador,
+                        $row->telefono_cuidador,
+                        $row->nombre_eapb_cuidador,
+                        $row->nombre_autoridad_trad_ansestral,
+                        $row->datos_contacto_autoridad,
+                        $row->estado,
+                        $row->user_id,
+                        $row->created_at,
+                        $row->updated_at,
+                        $row->numero_profesional,
+                        $row->uds,
+                    ]);
+                }
+            });
 
-            // 2) Recorremos los datos en chunks de 500 para no saturar memoria
-            Cargue412::from('cargue412s as a')
-                ->select(
-                    'a.id',
-                    'd.descrip as ips_primaria',
-                    'u.name  as nombre_profesional',
-                    
-                    'a.numero_orden',
-                    'a.nombre_coperante',
-                    'a.fecha_captacion',
-                    'a.municipio',
-                    'a.nombre_rancheria',
-                    'a.ubicacion_casa',
-                    'a.nombre_cuidador',
-                    'a.identioficacion_cuidador',
-                    'a.telefono_cuidador',
-                    'a.nombre_eapb_cuidador',
-                    'a.nombre_autoridad_trad_ansestral',
-                    'a.datos_contacto_autoridad',
-                    'a.primer_nombre',
-                    'a.segundo_nombre',
-                    'a.primer_apellido',
-                    'a.segundo_apellido',
-                    'a.tipo_identificacion',
-                    'a.numero_identificacion',
-                    'a.sexo',
-                    'a.fecha_nacimieto_nino',
-                    'a.edad_meses',
-                    'a.regimen_afiliacion',
-                    'a.nombre_eapb_menor',
-                    'a.peso_kg',
-                    'a.logitud_talla_cm',
-                    'a.perimetro_braqueal',
-                    'a.signos_peligro_infeccion_respiratoria',
-                    'a.sexosignos_desnutricion',
-                    'a.puntaje_z',
-                    'a.calsificacion_antropometrica',
-                    'a.estado',
-                    'a.user_id',
-                    'a.created_at',
-                    'a.updated_at',
-                    'a.numero_profesional',
-                    'a.uds'
-                )
-                ->leftJoin(
-                    DB::connection('sqlsrv_1')->raw('[sga].[dbo].[maestroidentificaciones] as b'),
-                    function($join) {
-                        $join->on('a.tipo_identificacion', '=', 'b.tipoIdentificacion')
-                             ->on('a.numero_identificacion', '=', 'b.identificacion');
-                    }
-                )
-                ->leftJoin(
-                    DB::connection('sqlsrv_1')->raw('[sga].[dbo].[maestroips] as c'),
-                    'b.numeroCarnet', '=', 'c.numeroCarnet'
-                )
-                ->leftJoin(
-                    DB::connection('sqlsrv_1')->raw('[sga].[dbo].[maestroIpsGru] as d'),
-                    'c.idGrupoIps', '=', 'd.id'
-                )
-                ->leftJoin('users as u', 'u.id', '=', 'a.user_id')
-                ->orderBy('a.id', 'asc')
-                ->chunk(500, function($rows) use ($handle) {
-                    foreach ($rows as $row) {
-                        fputcsv($handle, [
-                            $row->ips_primaria,
-                            $row->nombre_profesional,
-                            $row->id,
-                            $row->numero_orden,
-                            $row->nombre_coperante,
-                            $row->fecha_captacion,
-                            $row->municipio,
-                            $row->nombre_rancheria,
-                            $row->ubicacion_casa,
-                            $row->nombre_cuidador,
-                            $row->identioficacion_cuidador,
-                            $row->telefono_cuidador,
-                            $row->nombre_eapb_cuidador,
-                            $row->nombre_autoridad_trad_ansestral,
-                            $row->datos_contacto_autoridad,
-                            $row->primer_nombre,
-                            $row->segundo_nombre,
-                            $row->primer_apellido,
-                            $row->segundo_apellido,
-                            $row->tipo_identificacion,
-                            $row->numero_identificacion,
-                            $row->sexo,
-                            $row->fecha_nacimieto_nino,
-                            $row->edad_meses,
-                            $row->regimen_afiliacion,
-                            $row->nombre_eapb_menor,
-                            $row->peso_kg,
-                            $row->logitud_talla_cm,
-                            $row->perimetro_braqueal,
-                            $row->signos_peligro_infeccion_respiratoria,
-                            $row->sexosignos_desnutricion,
-                            $row->puntaje_z,
-                            $row->calsificacion_antropometrica,
-                            $row->estado,
-                            $row->user_id,
-                            $row->created_at,
-                            $row->updated_at,
-                            $row->numero_profesional,
-                            $row->uds,
-                        ]);
-                    }
-                });
+        fclose($handle);
+    };
 
-            fclose($handle);
-        };
+    return response()->stream($callback, 200, $headers);
+}
 
-        return response()->stream($callback, 200, $headers);
-    }
 }
