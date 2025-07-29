@@ -696,7 +696,7 @@ class AfiliadoController extends Controller
 }
 
 
-      public function exportVacunas(Request $request)
+       public function exportVacunas(Request $request)
     {
         $startDate = $request->input('start_date');
         $endDate   = $request->input('end_date');
@@ -706,14 +706,17 @@ class AfiliadoController extends Controller
 
         $fileName = "vacunas_{$startDate}_{$endDate}.csv";
         $headers = [
-            'Content-Type'        => 'text/csv',
+            'Content-Type'        => 'text/csv; charset=UTF-8',
             'Content-Disposition' => "attachment; filename=\"$fileName\"",
         ];
 
         $callback = function() use ($startDate, $endDate) {
-            $out = fopen('php://output','w');
+            $out = fopen('php://output', 'w');
 
-            // 1) Encabezados
+            // BOM UTF-8 para que Excel abra bien los acentos
+            fputs($out, "\xEF\xBB\xBF");
+
+            // 1) Encabezados (idénticos a tu export actual)
             fputcsv($out, [
                 'Prestador','IPS PRIMARIA','Fecha de Atención','Tipo de Identificación',
                 'Número de Identificación','Primer Nombre','Segundo Nombre','Primer Apellido',
@@ -743,7 +746,7 @@ class AfiliadoController extends Controller
                 'Fecha de Creación',
             ]);
 
-            // 2) Chunked query y escritura
+            // 2) Chunked query y escritura fila a fila
             DB::table('DESNUTRICION.dbo.vacunas as a')
                 ->join('afiliados as b',           'b.id',            '=', 'a.afiliado_id')
                 ->join('referencia_vacunas as d',  'd.id',            '=', 'a.vacunas_id')
@@ -870,12 +873,12 @@ class AfiliadoController extends Controller
                     'a.fuen_ingresado_paiweb',
                     'a.motivo_noingreso',
                     'a.observaciones',
-                    'a.created_at'
+                    'a.created_at',
                 ])
                 ->orderBy('a.created_at','desc')
-                ->chunk(500, function($rows) use($out) {
-                    foreach($rows as $r) {
-                        fputcsv($out, (array)$r);
+                ->chunk(500, function($rows) use ($out) {
+                    foreach ($rows as $r) {
+                        fputcsv($out, (array) $r);
                     }
                 });
 
