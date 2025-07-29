@@ -394,6 +394,7 @@ public function reporte1cargue412()
         // 1) Encabezados en el mismo orden
         fputcsv($handle, [
             'id',
+            'fecha_captacion',
             'ips_primaria',
             'IPS_ASIGNADA',
             'primer_nombre',
@@ -417,7 +418,7 @@ public function reporte1cargue412()
             // el resto a tu parecer:
             'numero_orden',
             'nombre_coperante',
-            'fecha_captacion',
+            
             'municipio',
             'nombre_rancheria',
             'ubicacion_casa',
@@ -439,6 +440,7 @@ public function reporte1cargue412()
         Cargue412::from('cargue412s as a')
             ->select(
                 'a.id',
+                'a.fecha_captacion',
                 'd.descrip as ips_primaria',
                 'u.name as nombre_profesional',
                 'a.primer_nombre',
@@ -462,7 +464,7 @@ public function reporte1cargue412()
                 // resto de campos:
                 'a.numero_orden',
                 'a.nombre_coperante',
-                'a.fecha_captacion',
+                
                 'a.municipio',
                 'a.nombre_rancheria',
                 'a.ubicacion_casa',
@@ -500,6 +502,7 @@ public function reporte1cargue412()
                 foreach ($rows as $row) {
                     fputcsv($handle, [
                         $row->id,
+                          $row->fecha_captacion,
                         $row->ips_primaria,
                         $row->nombre_profesional,
                         $row->primer_nombre,
@@ -523,7 +526,7 @@ public function reporte1cargue412()
                         // resto de campos:
                         $row->numero_orden,
                         $row->nombre_coperante,
-                        $row->fecha_captacion,
+                      
                         $row->municipio,
                         $row->nombre_rancheria,
                         $row->ubicacion_casa,
