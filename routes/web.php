@@ -56,22 +56,8 @@ Route::get('/vacunas/{id}/{numero_carnet}', [AfiliadoController::class, 'getVacu
 
 // Ruta para el reporte Excel con fechas
 // Ruta para el reporte Excel con fechas
-Route::get('export-vacunas', function (Request $request) {
-    // Obtener los parámetros de la URL usando el objeto Request inyectado
-    $startDate = $request->input('start_date');
-    $endDate = $request->input('end_date');
-    // dd($startDate, $endDate);
-
-    // Verifica que las fechas se reciban correctamente
-    if ($startDate && $endDate) {
-        return Excel::download(new VacunaExport($startDate, $endDate), 'vacunas.xlsx');
-    } else {
-        // Manejar el caso en que no se pasen las fechas (por ejemplo, redirigir o mostrar un error)
-        return redirect()->back()->withErrors(['msg' => 'Fechas no proporcionadas']);
-    }
-})->name('exportVacunas');
-
-
+Route::get('export-vacunas', [AfiliadoController::class, 'exportVacunas'])
+     ->name('exportVacunas');
 
 
 
@@ -274,7 +260,7 @@ Route::get('/tamizajes/{tamizaje}', [TamizajeController::class, 'show'])
 
 
 //ruta para descargar manual y formato
-Route::get('/descargar-formato', [TamizajeController::class, 'downloadExcel1'])->name('download.excel1');
+Route::get('/descargar-formato1', [TamizajeController::class, 'downloadExcel1'])->name('download.excel1');
 
 
 // RUTAS  GESTANTES

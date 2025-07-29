@@ -737,7 +737,7 @@
                         var url = window.URL.createObjectURL(blob);
                         var a = document.createElement('a');
                         a.href = url;
-                        a.download = "reporte.xlsx"; // Cambia el nombre del archivo según sea necesario
+                        a.download = "reporte.csv"; // Cambia el nombre del archivo según sea necesario
                         document.body.appendChild(a);
                         a.click();
                         a.remove();
