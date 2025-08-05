@@ -92,6 +92,7 @@ class GesTipo1Import implements ToCollection, WithStartRow
                 ->where('tipoIdentificacion', $tipoIdent)
                 ->value('numeroCarnet');
 
+                
             // 5) Si no hay carnet, acumular y saltar
             if (! $numeroCarnet) {
                 $nombreCompleto = trim("{$row[10]} {$row[11]} {$row[8]} {$row[9]}");
