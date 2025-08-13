@@ -16,6 +16,9 @@ use App\Http\Controllers\TamizajeController;
 use App\Http\Controllers\TamizajePdfController;
 use App\Http\Controllers\GesTipo1Controller;
 use App\Http\Controllers\GesTipo3Controller;
+use App\Http\Controllers\MaestroSiv549Controller;
+use App\Http\Controllers\AsignacionesMaestrosiv549Controller;
+
 
 /*
 |--------------------------------------------------------------------------
@@ -288,3 +291,18 @@ Route::post('gestantes/tipo3/import', [GesTipo3Controller::class,'import'])
      //RUTAS REPORTE EN EXCEL
 Route::get('gestantes/export/tipo1', [GesTipo1Controller::class, 'exportTipo1'])->name('ges_tipo1.export');
 Route::get('gestantes/export/tipo3', [GesTipo3Controller::class, 'exportTipo3'])->name('ges_tipo3.export');
+
+
+//RUTAS PARA LA 549
+Route::get('/asignaciones-maestrosiv549/create', [AsignacionesMaestrosiv549Controller::class, 'create'])->name('asignaciones-maestrosiv549.create');
+
+Route::get('/maestrosiv549', [MaestroSiv549Controller::class, 'index'])->name('maestrosiv549.index');
+Route::get('/maestrosiv549/data', [MaestroSiv549Controller::class, 'data'])->name('maestrosiv549.data');
+
+//RUTAS PARA ASIGNAR DE LA  549  AMIS TABLAS
+// Route::get('/asignaciones-maestrosiv549/create', [\App\Http\Controllers\AsignacionesMaestrosiv549Controller::class, 'create'])->name('asignaciones-maestrosiv549.create');
+// Route::post('/asignaciones-maestrosiv549/store', [\App\Http\Controllers\AsignacionesMaestrosiv549Controller::class, 'store'])->name('asignaciones-maestrosiv549.store');
+
+Route::resource('asignaciones_maestrosiv549', AsignacionesMaestrosiv549Controller::class)->only([
+    'create', 'store'
+]);

@@ -81,5 +81,5 @@ Se importaron **{{ $records->count() }}** registros correctamente:
 <br>
 Gracias por utilizar la plataforma.<br><br>
 Saludos,<br>
-**{{ config('app.name') }}**
+**RUTAS INTEGRALES**
 @endcomponent
