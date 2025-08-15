@@ -471,6 +471,22 @@ return [
                     'label'       => '',  
                     'label_color' => 'success',
                 ],
+
+                 [
+                    'text'        => 'Evento 549',
+                    'url'         => 'maestrosiv549',
+                    'icon'        => 'fas fa-upload',
+                    'label'       => '',  
+                    'label_color' => 'success',
+                ],
+
+                     [
+                    'text'        => 'seguimiento  549',
+                    'url'         => 'seguimientos1ges',
+                    'icon'        => 'fas fa-upload',
+                    'label'       => '',  
+                    'label_color' => 'success',
+                ],
                 // Aquí puedes agregar más elementos de menú si deseas
             ],
         ],

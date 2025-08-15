@@ -832,39 +832,37 @@ public function generateExcel(Request $request)
 }
     
 
-
- public function downloadExcel1()
+public function downloadExcel1()
 {
-    // Rutas de los archivos que deseas incluir en el ZIP
-    $excelPath = 'public/carguetamizajes.xlsx';
-    $pdfPath = 'public/Doc1.pdf';  // Cambia esta ruta al archivo PDF que deseas descargar
+    // Rutas reales en public/storage  ->  nombres dentro del ZIP
+    $files = [
+        public_path('storage/carguetamizajes.xlsx')      => 'carguetamizajes.xlsx',
+        public_path('storage/ReferenciaTamizajes.xlsx')  => 'ReferenciaTamizajes.xlsx',
+    ];
 
-    // Verificar si los archivos existen
-    if (!Storage::exists($excelPath) || !Storage::exists($pdfPath)) {
-        abort(404, 'Uno o ambos archivos no existen.');
+    // Verificar existencia de ambos archivos
+    foreach ($files as $realPath => $zipName) {
+        if (!is_file($realPath)) {
+            abort(404, "No se encontró el archivo: {$zipName}");
+        }
     }
 
-    // Crear un archivo ZIP
-    $zipFileName = 'documentos.zip';
-    $zipFilePath = storage_path($zipFileName);  // Ubicación temporal del archivo ZIP
+    // Crear ZIP temporal
+    $tmpZip = tempnam(sys_get_temp_dir(), 'docs_') . '.zip';
+    $zip = new ZipArchive();
 
-    $zip = new ZipArchive;
-
-    if ($zip->open($zipFilePath, ZipArchive::CREATE) === TRUE) {
-        // Agregar el archivo Excel
-        $zip->addFile(Storage::path($excelPath), 'carguetamizajes.xlsx');
-
-        // Agregar el archivo PDF
-        $zip->addFile(Storage::path($pdfPath), 'Doc1.pdf');
-
-        // Cerrar el archivo ZIP
-        $zip->close();
-    } else {
+    if ($zip->open($tmpZip, ZipArchive::CREATE | ZipArchive::OVERWRITE) !== true) {
         abort(500, 'No se pudo crear el archivo ZIP.');
     }
 
-    // Descargar el archivo ZIP
-    return response()->download($zipFilePath)->deleteFileAfterSend(true);  // Elimina el ZIP después de la descarga
+    // Agregar archivos
+    foreach ($files as $realPath => $zipName) {
+        $zip->addFile($realPath, $zipName);
+    }
+    $zip->close();
+
+    // Descargar y eliminar
+    return response()->download($tmpZip, 'documentos.zip')->deleteFileAfterSend(true);
 }
 
     

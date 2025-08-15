@@ -6,6 +6,10 @@ use Illuminate\Database\Eloquent\Model;
 use App\Models\User;
 class AsignacionesMaestrosiv549 extends Model
 {
+
+     public function getDateFormat(){
+        return 'Y-d-m h:m:s';
+        }
     protected $table = 'asignaciones_maestrosiv549';
     protected $fillable = [
         'user_id',
@@ -43,4 +47,10 @@ class AsignacionesMaestrosiv549 extends Model
     {
         return $this->belongsTo(User::class);
     }
+
+
+    public function seguimientosMaestrosiv549()
+{
+    return $this->hasMany(\App\Models\SeguimientMaestrosiv549::class, 'asignacion_id');
+}
 }

@@ -18,7 +18,8 @@ use App\Http\Controllers\GesTipo1Controller;
 use App\Http\Controllers\GesTipo3Controller;
 use App\Http\Controllers\MaestroSiv549Controller;
 use App\Http\Controllers\AsignacionesMaestrosiv549Controller;
-
+use App\Http\Controllers\SeguimientosHubController;
+use App\Http\Controllers\SeguimientMaestrosiv549Controller;
 
 /*
 |--------------------------------------------------------------------------
@@ -306,3 +307,26 @@ Route::get('/maestrosiv549/data', [MaestroSiv549Controller::class, 'data'])->nam
 Route::resource('asignaciones_maestrosiv549', AsignacionesMaestrosiv549Controller::class)->only([
     'create', 'store'
 ]);
+
+
+
+// === HUB DE SEGUIMIENTOS ===
+Route::prefix('seguimientos1ges')->name('seguimientos.')->group(function () {
+    Route::get('/', [SeguimientosHubController::class, 'index'])->name('index');
+    Route::get('/asignados/data', [SeguimientosHubController::class, 'dataAsignados'])->name('asignados.data');
+    Route::get('/realizados/data', [SeguimientosHubController::class, 'dataRealizados'])->name('realizados.data');
+    // NUEVO: alertas
+    Route::get('/alertas/data', [SeguimientosHubController::class, 'dataAlertas'])->name('alertas.data');
+});
+
+// === CRUD de seguimientos anidado a la asignación (para crear/editar) ===
+Route::prefix('asignaciones/{asignacion}')
+    ->name('asignaciones.')
+    ->group(function () {
+        Route::get('seguimientmaestrosiv549/create', [SeguimientMaestrosiv549Controller::class, 'create'])->name('seguimientmaestrosiv549.create');
+        Route::post('seguimientmaestrosiv549',        [SeguimientMaestrosiv549Controller::class, 'store'])->name('seguimientmaestrosiv549.store');
+
+        Route::get('seguimientmaestrosiv549/{seguimiento}/edit', [SeguimientMaestrosiv549Controller::class, 'edit'])->name('seguimientmaestrosiv549.edit');
+        Route::put('seguimientmaestrosiv549/{seguimiento}',      [SeguimientMaestrosiv549Controller::class, 'update'])->name('seguimientmaestrosiv549.update');
+        Route::delete('seguimientmaestrosiv549/{seguimiento}',   [SeguimientMaestrosiv549Controller::class, 'destroy'])->name('seguimientmaestrosiv549.destroy');
+    });
