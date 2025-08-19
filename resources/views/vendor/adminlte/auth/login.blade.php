@@ -19,7 +19,7 @@
         background:
             radial-gradient(1200px 800px at 10% 10%, rgba(99,102,241,.25), transparent 60%),
             radial-gradient(1000px 700px at 90% 90%, rgba(14,165,233,.25), transparent 60%),
-            url('{{ asset('img/familia-anas-wayuu.webp') }}') center/cover no-repeat fixed;
+             url('{{ asset('img/familia-anas-wayuu.webp') }}') /* center/cover no-repeat fixed*/;  
         position:relative;
     }
     body::before{
