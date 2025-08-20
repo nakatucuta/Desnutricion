@@ -297,7 +297,7 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     // Inicial según old() / errores del backend
-    var startMethod = 'email';
+    var startMethod = 'code';
     @if($errors->has('codigohabilitacion') || old('codigohabilitacion'))
         startMethod = 'code';
     @endif
