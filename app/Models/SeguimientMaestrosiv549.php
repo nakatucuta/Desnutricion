@@ -63,6 +63,11 @@ class SeguimientMaestrosiv549 extends Model
         return $this->belongsTo(\App\Models\AsignacionesMaestrosiv549::class, 'asignacion_id');
     }
 
+    public function alertasEnviadas()
+{
+    return $this->hasMany(\App\Models\SeguimientoAlerta::class, 'seguimiento_id');
+}
+
      public function scopeCompletos($q)
     {
         // Usa esta si el “último dato” es solo 1:

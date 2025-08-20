@@ -15,7 +15,8 @@ class Kernel extends ConsoleKernel
      */
     protected function schedule(Schedule $schedule)
     {
-        // $schedule->command('inspire')->hourly();
+          // Lanza el chequeo cada 10 min (ajusta a tu gusto)
+    $schedule->command('seguimientos:enviar-alertas')->everyTenMinutes();
     }
 
     /**
