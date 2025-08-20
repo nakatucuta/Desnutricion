@@ -9,9 +9,16 @@
         <h1 class="m-0 text-info">Listado de Maestrosiv549</h1>
     </div>
     <div>
-        <a href="#" class="btn btn-gradient btn-lg mr-2">
-            <i class="fas fa-file-excel mr-1"></i> Exportar Excel
-        </a>
+      <form method="GET" action="{{ route('reportes.maestrosiv549.export') }}" class="form-inline mb-3">
+  <input type="text" name="tip_ide_" class="form-control mr-2" placeholder="Tipo ID" value="{{ request('tip_ide_') }}">
+  <input type="text" name="num_ide_" class="form-control mr-2" placeholder="Número ID" value="{{ request('num_ide_') }}">
+  <input type="date" name="fec_desde" class="form-control mr-2" value="{{ request('fec_desde') }}">
+  <input type="date" name="fec_hasta" class="form-control mr-2" value="{{ request('fec_hasta') }}">
+  <button class="btn btn-gradient btn-lg mr-2">
+    <i class="fas fa-file-excel mr-1"></i> Exportar Excel
+  </button>
+</form>
+
     </div>
 </div>
 @stop

@@ -7,7 +7,8 @@ use App\Models\SeguimientMaestrosiv549;
 use Illuminate\Http\Request;
 use Yajra\DataTables\Facades\DataTables;
 use Carbon\Carbon;
-
+use Maatwebsite\Excel\Facades\Excel;
+use App\Exports\SeguimientosExport;
 class SeguimientosHubController extends Controller
 {
     public function index()
@@ -275,5 +276,20 @@ public function dataAlertas(Request $request)
         ->make(true);
 }
 
+
+
+
+public function exportExcel(Request $request)
+{
+    abort_if(!auth()->check(), 401, 'No autenticado');
+
+    $user        = auth()->user();
+    $canSeeAll   = in_array((int) $user->usertype, [1, 2], true); // 1 y 2 ven todo
+    $filters     = $request->only(['tip_ide_', 'num_ide_', 'fec_desde', 'fec_hasta']);
+
+    $filename = 'seguimientos_'.now()->format('Ymd_His').'.xlsx';
+
+    return Excel::download(new SeguimientosExport($filters, $canSeeAll, $user->id), $filename);
+}
 
 }

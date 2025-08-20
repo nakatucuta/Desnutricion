@@ -5,6 +5,8 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Models\MaestroSiv549;
 use Yajra\DataTables\DataTables;
+use App\Exports\MaestroSiv549Export;
+use Maatwebsite\Excel\Facades\Excel;
 
 class MaestroSiv549Controller extends Controller
 {
@@ -65,7 +67,16 @@ public function data(Request $request)
         ->make(true);
 }
 
+public function export(Request $request)
+    {
+        abort_if(!auth()->check(), 401);
 
+        // Puedes pasar filtros del querystring si los usas en el export
+        $filters  = $request->all();
+        $filename = 'reporte_maestro_'.now()->format('Ymd_His').'.xlsx';
+
+        return Excel::download(new MaestroSiv549Export($filters), $filename);
+    }
 
 
 }

@@ -2,7 +2,25 @@
 
 @section('title', 'Seguimientos')
 @section('content_header')
-  <h1 class="text-info">Seguimientos</h1>
+<div class="d-flex align-items-center justify-content-between mb-4 bg-white p-3 rounded shadow-sm">
+    <div class="d-flex align-items-center">
+        <img src="{{ asset('vendor/adminlte/dist/img/logo.png') }}" alt="Escudo PAI" class="header-logo mr-3">
+        <h1 class="m-0 text-info">Seguimientos evento 549</h1>
+    </div>
+    <div>
+     <form method="GET" action="{{ route('seguimientos.export') }}" class="form-inline mb-3">
+  <input type="text" name="tip_ide_" class="form-control mr-2" placeholder="Tipo ID" value="{{ request('tip_ide_') }}">
+  <input type="text" name="num_ide_" class="form-control mr-2" placeholder="Número ID" value="{{ request('num_ide_') }}">
+  <input type="date" name="fec_desde" class="form-control mr-2" value="{{ request('fec_desde') }}">
+  <input type="date" name="fec_hasta" class="form-control mr-2" value="{{ request('fec_hasta') }}">
+  <button class="btn btn-gradient btn-lg mr-2">
+    <i class="fas fa-file-excel mr-1"></i> Exportar Excel
+  </button>
+</form>
+
+
+    </div>
+</div>
 @stop
 
 @section('content')
@@ -107,6 +125,26 @@
 @section('css')
 <style>
   .dataTables_wrapper .dataTables_paginate .pagination { margin: 0; }
+
+
+    .header-logo {
+            width: 60px; height: auto;
+        }
+        .btn-gradient {
+            background: linear-gradient(45deg, #17a2b8, #117a8b);
+            border: none; color: #fff;
+            transition: background .3s ease;
+        }
+        .btn-gradient:hover {
+            background: linear-gradient(45deg, #117a8b, #0e6272);
+        }
+        .btn-gradient:focus {
+            box-shadow: 0 0 0 0.2rem rgba(23,162,184,0.5);
+        }
+        .table-hover tbody tr:hover {
+            background-color: rgba(23,162,184,0.1);
+        }
+
 </style>
 @stop
 

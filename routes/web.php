@@ -307,8 +307,10 @@ Route::get('/maestrosiv549/data', [MaestroSiv549Controller::class, 'data'])->nam
 Route::resource('asignaciones_maestrosiv549', AsignacionesMaestrosiv549Controller::class)->only([
     'create', 'store'
 ]);
-
-
+//RUTAS PARA EL REPORTE EN EXCEL DE LA  549
+Route::get('/reportes/maestro-siv549/export', [MaestroSiv549Controller::class, 'export'])
+    ->name('reportes.maestrosiv549.export')
+    ->middleware('auth');
 
 // === HUB DE SEGUIMIENTOS ===
 Route::prefix('seguimientos1ges')->name('seguimientos.')->group(function () {
@@ -330,3 +332,7 @@ Route::prefix('asignaciones/{asignacion}')
         Route::put('seguimientmaestrosiv549/{seguimiento}',      [SeguimientMaestrosiv549Controller::class, 'update'])->name('seguimientmaestrosiv549.update');
         Route::delete('seguimientmaestrosiv549/{seguimiento}',   [SeguimientMaestrosiv549Controller::class, 'destroy'])->name('seguimientmaestrosiv549.destroy');
     });
+
+
+    Route::get('seguimientos1ges/export', [SeguimientosHubController::class, 'exportExcel'])
+    ->name('seguimientos.export');
