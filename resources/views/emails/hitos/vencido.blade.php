@@ -17,5 +17,5 @@ Actualizar seguimiento
 @endcomponent
 
 Gracias,  
-{{ config('app.name') }}
+RUTAS INTEGRALES
 @endcomponent
