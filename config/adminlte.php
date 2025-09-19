@@ -492,7 +492,20 @@ return [
         ],
         
        
-         
+              [
+            'text'    => 'Ciclos de vida',
+            'icon'    => 'fas fa-notes-medical', // Aquí reemplazas el icono
+            'submenu' => [
+                [
+                    'text'        => 'ciclos de vida',
+                    'url'         => 'ciclos-vida',
+                    'icon'        => 'fas fa-upload',
+                    'label'       => '',  
+                    'label_color' => 'success',
+                ],
+                // Aquí puedes agregar más elementos de menú si deseas
+            ],
+        ],
      
         ['header' => 'account_settings'],
         // [
@@ -505,6 +518,11 @@ return [
             'url'  => 'password/reset',
             'icon' => 'fas fa-fw fa-lock',
         ],
+
+
+
+        
+
         // [
         //     'text'    => 'multilevel',
         //     'icon'    => 'fas fa-fw fa-share',

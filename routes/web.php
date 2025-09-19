@@ -20,6 +20,8 @@ use App\Http\Controllers\MaestroSiv549Controller;
 use App\Http\Controllers\AsignacionesMaestrosiv549Controller;
 use App\Http\Controllers\SeguimientosHubController;
 use App\Http\Controllers\SeguimientMaestrosiv549Controller;
+use App\Http\Controllers\CicloVidaController;
+use App\Http\Controllers\PiPlaceholderController;
 
 /*
 |--------------------------------------------------------------------------
@@ -336,3 +338,95 @@ Route::prefix('asignaciones/{asignacion}')
 
     Route::get('seguimientos1ges/export', [SeguimientosHubController::class, 'exportExcel'])
     ->name('seguimientos.export');
+
+
+    // ciclo de vidas
+
+Route::middleware(['auth'])->group(function () {
+    Route::get('/ciclos-vida', [CicloVidaController::class, 'index'])->name('ciclosvida.index');
+
+    Route::get('/ciclos-vida/primera-infancia/opciones', [CicloVidaController::class, 'menuPrimeraInfancia'])->name('ciclosvida.pi.menu');
+    Route::get('/ciclos-vida/infancia/opciones',          [CicloVidaController::class, 'menuInfancia'])->name('ciclosvida.infancia.menu');
+    Route::get('/ciclos-vida/adolescencia/opciones',      [CicloVidaController::class, 'menuAdolescencia'])->name('ciclosvida.adolescencia.menu');
+    Route::get('/ciclos-vida/juventud/opciones',          [CicloVidaController::class, 'menuJuventud'])->name('ciclosvida.juventud.menu');
+    Route::get('/ciclos-vida/adultez/opciones',           [CicloVidaController::class, 'menuAdultez'])->name('ciclosvida.adultez.menu');
+    Route::get('/ciclos-vida/vejez/opciones',             [CicloVidaController::class, 'menuVejez'])->name('ciclosvida.vejez.menu');
+
+    // === NUEVAS rutas principales de Primera Infancia ===
+    Route::get('/pi/medica',       [CicloVidaController::class,'piPlaceholder'])->name('pi.medica.index')->defaults('key','medica');  
+    //ATENCIONPOR ENFERMERIA RUTAS 
+     Route::get('/ciclos-vida/enfermeria', [CicloVidaController::class, 'enfermeria'])->name('ciclosvida.enfermeria');
+     Route::get('/ciclos-vida/enfermeria/data', [CicloVidaController::class, 'enfermeriaData'])->name('ciclosvida.enfermeria.data');
+
+    // === Encabezados seleccionables ===
+   // Vista
+Route::get('/pi/bucal', [CicloVidaController::class,'pibucal'])
+    ->name('pi.bucal.index')
+    ->defaults('key','bucal');
+
+// DataTables (server-side)
+Route::get('/pi/bucal/data', [CicloVidaController::class,'bucalData'])
+    ->name('pi.bucal.data');
+
+   
+    Route::get('/pi/nutri',        [CicloVidaController::class,'piPlaceholder'])->name('pi.nutri.index')->defaults('key','nutri');
+
+    // === Opciones Salud Bucal ===
+   // Vista:
+Route::get('/pi/bucal/fluor/sem1', [CicloVidaController::class,'pifluor'])->name('pi.bucal.fluor.sem1')->defaults('key','bucal_fluor_sem1');
+
+// Endpoint de datos (server-side DataTables):
+Route::get('/pi/bucal/fluor/sem1/data', [CicloVidaController::class,'pifluorData'])->name('pi.bucal.fluor.sem1.data');
+
+//     Route::get('/pi/bucal/fluor/sem2', [CicloVidaController::class,'piPlaceholder'])->name('pi.bucal.fluor.sem2')->defaults('key','bucal_fluor_sem2');
+    // Vista:
+Route::get('/pi/bucal/placa/sem1', [CicloVidaController::class,'piplaca']) ->name('pi.bucal.placa.sem1') ->defaults('key','bucal_placa_sem1');
+
+// Datos (server-side):
+Route::get('/pi/bucal/placa/sem1/data', [CicloVidaController::class,'piplacaData'])->name('pi.bucal.placa.sem1.data');
+
+//     Route::get('/pi/bucal/placa/sem2', [CicloVidaController::class,'piPlaceholder'])->name('pi.bucal.placa.sem2')->defaults('key','bucal_placa_sem2');
+ // routes/web.php
+
+// Vista (ya la tienes, la dejo aquí por claridad)
+Route::get('/pi/bucal/sellantes', [\App\Http\Controllers\CicloVidaController::class,'pisellante'])
+    ->name('pi.bucal.sellantes')
+    ->defaults('key','bucal_sellantes');
+
+// Endpoint de datos (server-side DataTables)
+Route::get('/pi/bucal/sellantes/data', [\App\Http\Controllers\CicloVidaController::class,'pisellanteData'])
+    ->name('pi.bucal.sellantes.data');
+
+    // === Opciones Nutrición / Tamizaje ===
+  // Index (ya la tienes)
+Route::get('/pi/nutri/hemoglobina', [CicloVidaController::class,'piphemoglobina'])
+    ->name('pi.nutri.hemoglobina')
+    ->defaults('key','nutri_hemoglobina');
+
+// Endpoint DataTables (nuevo)
+Route::get('/pi/nutri/hemoglobina/data', [CicloVidaController::class,'piphemoglobinaData'])
+    ->name('pi.nutri.hemoglobina.data')
+    ->defaults('key','nutri_hemoglobina');
+   Route::get('/pi/nutri/lactancia',   [CicloVidaController::class,'piPlaceholder'])->name('pi.nutri.lactancia')->defaults('key','nutri_lactancia');
+    Route::get('/pi/nutri/vitamina-a',  [CicloVidaController::class,'piPlaceholder'])->name('pi.nutri.vitamina_a')->defaults('key','nutri_vitamina_a');
+    Route::get('/pi/nutri/hierro',      [CicloVidaController::class,'piPlaceholder'])->name('pi.nutri.hierro')->defaults('key','nutri_hierro');
+// RUTAS PARA LAS ALERTAS
+
+
+// Página
+// ALERTAS PI
+// web.php
+Route::get('/pi/nutri/alerta', [CicloVidaController::class,'pialerta'])
+    ->name('pi.alertas');
+
+Route::get('/pi/nutri/alerta/data', [CicloVidaController::class,'pialertaData'])
+    ->name('pi.alertas.data');
+
+Route::post('/pi/nutri/alerta/email', [CicloVidaController::class,'pialertaEmail'])
+    ->name('pi.alertas.email');
+
+
+    // === Rutas existentes (detalle + data) ===
+    Route::get('/ciclos-vida/{slug}', [CicloVidaController::class, 'show'])->name('ciclosvida.show');
+    Route::get('/ciclos-vida/{slug}/data', [CicloVidaController::class, 'data'])->name('ciclosvida.data');
+});
