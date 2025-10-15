@@ -407,9 +407,45 @@ Route::get('/pi/nutri/hemoglobina', [CicloVidaController::class,'piphemoglobina'
 Route::get('/pi/nutri/hemoglobina/data', [CicloVidaController::class,'piphemoglobinaData'])
     ->name('pi.nutri.hemoglobina.data')
     ->defaults('key','nutri_hemoglobina');
-   Route::get('/pi/nutri/lactancia',   [CicloVidaController::class,'piPlaceholder'])->name('pi.nutri.lactancia')->defaults('key','nutri_lactancia');
-    Route::get('/pi/nutri/vitamina-a',  [CicloVidaController::class,'piPlaceholder'])->name('pi.nutri.vitamina_a')->defaults('key','nutri_vitamina_a');
-    Route::get('/pi/nutri/hierro',      [CicloVidaController::class,'piPlaceholder'])->name('pi.nutri.hierro')->defaults('key','nutri_hierro');
+
+
+
+// Vista
+Route::get('/pi/nutri/lactancia', [CicloVidaController::class, 'PIlactancia'])
+    ->name('pi.nutri.lactancia')
+    ->defaults('key','nutri_lactancia');
+
+// DataTables (Yajra) server-side
+Route::get('/pi/nutri/lactancia/data', [CicloVidaController::class, 'PIlactanciaData'])
+    ->name('pi.nutri.lactancia.data');
+
+
+// Vista
+Route::get('/pi/nutri/vitamina-a',  [CicloVidaController::class,'pivitaminaa'])
+    ->name('pi.nutri.vitamina_a')
+    ->defaults('key','nutri_vitamina_a');
+
+// Data (Yajra)
+Route::get('/pi/nutri/vitamina-a/data',  [CicloVidaController::class,'pivitaminaaData'])
+    ->name('pi.nutri.vitamina_a.data');
+
+
+// ===== HIERRO =====
+// routes/web.php
+// === HIERRO (0–5 años) ===
+// === HIERRO (0–5 años) ===
+// === HIERRO (0–5 años) ===
+Route::get('/pi/nutri/hierro', [CicloVidaController::class,'PIhierro'])
+    ->name('pi.nutri.hierro')
+    ->defaults('key','nutri_hierro');
+
+Route::get('/pi/nutri/hierro/data', [CicloVidaController::class,'PIhierroData'])
+    ->name('pi.nutri.hierro.data');
+
+
+
+
+
 // RUTAS PARA LAS ALERTAS
 
 

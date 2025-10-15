@@ -1105,6 +1105,284 @@ public function pialertaEmail(Request $r)
 }
 
 
+public function PIlactancia(Request $r)
+{
+    // Títulos y texto de la cabecera
+    $etapa = [
+        'titulo'      => 'Lactancia Materna — Promoción y Apoyo',
+        'descripcion' => 'Detalle de atenciones registradas en maestro R202, filtradas por periodo (AAAAMM) y 0–5 años.'
+    ];
+
+    // Rango por defecto: últimos 30 días (hasta exclusivo = hoy)
+    $desde = now()->subDays(30)->format('Y-m-d');
+    $hasta = now()->format('Y-m-d'); // exclusivo
+
+    return view('ciclo_vidas.lactancia', compact('etapa','desde','hasta'));
+}
+
+public function PIlactanciaData(Request $r)
+{
+    try {
+        @set_time_limit(300);
+
+        $desde   = $r->input('desde', now()->subDays(30)->format('Y-m-d'));
+        $hastaEx = $r->input('hasta', now()->format('Y-m-d')); // exclusivo
+
+        Log::info('PIlactanciaData params', ['desde'=>$desde, 'hastaExclusivo'=>$hastaEx]);
+
+        $sql = "
+            SET NOCOUNT ON;
+            SET ARITHABORT ON;
+            SET ANSI_WARNINGS ON;
+            SET QUOTED_IDENTIFIER ON;
+
+            SELECT *
+            FROM PRUEBA_DESNUTRICION.dbo.fn_pi_lactancia(
+                CONVERT(date, ?),
+                CONVERT(date, ?)
+            )
+            ORDER BY primerApellido, segundoApellido, primerNombre, segundoNombre, fechaConsulta
+            OPTION (RECOMPILE, MAXDOP 1);
+        ";
+
+        $rows = collect(DB::connection('sqlsrv_1')->select($sql, [$desde, $hastaEx]));
+
+        // ==== KPIs ====
+        $kpiTotal     = $rows->count();
+        $kpiPacientes = $rows->map(function($x){ return ($x->tipoIdentificacion ?? '').'|'.($x->identificacion ?? ''); })
+                             ->filter()->unique()->count();
+        $kpiIps       = $rows->pluck('ips_Prim')->filter()->unique()->count();
+        $kpiFechas    = $rows->pluck('fechaConsulta')->filter()->unique()->count();
+
+        $kpis = [
+            'total'     => $kpiTotal,
+            'pacientes' => $kpiPacientes,
+            'ips'       => $kpiIps,
+            'fechas'    => $kpiFechas,
+        ];
+
+        return DataTables::of($rows)
+            ->with(['kpis' => $kpis])
+            ->toJson();
+
+    } catch (\Throwable $e) {
+        Log::error('PIlactanciaData error: '.$e->getMessage(), ['ex'=>$e]);
+
+        return response()->json([
+            'draw' => (int)$r->input('draw'),
+            'recordsTotal' => 0,
+            'recordsFiltered' => 0,
+            'data' => [],
+            'error' => $e->getMessage(),
+        ], 500);
+    }
+}
+
+public function pivitaminaa(Request $r)
+{
+    $etapa = [
+        'titulo'      => 'Vitamina A — Suministro',
+        'descripcion' => 'Detalle de registros R202 (sumVitA = 1) para población 0–5 años, por periodo.'
+    ];
+
+    // rango por defecto = últimos 30 días (hasta exclusivo = hoy)
+    $desde = now()->subDays(30)->format('Y-m-d');
+    $hasta = now()->format('Y-m-d'); // exclusivo
+
+    return view('ciclo_vidas.vitaminaa', compact('etapa','desde','hasta'));
+}
+
+public function pivitaminaaData(Request $r)
+{
+    try {
+        @set_time_limit(300);
+
+        $desde   = $r->input('desde', now()->subDays(30)->format('Y-m-d'));
+        $hastaEx = $r->input('hasta', now()->format('Y-m-d')); // exclusivo
+
+        Log::info('pivitaminaaData params', ['desde'=>$desde, 'hastaExclusivo'=>$hastaEx]);
+
+        $sql = "
+            SET NOCOUNT ON;
+            SET ARITHABORT ON;
+            SET ANSI_WARNINGS ON;
+            SET QUOTED_IDENTIFIER ON;
+
+            SELECT *
+            FROM PRUEBA_DESNUTRICION.dbo.fn_pi_vitamina_a(
+                CONVERT(date, ?),
+                CONVERT(date, ?)
+            )
+            ORDER BY fechaConsulta DESC, primerApellido, segundoApellido, primerNombre
+            OPTION (RECOMPILE, MAXDOP 1);
+        ";
+
+        $rows = collect(DB::connection('sqlsrv_1')->select($sql, [$desde, $hastaEx]));
+
+        // KPIs
+        $kpiTotal     = $rows->count();
+        $kpiPacientes = $rows->map(fn($x) => ($x->tipoIdentificacion ?? '').'|'.($x->identificacion ?? ''))->filter()->unique()->count();
+        $kpiIps       = $rows->pluck('ips_Prim')->filter()->unique()->count();
+        $kpiFechas    = $rows->pluck('fechaConsulta')->filter()->unique()->count();
+
+        $kpis = [
+            'total'     => $kpiTotal,
+            'pacientes' => $kpiPacientes,
+            'ips'       => $kpiIps,
+            'fechas'    => $kpiFechas,
+        ];
+
+        return DataTables::of($rows)
+            ->with(['kpis' => $kpis])
+            ->toJson();
+
+    } catch (\Throwable $e) {
+        Log::error('pivitaminaaData error: '.$e->getMessage(), ['ex'=>$e]);
+
+        return response()->json([
+            'draw' => (int)$r->input('draw'),
+            'recordsTotal' => 0,
+            'recordsFiltered' => 0,
+            'data' => [],
+            'error' => $e->getMessage(),
+        ], 500);
+    }
+}
+
+
+
+public function PIhierro()
+{
+    // Por defecto: año actual (desde 1º de enero hasta mañana como exclusivo)
+    $desde = now()->startOfYear()->toDateString();           // YYYY-MM-DD
+    $hasta = now()->addDay()->toDateString();                // exclusivo (mañana)
+
+    return view('ciclo_vidas.hierro', [
+        'etapa' => [
+            'titulo'      => 'Suministro de Hierro (0-5 años)',
+            'descripcion' => 'Nominal R202 · período por rango de fecha (año actual por defecto)',
+        ],
+        'desde' => $desde,
+        'hasta' => $hasta,
+    ]);
+}
+
+public function PIhierroData(Request $r)
+{
+    @set_time_limit(300);
+
+    $draw   = (int) $r->input('draw', 0);
+    $start  = (int) $r->input('start', 0);
+    $length = (int) $r->input('length', 10);
+    if ($length <= 0) { $length = 10; }
+
+    $orderDir = strtolower($r->input('order.0.dir', 'desc')) === 'asc' ? 'asc' : 'desc';
+    $orderIdx = (int) $r->input('order.0.column', 0);
+    $cols = [
+        0=>'fechaConsulta',1=>'tipoIdentificacion',2=>'identificacion',3=>'primerNombre',
+        4=>'segundoNombre',5=>'primerApellido',6=>'segundoApellido',7=>'descrip',
+        8=>'ips_Prim',9=>'fechaNacimiento',10=>'edad',11=>'rangoEdad',12=>'codigoIps'
+    ];
+    $orderCol = $cols[$orderIdx] ?? 'fechaConsulta';
+
+    // Fechas entrada → periodo ints
+    $desde = $r->input('desde', now()->startOfYear()->format('Y-m-d'));
+    $hasta = $r->input('hasta', now()->addDay()->format('Y-m-d')); // exclusivo
+    $desde = preg_replace('/[^0-9\-]/', '', $desde);
+    $hasta = preg_replace('/[^0-9\-]/', '', $hasta);
+    $pIni  = (int) date('Ym', strtotime($desde));
+    $pFin  = (int) date('Ym', strtotime($hasta)); // incluye mes de "hasta (exclusivo)"
+
+    // Búsqueda global opcional
+    $search = trim((string) $r->input('search.value', ''));
+    $whereSearch = '';
+    $paramsSearch = [];
+    if ($search !== '') {
+        $whereSearch = " AND (
+               tipoIdentificacion LIKE ?
+            OR identificacion     LIKE ?
+            OR primerNombre       LIKE ?
+            OR primerApellido     LIKE ?
+            OR ips_Prim           LIKE ?
+        )";
+        $like = '%'.$search.'%';
+        $paramsSearch = [$like,$like,$like,$like,$like];
+    }
+
+    try {
+        $cx = DB::connection('sqlsrv_1');
+
+        // Totales
+        $recordsTotal = (int) ($cx->selectOne(
+            "SELECT total = COUNT_BIG(*) FROM PRUEBA_DESNUTRICION.dbo.v_pi_hierro WITH (NOLOCK)"
+        )->total ?? 0);
+
+        $recordsFiltered = (int) ($cx->selectOne(
+            "SET NOCOUNT ON;
+             SELECT total = COUNT_BIG(*)
+             FROM PRUEBA_DESNUTRICION.dbo.v_pi_hierro WITH (NOLOCK)
+             WHERE periodoYYYYMM BETWEEN ? AND ? $whereSearch;",
+            array_merge([$pIni,$pFin], $paramsSearch)
+        )->total ?? 0);
+
+        // KPIs
+        $k = $cx->selectOne(
+            "SET NOCOUNT ON;
+             SELECT 
+                  total     = COUNT_BIG(*)
+                 ,pacientes = COUNT(DISTINCT (
+                                   COALESCE(CAST(tipoIdentificacion AS NVARCHAR(10)),'')
+                                   + '|' + COALESCE(CAST(identificacion AS NVARCHAR(50)) ,'')
+                                 ))
+                 ,ips       = COUNT(DISTINCT CAST(COALESCE(ips_Prim,'') AS NVARCHAR(200)))
+                 ,fechas    = COUNT(DISTINCT fechaConsulta)
+             FROM PRUEBA_DESNUTRICION.dbo.v_pi_hierro WITH (NOLOCK)
+             WHERE periodoYYYYMM BETWEEN ? AND ? $whereSearch;",
+            array_merge([$pIni,$pFin], $paramsSearch)
+        );
+        $kpis = [
+            'total'     => (int)($k->total ?? 0),
+            'pacientes' => (int)($k->pacientes ?? 0),
+            'ips'       => (int)($k->ips ?? 0),
+            'fechas'    => (int)($k->fechas ?? 0),
+        ];
+
+        // Datos paginados
+        $rows = $cx->select(
+            "SET NOCOUNT ON;
+             SELECT
+                 fechaConsulta, tipoIdentificacion, identificacion,
+                 primerNombre, segundoNombre, primerApellido, segundoApellido,
+                 descrip, ips_Prim, fechaNacimiento, edad, rangoEdad, codigoIps
+             FROM PRUEBA_DESNUTRICION.dbo.v_pi_hierro WITH (NOLOCK)
+             WHERE periodoYYYYMM BETWEEN ? AND ? $whereSearch
+             ORDER BY $orderCol $orderDir
+             OFFSET ? ROWS FETCH NEXT ? ROWS ONLY;",
+            array_merge([$pIni,$pFin], $paramsSearch, [$start, $length])
+        );
+
+        return response()->json([
+            'draw'            => $draw,
+            'recordsTotal'    => $recordsTotal,
+            'recordsFiltered' => $recordsFiltered,
+            'data'            => $rows,
+            'kpis'            => $kpis,
+        ], 200);
+
+    } catch (\Throwable $e) {
+        Log::error('PIhierroData error: '.$e->getMessage(), ['ex'=>$e]);
+        return response()->json([
+            'draw'            => $draw,
+            'recordsTotal'    => 0,
+            'recordsFiltered' => 0,
+            'data'            => [],
+            'kpis'            => ['total'=>0,'pacientes'=>0,'ips'=>0,'fechas'=>0],
+            'error'           => true,
+            'message'         => $e->getMessage(),
+        ], 200);
+    }
+}
+
 
 
 }
