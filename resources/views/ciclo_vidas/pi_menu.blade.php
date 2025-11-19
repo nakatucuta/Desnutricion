@@ -49,6 +49,7 @@
             ['label' => 'Vitamina A (24–60 meses) R202',            'route' => 'pi.nutri.vitamina_a',  'theme' => 'grad-violet', 'icon' => 'fas fa-capsules'],
             ['label' => 'Hierro (24–59 meses) R202',                'route' => 'pi.nutri.hierro',      'theme' => 'grad-orange', 'icon' => 'fas fa-pills'],
             ['label' => 'Alertas',                                  'route' => 'pi.alertas',      'theme' => 'grad-orange', 'icon' => 'fas fa-pills'],
+            ['label' => 'Datos generales',                                  'route' => 'pi.datos',      'theme' => 'grad-orange', 'icon' => 'fas fa-notes-medical'],
         ];
     @endphp
 

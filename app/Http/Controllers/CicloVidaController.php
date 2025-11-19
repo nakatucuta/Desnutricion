@@ -1383,6 +1383,91 @@ public function PIhierroData(Request $r)
     }
 }
 
+public function piResumenGenerales(Request $r)
+{
+    try {
+        // Rango por defecto: año en curso… mañana (exclusivo)
+        $desde = $r->input('desde', now()->startOfYear()->format('Y-m-d'));
+        $hasta = $r->input('hasta', now()->addDay()->format('Y-m-d'));
 
+        // Normaliza y deriva periodos INT YYYYMM
+        $desde = preg_replace('/[^0-9\-]/', '', $desde);
+        $hasta = preg_replace('/[^0-9\-]/', '', $hasta);
+        $pIni  = (int) date('Ym', strtotime($desde));
+        $pFin  = (int) date('Ym', strtotime($hasta));
+
+        // Módulos -> vistas. Ajusta los nombres si tus vistas difieren.
+        // Requisito: cada vista debe tener al menos: periodoYYYYMM (INT), fechaConsulta (DATE),
+        // tipoIdentificacion, identificacion, ips_Prim
+        $areas = [
+            'Hierro'      => 'PRUEBA_DESNUTRICION.dbo.v_pi_hierro',
+            'Bucal'       => 'PRUEBA_DESNUTRICION.dbo.v_pitablero_bucal',
+            'Enfermería'  => 'PRUEBA_DESNUTRICION.dbo.v_pi_enfermeria',
+        ];
+
+        $cx = DB::connection('sqlsrv_1');
+
+        $resumen = [];
+        $totales = ['total'=>0,'pacientes'=>0,'ips'=>0,'fechas'=>0];
+
+        foreach ($areas as $area => $vista) {
+            try {
+                // KPIs por módulo (solo lecturas y COUNTs rápidos)
+                $k = $cx->selectOne(
+                    "SET NOCOUNT ON;
+                     SELECT 
+                          total     = COUNT_BIG(*)
+                         ,pacientes = COUNT(DISTINCT (
+                                           COALESCE(CAST(tipoIdentificacion AS NVARCHAR(10)),'')
+                                           + '|' + COALESCE(CAST(identificacion AS NVARCHAR(50)) ,'')
+                                         ))
+                         ,ips       = COUNT(DISTINCT CAST(COALESCE(ips_Prim,'') AS NVARCHAR(200)))
+                         ,fechas    = COUNT(DISTINCT fechaConsulta)
+                     FROM {$vista} WITH (NOLOCK)
+                     WHERE periodoYYYYMM BETWEEN ? AND ?;",
+                    [$pIni, $pFin]
+                );
+
+                $item = [
+                    'area'      => $area,
+                    'total'     => (int)($k->total ?? 0),
+                    'pacientes' => (int)($k->pacientes ?? 0),
+                    'ips'       => (int)($k->ips ?? 0),
+                    'fechas'    => (int)($k->fechas ?? 0),
+                ];
+            } catch (\Throwable $exArea) {
+                // Si la vista no existe o falla, ese área sale con ceros pero no cae todo
+                Log::warning("PI resumen: módulo {$area} falló", ['e'=>$exArea->getMessage()]);
+                $item = ['area'=>$area,'total'=>0,'pacientes'=>0,'ips'=>0,'fechas'=>0];
+            }
+
+            // Acumula y guarda
+            $totales['total']     += $item['total'];
+            $totales['pacientes'] += $item['pacientes'];
+            $totales['ips']       += $item['ips'];
+            $totales['fechas']    += $item['fechas'];
+            $resumen[] = $item;
+        }
+
+        return response()->json([
+            'ok'      => true,
+            'desde'   => $desde,
+            'hasta'   => $hasta,
+            'pIni'    => $pIni,
+            'pFin'    => $pFin,
+            'areas'   => $resumen,
+            'totales' => $totales,
+        ], 200);
+
+    } catch (\Throwable $e) {
+        Log::error('piResumenGenerales error: '.$e->getMessage(), ['ex'=>$e]);
+        return response()->json(['ok'=>false,'msg'=>$e->getMessage()], 200);
+    }
+}
+
+public function pidatogenerales()
+{
+    return view('ciclo_vidas.datosgenerales');
+}
 
 }

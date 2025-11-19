@@ -493,11 +493,11 @@ return [
         
        
               [
-            'text'    => 'Ciclos de vida',
+            'text'    => 'Cursos de vida',
             'icon'    => 'fas fa-notes-medical', // Aquí reemplazas el icono
             'submenu' => [
                 [
-                    'text'        => 'ciclos de vida',
+                    'text'        => 'Cursos de vida',
                     'url'         => 'ciclos-vida',
                     'icon'        => 'fas fa-upload',
                     'label'       => '',  

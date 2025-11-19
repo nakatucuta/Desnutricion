@@ -426,7 +426,7 @@ Route::get('/pi/nutri/vitamina-a',  [CicloVidaController::class,'pivitaminaa'])
     ->defaults('key','nutri_vitamina_a');
 
 // Data (Yajra)
-Route::get('/pi/nutri/vitamina-a/data',  [CicloVidaController::class,'pivitaminaaData'])
+Route::get('/pi/datos/data',  [CicloVidaController::class,'pidatogenerales'])
     ->name('pi.nutri.vitamina_a.data');
 
 
@@ -443,7 +443,13 @@ Route::get('/pi/nutri/hierro/data', [CicloVidaController::class,'PIhierroData'])
     ->name('pi.nutri.hierro.data');
 
 
+// web.php
+Route::get('/pi/nutri/data',  [CicloVidaController::class,'pidatogenerales'])
+    ->name('pi.datos');
 
+// NUEVO: endpoint JSON para tarjetas
+Route::get('/pi/nutri/resumen', [CicloVidaController::class,'piResumenGenerales'])
+    ->name('pi.datos.resumen');
 
 
 // RUTAS PARA LAS ALERTAS
