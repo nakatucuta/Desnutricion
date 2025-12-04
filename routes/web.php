@@ -22,6 +22,7 @@ use App\Http\Controllers\SeguimientosHubController;
 use App\Http\Controllers\SeguimientMaestrosiv549Controller;
 use App\Http\Controllers\CicloVidaController;
 use App\Http\Controllers\PiPlaceholderController;
+use App\Http\Controllers\GesTipo1SeguimientoController;
 
 /*
 |--------------------------------------------------------------------------
@@ -472,3 +473,19 @@ Route::post('/pi/nutri/alerta/email', [CicloVidaController::class,'pialertaEmail
     Route::get('/ciclos-vida/{slug}', [CicloVidaController::class, 'show'])->name('ciclosvida.show');
     Route::get('/ciclos-vida/{slug}/data', [CicloVidaController::class, 'data'])->name('ciclosvida.data');
 });
+
+
+
+
+Route::prefix('ges_tipo1/{ges}')->name('ges_tipo1.')->group(function () {
+    Route::get('seguimientos/create',     [GesTipo1SeguimientoController::class, 'create'])->name('seguimientos.create');
+    Route::post('seguimientos',           [GesTipo1SeguimientoController::class, 'store'])->name('seguimientos.store');
+
+    Route::get('seguimientos/{seg}/edit', [GesTipo1SeguimientoController::class, 'edit'])->name('seguimientos.edit');
+    Route::put('seguimientos/{seg}',      [GesTipo1SeguimientoController::class, 'update'])->name('seguimientos.update');
+    Route::delete('seguimientos/{seg}',   [GesTipo1SeguimientoController::class, 'destroy'])->name('seguimientos.destroy');
+});
+
+Route::get('/seguimientos/file/{seg}/{field}', [GesTipo1SeguimientoController::class, 'verArchivo'])
+    ->name('seguimientos.file')
+    ->middleware('auth');

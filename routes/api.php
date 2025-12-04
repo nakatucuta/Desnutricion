@@ -3,22 +3,37 @@
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\SivigilaController;
+use App\Http\Controllers\Api\AuthController;
 
 /*
 |--------------------------------------------------------------------------
-| API Routes
+| API Routes (Privadas con Sanctum)
 |--------------------------------------------------------------------------
-|
-| Aquí se definen las rutas API que serán accesibles desde el exterior,
-| bajo la URL base https://app.epsianaswayuu.com/api
-|
+| Base: https://app.epsianaswayuu.com/api
+|--------------------------------------------------------------------------
 */
 
-// ✔️ Ruta pública para consumo desde apps externas
-Route::get('/afiliados', [SivigilaController::class, 'index_api']);
+Route::post('/login', [AuthController::class, 'login'])
+    ->name('api.login');
 
+Route::middleware(['auth:sanctum', 'throttle:60,1'])->group(function () {
 
-// ✔️ Ruta protegida con token (opcional, si usas Sanctum)
-Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
-    return $request->user();
+    // ✅ Endpoint actual (NO se toca)
+    Route::get('/afiliados', [SivigilaController::class, 'index_api'])
+        ->name('api.afiliados');
+
+    // ✅ NUEVO: solo nuevos
+    Route::get('/afiliados/nuevos', [SivigilaController::class, 'index_api_nuevos'])
+        ->name('api.afiliados.nuevos');
+
+    // ✅ Opcional: reset del cursor
+    Route::post('/afiliados/reset', [SivigilaController::class, 'reset_consumo_afiliados'])
+        ->name('api.afiliados.reset');
+
+    Route::post('/logout', [AuthController::class, 'logout'])
+        ->name('api.logout');
+
+    Route::get('/user', function (Request $request) {
+        return $request->user();
+    })->name('api.user');
 });

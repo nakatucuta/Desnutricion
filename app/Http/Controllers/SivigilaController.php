@@ -22,6 +22,7 @@ use Illuminate\Support\Facades\Response;
 use Illuminate\Support\Facades\Log;
 use Yajra\DataTables\Facades\DataTables;
 use Carbon\Carbon;
+use App\Models\ApiConsumptionState;
 
 
 
@@ -717,42 +718,270 @@ class SivigilaController extends Controller
 
 
 public function index_api(Request $request)
-{
-    // Validamos que los dos parámetros vengan en la petición
-    $request->validate([
-        'tipoIdentificacion' => 'required|string',
-        'identificacion'     => 'required|string',
-    ]);
+    {
+        // ✅ Verificación de habilidad del token (opcional pero recomendado)
+        if (!$request->user()->tokenCan('afiliados:read')) {
+            return response()->json([
+                'status'  => 'error',
+                'message' => 'No tienes permisos para consultar afiliados'
+            ], 403);
+        }
 
-    $tipo = $request->input('tipoIdentificacion');
-    $id   = $request->input('identificacion');
+        // ✅ Validación (rango año/mes + paginado)
+        $validated = $request->validate([
+            'anio_inicio' => ['nullable', 'integer', 'min:2000', 'max:2100'],
+            'mes_inicio'  => ['nullable', 'integer', 'min:1', 'max:12'],
+            'anio_fin'    => ['nullable', 'integer', 'min:2000', 'max:2100'],
+            'mes_fin'     => ['nullable', 'integer', 'min:1', 'max:12'],
+            'per_page'    => ['nullable', 'integer', 'min:1', 'max:1000'],
+        ]);
 
-    // Hacemos la consulta filtrando por los dos campos
-    $datos = DB::connection('sqlsrv_1')
-        ->table('maestroafiliados')
-        ->where('tipoIdentificacion', $tipo)
-        ->where('identificacion', $id)
-        ->limit(1)
-        ->get();
+        $anio_inicio = $validated['anio_inicio'] ?? 2025;
+        $mes_inicio  = $validated['mes_inicio']  ?? 10;
+        $anio_fin    = $validated['anio_fin']    ?? 2025;
+        $mes_fin     = $validated['mes_fin']     ?? 10;
+        $perPage     = $validated['per_page']    ?? 100;
 
-    // Si no se encontró nada, devolvemos un 404 con mensaje claro
-    if ($datos->isEmpty()) {
-        return response()->json([
-            'status'  => 'error',
-            'message' => 'No es afiliado de Anas Wayuu',
-            'data'    => [],
-        ], 404);
+        try {
+            $query = DB::connection('sqlsrv_1')
+                ->table('api_ludycom.dbo.datos')
+                ->select([
+                    'tipo_id_cabeza_familia',
+                    'id_cabeza_familia',
+                    'Carnet',
+                    'TipoDoc',
+                    'Documento',
+                    'Apell1',
+                    'Apell2',
+                    'Nom1',
+                    'Nom2',
+                    'Sexo',
+                    'FecNac',
+                    'Dpt',
+                    'Muni',
+                    'Zona',
+                    'Direccion',
+                    'Barrio',
+                    'Telefono',
+                    'mes',
+                    DB::raw('[año] as año'),
+                ])
+                ->where(function ($q) use ($anio_inicio, $mes_inicio) {
+                    $q->where('año', '>', $anio_inicio)
+                      ->orWhere(function ($q2) use ($anio_inicio, $mes_inicio) {
+                          $q2->where('año', '=', $anio_inicio)
+                             ->where('mes', '>=', $mes_inicio);
+                      });
+                })
+                ->where(function ($q) use ($anio_fin, $mes_fin) {
+                    $q->where('año', '<', $anio_fin)
+                      ->orWhere(function ($q2) use ($anio_fin, $mes_fin) {
+                          $q2->where('año', '=', $anio_fin)
+                             ->where('mes', '<=', $mes_fin);
+                      });
+                })
+                ->orderBy('año')
+                ->orderBy('mes');
+
+            $datos = $query->paginate($perPage);
+
+            if ($datos->isEmpty()) {
+                return response()->json([
+                    'status'  => 'error',
+                    'message' => 'No se encontraron datos para el rango indicado',
+                    'data'    => [],
+                ], 404);
+            }
+
+            return response()->json([
+                'status' => 'success',
+                'range'  => compact('anio_inicio','mes_inicio','anio_fin','mes_fin'),
+                'meta'   => [
+                    'current_page' => $datos->currentPage(),
+                    'per_page'     => $datos->perPage(),
+                    'total'        => $datos->total(),
+                    'last_page'    => $datos->lastPage(),
+                ],
+                'data' => $datos->items(),
+            ], 200);
+
+        } catch (\Throwable $e) {
+            \Log::error('Error index_api afiliados', [
+                'error' => $e->getMessage(),
+                'range' => compact('anio_inicio','mes_inicio','anio_fin','mes_fin')
+            ]);
+
+            return response()->json([
+                'status'  => 'error',
+                'message' => 'Error interno al consultar afiliados',
+                'data'    => [],
+            ], 500);
+        }
     }
 
-    // Si hay resultado, lo devolvemos en data[]
-    return response()->json([
-        'status' => 'success',
-        'data'   => $datos,
-    ], 200);
+
+
+
+   public function index_api_nuevos(Request $request)
+{
+    // ✅ Validación (rango año/mes + per_page)
+    $validated = $request->validate([
+        'anio_inicio' => ['nullable', 'integer', 'min:2000', 'max:2100'],
+        'mes_inicio'  => ['nullable', 'integer', 'min:1', 'max:12'],
+        'anio_fin'    => ['nullable', 'integer', 'min:2000', 'max:2100'],
+        'mes_fin'     => ['nullable', 'integer', 'min:1', 'max:12'],
+        'per_page'    => ['nullable', 'integer', 'min:1', 'max:1000'],
+    ]);
+
+    $anio_inicio = $validated['anio_inicio'] ?? 2025;
+    $mes_inicio  = $validated['mes_inicio']  ?? 10;
+    $anio_fin    = $validated['anio_fin']    ?? 2025;
+    $mes_fin     = $validated['mes_fin']     ?? 10;
+    $perPage     = $validated['per_page']    ?? 100;
+
+    $user = $request->user();
+
+    // ✅ Trae o crea el estado de consumo del usuario
+    $state = ApiConsumptionState::firstOrCreate(
+        ['user_id' => $user->id, 'endpoint' => 'afiliados'],
+        ['last_anio' => null, 'last_mes' => null, 'last_carnet' => null]
+    );
+
+    try {
+        $query = DB::connection('sqlsrv_1')
+            ->table('api_ludycom.dbo.datos')
+            ->select([
+                'tipo_id_cabeza_familia',
+                'id_cabeza_familia',
+                'Carnet',
+                'TipoDoc',
+                'Documento',
+                'Apell1',
+                'Apell2',
+                'Nom1',
+                'Nom2',
+                'Sexo',
+                'FecNac',
+                'Dpt',
+                'Muni',
+                'Zona',
+                'Direccion',
+                'Barrio',
+                'Telefono',
+                'mes',
+                DB::raw('[año] as año'),
+            ])
+
+            // ✅ Rango global de año/mes
+            ->where(function ($q) use ($anio_inicio, $mes_inicio) {
+                $q->where('año', '>', $anio_inicio)
+                  ->orWhere(function ($q2) use ($anio_inicio, $mes_inicio) {
+                      $q2->where('año', '=', $anio_inicio)
+                         ->where('mes', '>=', $mes_inicio);
+                  });
+            })
+            ->where(function ($q) use ($anio_fin, $mes_fin) {
+                $q->where('año', '<', $anio_fin)
+                  ->orWhere(function ($q2) use ($anio_fin, $mes_fin) {
+                      $q2->where('año', '=', $anio_fin)
+                         ->where('mes', '<=', $mes_fin);
+                  });
+            });
+
+        // ✅ Si ya consumió antes, trae solo lo que va después del cursor
+        if ($state->last_anio !== null && $state->last_mes !== null) {
+
+            $lastAnio   = $state->last_anio;
+            $lastMes    = $state->last_mes;
+            $lastCarnet = $state->last_carnet ?? '';
+
+            $query->where(function ($q) use ($lastAnio, $lastMes, $lastCarnet) {
+
+                $q->where('año', '>', $lastAnio)
+
+                  ->orWhere(function ($q2) use ($lastAnio, $lastMes, $lastCarnet) {
+
+                      $q2->where('año', '=', $lastAnio)
+                         ->where(function ($q3) use ($lastMes, $lastCarnet) {
+
+                             $q3->where('mes', '>', $lastMes)
+
+                                ->orWhere(function ($q4) use ($lastMes, $lastCarnet) {
+                                    $q4->where('mes', '=', $lastMes)
+                                       ->where('Carnet', '>', $lastCarnet);
+                                });
+                         });
+                  });
+            });
+        }
+
+        // ✅ Orden estable para el cursor + limit por per_page
+        $datos = $query
+            ->orderBy('año')
+            ->orderBy('mes')
+            ->orderBy('Carnet')
+            ->limit($perPage)
+            ->get();
+
+        if ($datos->isEmpty()) {
+            return response()->json([
+                'status'  => 'success',
+                'message' => 'No hay nuevos registros para este usuario en el rango indicado',
+                'range'   => compact('anio_inicio','mes_inicio','anio_fin','mes_fin'),
+                'data'    => [],
+            ], 200);
+        }
+
+        // ✅ Actualiza cursor con el último entregado
+        $ultimo = $datos->last();
+
+        $state->update([
+            'last_anio'   => $ultimo->año,
+            'last_mes'    => $ultimo->mes,
+            'last_carnet' => $ultimo->Carnet,
+        ]);
+
+        return response()->json([
+            'status' => 'success',
+            'range'  => compact('anio_inicio','mes_inicio','anio_fin','mes_fin'),
+            'cursor' => [
+                'last_anio'   => $state->last_anio,
+                'last_mes'    => $state->last_mes,
+                'last_carnet' => $state->last_carnet,
+            ],
+            'count' => $datos->count(),
+            'data'  => $datos,
+        ], 200);
+
+    } catch (\Throwable $e) {
+
+        \Log::error('Error afiliados nuevos', [
+            'error' => $e->getMessage(),
+            'user'  => $user->id,
+        ]);
+
+        return response()->json([
+            'status'  => 'error',
+            'message' => 'Error interno al consultar afiliados nuevos',
+            'data'    => [],
+        ], 500);
+    }
 }
 
+public function reset_consumo_afiliados(Request $request)
+{
+    $user = $request->user();
 
+    ApiConsumptionState::updateOrCreate(
+        ['user_id' => $user->id, 'endpoint' => 'afiliados'],
+        ['last_anio' => null, 'last_mes' => null, 'last_carnet' => null]
+    );
 
+    return response()->json([
+        'status'  => 'success',
+        'message' => 'Cursor reseteado. El próximo llamado traerá datos desde cero.'
+    ], 200);
+}
 
         }
 
