@@ -718,113 +718,147 @@ class SivigilaController extends Controller
 
 
 public function index_api(Request $request)
-    {
-        // ✅ Verificación de habilidad del token (opcional pero recomendado)
-        if (!$request->user()->tokenCan('afiliados:read')) {
+{
+    $validated = $request->validate([
+        'anio_inicio' => ['nullable', 'integer', 'min:2000', 'max:2100'],
+        'mes_inicio'  => ['nullable', 'integer', 'min:1', 'max:12'],
+        'anio_fin'    => ['nullable', 'integer', 'min:2000', 'max:2100'],
+        'mes_fin'     => ['nullable', 'integer', 'min:1', 'max:12'],
+        'per_page'    => ['nullable', 'integer', 'min:1', 'max:1000'],
+    ]);
+
+    $anio_inicio = $validated['anio_inicio'] ?? 2025;
+    $mes_inicio  = $validated['mes_inicio']  ?? 10;
+    $anio_fin    = $validated['anio_fin']    ?? 2025;
+    $mes_fin     = $validated['mes_fin']     ?? 10;
+    $perPage     = $validated['per_page']    ?? 100;
+
+    try {
+        $query = DB::connection('sqlsrv_1')
+            ->table('api_ludycom.dbo.datos')
+            ->select([
+                'numeroCarnet',
+                'codigoAgente',
+                'tipoIdenCabezaFamilia',
+                'idenCabezaFamilia',
+                'serial',
+                'tipoIdentificacion',
+                'identificacion',
+                'primerApellido',
+                'segundoApellido',
+                'primerNombre',
+                'segundoNombre',
+                'fechaNacimiento',
+                'genero',
+                'ESTADOACTUAL',
+                'GRUPOIPS',
+                'codigoMunicipio',
+                'zona',
+                'tipoAfiliado',
+                'grupoPoblacional',
+                'nivelSisben',
+                'puntajeSisben',
+                'discapacidad',
+                'descripcion_discapacidad',
+                'barrio',
+                'direccion',
+                'telefono',
+                'telefono1',
+                'telefono2',
+                'email',
+                'fechaAfiliacionArs',
+                'fechaAfiliacionSistema',
+                'fechaCambioEstado',
+                'portabilidad',
+                'IPS_PORTABILIDAD',
+                'poblacion_victima',
+                'poblacion_altocosto',
+                'erc',
+                'terapia_reemplazo_renal',
+                'diabetes',
+                'hta',
+                'vih',
+                'enfermedades_huerfanas',
+                'hemofilia',
+                'cancer',
+                'artritis',
+                'nefroproteccion',
+                'desnutricion',
+                'poblacion_gestante',
+                'fpp',
+                'contratacion_especial',
+                'contratacion_nefro',
+                'contratacion_cercana',
+                'edad',
+                'etareos',
+                'cursos_vida',
+                'edad_meses',
+                'pai',
+                'cruce_bdex_rnec',
+                'marca_sisben_IV_III',
+                'fecha_actualizacion',
+                'mes',
+                DB::raw('[año] as año'),
+            ])
+            ->where(function ($q) use ($anio_inicio, $mes_inicio) {
+                $q->where('año', '>', $anio_inicio)
+                  ->orWhere(function ($q2) use ($anio_inicio, $mes_inicio) {
+                      $q2->where('año', '=', $anio_inicio)
+                         ->where('mes', '>=', $mes_inicio);
+                  });
+            })
+            ->where(function ($q) use ($anio_fin, $mes_fin) {
+                $q->where('año', '<', $anio_fin)
+                  ->orWhere(function ($q2) use ($anio_fin, $mes_fin) {
+                      $q2->where('año', '=', $anio_fin)
+                         ->where('mes', '<=', $mes_fin);
+                  });
+            })
+            ->orderBy('año')
+            ->orderBy('mes');
+
+        $datos = $query->paginate($perPage);
+
+        if ($datos->isEmpty()) {
             return response()->json([
                 'status'  => 'error',
-                'message' => 'No tienes permisos para consultar afiliados'
-            ], 403);
+                'message' => 'No se encontraron datos para el rango indicado',
+                'data'    => [],
+            ], 404);
         }
 
-        // ✅ Validación (rango año/mes + paginado)
-        $validated = $request->validate([
-            'anio_inicio' => ['nullable', 'integer', 'min:2000', 'max:2100'],
-            'mes_inicio'  => ['nullable', 'integer', 'min:1', 'max:12'],
-            'anio_fin'    => ['nullable', 'integer', 'min:2000', 'max:2100'],
-            'mes_fin'     => ['nullable', 'integer', 'min:1', 'max:12'],
-            'per_page'    => ['nullable', 'integer', 'min:1', 'max:1000'],
+        return response()->json([
+            'status' => 'success',
+            'range'  => compact('anio_inicio','mes_inicio','anio_fin','mes_fin'),
+            'meta'   => [
+                'current_page' => $datos->currentPage(),
+                'per_page'     => $datos->perPage(),
+                'total'        => $datos->total(),
+                'last_page'    => $datos->lastPage(),
+            ],
+            'data' => $datos->items(),
+        ], 200);
+
+    } catch (\Throwable $e) {
+        \Log::error('Error index_api afiliados', [
+            'error' => $e->getMessage(),
+            'range' => compact('anio_inicio','mes_inicio','anio_fin','mes_fin')
         ]);
 
-        $anio_inicio = $validated['anio_inicio'] ?? 2025;
-        $mes_inicio  = $validated['mes_inicio']  ?? 10;
-        $anio_fin    = $validated['anio_fin']    ?? 2025;
-        $mes_fin     = $validated['mes_fin']     ?? 10;
-        $perPage     = $validated['per_page']    ?? 100;
-
-        try {
-            $query = DB::connection('sqlsrv_1')
-                ->table('api_ludycom.dbo.datos')
-                ->select([
-                    'tipo_id_cabeza_familia',
-                    'id_cabeza_familia',
-                    'Carnet',
-                    'TipoDoc',
-                    'Documento',
-                    'Apell1',
-                    'Apell2',
-                    'Nom1',
-                    'Nom2',
-                    'Sexo',
-                    'FecNac',
-                    'Dpt',
-                    'Muni',
-                    'Zona',
-                    'Direccion',
-                    'Barrio',
-                    'Telefono',
-                    'mes',
-                    DB::raw('[año] as año'),
-                ])
-                ->where(function ($q) use ($anio_inicio, $mes_inicio) {
-                    $q->where('año', '>', $anio_inicio)
-                      ->orWhere(function ($q2) use ($anio_inicio, $mes_inicio) {
-                          $q2->where('año', '=', $anio_inicio)
-                             ->where('mes', '>=', $mes_inicio);
-                      });
-                })
-                ->where(function ($q) use ($anio_fin, $mes_fin) {
-                    $q->where('año', '<', $anio_fin)
-                      ->orWhere(function ($q2) use ($anio_fin, $mes_fin) {
-                          $q2->where('año', '=', $anio_fin)
-                             ->where('mes', '<=', $mes_fin);
-                      });
-                })
-                ->orderBy('año')
-                ->orderBy('mes');
-
-            $datos = $query->paginate($perPage);
-
-            if ($datos->isEmpty()) {
-                return response()->json([
-                    'status'  => 'error',
-                    'message' => 'No se encontraron datos para el rango indicado',
-                    'data'    => [],
-                ], 404);
-            }
-
-            return response()->json([
-                'status' => 'success',
-                'range'  => compact('anio_inicio','mes_inicio','anio_fin','mes_fin'),
-                'meta'   => [
-                    'current_page' => $datos->currentPage(),
-                    'per_page'     => $datos->perPage(),
-                    'total'        => $datos->total(),
-                    'last_page'    => $datos->lastPage(),
-                ],
-                'data' => $datos->items(),
-            ], 200);
-
-        } catch (\Throwable $e) {
-            \Log::error('Error index_api afiliados', [
-                'error' => $e->getMessage(),
-                'range' => compact('anio_inicio','mes_inicio','anio_fin','mes_fin')
-            ]);
-
-            return response()->json([
-                'status'  => 'error',
-                'message' => 'Error interno al consultar afiliados',
-                'data'    => [],
-            ], 500);
-        }
+        return response()->json([
+            'status'  => 'error',
+            'message' => 'Error interno al consultar afiliados',
+            'data'    => [],
+        ], 500);
     }
+}
 
 
 
 
-   public function index_api_nuevos(Request $request)
+
+  public function index_api_nuevos(Request $request)
 {
-    // ✅ Validación (rango año/mes + per_page)
     $validated = $request->validate([
         'anio_inicio' => ['nullable', 'integer', 'min:2000', 'max:2100'],
         'mes_inicio'  => ['nullable', 'integer', 'min:1', 'max:12'],
@@ -841,7 +875,6 @@ public function index_api(Request $request)
 
     $user = $request->user();
 
-    // ✅ Trae o crea el estado de consumo del usuario
     $state = ApiConsumptionState::firstOrCreate(
         ['user_id' => $user->id, 'endpoint' => 'afiliados'],
         ['last_anio' => null, 'last_mes' => null, 'last_carnet' => null]
@@ -851,28 +884,69 @@ public function index_api(Request $request)
         $query = DB::connection('sqlsrv_1')
             ->table('api_ludycom.dbo.datos')
             ->select([
-                'tipo_id_cabeza_familia',
-                'id_cabeza_familia',
-                'Carnet',
-                'TipoDoc',
-                'Documento',
-                'Apell1',
-                'Apell2',
-                'Nom1',
-                'Nom2',
-                'Sexo',
-                'FecNac',
-                'Dpt',
-                'Muni',
-                'Zona',
-                'Direccion',
-                'Barrio',
-                'Telefono',
+                'numeroCarnet',
+                'codigoAgente',
+                'tipoIdenCabezaFamilia',
+                'idenCabezaFamilia',
+                'serial',
+                'tipoIdentificacion',
+                'identificacion',
+                'primerApellido',
+                'segundoApellido',
+                'primerNombre',
+                'segundoNombre',
+                'fechaNacimiento',
+                'genero',
+                'ESTADOACTUAL',
+                'GRUPOIPS',
+                'codigoMunicipio',
+                'zona',
+                'tipoAfiliado',
+                'grupoPoblacional',
+                'nivelSisben',
+                'puntajeSisben',
+                'discapacidad',
+                'descripcion_discapacidad',
+                'barrio',
+                'direccion',
+                'telefono',
+                'telefono1',
+                'telefono2',
+                'email',
+                'fechaAfiliacionArs',
+                'fechaAfiliacionSistema',
+                'fechaCambioEstado',
+                'portabilidad',
+                'IPS_PORTABILIDAD',
+                'poblacion_victima',
+                'poblacion_altocosto',
+                'erc',
+                'terapia_reemplazo_renal',
+                'diabetes',
+                'hta',
+                'vih',
+                'enfermedades_huerfanas',
+                'hemofilia',
+                'cancer',
+                'artritis',
+                'nefroproteccion',
+                'desnutricion',
+                'poblacion_gestante',
+                'fpp',
+                'contratacion_especial',
+                'contratacion_nefro',
+                'contratacion_cercana',
+                'edad',
+                'etareos',
+                'cursos_vida',
+                'edad_meses',
+                'pai',
+                'cruce_bdex_rnec',
+                'marca_sisben_IV_III',
+                'fecha_actualizacion',
                 'mes',
                 DB::raw('[año] as año'),
             ])
-
-            // ✅ Rango global de año/mes
             ->where(function ($q) use ($anio_inicio, $mes_inicio) {
                 $q->where('año', '>', $anio_inicio)
                   ->orWhere(function ($q2) use ($anio_inicio, $mes_inicio) {
@@ -888,7 +962,7 @@ public function index_api(Request $request)
                   });
             });
 
-        // ✅ Si ya consumió antes, trae solo lo que va después del cursor
+        // ✅ Cursor por (año, mes, numeroCarnet)
         if ($state->last_anio !== null && $state->last_mes !== null) {
 
             $lastAnio   = $state->last_anio;
@@ -896,30 +970,24 @@ public function index_api(Request $request)
             $lastCarnet = $state->last_carnet ?? '';
 
             $query->where(function ($q) use ($lastAnio, $lastMes, $lastCarnet) {
-
                 $q->where('año', '>', $lastAnio)
-
                   ->orWhere(function ($q2) use ($lastAnio, $lastMes, $lastCarnet) {
-
                       $q2->where('año', '=', $lastAnio)
                          ->where(function ($q3) use ($lastMes, $lastCarnet) {
-
                              $q3->where('mes', '>', $lastMes)
-
                                 ->orWhere(function ($q4) use ($lastMes, $lastCarnet) {
                                     $q4->where('mes', '=', $lastMes)
-                                       ->where('Carnet', '>', $lastCarnet);
+                                       ->where('numeroCarnet', '>', $lastCarnet);
                                 });
                          });
                   });
             });
         }
 
-        // ✅ Orden estable para el cursor + limit por per_page
         $datos = $query
             ->orderBy('año')
             ->orderBy('mes')
-            ->orderBy('Carnet')
+            ->orderBy('numeroCarnet')
             ->limit($perPage)
             ->get();
 
@@ -932,13 +1000,12 @@ public function index_api(Request $request)
             ], 200);
         }
 
-        // ✅ Actualiza cursor con el último entregado
         $ultimo = $datos->last();
 
         $state->update([
             'last_anio'   => $ultimo->año,
             'last_mes'    => $ultimo->mes,
-            'last_carnet' => $ultimo->Carnet,
+            'last_carnet' => $ultimo->numeroCarnet,
         ]);
 
         return response()->json([
@@ -967,6 +1034,7 @@ public function index_api(Request $request)
         ], 500);
     }
 }
+
 
 public function reset_consumo_afiliados(Request $request)
 {
