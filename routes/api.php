@@ -4,7 +4,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\SivigilaController;
 use App\Http\Controllers\Api\AuthController;
-
+use App\Http\Controllers\ApiludiconController;
 /*
 |--------------------------------------------------------------------------
 | API Routes (Privadas con Sanctum)
@@ -36,4 +36,25 @@ Route::middleware(['auth:sanctum', 'throttle:60,1'])->group(function () {
     Route::get('/user', function (Request $request) {
         return $request->user();
     })->name('api.user');
+
+
+
+
+
+     // ✅ NUEVAS rutas LUDYCOM (ApiludiconController)
+    Route::get('/ludycom/afiliados', [ApiludiconController::class, 'index_all'])
+        ->name('api.ludycom.afiliados.all');
+
+    Route::get('/ludycom/afiliados/nuevos', [ApiludiconController::class, 'index_all_nuevos'])
+        ->name('api.ludycom.afiliados.nuevos');
+
+    Route::post('/ludycom/afiliados/reset', [ApiludiconController::class, 'reset_consumo_all'])
+        ->name('api.ludycom.afiliados.reset');
+
+    Route::get('/ludycom/afiliados/identificacion/{identificacion}', [ApiludiconController::class, 'show_by_identificacion'])
+        ->name('api.ludycom.afiliados.identificacion');
 });
+
+
+
+
