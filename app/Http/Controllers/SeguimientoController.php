@@ -657,12 +657,13 @@ public function viewPDF($id)
 
 
 
-    public function reporte2()
-    {   
-        return Excel::download(new GeneralExport, 'general.xls');
+ public function reporte2()
+{
+    return Excel::download(new GeneralExport, 'general.xlsx');
+}
 
 
-    }
+
 
 
     public function detail ($id){
