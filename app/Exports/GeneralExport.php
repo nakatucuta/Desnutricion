@@ -5,15 +5,13 @@ namespace App\Exports;
 use Illuminate\Support\Facades\DB;
 use Maatwebsite\Excel\Concerns\FromQuery;
 use Maatwebsite\Excel\Concerns\WithHeadings;
-use Maatwebsite\Excel\Concerns\ShouldAutoSize;
 use Maatwebsite\Excel\Concerns\WithEvents;
 use Maatwebsite\Excel\Events\AfterSheet;
 
-class GeneralExport implements FromQuery, WithHeadings, ShouldAutoSize, WithEvents
+class GeneralExport implements FromQuery, WithHeadings, WithEvents
 {
     public function query()
     {
-        // PRIMERA CONSULTA (seguimientos normales)
         $data = DB::table('sivigilas')
             ->join('seguimientos', 'sivigilas.id', '=', 'seguimientos.sivigilas_id')
             ->join('users as users_sivigilas', 'sivigilas.user_id', '=', 'users_sivigilas.id')
@@ -63,8 +61,6 @@ class GeneralExport implements FromQuery, WithHeadings, ShouldAutoSize, WithEven
                 'users_seguimientos.name as user_seguimientos_name'
             );
 
-        // SEGUNDA CONSULTA (seguimiento_ocasionals)
-        // MISMAS columnas, MISMO orden, MISMOS alias:
         $secondQuery = DB::table('sivigilas')
             ->join('seguimientos', 'sivigilas.id', '=', 'seguimientos.sivigilas_id')
             ->join('users as users_sivigilas', 'sivigilas.user_id', '=', 'users_sivigilas.id')
@@ -115,7 +111,6 @@ class GeneralExport implements FromQuery, WithHeadings, ShouldAutoSize, WithEven
                 'users_seguimientos.name as user_seguimientos_name'
             );
 
-        // NO get()
         return $data
             ->unionAll($secondQuery)
             ->orderBy('seguimiento_fecha_consulta');
@@ -160,11 +155,8 @@ class GeneralExport implements FromQuery, WithHeadings, ShouldAutoSize, WithEven
 
                 $event->sheet->setAutoFilter($cellRange);
 
-                $event->sheet->getDelegate()->getStyle('B2:AN2000')->applyFromArray([
-                    'alignment' => [
-                        'horizontal' => \PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_LEFT,
-                    ]
-                ]);
+                // 🚫 QUITADO: esto era el que te mataba la RAM
+                // $event->sheet->getDelegate()->getStyle('B2:AN2000')->applyFromArray([...]);
             },
         ];
     }
