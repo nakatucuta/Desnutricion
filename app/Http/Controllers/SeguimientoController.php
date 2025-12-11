@@ -657,11 +657,17 @@ public function viewPDF($id)
 
 
 
- public function reporte2()
+public function reporte2()
 {
-    return Excel::download(new GeneralExport, 'general.xlsx');
+    return Excel::download(
+        new GeneralExportCsv,
+        'general.csv',
+        ExcelFormat::CSV,
+        [
+            'Content-Type' => 'text/csv',
+        ]
+    );
 }
-
 
 
 
