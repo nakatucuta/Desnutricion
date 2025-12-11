@@ -39,6 +39,9 @@ Route::middleware(['auth:sanctum', 'throttle:60,1'])->group(function () {
 
 
 
+    // ✅ POR numeroCarnet (código único)
+    Route::get('/ludycom/afiliados/carnet/{numeroCarnet}', [ApiludiconController::class, 'show_by_numeroCarnet'])
+        ->name('api.ludycom.afiliados.carnet');
 
 
      // ✅ NUEVAS rutas LUDYCOM (ApiludiconController)

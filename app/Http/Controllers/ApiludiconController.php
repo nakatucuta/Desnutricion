@@ -403,4 +403,115 @@ class ApiludiconController extends Controller
             ], 500);
         }
     }
+
+
+
+        /**
+     * ✅ 3) Devuelve afiliado por numeroCarnet (código único)
+     *
+     * GET /api/ludycom/afiliados/carnet/ABC123
+     */
+    public function show_by_numeroCarnet($numeroCarnet)
+    {
+        try {
+            $registro = DB::connection('sqlsrv_1')
+                ->table('api_ludycom.dbo.datos')
+                ->select([
+                    'numeroCarnet',
+                    'codigoAgente',
+                    'tipoIdenCabezaFamilia',
+                    'idenCabezaFamilia',
+                    'serial',
+                    'tipoIdentificacion',
+                    'identificacion',
+                    'primerApellido',
+                    'segundoApellido',
+                    'primerNombre',
+                    'segundoNombre',
+                    'fechaNacimiento',
+                    'genero',
+                    'ESTADOACTUAL',
+                    'GRUPOIPS',
+                    'codigoMunicipio',
+                    'zona',
+                    'tipoAfiliado',
+                    'grupoPoblacional',
+                    'nivelSisben',
+                    'puntajeSisben',
+                    'discapacidad',
+                    'descripcion_discapacidad',
+                    'barrio',
+                    'direccion',
+                    'telefono',
+                    'telefono1',
+                    'telefono2',
+                    'email',
+                    'fechaAfiliacionArs',
+                    'fechaAfiliacionSistema',
+                    'fechaCambioEstado',
+                    'portabilidad',
+                    'IPS_PORTABILIDAD',
+                    'poblacion_victima',
+                    'poblacion_altocosto',
+                    'erc',
+                    'terapia_reemplazo_renal',
+                    'diabetes',
+                    'hta',
+                    'vih',
+                    'enfermedades_huerfanas',
+                    'hemofilia',
+                    'cancer',
+                    'artritis',
+                    'nefroproteccion',
+                    'desnutricion',
+                    'poblacion_gestante',
+                    'fpp',
+                    'contratacion_especial',
+                    'contratacion_nefro',
+                    'contratacion_cercana',
+                    'edad',
+                    'etareos',
+                    'cursos_vida',
+                    'edad_meses',
+                    'pai',
+                    'cruce_bdex_rnec',
+                    'marca_sisben_IV_III',
+                    'fecha_actualizacion',
+                    'mes',
+                    DB::raw('[año] as año'),
+                ])
+                ->where('numeroCarnet', $numeroCarnet)
+                ->orderBy('numeroCarnet')
+                ->first();
+
+            if (!$registro) {
+                return response()->json([
+                    'status'  => 'error',
+                    'message' => 'No se encontró información para el numeroCarnet indicado',
+                    'data'    => null,
+                ], 404);
+            }
+
+            return response()->json([
+                'status' => 'success',
+                'params' => [
+                    'numeroCarnet' => $numeroCarnet,
+                ],
+                'data'   => $registro,
+            ], 200);
+
+        } catch (\Throwable $e) {
+            \Log::error('Error show_by_numeroCarnet api_ludycom', [
+                'error'        => $e->getMessage(),
+                'numeroCarnet' => $numeroCarnet,
+            ]);
+
+            return response()->json([
+                'status'  => 'error',
+                'message' => 'Error interno al consultar afiliado por numeroCarnet',
+                'data'    => null,
+            ], 500);
+        }
+    }
+
 }
