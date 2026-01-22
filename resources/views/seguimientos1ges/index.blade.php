@@ -94,7 +94,7 @@
       <div class="tab-pane fade" id="pane-alertas" role="tabpanel">
         <div class="alert alert-warning">
           <i class="fas fa-bell"></i>
-          Se listan los seguimientos con hitos vencidos según: 48–72h, 7, 14, 21, 28 días, 6 meses y 1 año
+          Se listan los seguimientos con los tiempos vencidos según: 48–72h, 7, 14, 21, 28 días, 6 meses y 1 año
           (basados en la fecha de egreso o la fecha de creación del seguimiento).
         </div>
         <div class="table-responsive">
@@ -107,7 +107,7 @@
                 <th>Tipo ID</th>
                 <th>Número ID</th>
                 <th>Prestador</th>
-                <th>Hito vencido</th>
+                <th>Vencido</th>
                 <th>Fecha límite</th>
                 <th>Días atraso</th>
                 <th style="width:90px;">Acciones</th>
@@ -207,7 +207,7 @@ $(function () {
       { data: 'tip_ide_', name: 'tip_ide_', title: 'Tipo ID' },
       { data: 'num_ide_', name: 'num_ide_', title: 'Número ID' },
       { data: 'prestador', name: 'prestador', title: 'Prestador' },
-      { data: 'hito', name: 'hito', title: 'Hito vencido' },
+      { data: 'hito', name: 'hito', title: ' Vencido' },
       { data: 'fecha_limite', name: 'fecha_limite', title: 'Fecha límite' },
       { data: 'dias_atraso', name: 'dias_atraso', title: 'Días atraso' },
       { data: 'acciones', name: 'acciones', orderable:false, searchable:false, title: 'Acciones' },

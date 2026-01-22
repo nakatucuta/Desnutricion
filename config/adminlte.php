@@ -451,45 +451,70 @@ return [
 
         
 
-           [
-            'text'    => 'Gestantes (cargue)',
-            'icon' => 'fas fa-baby-carriage',
+         [
+    'text' => 'Gestantes (cargue)',
+    'icon' => 'fas fa-baby-carriage',
 
-            'submenu' => [
+    'submenu' => [
 
-                  [
-                    'text'        => 'Cargue',
-                    'url'         => 'gestantes/import',
-                    'icon'        => 'fas fa-upload',
-                    'label'       => '',  
-                    'label_color' => 'success',
-                ],
-                [
-                    'text'        => 'Tipo 3',
-                    'url'         => 'gestantes/tipo3/import',
-                    'icon'        => 'fas fa-upload',
-                    'label'       => '',  
-                    'label_color' => 'success',
-                ],
-
-                 [
-                    'text'        => 'Evento 549',
-                    'url'         => 'maestrosiv549',
-                    'icon'        => 'fas fa-upload',
-                    'label'       => '',  
-                    'label_color' => 'success',
-                ],
-
-                     [
-                    'text'        => 'seguimiento  549',
-                    'url'         => 'seguimientos1ges',
-                    'icon'        => 'fas fa-upload',
-                    'label'       => '',  
-                    'label_color' => 'success',
-                ],
-                // Aquí puedes agregar más elementos de menú si deseas
-            ],
+        [
+            'text'        => 'Pre concepcional',
+            'url'         => 'preconcepcional',
+            'icon'        => 'fas fa-seedling',          // 🌱 planificación / inicio
+            'label'       => '',
+            'label_color' => 'success',
         ],
+
+        [
+            'text'        => 'Cargue',
+            'url'         => 'gestantes/import',
+            'icon'        => 'fas fa-file-upload',       // 📤 subir archivo
+            'label'       => '',
+            'label_color' => 'success',
+        ],
+
+        [
+            'text'        => 'Tipo 3',
+            'url'         => 'gestantes/tipo3/import',
+            'icon'        => 'fas fa-file-medical',      // 🏥 tipo clínico/documento
+            'label'       => '',
+            'label_color' => 'success',
+        ],
+
+        [
+            'text'        => 'Evento 549',
+            'url'         => 'maestrosiv549',
+            'icon'        => 'fas fa-clipboard-list',    // 📋 maestro/listado
+            'label'       => '',
+            'label_color' => 'success',
+        ],
+
+        [
+            'text'        => 'Seguimiento 549',
+            'url'         => 'seguimientos1ges',
+            'icon'        => 'fas fa-notes-medical',     // 📝 seguimiento clínico
+            'label'       => '',
+            'label_color' => 'success',
+        ],
+
+              [
+    'text' => 'Estadísticas',
+    'url'  => 'estadisticas/gestantes',
+    'icon' => 'fas fa-chart-bar',
+],
+
+
+
+        [
+            'text'        => 'Descargar formatos',
+            'route'       => 'formatos.download',
+            'icon'        => 'fas fa-file-archive',      // 🗜️ rar/zip
+            'label'       => 'RAR',
+            'label_color' => 'info',
+        ],
+    ],
+],
+
         
        
               [

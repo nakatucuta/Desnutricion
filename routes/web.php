@@ -23,6 +23,10 @@ use App\Http\Controllers\SeguimientMaestrosiv549Controller;
 use App\Http\Controllers\CicloVidaController;
 use App\Http\Controllers\PiPlaceholderController;
 use App\Http\Controllers\GesTipo1SeguimientoController;
+use App\Http\Controllers\PreconcepcionalController;
+use App\Http\Controllers\FormatosController;
+use App\Http\Controllers\GestantesStatsController;
+
 
 /*
 |--------------------------------------------------------------------------
@@ -281,8 +285,9 @@ Route::post('gestantes/import', [GesTipo1Controller::class, 'import'])
 
      Route::get('gestantes', [GesTipo1Controller::class, 'index'])
      ->name('ges_tipo1.index');
-     Route::get('gestantes/{id}', [GesTipo1Controller::class, 'show'])
+   Route::get('gestantes/{ges}', [GesTipo1Controller::class, 'show'])
      ->name('ges_tipo1.show');
+
 
      //tipo 3 
 
@@ -486,6 +491,63 @@ Route::prefix('ges_tipo1/{ges}')->name('ges_tipo1.')->group(function () {
     Route::delete('seguimientos/{seg}',   [GesTipo1SeguimientoController::class, 'destroy'])->name('seguimientos.destroy');
 });
 
-Route::get('/seguimientos/file/{seg}/{field}', [GesTipo1SeguimientoController::class, 'verArchivo'])
-    ->name('seguimientos.file')
-    ->middleware('auth');
+// Route::get('/seguimientos/file/{seg}/{field}', [GesTipo1SeguimientoController::class, 'verArchivo'])
+//     ->name('seguimientos.file')
+//     ->middleware('auth');
+
+    Route::get('seguimientos/{seg}/archivo/{field}', [GesTipo1SeguimientoController::class, 'verArchivo'])
+    ->name('ges_tipo1.seguimientos.archivo')
+    ->where('field', '[A-Za-z0-9_]+');
+
+
+
+// RUTAS PRECONCEPCIONAL
+Route::middleware(['auth'])->group(function () {
+
+    Route::get('/preconcepcional', [PreconcepcionalController::class, 'index'])
+        ->name('preconcepcional.index');
+
+    Route::get('/preconcepcional/importar', [PreconcepcionalController::class, 'create'])
+        ->name('preconcepcional.import');
+
+    Route::post('/preconcepcional/importar', [PreconcepcionalController::class, 'store'])
+        ->name('preconcepcional.store');
+
+    // ✅ IMPORTANTÍSIMO: rutas "fijas" ANTES del {preconcepcional}
+    Route::get('/preconcepcional/data', [PreconcepcionalController::class, 'data'])
+        ->name('preconcepcional.data');
+
+    Route::get('/preconcepcional/export', [PreconcepcionalController::class, 'export'])
+        ->name('preconcepcional.export');
+
+    // ✅ al final el wildcard
+    Route::get('/preconcepcional/{preconcepcional}', [PreconcepcionalController::class, 'show'])
+        ->name('preconcepcional.show');
+
+
+          // ✅ LOTES
+    Route::get('/preconcepcional/lotes', [PreconcepcionalController::class, 'batches'])->name('preconcepcional.batches');
+    Route::get('/preconcepcional/lotes/{batch}', [PreconcepcionalController::class, 'batchShow'])->name('preconcepcional.batches.show');
+    Route::delete('/preconcepcional/lotes/{batch}', [PreconcepcionalController::class, 'destroyBatch'])->name('preconcepcional.batches.destroy');
+
+    // ✅ SHOW al final + solo numérico
+    Route::get('/preconcepcional/{preconcepcional}', [PreconcepcionalController::class, 'show'])
+        ->whereNumber('preconcepcional')
+        ->name('preconcepcional.show');
+});
+
+//ruta para la descarga de los formatos de gestantes 
+Route::middleware(['auth'])->group(function () {
+    Route::get('/formatos/descargar', [FormatosController::class, 'download'])
+        ->name('formatos.download');
+});
+
+//  RUTAS PARA ESTIDISTICAS DE GESTANTES 
+
+Route::middleware(['auth'])->group(function () {
+    Route::get('/estadisticas/gestantes', [GestantesStatsController::class, 'index'])
+        ->name('gestantes.stats.index');
+
+    Route::get('/estadisticas/gestantes/detalle/{modulo}', [GestantesStatsController::class, 'detail'])
+        ->name('gestantes.stats.detail');
+});

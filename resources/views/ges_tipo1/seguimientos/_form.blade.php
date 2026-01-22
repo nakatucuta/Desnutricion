@@ -36,14 +36,8 @@
         return asset('storage/' . $path);
     };
 
-    // Helper para select
-    $isSel = function($name, $option) use($val) {
-        return ((string)$val($name) === (string)$option) ? 'selected' : '';
-    };
-
     // Opciones comunes
     $optSN = ['SI' => 'Sí', 'NO' => 'No'];
-    $opt10 = ['SI' => 'Sí', 'NO' => 'No'];
     $optTipoContacto = ['1' => 'Telefónico', '2' => 'Domiciliario', '3' => 'Otro'];
 
     // ==== DEFINICIÓN DE SECCIONES Y CAMPOS ====
@@ -326,9 +320,8 @@
             </div>
             <div id="sec-{{ $secIndex }}" class="collapse {{ $open }}" data-parent="#accordion">
               <div class="card-body">
-                @php
-                  $chunked = array_chunk($campos, 4);
-                @endphp
+                @php $chunked = array_chunk($campos, 4); @endphp
+
                 @foreach($chunked as $fila)
                   <div class="form-row">
                     @foreach($fila as $cfg)
@@ -339,9 +332,28 @@
                         $opts  = $cfg[3] ?? null;
 
                         $current = $val($name);
-                        $isResultado = Str::contains(Str::lower($label.' '.$name), 'resultado'); // regla: etiqueta o nombre contiene "resultado"
+
+                        // ✅ es resultado si el label o name contiene "resultado"
+                        $isResultado = Str::contains(Str::lower($label.' '.$name), 'resultado');
+
+                        /**
+                         * ✅ OJO IMPORTANTE:
+                         * Tus columnas reales de descripción son:
+                         *   vih_tamiz1_resultado_desc (etc)
+                         * y el $name viene como:
+                         *   vih_tamiz1_resultado
+                         * entonces el desc correcto ES:
+                         *   $name . '_desc'
+                         */
+                        $descName    = $name . '_desc';
+                        $descCurrent = $val($descName);
+
+                        // PDF detectado por la ruta en el campo resultado
                         $isPdf = $isPdfValue($current);
-                        $fileInputName = $name . '_file'; // input de archivo para este campo
+
+                        // Input file name: *_resultado_file (como tu controller)
+                        $fileInputName = $name . '_file';
+
                         $initialMode = $isResultado ? ($isPdf ? 'pdf' : 'text') : 'text';
                         $fileUrlCurrent = $isPdf ? $filePublicUrl($current) : null;
                       @endphp
@@ -352,65 +364,80 @@
 
                           {{-- Conmutador Texto/PDF solo si es "resultado" --}}
                           @if($isResultado)
-                          <span class="btn-group btn-group-toggle btn-group-sm" data-toggle="buttons">
-                            <label class="btn btn-outline-secondary mode-btn {{ $initialMode==='text' ? 'active' : '' }}" data-target="{{ $name }}" data-mode="text">
-                              <input type="radio" autocomplete="off" {{ $initialMode==='text' ? 'checked' : '' }}> Texto
-                            </label>
-                            <label class="btn btn-outline-secondary mode-btn {{ $initialMode==='pdf' ? 'active' : '' }}" data-target="{{ $name }}" data-mode="pdf">
-                              <input type="radio" autocomplete="off" {{ $initialMode==='pdf' ? 'checked' : '' }}> PDF
-                            </label>
-                          </span>
+                            <span class="btn-group btn-group-toggle btn-group-sm" data-toggle="buttons">
+                              <label class="btn btn-outline-secondary mode-btn {{ $initialMode==='text' ? 'active' : '' }}" data-target="{{ $name }}" data-mode="text">
+                                <input type="radio" autocomplete="off" {{ $initialMode==='text' ? 'checked' : '' }}> Texto
+                              </label>
+                              <label class="btn btn-outline-secondary mode-btn {{ $initialMode==='pdf' ? 'active' : '' }}" data-target="{{ $name }}" data-mode="pdf">
+                                <input type="radio" autocomplete="off" {{ $initialMode==='pdf' ? 'checked' : '' }}> PDF
+                              </label>
+                            </span>
                           @endif
                         </label>
 
-                        {{-- MODO TEXTO --}}
-                        <div class="resultado-text-wrap" id="wrap-text-{{ $name }}" @if($isResultado && $initialMode==='pdf') style="display:none" @endif>
-                          @if($type === 'textarea')
-                            <textarea name="{{ $name }}" class="form-control" rows="2">{{ $current }}</textarea>
-                          @elseif($type === 'select')
-                            <select name="{{ $name }}" class="form-control">
-                              <option value="">--</option>
-                              @foreach($opts as $ov => $ot)
-                                <option value="{{ $ov }}" {{ ((string)$current===(string)$ov)?'selected':'' }}>{{ $ot }}</option>
-                              @endforeach
-                            </select>
-                          @else
-                            <input type="{{ $type }}" name="{{ $name }}" class="form-control" value="{{ $current }}">
-                          @endif
-                        </div>
-
-                        {{-- MODO PDF (solo para "resultado") --}}
+                        {{-- ✅ Para resultados: SIEMPRE enviar la ruta actual en hidden para no perderla en UPDATE --}}
                         @if($isResultado)
-                        <div class="resultado-pdf-wrap" id="wrap-pdf-{{ $name }}" @if($initialMode!=='pdf') style="display:none" @endif>
-                          <div class="custom-file mb-2">
-                            <input type="file" accept="application/pdf" class="custom-file-input" id="{{ $fileInputName }}" name="{{ $fileInputName }}">
-                            <label class="custom-file-label" for="{{ $fileInputName }}">Seleccionar PDF...</label>
-                          </div>
-
-                          {{-- Vista previa si ya hay PDF guardado --}}
-                          @if($fileUrlCurrent)
-                            <div class="border rounded p-2">
-                              <div class="d-flex justify-content-between align-items-center mb-2">
-                                <strong class="small mb-0">PDF cargado</strong>
-                                <a class="btn btn-xs btn-outline-primary" href="{{ $fileUrlCurrent }}" target="_blank">
-                                  <i class="fas fa-external-link-alt"></i> Abrir en nueva pestaña
-                                </a>
-                              </div>
-                              <iframe src="{{ $fileUrlCurrent }}#toolbar=1" style="width:100%;height:300px;border:0;"></iframe>
-                            </div>
-                          @endif
-
-                          <small class="form-text text-muted">
-                            Al guardar, se almacenará la ruta del PDF en este campo. Si quieres volver a texto, cambia a “Texto”.
-                          </small>
-                        </div>
+                          <input type="hidden" name="{{ $name }}" value="{{ $current }}">
                         @endif
 
-                        {{-- Si NO es "resultado", render normal (ya cubierto en MODO TEXTO) --}}
+                        {{-- =========================
+                            MODO TEXTO
+                            - Si es resultado: guarda en *_desc
+                            - Si NO: render normal
+                           ========================= --}}
+                        <div class="resultado-text-wrap" id="wrap-text-{{ $name }}" @if($isResultado && $initialMode==='pdf') style="display:none" @endif>
+                          @if($isResultado)
+                            <textarea name="{{ $descName }}" class="form-control" rows="2" placeholder="Descripción del PDF...">{{ $descCurrent }}</textarea>
+                          @else
+                            @if($type === 'textarea')
+                              <textarea name="{{ $name }}" class="form-control" rows="2">{{ $current }}</textarea>
+                            @elseif($type === 'select')
+                              <select name="{{ $name }}" class="form-control">
+                                <option value="">--</option>
+                                @foreach($opts as $ov => $ot)
+                                  <option value="{{ $ov }}" {{ ((string)$current===(string)$ov)?'selected':'' }}>{{ $ot }}</option>
+                                @endforeach
+                              </select>
+                            @else
+                              <input type="{{ $type }}" name="{{ $name }}" class="form-control" value="{{ $current }}">
+                            @endif
+                          @endif
+                        </div>
+
+                        {{-- =========================
+                            MODO PDF (solo resultado)
+                            - sube archivo y el controller guardará ruta en *_resultado
+                           ========================= --}}
+                        @if($isResultado)
+                          <div class="resultado-pdf-wrap" id="wrap-pdf-{{ $name }}" @if($initialMode!=='pdf') style="display:none" @endif>
+                            <div class="custom-file mb-2">
+                              <input type="file" accept="application/pdf" class="custom-file-input" id="{{ $fileInputName }}" name="{{ $fileInputName }}">
+                              <label class="custom-file-label" for="{{ $fileInputName }}">Seleccionar PDF...</label>
+                            </div>
+
+                            {{-- Vista previa si ya hay PDF guardado --}}
+                            @if($fileUrlCurrent)
+                              <div class="border rounded p-2">
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                  <strong class="small mb-0">PDF cargado</strong>
+                                  <a class="btn btn-xs btn-outline-primary" href="{{ $fileUrlCurrent }}" target="_blank">
+                                    <i class="fas fa-external-link-alt"></i> Abrir en nueva pestaña
+                                  </a>
+                                </div>
+                                <iframe src="{{ $fileUrlCurrent }}#toolbar=1" style="width:100%;height:300px;border:0;"></iframe>
+                              </div>
+                            @endif
+
+                            <small class="form-text text-muted">
+                              Se guardará la ruta del PDF. Si luego quieres agregar una descripción, cambia a “Texto”.
+                            </small>
+                          </div>
+                        @endif
                       </div>
                     @endforeach
                   </div>
                 @endforeach
+
               </div>
             </div>
           </div>
@@ -439,6 +466,7 @@
 <script>
   // Toggle Texto/PDF por campo de "resultado"
   document.addEventListener('DOMContentLoaded', function () {
+
     document.querySelectorAll('.mode-btn').forEach(function(btn) {
       btn.addEventListener('click', function(e) {
         const target = e.currentTarget.getAttribute('data-target');
@@ -469,6 +497,7 @@
         }
       });
     });
+
   });
 </script>
 @endpush

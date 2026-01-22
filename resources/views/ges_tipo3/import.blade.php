@@ -8,7 +8,7 @@
     <img src="{{ asset('vendor/adminlte/dist/img/logo.png') }}"
          alt="Escudo"
          class="header-logo mr-3">
-    <h1 class="executive-title mb-0">IMPORTAR TIPO 3</h1>
+    <h1 class="executive-title mb-0">Importar Atencion monitoreo y seguimiento</h1>
 </div>
 @stop
 

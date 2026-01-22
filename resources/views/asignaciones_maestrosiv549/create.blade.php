@@ -47,19 +47,19 @@
                     @endif
                     <span class="badge badge-warning ml-2" id="badge-select">¡Selecciona aquí!</span>
                 </label>
-               <select 
-    name="user_id" 
-    id="user_id" 
+             <select 
+    name="user_ids[]" 
+    id="user_ids" 
     class="form-control select2-user" 
-    required 
+    multiple
+    required
     style="font-size:1.1rem;"
     @if(count($usuarios_prestador_primario) == 0) disabled @endif
 >
-    <option value="">-- Selecciona un usuario --</option>
     @foreach($usuarios as $user)
         <option 
             value="{{ $user->id }}"
-            @if($usuario_destacado == $user->id) selected @endif
+            @if(in_array($user->id, $usuarios_prestador_primario)) selected @endif
             style="{{ in_array($user->id, $usuarios_prestador_primario) ? 'font-weight:bold; color:#17a2b8;' : '' }}"
         >
             {{ in_array($user->id, $usuarios_prestador_primario) ? '★ ' : '' }}
@@ -75,7 +75,7 @@
                     </div>
                 @else
                     <small class="form-text text-info">
-                        ★ Indica prestador primario sugerido según código de habilitación y sufijo "_ges".
+                        ★ Indica prestador primario sugerido según código de habilitación ".
                     </small>
                 @endif
             </div>

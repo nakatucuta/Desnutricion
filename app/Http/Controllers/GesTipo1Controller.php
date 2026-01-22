@@ -13,6 +13,8 @@ use Maatwebsite\Excel\Facades\Excel;
 use Yajra\DataTables\Facades\DataTables;
 use App\Exports\GesTipo1Export;
 use Throwable;
+use Illuminate\Support\Facades\Route as RouteFacade;
+use Illuminate\Support\Facades\DB;
 
 class GesTipo1Controller extends Controller
 {
@@ -74,54 +76,119 @@ class GesTipo1Controller extends Controller
     /**
      * Listado de gestantes (DataTables + filtro por usertype)
      */
-    public function index(Request $request)
-    {
-        if ($request->ajax()) {
-            $query = GesTipo1::query()->select([
-                'id',
-                'primer_nombre',
-                'segundo_nombre',
-                'primer_apellido',
-                'segundo_apellido',
-                'no_id_del_usuario',
-                'numero_carnet',
-                'fecha_de_nacimiento',
-                'fecha_probable_de_parto',
-                'tipo_de_identificacion_de_la_usuaria',
-            ]);
+     public function index(Request $request)
+{
+    if ($request->ajax()) {
 
-            // Si es gestor (usertype=2), mostrar solo sus registros
-            if (Auth::user()->usertype === 2) {
-                $query->where('user_id', Auth::id());
-            }
+        // Subconsulta: id del último seguimiento por caso
+        $subLastSeg = DB::raw('(SELECT MAX(s.id) FROM ges_tipo1_seguimientos s WHERE s.ges_tipo1_id = ges_tipo1.id) AS last_seg_id');
 
-            return DataTables::of($query)
-                ->addColumn('full_name', function($row) {
-                    return trim("{$row->primer_nombre} {$row->segundo_nombre} {$row->primer_apellido} {$row->segundo_apellido}");
-                })
-                ->addColumn('acciones', function($row) {
-                    $show = route('ges_tipo1.show', $row->id);
-                    return <<<HTML
-<a href="{$show}" class="btn btn-sm btn-gradient">
-    <i class="fas fa-eye mr-1"></i> Ver
-</a>
-HTML;
-                })
-                ->rawColumns(['acciones'])
-                ->make(true);
+        $query = GesTipo1::query()->select([
+            'id',
+            'primer_nombre',
+            'segundo_nombre',
+            'primer_apellido',
+            'segundo_apellido',
+            'no_id_del_usuario',
+            'numero_carnet',
+            'fecha_de_nacimiento',
+            'fecha_probable_de_parto',
+            'tipo_de_identificacion_de_la_usuaria',
+            $subLastSeg, // último seguimiento
+        ]);
+
+        // Si es gestor (usertype=2), mostrar solo sus registros
+        if (Auth::user()->usertype === 2) {
+            $query->where('user_id', Auth::id());
         }
 
-        return view('ges_tipo1.index');
+        return DataTables::of($query)
+            ->addColumn('full_name', function ($row) {
+                return trim("{$row->primer_nombre} {$row->segundo_nombre} {$row->primer_apellido} {$row->segundo_apellido}");
+            })
+            ->addColumn('acciones', function ($row) {
+
+                // ✅ FIX: esta ruta ahora es gestantes/{ges}
+                $show = route('ges_tipo1.show', ['ges' => $row->id]);
+
+                // Crear seguimiento: prefix real -> ges_tipo1/{ges}/seguimientos/create
+                if (RouteFacade::has('ges_tipo1.seguimientos.create')) {
+                    $seguimientoCreate = route('ges_tipo1.seguimientos.create', ['ges' => $row->id]);
+                } else {
+                    $seguimientoCreate = url("ges_tipo1/{$row->id}/seguimientos/create");
+                }
+
+                // Editar último seguimiento (si existe) -> ges_tipo1/{ges}/seguimientos/{seg}/edit
+                if (!empty($row->last_seg_id)) {
+                    if (RouteFacade::has('ges_tipo1.seguimientos.edit')) {
+                        $editUrl = route('ges_tipo1.seguimientos.edit', [
+                            'ges' => $row->id,
+                            'seg' => $row->last_seg_id,
+                        ]);
+                    } else {
+                        $editUrl = url("ges_tipo1/{$row->id}/seguimientos/{$row->last_seg_id}/edit");
+                    }
+
+                    $seguimientoBtn = <<<HTML
+<button class="btn btn-sm btn-primary" title="Ya existe un seguimiento" disabled>
+  <i class="fas fa-notes-medical"></i> Seguimiento
+</button>
+HTML;
+
+                    $editBtn = <<<HTML
+<a href="{$editUrl}" class="btn btn-sm btn-warning ml-1" title="Editar último seguimiento">
+  <i class="fas fa-edit"></i> Editar
+</a>
+HTML;
+                } else {
+
+                    $seguimientoBtn = <<<HTML
+<a href="{$seguimientoCreate}" class="btn btn-sm btn-primary" title="Nuevo seguimiento">
+  <i class="fas fa-notes-medical"></i> Seguimiento
+</a>
+HTML;
+
+                    $editBtn = <<<HTML
+<button class="btn btn-sm btn-warning ml-1" title="Sin seguimientos" disabled>
+  <i class="fas fa-edit"></i> Editar
+</button>
+HTML;
+                }
+
+                return <<<HTML
+<a href="{$show}" class="btn btn-sm btn-gradient mr-1">
+  <i class="fas fa-eye mr-1"></i> Ver
+</a>
+{$seguimientoBtn}
+{$editBtn}
+HTML;
+            })
+            ->rawColumns(['acciones'])
+            ->make(true);
     }
 
+    return view('ges_tipo1.index');
+}
     /**
-     * Mostrar detalle de una gestante y sus Tipo3 asociados
+     * Mostrar el detalle de una gestante + sus registros relacionados.
      */
-    public function show($id)
-    {
-        $gestante = GesTipo1::with('tipo3')->findOrFail($id);
-        return view('ges_tipo1.show', compact('gestante'));
-    }
+  public function show(\App\Models\GesTipo1 $ges)
+{
+    // Carga relaciones sin ordenar en SQL
+    $ges->load(['seguimientos', 'tipo3']);
+
+    // Ordena en PHP para evitar ORDER BY duplicado en SQL Server
+    $segs   = $ges->seguimientos->sortByDesc('id')->values();
+    $ultimo = $segs->first();
+
+    return view('ges_tipo1.show', [
+        'gestante'  => $ges,
+        'segs'      => $segs,              // <-- pasa la colección ya ordenada
+        'ultimo'    => $ultimo,
+        'tipo3'     => $ges->tipo3 ?? collect(),
+        'segsCount' => $segs->count(),
+    ]);
+}
 
     /**
      * Exportar a Excel rango por created_at
