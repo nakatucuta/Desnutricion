@@ -474,7 +474,7 @@ return [
         ],
 
         [
-            'text'        => 'Tipo 3',
+            'text'        => 'Atencion monitoreo y seguimiento',
             'url'         => 'gestantes/tipo3/import',
             'icon'        => 'fas fa-file-medical',      // 🏥 tipo clínico/documento
             'label'       => '',

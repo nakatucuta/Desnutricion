@@ -36,73 +36,94 @@
         @endif
 
         <form action="{{ route('asignaciones_maestrosiv549.store') }}" method="POST">
-            @csrf
+    @csrf
 
-            {{-- Select de usuario profesional y llamativo --}}
-            <div class="form-group mb-4 text-center position-relative" id="select-usuario-group">
-                <label for="user_id" class="font-weight-bold text-danger" style="font-size: 1.4rem;">
-                    <i class="fas fa-user-md"></i> Asignar Prestador Primario
-                    @if($nombre_ips_primaria)
-                        <span class="badge badge-info ml-2">IPS Primaria: {{ $nombre_ips_primaria }}</span>
-                    @endif
-                    <span class="badge badge-warning ml-2" id="badge-select">¡Selecciona aquí!</span>
-                </label>
-             <select 
-    name="user_ids[]" 
-    id="user_ids" 
-    class="form-control select2-user" 
+    {{-- Select de usuario profesional y llamativo --}}
+    <div class="form-group mb-4 text-center position-relative" id="select-usuario-group">
+        <label for="user_ids" class="font-weight-bold text-danger" style="font-size: 1.4rem;">
+            <i class="fas fa-user-md"></i> Asignar Prestador Primario
+            @if($nombre_ips_primaria)
+                <span class="badge badge-info ml-2">IPS Primaria: {{ $nombre_ips_primaria }}</span>
+            @endif
+            <span class="badge badge-warning ml-2" id="badge-select">¡Selecciona aquí!</span>
+        </label>
+
+      <select
+    name="user_ids[]"
+    id="user_ids"
+    class="form-control select2-user"
     multiple
-    required
     style="font-size:1.1rem;"
-    @if(count($usuarios_prestador_primario) == 0) disabled @endif
 >
-    @foreach($usuarios as $user)
-        <option 
-            value="{{ $user->id }}"
-            @if(in_array($user->id, $usuarios_prestador_primario)) selected @endif
-            style="{{ in_array($user->id, $usuarios_prestador_primario) ? 'font-weight:bold; color:#17a2b8;' : '' }}"
-        >
-            {{ in_array($user->id, $usuarios_prestador_primario) ? '★ ' : '' }}
-            {{ $user->name }} ({{ $user->email }}) - {{ $user->codigohabilitacion }}
-        </option>
-    @endforeach
+    {{-- Opcional: separar con optgroup para que se vea PRO --}}
+    <optgroup label="★ Sugeridos (por IPS primaria)">
+        @foreach($usuarios as $user)
+            @if(in_array($user->id, $usuarios_prestador_primario ?? []))
+                <option
+                    value="{{ $user->id }}"
+                    selected
+                    style="font-weight:bold; color:#17a2b8;"
+                >
+                    ★ {{ $user->name }} ({{ $user->email }}) - {{ $user->codigohabilitacion }}
+                </option>
+            @endif
+        @endforeach
+    </optgroup>
+
+    <optgroup label="Todos los usuarios">
+        @foreach($usuarios as $user)
+            @if(!in_array($user->id, $usuarios_prestador_primario ?? []))
+                <option value="{{ $user->id }}">
+                    {{ $user->name }} ({{ $user->email }}) - {{ $user->codigohabilitacion }}
+                </option>
+            @endif
+        @endforeach
+    </optgroup>
 </select>
 
-                @if(count($usuarios_prestador_primario) == 0)
-                    <div class="alert alert-warning mt-2">
-                        <b>No hay usuarios con el código de habilitación <b>{{ $codigo_habilitacion }}</b> y nombre terminado en <b>_ges</b>.</b>
-                        Puedes asignar a otro usuario si es necesario.
-                    </div>
-                @else
-                    <small class="form-text text-info">
-                        ★ Indica prestador primario sugerido según código de habilitación ".
-                    </small>
-                @endif
+        {{-- Mensajes según si encontró usuarios por habilitación o mostró todos --}}
+        @if(!empty($mostrando_todos) && $mostrando_todos)
+            <div class="alert alert-warning mt-3 text-left">
+                <b>No se encontraron usuarios con el código de habilitación:</b>
+                <b>{{ $codigo_habilitacion ?? 'N/D' }}</b>.
+                <br>
+                <span>✅ Se está mostrando el listado completo de usuarios para que selecciones manualmente.</span>
             </div>
+        @else
+            <small class="form-text text-info mt-2">
+                ★ Usuarios sugeridos según código de habilitación.
+            </small>
+        @endif
 
-            <hr>
-            <h5 class="mb-3"><i class="fas fa-user-edit"></i> Datos del caso (editables)</h5>
-            <div class="row">
-            @foreach($datosCaso as $campo => $valor)
-                <div class="form-group col-sm-6 col-md-4 mb-3">
-                    <label for="{{ $campo }}" class="font-weight-bold">{{ ucwords(str_replace('_', ' ', $campo)) }}</label>
-                    <input 
-                        type="text" 
-                        class="form-control"
-                        name="{{ $campo }}" 
-                        id="{{ $campo }}" 
-                        value="{{ old($campo, $valor ?? '') }}">
-                </div>
-            @endforeach
-            </div>
+        @error('user_ids')
+            <div class="text-danger mt-2">{{ $message }}</div>
+        @enderror
+    </div>
 
-            <div class="d-flex justify-content-end mt-4 position-relative">
-                <button type="submit" class="btn btn-gradient mr-2" id="btn-asignar-guardar">
-                    <i class="fas fa-user-check"></i> Asignar y Guardar
-                </button>
-                <a href="{{ route('maestrosiv549.index') }}" class="btn btn-secondary">Cancelar</a>
+    <hr>
+    <h5 class="mb-3"><i class="fas fa-user-edit"></i> Datos del caso (editables)</h5>
+
+    <div class="row">
+        @foreach($datosCaso as $campo => $valor)
+            <div class="form-group col-sm-6 col-md-4 mb-3">
+                <label for="{{ $campo }}" class="font-weight-bold">{{ ucwords(str_replace('_', ' ', $campo)) }}</label>
+                <input
+                    type="text"
+                    class="form-control"
+                    name="{{ $campo }}"
+                    id="{{ $campo }}"
+                    value="{{ old($campo, $valor ?? '') }}">
             </div>
-        </form>
+        @endforeach
+    </div>
+
+    <div class="d-flex justify-content-end mt-4 position-relative">
+        <button type="submit" class="btn btn-gradient mr-2" id="btn-asignar-guardar">
+            <i class="fas fa-user-check"></i> Asignar y Guardar
+        </button>
+        <a href="{{ route('maestrosiv549.index') }}" class="btn btn-secondary">Cancelar</a>
+    </div>
+</form>
 
         {{-- FLECHA FLOTANTE PARA IR AL BOTÓN --}}
         <button type="button" 

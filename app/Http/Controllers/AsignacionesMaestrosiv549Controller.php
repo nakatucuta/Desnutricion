@@ -22,7 +22,8 @@ public function create(Request $request)
     $codigo_habilitacion = null;
     $nombre_ips_primaria = null;
 
-    if ($caso->num_ide_) {
+    // 1) Buscar IPS primaria (codigo habilitación) desde afiliado
+    if (!empty($caso->num_ide_)) {
         $afiliado = \DB::connection('sqlsrv_1')->table('maestroAfiliados as a')
             ->join('maestroips as b', 'a.numeroCarnet', '=', 'b.numeroCarnet')
             ->join('maestroIpsGru as c', 'b.idGrupoIps', '=', 'c.id')
@@ -40,23 +41,42 @@ public function create(Request $request)
         }
     }
 
-    // Usuarios del mismo código habilitación
+    /**
+     * ✅ CLAVE:
+     * - $usuarios = TODOS (siempre)
+     * - $usuariosSugeridos = solo los del código habilitación (para marcar/preseleccionar)
+     */
+
+    // 2) TODOS los usuarios (para que el select SIEMPRE muestre todo)
     $usuarios = \App\Models\User::select('id', 'name', 'email', 'codigohabilitacion')
-        ->where('codigohabilitacion', $codigo_habilitacion)
         ->orderBy('name')
         ->get();
 
-    // ✅ Preseleccionar TODOS
-    $usuarios_prestador_primario = $usuarios->pluck('id')->toArray();
+    // 3) Sugeridos (pueden ser vacíos)
+    $usuariosSugeridos = collect();
+    if (!empty($codigo_habilitacion)) {
+        $usuariosSugeridos = \App\Models\User::select('id', 'name', 'email', 'codigohabilitacion')
+            ->where('codigohabilitacion', $codigo_habilitacion)
+            ->orderBy('name')
+            ->get();
+    }
+
+    // 4) ids a preseleccionar (solo los sugeridos)
+    $usuarios_prestador_primario = $usuariosSugeridos->pluck('id')->toArray();
+
+    // 5) bandera informativa
+    $mostrando_todos = $usuariosSugeridos->isEmpty();
 
     return view('asignaciones_maestrosiv549.create', compact(
         'datosCaso',
-        'usuarios',
+        'usuarios',                    // <-- SIEMPRE TODOS
         'codigo_habilitacion',
         'nombre_ips_primaria',
-        'usuarios_prestador_primario'
+        'usuarios_prestador_primario', // <-- SOLO sugeridos
+        'mostrando_todos'
     ));
 }
+
 
 
 
