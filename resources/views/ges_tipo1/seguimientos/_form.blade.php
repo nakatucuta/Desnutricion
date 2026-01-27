@@ -40,8 +40,91 @@
     $optSN = ['SI' => 'Sí', 'NO' => 'No'];
     $optTipoContacto = ['1' => 'Telefónico', '2' => 'Domiciliario', '3' => 'Otro'];
 
+    /**
+     * ✅ Opciones de "resultado" según el examen
+     * Guardamos el valor en *_resultado_desc
+     */
+    $getResultadoOpts = function(string $name, string $label = '') {
+        $k = Str::lower($name.' '.$label);
+
+        // VIH / Sífilis / Hepatitis B / Chagas / Pruebas tipo "reactivo"
+        if (
+            Str::contains($k, 'vih') ||
+            Str::contains($k, 'sifilis') ||
+            Str::contains($k, 'ag_hbs') || Str::contains($k, 'hepatitis') ||
+            Str::contains($k, 'chagas')
+        ) {
+            return [
+                'REACTIVO' => 'Reactivo',
+                'NO REACTIVO' => 'No reactivo',
+                'NO REALIZADO' => 'No realizado',
+            ];
+        }
+
+        // Toxoplasma / Rubéola (muy común reportar IgM)
+        if (Str::contains($k, 'toxoplasma') || Str::contains($k, 'rubeola')) {
+            return [
+                'IGM POSITIVO' => 'IgM positivo',
+                'IGM NEGATIVO' => 'IgM negativo',
+                'NO REALIZADO' => 'No realizado',
+            ];
+        }
+
+        // Citología (categorías típicas)
+        if (Str::contains($k, 'citologia')) {
+            return [
+                'NEGATIVA' => 'Negativa',
+                'ASC-US' => 'ASC-US',
+                'LSIL' => 'LSIL (Lesión intraepitelial escamosa de bajo grado)',
+                'HSIL' => 'HSIL (Lesión intraepitelial escamosa de alto grado)',
+                'OTRO' => 'Otro',
+                'NO REALIZADA' => 'No realizada',
+            ];
+        }
+
+        // Hemoclasificación (grupo y Rh)
+        if (Str::contains($k, 'hemoclasificacion')) {
+            return [
+                'A+' => 'A+',
+                'A-' => 'A-',
+                'B+' => 'B+',
+                'B-' => 'B-',
+                'AB+' => 'AB+',
+                'AB-' => 'AB-',
+                'O+' => 'O+',
+                'O-' => 'O-',
+                'NO REALIZADO' => 'No realizado',
+            ];
+        }
+
+        // Urocultivo (a veces reportan contaminado)
+        if (Str::contains($k, 'urocultivo')) {
+            return [
+                'POSITIVO' => 'Positivo',
+                'NEGATIVO' => 'Negativo',
+                'CONTAMINADO' => 'Contaminado',
+                'NO REALIZADO' => 'No realizado',
+            ];
+        }
+
+        // Estreptococo / Malaria (común pos/neg)
+        if (Str::contains($k, 'estreptococo') || Str::contains($k, 'malaria')) {
+            return [
+                'POSITIVO' => 'Positivo',
+                'NEGATIVO' => 'Negativo',
+                'NO REALIZADO' => 'No realizado',
+            ];
+        }
+
+        // Fallback general para "resultado" cualitativo
+        return [
+            'POSITIVO' => 'Positivo',
+            'NEGATIVO' => 'Negativo',
+            'NO REALIZADO' => 'No realizado',
+        ];
+    };
+
     // ==== DEFINICIÓN DE SECCIONES Y CAMPOS ====
-    // Formato: ['campo', 'label', 'type' => text|date|number|select|textarea, 'opts' => [...]]
     $SECCIONES = [
 
         'Cabecera del seguimiento' => [
@@ -227,7 +310,6 @@
             ['defuncion_causa','Defunción - causa','text'],
             ['multiplicidad_embarazo','Multiplicidad embarazo','text'],
 
-            // RN1
             ['rn1_registro_civil','RN1 - registro civil','select',$optSN],
             ['rn1_nombre','RN1 - nombre','text'],
             ['rn1_sexo','RN1 - sexo','text'],
@@ -240,7 +322,6 @@
             ['rn1_vac_bcg','RN1 - VAC BCG','select',$optSN],
             ['rn1_vac_hepb','RN1 - VAC HEPB','select',$optSN],
 
-            // RN2
             ['rn2_registro_civil','RN2 - registro civil','select',$optSN],
             ['rn2_nombre','RN2 - nombre','text'],
             ['rn2_sexo','RN2 - sexo','text'],
@@ -285,14 +366,12 @@
       </div>
     @endif
 
-    {{-- IMPORTANTE: multipart para subir archivos --}}
     <form action="{{ $action }}" method="POST" enctype="multipart/form-data">
       @csrf
       @if(strtoupper($method)==='PUT')
         @method('PUT')
       @endif
 
-      {{-- fecha_seguimiento y observaciones --}}
       <div class="row">
         <div class="form-group col-md-3">
           <label>Fecha de seguimiento</label>
@@ -304,7 +383,6 @@
         </div>
       </div>
 
-      {{-- Acordeón de secciones --}}
       <div id="accordion">
         @php $secIndex = 0; @endphp
         @foreach($SECCIONES as $titulo => $campos)
@@ -318,6 +396,7 @@
                 </button>
               </h5>
             </div>
+
             <div id="sec-{{ $secIndex }}" class="collapse {{ $open }}" data-parent="#accordion">
               <div class="card-body">
                 @php $chunked = array_chunk($campos, 4); @endphp
@@ -333,36 +412,24 @@
 
                         $current = $val($name);
 
-                        // ✅ es resultado si el label o name contiene "resultado"
                         $isResultado = Str::contains(Str::lower($label.' '.$name), 'resultado');
 
-                        /**
-                         * ✅ OJO IMPORTANTE:
-                         * Tus columnas reales de descripción son:
-                         *   vih_tamiz1_resultado_desc (etc)
-                         * y el $name viene como:
-                         *   vih_tamiz1_resultado
-                         * entonces el desc correcto ES:
-                         *   $name . '_desc'
-                         */
                         $descName    = $name . '_desc';
                         $descCurrent = $val($descName);
 
-                        // PDF detectado por la ruta en el campo resultado
                         $isPdf = $isPdfValue($current);
-
-                        // Input file name: *_resultado_file (como tu controller)
                         $fileInputName = $name . '_file';
 
                         $initialMode = $isResultado ? ($isPdf ? 'pdf' : 'text') : 'text';
                         $fileUrlCurrent = $isPdf ? $filePublicUrl($current) : null;
+
+                        $resultadoOpts = $isResultado ? $getResultadoOpts($name, $label) : [];
                       @endphp
 
                       <div class="form-group {{ $colClass }}">
                         <label class="d-flex align-items-center justify-content-between">
                           <span>{{ $label }}</span>
 
-                          {{-- Conmutador Texto/PDF solo si es "resultado" --}}
                           @if($isResultado)
                             <span class="btn-group btn-group-toggle btn-group-sm" data-toggle="buttons">
                               <label class="btn btn-outline-secondary mode-btn {{ $initialMode==='text' ? 'active' : '' }}" data-target="{{ $name }}" data-mode="text">
@@ -375,19 +442,21 @@
                           @endif
                         </label>
 
-                        {{-- ✅ Para resultados: SIEMPRE enviar la ruta actual en hidden para no perderla en UPDATE --}}
                         @if($isResultado)
                           <input type="hidden" name="{{ $name }}" value="{{ $current }}">
                         @endif
 
-                        {{-- =========================
-                            MODO TEXTO
-                            - Si es resultado: guarda en *_desc
-                            - Si NO: render normal
-                           ========================= --}}
+                        {{-- MODO TEXTO --}}
                         <div class="resultado-text-wrap" id="wrap-text-{{ $name }}" @if($isResultado && $initialMode==='pdf') style="display:none" @endif>
                           @if($isResultado)
-                            <textarea name="{{ $descName }}" class="form-control" rows="2" placeholder="Descripción del PDF...">{{ $descCurrent }}</textarea>
+                            <select name="{{ $descName }}" class="form-control">
+                              <option value="">-- Seleccione resultado --</option>
+                              @foreach($resultadoOpts as $ov => $ot)
+                                <option value="{{ $ov }}" {{ ((string)$descCurrent===(string)$ov) ? 'selected' : '' }}>
+                                  {{ $ot }}
+                                </option>
+                              @endforeach
+                            </select>
                           @else
                             @if($type === 'textarea')
                               <textarea name="{{ $name }}" class="form-control" rows="2">{{ $current }}</textarea>
@@ -404,10 +473,7 @@
                           @endif
                         </div>
 
-                        {{-- =========================
-                            MODO PDF (solo resultado)
-                            - sube archivo y el controller guardará ruta en *_resultado
-                           ========================= --}}
+                        {{-- MODO PDF --}}
                         @if($isResultado)
                           <div class="resultado-pdf-wrap" id="wrap-pdf-{{ $name }}" @if($initialMode!=='pdf') style="display:none" @endif>
                             <div class="custom-file mb-2">
@@ -415,7 +481,6 @@
                               <label class="custom-file-label" for="{{ $fileInputName }}">Seleccionar PDF...</label>
                             </div>
 
-                            {{-- Vista previa si ya hay PDF guardado --}}
                             @if($fileUrlCurrent)
                               <div class="border rounded p-2">
                                 <div class="d-flex justify-content-between align-items-center mb-2">
@@ -429,7 +494,7 @@
                             @endif
 
                             <small class="form-text text-muted">
-                              Se guardará la ruta del PDF. Si luego quieres agregar una descripción, cambia a “Texto”.
+                              Se guardará la ruta del PDF. Para registrar el resultado (reactivo/negativo/etc), cambia a “Texto”.
                             </small>
                           </div>
                         @endif
@@ -464,7 +529,6 @@
 
 @push('js')
 <script>
-  // Toggle Texto/PDF por campo de "resultado"
   document.addEventListener('DOMContentLoaded', function () {
 
     document.querySelectorAll('.mode-btn').forEach(function(btn) {
@@ -487,7 +551,6 @@
       });
     });
 
-    // Mostrar nombre del archivo en label (bootstrap custom-file)
     document.querySelectorAll('.custom-file-input').forEach(function(input) {
       input.addEventListener('change', function(e) {
         const fileName = e.target.files.length ? e.target.files[0].name : 'Seleccionar PDF...';

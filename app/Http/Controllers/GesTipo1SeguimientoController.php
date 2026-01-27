@@ -9,6 +9,9 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 use Carbon\Carbon;
 
+// ✅ ALERTAS
+use App\Services\GestantesAlertService;
+
 class GesTipo1SeguimientoController extends Controller
 {
     public function create(GesTipo1 $ges)
@@ -24,14 +27,24 @@ class GesTipo1SeguimientoController extends Controller
         $this->limpiarVacios($data);
         $this->normalizarFechasSqlServer($data);
 
-        // PDF -> guarda ruta en *_resultado_pdf (NO pisa el texto)
+        // PDF -> guarda ruta en *_resultado (como lo tienes actualmente)
         $this->ingestarArchivosResultado($request, $data);
 
         $data['ges_tipo1_id'] = $ges->id;
         $data['user_id']      = Auth::id();
 
         try {
-            GesTipo1Seguimiento::create($data);
+            $seg = GesTipo1Seguimiento::create($data);
+
+            // ✅ CREAR ALERTAS + ENVIAR CORREO
+            GestantesAlertService::scanAndCreateFromSeguimiento(
+                $request,
+                (int) $ges->id,
+                (int) $seg->id,
+                Auth::id(),
+                $this->resultadoLabels()
+            );
+
         } catch (\Throwable $e) {
             Log::error('❌ ERROR INSERT SEGUIMIENTO (payload de fechas)', [
                 'ges_tipo1_id' => $ges->id,
@@ -66,9 +79,18 @@ class GesTipo1SeguimientoController extends Controller
          * (Como en rules() NO validamos *_resultado_pdf, esos campos NO vienen en $data,
          * entonces update() no los toca y quedan intactos)
          */
-
         try {
             $seg->update($data);
+
+            // ✅ CREAR ALERTAS + ENVIAR CORREO (también en update)
+            GestantesAlertService::scanAndCreateFromSeguimiento(
+                $request,
+                (int) $ges->id,
+                (int) $seg->id,
+                Auth::id(),
+                $this->resultadoLabels()
+            );
+
         } catch (\Throwable $e) {
             Log::error('❌ ERROR UPDATE SEGUIMIENTO (payload de fechas)', [
                 'seg_id'       => $seg->id,
@@ -95,14 +117,36 @@ class GesTipo1SeguimientoController extends Controller
     }
 
     /**
-     * ✅ ESTE ERA TU ERROR:
-     * Tenías rules incompleto -> validate() botaba (NO PASABA) la mayoría de campos.
-     *
-     * Aquí dejamos pasar TODOS los campos del form (texto, números, selects, etc),
-     * y adicionalmente los archivos *_resultado_file.
-     *
-     * OJO: NO validamos *_resultado_pdf aquí para que NO se borren en update().
+     * ✅ Labels bonitos para el módulo Alertas
      */
+    private function resultadoLabels(): array
+    {
+        return [
+            'vih_tamiz1_resultado' => 'VIH Tamiz 1',
+            'vih_tamiz2_resultado' => 'VIH Tamiz 2',
+            'vih_tamiz3_resultado' => 'VIH Tamiz 3',
+
+            'sifilis_rapida1_resultado' => 'Sífilis rápida 1',
+            'sifilis_rapida2_resultado' => 'Sífilis rápida 2',
+            'sifilis_rapida3_resultado' => 'Sífilis rápida 3',
+            'sifilis_no_trep_resultado' => 'Sífilis no treponémica',
+
+            'urocultivo_resultado' => 'Urocultivo',
+            'glicemia_resultado' => 'Glicemia',
+            'pto_glucosa_resultado' => 'PTO glucosa',
+            'hemoglobina_resultado' => 'Hemoglobina',
+            'hemoclasificacion_resultado' => 'Hemoclasificación',
+            'ag_hbs_resultado' => 'Hepatitis B (Ag HBs)',
+            'toxoplasma_resultado' => 'Toxoplasma',
+            'rubeola_resultado' => 'Rubéola',
+            'citologia_resultado' => 'Citología',
+            'frotis_vaginal_resultado' => 'Frotis vaginal',
+            'estreptococo_resultado' => 'Estreptococo',
+            'malaria_resultado' => 'Malaria',
+            'chagas_resultado' => 'Chagas',
+        ];
+    }
+
     private function rules(): array
     {
         $rules = [
@@ -144,7 +188,7 @@ class GesTipo1SeguimientoController extends Controller
             'inasistente'              => 'nullable|string|max:10',
             'ips_primaria'             => 'nullable|string|max:150',
 
-            // Gestación (fechas y cálculo)
+            // Gestación
             'fecha_ingreso_cpn'        => 'nullable',
             'fum'                      => 'nullable',
             'fpp'                      => 'nullable',
@@ -154,7 +198,7 @@ class GesTipo1SeguimientoController extends Controller
             'trimestre_inicio_control' => 'nullable|string|max:50',
             'formula_obstetrica'       => 'nullable|string|max:100',
 
-            // Morbilidades y factores
+            // Morbilidades
             'hipertension_arterial'    => 'nullable|string|max:10',
             'diabetes'                 => 'nullable|string|max:10',
             'vih'                      => 'nullable|string|max:10',
@@ -168,7 +212,7 @@ class GesTipo1SeguimientoController extends Controller
             'abuso_sexual'             => 'nullable|string|max:10',
             'periodo_intergenesico'    => 'nullable|string|max:50',
 
-            // Antropometría y riesgo
+            // Antropometría
             'peso_inicial'             => 'nullable|numeric',
             'talla'                    => 'nullable|numeric',
             'imc'                      => 'nullable|numeric',
@@ -179,12 +223,12 @@ class GesTipo1SeguimientoController extends Controller
             'alto_riesgo_causas'       => 'nullable|string',
             'otras_cuales'             => 'nullable|string',
 
-            // Asesorías / Remisiones
+            // Asesorías
             'remitida_especialista'    => 'nullable|string|max:10',
             'asesoria_vih'             => 'nullable|string|max:10',
             'asesoria_vih_trimestre'   => 'nullable|string|max:50',
 
-            // === AQUÍ ESTABA TU OTRO PROBLEMA: RESULTADOS / TRIMESTRES ===
+            // Resultados / fechas
             'vih_tamiz1_fecha'         => 'nullable',
             'vih_tamiz1_resultado'     => 'nullable|string',
             'vih_tamiz1_trimestre'     => 'nullable|string|max:50',
@@ -332,20 +376,15 @@ class GesTipo1SeguimientoController extends Controller
             'rn2_vac_hepb'          => 'nullable|string|max:10',
         ];
 
-        // ✅ Reglas para los inputs de archivos (coincide con tu blade: *_resultado_file)
-// ✅ y reglas para las descripciones (coincide con tu BD: *_resultado_desc)
-foreach ($this->resultadoFields() as $base) {
-    $rules[$base . '_file'] = 'nullable|file|mimetypes:application/pdf|max:20480';
-    $rules[$base . '_desc'] = 'nullable|string'; // ✅ ESTO ES LO QUE TE FALTABA
-}
+        // ✅ reglas para archivos + descripciones
+        foreach ($this->resultadoFields() as $base) {
+            $rules[$base . '_file'] = 'nullable|file|mimetypes:application/pdf|max:20480';
+            $rules[$base . '_desc'] = 'nullable|string';
+        }
 
         return $rules;
     }
 
-    /**
-     * Estos son los "bases" del file input:
-     * ej: vih_tamiz1_resultado -> input file: vih_tamiz1_resultado_file
-     */
     private function resultadoFields(): array
     {
         return [
@@ -358,31 +397,27 @@ foreach ($this->resultadoFields() as $base) {
         ];
     }
 
-    /**
-     * ✅ PDF -> se guarda en *_resultado_pdf (nuevo campo)
-     */
-   protected function ingestarArchivosResultado(Request $request, array &$data): void
-{
-    $campos = [
-        'vih_tamiz1','vih_tamiz2','vih_tamiz3',
-        'sifilis_rapida1','sifilis_rapida2','sifilis_rapida3',
-        'sifilis_no_trep','urocultivo','glicemia','pto_glucosa',
-        'hemoglobina','hemoclasificacion','ag_hbs','toxoplasma',
-        'rubeola','citologia','frotis_vaginal','estreptococo',
-        'malaria','chagas',
-    ];
+    protected function ingestarArchivosResultado(Request $request, array &$data): void
+    {
+        $campos = [
+            'vih_tamiz1','vih_tamiz2','vih_tamiz3',
+            'sifilis_rapida1','sifilis_rapida2','sifilis_rapida3',
+            'sifilis_no_trep','urocultivo','glicemia','pto_glucosa',
+            'hemoglobina','hemoclasificacion','ag_hbs','toxoplasma',
+            'rubeola','citologia','frotis_vaginal','estreptococo',
+            'malaria','chagas',
+        ];
 
-    foreach ($campos as $c) {
-        $fileKey = "{$c}_resultado_file";
-        $dbField = "{$c}_resultado"; // ✅ ruta del PDF
+        foreach ($campos as $c) {
+            $fileKey = "{$c}_resultado_file";
+            $dbField = "{$c}_resultado"; // ✅ ruta del PDF
 
-        if ($request->hasFile($fileKey)) {
-            $path = $request->file($fileKey)->store("seguimientos", "public");
-            $data[$dbField] = $path;
+            if ($request->hasFile($fileKey)) {
+                $path = $request->file($fileKey)->store("seguimientos", "public");
+                $data[$dbField] = $path;
+            }
         }
     }
-}
-
 
     private function limpiarVacios(array &$data): void
     {
@@ -391,8 +426,6 @@ foreach ($this->resultadoFields() as $base) {
 
             $vv = trim($v);
 
-            // 👇 OJO: si el usuario llega a escribir "0" como descripción, esto lo vuelve null.
-            // Si NO quieres eso, elimina '0' de aquí.
             if ($vv === '' || $vv === 'N/A' || $vv === '--' || $vv === '00/00/0000' || $vv === '0000-00-00') {
                 $data[$k] = null;
             }
@@ -452,12 +485,6 @@ foreach ($this->resultadoFields() as $base) {
         return $out;
     }
 
-    /**
-     * ✅ CORREGIDO:
-     * Ahora los PDFs están en *_resultado_pdf (no en *_resultado)
-     *
-     * Usa este método SOLO si vas a servir PDFs por ruta.
-     */
     public function verArchivo(GesTipo1Seguimiento $seg, string $field)
     {
         $permitidos = [

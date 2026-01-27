@@ -497,11 +497,19 @@ return [
             'label_color' => 'success',
         ],
 
-              [
-    'text' => 'Estadísticas',
-    'url'  => 'estadisticas/gestantes',
-    'icon' => 'fas fa-chart-bar',
-],
+
+                        [
+                'text' => 'Alertas',
+                'route' => 'alertas.index',
+                'icon' => 'fas fa-exclamation-triangle',
+            ],
+
+
+                        [
+                'text' => 'Estadísticas',
+                'url'  => 'estadisticas/gestantes',
+                'icon' => 'fas fa-chart-bar',
+            ],
 
 
 

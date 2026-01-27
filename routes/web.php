@@ -26,7 +26,7 @@ use App\Http\Controllers\GesTipo1SeguimientoController;
 use App\Http\Controllers\PreconcepcionalController;
 use App\Http\Controllers\FormatosController;
 use App\Http\Controllers\GestantesStatsController;
-
+use App\Http\Controllers\AlertasController;
 
 /*
 |--------------------------------------------------------------------------
@@ -550,4 +550,16 @@ Route::middleware(['auth'])->group(function () {
 
     Route::get('/estadisticas/gestantes/detalle/{modulo}', [GestantesStatsController::class, 'detail'])
         ->name('gestantes.stats.detail');
+});
+
+
+//RUTAS PARA ALERTAS DE GESTANTES  
+Route::middleware(['auth'])->group(function () {
+
+    Route::get('/alertas', [AlertasController::class, 'index'])->name('alertas.index');
+
+    Route::post('/alertas/{alerta}/seen', [AlertasController::class, 'markSeen'])->name('alertas.seen');
+    Route::post('/alertas/{alerta}/resolve', [AlertasController::class, 'resolve'])->name('alertas.resolve');
+
+    Route::get('/alertas/{alerta}/pdf', [AlertasController::class, 'pdf'])->name('alertas.pdf');
 });
