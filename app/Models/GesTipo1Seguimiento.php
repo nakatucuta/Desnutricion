@@ -77,7 +77,7 @@ class GesTipo1Seguimiento extends Model
         'rn2_registro_civil','rn2_nombre','rn2_sexo','rn2_peso','rn2_condicion','rn2_tsh','rn2_hipotiroideo_dx',
         'rn2_trat_hipotiroideo','rn2_uci','rn2_vac_bcg','rn2_vac_hepb',
 
-        // ===== ✅ DESCRIPCIONES NUEVAS (ESTO ERA LO QUE TE FALTABA) =====
+        // ===== ✅ DESCRIPCIONES NUEVAS =====
         'vih_tamiz1_resultado_desc',
         'vih_tamiz2_resultado_desc',
         'vih_tamiz3_resultado_desc',
@@ -98,6 +98,62 @@ class GesTipo1Seguimiento extends Model
         'estreptococo_resultado_desc',
         'malaria_resultado_desc',
         'chagas_resultado_desc',
+
+        // =========================
+        // ✅ POSTPARTO
+        // =========================
+        'pp_menor_tipo_documento',
+        'pp_menor_numero_identificacion',
+        'pp_menor_apellido_1',
+        'pp_menor_apellido_2',
+        'pp_menor_nombre_1',
+        'pp_menor_nombre_2',
+        'pp_menor_fecha_nacimiento',
+        'pp_menor_edad',
+
+        'pp_menor_temperatura',
+        'pp_menor_frecuencia_cardiaca',
+        'pp_menor_frecuencia_respiratoria',
+        'pp_menor_peso',
+        'pp_menor_talla',
+        'pp_menor_imc',
+        'pp_menor_perimetro_cefalico',
+        'pp_menor_examen_fisico',
+
+        'pp_tipo_alimentacion',
+        'pp_educacion_tecnica_agarre',
+
+        'pp_vac_bcg',
+        'pp_vac_hepatitis_b',
+
+        'pp_alarma_fiebre',
+        'pp_alarma_dificultad_respiratoria',
+        'pp_alarma_vomitos',
+        'pp_alarma_alteraciones_ombligo',
+        'pp_clasificacion_riesgo_menor',
+
+        'pp_programacion_proximos_controles',
+
+        'pp_madre_presion_arterial',
+        'pp_madre_frecuencia_cardiaca',
+        'pp_madre_frecuencia_respiratoria',
+        'pp_madre_temperatura',
+        'pp_madre_examen_fisico',
+
+        'pp_tamizaje_depresion_posparto',
+        'pp_evaluacion_ansiedad_estres',
+        'pp_redes_apoyo',
+
+        'pp_entrega_hierro',
+        'pp_entrega_acido_folico',
+        'pp_entrega_calcio',
+
+        'pp_revision_medicamentos',
+        'pp_educacion_uso_medicamentos',
+
+        'pp_consejeria_metodos_anticonceptivos',
+        'pp_fecha_colocacion_metodo',
+        'pp_metodo',
     ];
 
     protected $casts = [
@@ -140,6 +196,10 @@ class GesTipo1Seguimiento extends Model
         'cpn8_fecha' => 'date',
         'cpn9_fecha' => 'date',
         'defuncion_fecha' => 'date',
+
+        // ✅ POSTPARTO FECHAS
+        'pp_menor_fecha_nacimiento' => 'date',
+        'pp_fecha_colocacion_metodo' => 'date',
     ];
 
     public function caso()

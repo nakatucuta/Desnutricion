@@ -374,6 +374,73 @@ class GesTipo1SeguimientoController extends Controller
             'rn2_uci'               => 'nullable|string|max:10',
             'rn2_vac_bcg'           => 'nullable|string|max:10',
             'rn2_vac_hepb'          => 'nullable|string|max:10',
+
+            // =========================
+            // ✅ POSTPARTO - MENOR
+            // =========================
+            'pp_menor_tipo_documento' => 'nullable|string|max:10',
+            'pp_menor_numero_identificacion' => 'nullable|string|max:50',
+            'pp_menor_apellido_1' => 'nullable|string|max:100',
+            'pp_menor_apellido_2' => 'nullable|string|max:100',
+            'pp_menor_nombre_1' => 'nullable|string|max:100',
+            'pp_menor_nombre_2' => 'nullable|string|max:100',
+            'pp_menor_fecha_nacimiento' => 'nullable',
+            'pp_menor_edad' => 'nullable|integer',
+
+            'pp_menor_temperatura' => 'nullable|numeric',
+            'pp_menor_frecuencia_cardiaca' => 'nullable|integer',
+            'pp_menor_frecuencia_respiratoria' => 'nullable|integer',
+            'pp_menor_peso' => 'nullable|numeric',
+            'pp_menor_talla' => 'nullable|numeric',
+            'pp_menor_imc' => 'nullable|numeric',
+            'pp_menor_perimetro_cefalico' => 'nullable|numeric',
+            'pp_menor_examen_fisico' => 'nullable|string',
+
+            // Alimentación / lactancia
+            'pp_tipo_alimentacion' => 'nullable|string|max:100',
+            'pp_educacion_tecnica_agarre' => 'nullable|string|max:10',
+
+            // Vacunación
+            'pp_vac_bcg' => 'nullable|string|max:10',
+            'pp_vac_hepatitis_b' => 'nullable|string|max:10',
+
+            // Alarmas
+            'pp_alarma_fiebre' => 'nullable|string|max:10',
+            'pp_alarma_dificultad_respiratoria' => 'nullable|string|max:10',
+            'pp_alarma_vomitos' => 'nullable|string|max:10',
+            'pp_alarma_alteraciones_ombligo' => 'nullable|string|max:10',
+            'pp_clasificacion_riesgo_menor' => 'nullable|string|max:100',
+
+            // Registro
+            'pp_programacion_proximos_controles' => 'nullable|string',
+
+            // =========================
+            // ✅ POSTPARTO - MADRE
+            // =========================
+            'pp_madre_presion_arterial' => 'nullable|string|max:20',
+            'pp_madre_frecuencia_cardiaca' => 'nullable|integer',
+            'pp_madre_frecuencia_respiratoria' => 'nullable|integer',
+            'pp_madre_temperatura' => 'nullable|numeric',
+            'pp_madre_examen_fisico' => 'nullable|string',
+
+            // Salud mental
+            'pp_tamizaje_depresion_posparto' => 'nullable|string|max:150',
+            'pp_evaluacion_ansiedad_estres' => 'nullable|string',
+            'pp_redes_apoyo' => 'nullable|string',
+
+            // Nutrición / recuperación
+            'pp_entrega_hierro' => 'nullable|string|max:10',
+            'pp_entrega_acido_folico' => 'nullable|string|max:10',
+            'pp_entrega_calcio' => 'nullable|string|max:10',
+
+            // Medicación
+            'pp_revision_medicamentos' => 'nullable|string',
+            'pp_educacion_uso_medicamentos' => 'nullable|string',
+
+            // Planificación familiar
+            'pp_consejeria_metodos_anticonceptivos' => 'nullable|string',
+            'pp_fecha_colocacion_metodo' => 'nullable',
+            'pp_metodo' => 'nullable|string|max:150',
         ];
 
         // ✅ reglas para archivos + descripciones
@@ -446,6 +513,10 @@ class GesTipo1SeguimientoController extends Controller
             'desparasitacion_fecha',
             'cpn1_fecha','cpn2_fecha','cpn3_fecha','cpn4_fecha','cpn5_fecha','cpn6_fecha','cpn7_fecha','cpn8_fecha','cpn9_fecha',
             'defuncion_fecha',
+
+            // ✅ POSTPARTO FECHAS
+            'pp_menor_fecha_nacimiento',
+            'pp_fecha_colocacion_metodo',
         ];
 
         foreach ($dateFields as $f) {

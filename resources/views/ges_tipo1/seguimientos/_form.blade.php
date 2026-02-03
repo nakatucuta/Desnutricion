@@ -334,6 +334,77 @@
             ['rn2_vac_bcg','RN2 - VAC BCG','select',$optSN],
             ['rn2_vac_hepb','RN2 - VAC HEPB','select',$optSN],
         ],
+
+       // ==========================================================
+// ✅ POSTPARTO (UNA SOLA SECCIÓN)
+// ==========================================================
+'Postparto' => [
+
+    // ===== Datos del menor =====
+    ['pp_menor_tipo_documento','Menor - Tipo de documento','text'],
+    ['pp_menor_numero_identificacion','Menor - No. Identificación','text'],
+    ['pp_menor_apellido_1','Menor - Apellido 1','text'],
+    ['pp_menor_apellido_2','Menor - Apellido 2','text'],
+    ['pp_menor_nombre_1','Menor - Nombre 1','text'],
+    ['pp_menor_nombre_2','Menor - Nombre 2','text'],
+    ['pp_menor_fecha_nacimiento','Menor - Fecha nacimiento','date'],
+    ['pp_menor_edad','Menor - Edad','number'],
+
+    // ===== Evaluación clínica completa (menor) =====
+    ['pp_menor_temperatura','Menor - Temperatura','number'],
+    ['pp_menor_frecuencia_cardiaca','Menor - Frecuencia cardíaca','number'],
+    ['pp_menor_frecuencia_respiratoria','Menor - Frecuencia respiratoria','number'],
+    ['pp_menor_peso','Menor - Peso','number'],
+    ['pp_menor_talla','Menor - Talla','number'],
+    ['pp_menor_imc','Menor - IMC','number'],
+    ['pp_menor_perimetro_cefalico','Menor - Perímetro cefálico','number'],
+    ['pp_menor_examen_fisico','Menor - Examen físico','textarea'],
+
+    // ===== Alimentación y lactancia =====
+    ['pp_tipo_alimentacion','Tipo de alimentación','text'],
+    ['pp_educacion_tecnica_agarre','Educación técnica de agarre','select',$optSN],
+
+    // ===== Vacunación =====
+    ['pp_vac_bcg','BCG','select',$optSN],
+    ['pp_vac_hepatitis_b','Hepatitis B','select',$optSN],
+
+    // ===== Signos de alarma (menor) =====
+    ['pp_alarma_fiebre','Fiebre','select',$optSN],
+    ['pp_alarma_dificultad_respiratoria','Dificultad respiratoria','select',$optSN],
+    ['pp_alarma_vomitos','Vómitos','select',$optSN],
+    ['pp_alarma_alteraciones_ombligo','Alteraciones en el ombligo','select',$optSN],
+    ['pp_clasificacion_riesgo_menor','Clasificación del riesgo','text'],
+
+    // ===== Registro y seguimiento =====
+    ['pp_programacion_proximos_controles','Programación de próximos controles','textarea'],
+
+    // ===== Valoración general (madre) =====
+    ['pp_madre_presion_arterial','Madre - Presión arterial','text'],
+    ['pp_madre_frecuencia_cardiaca','Madre - Frecuencia cardíaca','number'],
+    ['pp_madre_frecuencia_respiratoria','Madre - Frecuencia respiratoria','number'],
+    ['pp_madre_temperatura','Madre - Temperatura','number'],
+    ['pp_madre_examen_fisico','Madre - Examen físico','textarea'],
+
+    // ===== Salud mental y emocional =====
+    ['pp_tamizaje_depresion_posparto','Tamizaje de depresión posparto','text'],
+    ['pp_evaluacion_ansiedad_estres','Evaluación ansiedad/estrés/sobrecarga','textarea'],
+    ['pp_redes_apoyo','Identificación de redes de apoyo','textarea'],
+
+    // ===== Nutrición y recuperación física =====
+    ['pp_entrega_hierro','Entrega de hierro','select',$optSN],
+    ['pp_entrega_acido_folico','Entrega de ácido fólico','select',$optSN],
+    ['pp_entrega_calcio','Entrega de calcio','select',$optSN],
+
+    // ===== Medicación y adherencia =====
+    ['pp_revision_medicamentos','Revisión de medicamentos prescritos','textarea'],
+    ['pp_educacion_uso_medicamentos','Educación sobre uso adecuado y efectos secundarios','textarea'],
+
+    // ===== Planificación familiar =====
+    ['pp_consejeria_metodos_anticonceptivos','Consejería en métodos anticonceptivos','textarea'],
+    ['pp_fecha_colocacion_metodo','Fecha de colocación del método','date'],
+    ['pp_metodo','Método','text'],
+],
+
     ];
 
     // Responsivo: 4 campos por fila -> col-md-3
