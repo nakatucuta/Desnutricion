@@ -564,3 +564,14 @@ Route::middleware(['auth'])->group(function () {
 
     Route::get('/alertas/{alerta}/pdf', [AlertasController::class, 'pdf'])->name('alertas.pdf');
 });
+
+
+Route::get('/debug-php', function () {
+    return response()->json([
+        'loaded_ini' => php_ini_loaded_file(),
+        'max_execution_time' => ini_get('max_execution_time'),
+        'memory_limit' => ini_get('memory_limit'),
+        'post_max_size' => ini_get('post_max_size'),
+        'upload_max_filesize' => ini_get('upload_max_filesize'),
+    ]);
+});
