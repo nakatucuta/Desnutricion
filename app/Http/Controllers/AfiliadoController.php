@@ -18,6 +18,7 @@ use Carbon\Carbon;
 use Illuminate\Support\Facades\Storage;
 use App\Models\referencia_vacuna; // Importa el modelo aquí
 use App\Exports\VacunaExport;             // <- agrega
+use Illuminate\Support\Facades\Cache;
 
 use ZipArchive;
 
@@ -251,120 +252,309 @@ class AfiliadoController extends Controller
      * @param  \Illuminate\Http\Request  $request
      * @return \Illuminate\Http\RedirectResponse
      */
-    public function importExcel(Request $request)
-    {
+public function importExcel(Request $request)
+{
+    @set_time_limit(0);
+    @ini_set('memory_limit', '1024M');
 
-        set_time_limit(0);
-        ini_set('memory_limit','1024M'); // o más si hace falta
-        // Validar que se haya subido un archivo y que sea de tipo 'xlsx' o 'xls'
-        $request->validate([
-            'file' => 'required|mimes:xlsx,xls',
-        ]);
-    
-        $file = $request->file('file');
-    
-        if ($file) {
-            if (!Auth::check()) {
-                return redirect()->route('afiliado')->with('error', 'Usuario no autenticado.');
-            }
-    
-            $import = new \App\Imports\AfiliadoImport();
-            $batch_id = $import->getBatchVerificationsID();
-            $user = Auth::user()->name;
-    
-            Log::info("Iniciando validación: $batch_id - user: $user");
-    
-            Excel::import($import, $file);
-            $errores = $import->getErrores();
-    
-            if (!empty($errores)) {
-                Log::info("Errores: $batch_id - user: $user");
-                return redirect()->route('afiliado')->with('error1', $errores);
-            }
-    
-            Log::info("Terminada la validación: $batch_id - user: $user");
-    
-            if ($import->debeGuardar()) {
-                $filasParaGuardar = $import->getFilasParaGuardar();
-                $totalFilas = count($filasParaGuardar);
-                $newAfil = 0;
-                $oldAfil = 0;
-                $newVacuna = 0;
-                $oldVacuna = 0;
-    
-                DB::transaction(function () use ($filasParaGuardar, &$newAfil, &$oldAfil, &$newVacuna, &$oldVacuna, $user, $batch_id) {
-                    foreach ($filasParaGuardar as $fila) {
-                        // Asignar el 'user_id' al afiliado
-                        $fila['afiliado']['user_id'] = Auth::id();
-                        $afiliado = Afiliado::where('numero_carnet', $fila['afiliado']['numero_carnet'])->first();
-    
-                        if (!$fila['existe'] && !$afiliado) {
-                            $afiliado = Afiliado::create($fila['afiliado']);
-                            $newAfil++;
-                        } else {
-                            $oldAfil++;
-                        }
-    
-                        foreach ($fila['vacunas'] as $vacunaData) {
-                            // Verifica que `vacunas_id` esté definido antes de intentar buscar
-                            if (!isset($vacunaData['vacunas_id']) || empty($vacunaData['vacunas_id'])) {
-                                Log::error("El campo `vacunas_id` no está definido o está vacío en los datos de la vacuna.");
-                                continue; // Saltar esta iteración
-                            }
-                          //consulta que obtiene la vacuna comparando con la tabla  referncia
-                            // Obtener el `nombre_vacuna` desde la tabla `referencia_vacunas` usando Query Builder
-                            $referenciaVacuna = DB::table('referencia_vacunas')
-                                ->where('id', $vacunaData['vacunas_id'])
-                                ->first();
-                        
-                            if (!$referenciaVacuna) {
-                                // Si no encuentra la referencia, registrar un error y asignar un nombre predeterminado
-                                Log::error("Vacuna no encontrada en `referencia_vacunas` con ID: {$vacunaData['vacunas_id']}");
-                                $vacunaData['nombre_vacuna'] = 'Desconocida'; // Nombre predeterminado
-                            } else {
-                                // Asignar el nombre de la vacuna desde la tabla `referencia_vacunas`
-                                $vacunaData['nombre_vacuna'] = $referenciaVacuna->nombre;
-                            }
-                        
-                            // Comprobar si la vacuna ya existe en la tabla `vacunas`
-                            $existeVacuna = Vacuna::where('afiliado_id', $afiliado->id)
-                                ->whereRaw("docis COLLATE Latin1_General_CI_AI = ?", [$vacunaData['docis']])
-                                ->where('vacunas_id', $vacunaData['vacunas_id'])
-                                ->first();
-                        
-                            if (!$existeVacuna) {
-                                // Si la vacuna no existe, crearla
-                                $vacunaData['afiliado_id'] = $afiliado->id;
-                                Vacuna::create($vacunaData);
-                                $newVacuna++;
-                            } else {
-                                $oldVacuna++;
-                            }
-                        }
-                        
-                        
-                    }
-                });
-    
-                // Ruta del archivo TXT
-                $filePath = storage_path('app/public/vacunas_cargadas_' . $batch_id . '.txt');
-    
-                // Generar el archivo
-                $this->generarArchivoVacunas($filasParaGuardar, $filePath);
-    
-                // Enviar el correo
-                $this->enviarCorreoConAdjunto($filePath, $user);
-    
-                Log::info("Proceso finalizado exitosamente: $batch_id - user: $user");
-                return redirect()->route('afiliado')->with('success', 'Datos importados y correo enviado correctamente');
-            } else {
-                Log::info("Errores de validación: $batch_id - user: $user");
-                return redirect()->route('afiliado')->with('error1', 'No se pudo cargar el archivo debido a errores en los datos.');
-            }
-        } else {
-            return redirect()->route('afiliado')->with('error', 'Por favor, sube un archivo Excel.');
-        }
+    $request->validate([
+        'file' => 'required|mimes:xlsx,xls',
+        'upload_token' => 'nullable|string',
+    ]);
+
+    if (!Auth::check()) {
+        return redirect()->route('afiliado')->with('error', 'Usuario no autenticado.');
     }
+
+    $file   = $request->file('file');
+    $userId = Auth::id();
+    $user   = Auth::user()->name ?? 'SIN_NOMBRE';
+    $token  = $request->input('upload_token');
+
+    // Columnas REALES de la tabla vacunas (según tu SELECT)
+    $allowedVacunasCols = [
+        'docis',
+        'laboratorio',
+        'lote',
+        'jeringa',
+        'lote_jeringa',
+        'diluyente',
+        'lote_diluyente',
+        'observacion',
+        'gotero',
+        'tipo_neumococo',
+        'num_frascos_utilizados',
+        'fecha_vacuna',
+        'responsable',
+        'fuen_ingresado_paiweb',
+        'motivo_noingreso',
+        'observaciones',
+        'batch_verifications_id',
+        'afiliado_id',
+        'vacunas_id',
+        'user_id',
+        'created_at',
+        'updated_at',
+    ];
+
+    // Helpers
+    $progress = function (int $percent, string $message, string $step, bool $done = false, bool $ok = true, array $doneSteps = []) use ($token) {
+        if (!$token) return;
+        Cache::put("import_progress:{$token}", [
+            'percent' => $percent,
+            'message' => $message,
+            'step'    => $step,
+            'done'    => $done,
+            'ok'      => $ok,
+            'done_steps' => $doneSteps,
+        ], now()->addMinutes(30));
+    };
+
+    $normalizeDocis = function ($value) {
+        if ($value === null) return null;
+        $s = trim((string)$value);
+        if ($s === '' || strtoupper($s) === 'NONE') return null;
+
+        $s = @iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', $s) ?: $s;
+        $s = preg_replace('/\s+/', ' ', $s);
+        return mb_strtoupper($s, 'UTF-8');
+    };
+
+    $onlyAllowed = function (array $row) use ($allowedVacunasCols) {
+        return array_intersect_key($row, array_flip($allowedVacunasCols));
+    };
+
+    // Forzar strings en columnas de lote (evita conversiones extrañas)
+    $forceStringLots = function (array $row) {
+        foreach (['lote', 'lote_jeringa', 'lote_diluyente'] as $k) {
+            if (array_key_exists($k, $row)) {
+                $row[$k] = ($row[$k] === null) ? null : trim((string)$row[$k]);
+                if ($row[$k] === '') $row[$k] = null;
+            }
+        }
+        return $row;
+    };
+
+    try {
+        $import   = new \App\Imports\AfiliadoImport();
+        $batch_id = $import->getBatchVerificationsID();
+
+        Log::info("INICIO importExcel: batch={$batch_id} user={$user} (id={$userId})");
+        $progress(5, 'Validando archivo y estructura…', 'validacion');
+
+        Excel::import($import, $file);
+
+        $errores = $import->getErrores();
+        if (!empty($errores)) {
+            Log::info("Errores: batch={$batch_id} user={$user}");
+            $progress(100, 'Se encontraron errores de validación. Revisa el detalle.', 'final', true, false, []);
+            return redirect()->route('afiliado')->with('error1', $errores);
+        }
+
+        Log::info("Terminada la validación: batch={$batch_id} user={$user}");
+
+        if (!$import->debeGuardar()) {
+            $progress(100, 'No se pudo cargar el archivo por errores en datos.', 'final', true, false, []);
+            return redirect()->route('afiliado')->with('error1', 'No se pudo cargar el archivo debido a errores en los datos.');
+        }
+
+        $filasParaGuardar = $import->getFilasParaGuardar();
+        $totalFilas = count($filasParaGuardar);
+
+        if ($totalFilas === 0) {
+            $progress(100, 'Archivo procesado. No había registros nuevos para guardar.', 'final', true, true, ['validacion','final']);
+            return redirect()->route('afiliado')->with('success', 'Archivo procesado. No había registros nuevos para guardar.');
+        }
+
+        $newAfil = 0; $oldAfil = 0; $newVacuna = 0; $oldVacuna = 0;
+        $progress(15, "Validación OK. Preparando guardado ({$totalFilas} filas)…", 'validacion', false, true, ['validacion']);
+
+        DB::transaction(function () use (
+            $filasParaGuardar,
+            $totalFilas,
+            $userId,
+            $batch_id,
+            $normalizeDocis,
+            $onlyAllowed,
+            $forceStringLots,
+            $progress,
+            &$newAfil,
+            &$oldAfil,
+            &$newVacuna,
+            &$oldVacuna
+        ) {
+            $processed = 0;
+
+            // Procesar en chunks para eficiencia
+            foreach (array_chunk($filasParaGuardar, 250) as $chunk) {
+
+                // -------------------------
+                // 1) AFILIADOS: precarga por whereIn (evita where por carnet)
+                // -------------------------
+                $progress(25, 'Guardando afiliados…', 'afiliados', false, true, ['validacion']);
+
+                $carnets = [];
+                foreach ($chunk as $fila) {
+                    $c = $fila['afiliado']['numero_carnet'] ?? null;
+                    if ($c) $carnets[] = $c;
+                }
+                $carnets = array_values(array_unique($carnets));
+
+                $afiliadosMap = Afiliado::query()
+                    ->select('id', 'numero_carnet')
+                    ->whereIn('numero_carnet', $carnets)
+                    ->get()
+                    ->keyBy('numero_carnet');
+
+                // Insert masivo afiliados faltantes
+                $insertAfiliados = [];
+                foreach ($chunk as $fila) {
+                    $carnet = $fila['afiliado']['numero_carnet'] ?? null;
+                    if (!$carnet) continue;
+
+                    if (($fila['existe'] ?? false) === false && !$afiliadosMap->has($carnet)) {
+                        $fila['afiliado']['user_id'] = $userId;
+                        $fila['afiliado']['batch_verifications_id'] = $batch_id;
+                        $insertAfiliados[] = $fila['afiliado'];
+                    } else {
+                        $oldAfil++;
+                    }
+                }
+
+                if (!empty($insertAfiliados)) {
+                    DB::table('afiliados')->insert($insertAfiliados);
+                    $newAfil += count($insertAfiliados);
+
+                    // Recargar map para tener IDs de los recién insertados
+                    $afiliadosMap = Afiliado::query()
+                        ->select('id', 'numero_carnet')
+                        ->whereIn('numero_carnet', $carnets)
+                        ->get()
+                        ->keyBy('numero_carnet');
+                }
+
+                // Map carnet -> afiliado_id
+                $afiliadoIdPorCarnet = $afiliadosMap->map(fn($a) => (int)$a->id)->all();
+                $afiliadoIds = array_values(array_unique(array_filter($afiliadoIdPorCarnet)));
+
+                // -------------------------
+                // 2) VACUNAS: precargar existentes (existeVacuna optimizado)
+                // key = afiliado|vacunas_id|docisNorm
+                // -------------------------
+                $progress(45, 'Preparando vacunas (deduplicación)…', 'vacunas', false, true, ['validacion','afiliados']);
+
+                $existingKeys = [];
+                if (!empty($afiliadoIds)) {
+                    $exist = DB::table('vacunas')
+                        ->select('afiliado_id', 'vacunas_id', 'docis')
+                        ->whereIn('afiliado_id', $afiliadoIds)
+                        ->get();
+
+                    foreach ($exist as $e) {
+                        $k = (int)$e->afiliado_id . '|' . (int)$e->vacunas_id . '|' . ($normalizeDocis($e->docis) ?? '');
+                        $existingKeys[$k] = true;
+                    }
+                }
+
+                // -------------------------
+                // 3) Preparar insert masivo de vacunas
+                // -------------------------
+                $insertVacunas = [];
+                $seenInChunk = [];
+
+                foreach ($chunk as $fila) {
+                    $carnet = $fila['afiliado']['numero_carnet'] ?? null;
+                    if (!$carnet) continue;
+
+                    $afiliadoId = $afiliadoIdPorCarnet[$carnet] ?? null;
+                    if (!$afiliadoId) continue;
+
+                    $vacunas = $fila['vacunas'] ?? [];
+                    if (empty($vacunas)) continue;
+
+                    foreach ($vacunas as $vacunaData) {
+
+                        $vacunasId = $vacunaData['vacunas_id'] ?? null;
+                        if (!$vacunasId) {
+                            continue;
+                        }
+
+                        // Dedup por docis normalizada
+                        $docisNorm = $normalizeDocis($vacunaData['docis'] ?? null);
+                        $key = (int)$afiliadoId . '|' . (int)$vacunasId . '|' . ($docisNorm ?? '');
+
+                        if (isset($existingKeys[$key]) || isset($seenInChunk[$key])) {
+                            $oldVacuna++;
+                            continue;
+                        }
+
+                        $seenInChunk[$key] = true;
+
+                        // Set claves
+                        $vacunaData['afiliado_id'] = $afiliadoId;
+                        $vacunaData['user_id'] = $userId;
+                        $vacunaData['batch_verifications_id'] = $batch_id;
+
+                        // timestamps
+                        $vacunaData['created_at'] = $vacunaData['created_at'] ?? now();
+                        $vacunaData['updated_at'] = $vacunaData['updated_at'] ?? now();
+
+                        // Forzar strings de lote
+                        $vacunaData = $forceStringLots($vacunaData);
+
+                        // Filtrar SOLO columnas reales (evita meter campos extra del import)
+                        $vacunaData = $onlyAllowed($vacunaData);
+
+                        $insertVacunas[] = $vacunaData;
+                        $newVacuna++;
+                    }
+
+                    $processed++;
+
+                    // progreso cada 40 filas (para no saturar Cache)
+                    if ($processed % 40 === 0) {
+                        $pct = 50 + (int)(30 * ($processed / max(1, $totalFilas))); // 50..80
+                        $progress($pct, "Procesando filas: {$processed}/{$totalFilas}…", 'vacunas', false, true, ['validacion','afiliados']);
+                    }
+                }
+
+                // Insert masivo por chunks (1000)
+                if (!empty($insertVacunas)) {
+                    foreach (array_chunk($insertVacunas, 1000) as $vacChunk) {
+                        DB::table('vacunas')->insert($vacChunk);
+                    }
+                }
+            }
+        });
+
+        // TXT + correo fuera de la transacción
+        $progress(85, 'Generando reporte TXT…', 'txt', false, true, ['validacion','afiliados','vacunas']);
+
+        $filePath = storage_path('app/public/vacunas_cargadas_' . $batch_id . '.txt');
+        $this->generarArchivoVacunas($filasParaGuardar, $filePath);
+
+        $progress(92, 'Enviando correo con adjunto…', 'correo', false, true, ['validacion','afiliados','vacunas','txt']);
+
+        // OJO: tu método enviarCorreoConAdjunto solo recibe $filePath
+        $this->enviarCorreoConAdjunto($filePath);
+
+        $progress(100, "Importación finalizada. Afiliados nuevos: {$newAfil}. Vacunas nuevas: {$newVacuna}.", 'final', true, true, ['validacion','afiliados','vacunas','txt','correo','final']);
+
+        Log::info("FIN importExcel OK: batch={$batch_id} user={$user} | newAfil={$newAfil} oldAfil={$oldAfil} newVac={$newVacuna} oldVac={$oldVacuna}");
+
+        return redirect()->route('afiliado')->with('success', "Datos importados correctamente. Batch: {$batch_id}. Afiliados nuevos: {$newAfil}. Vacunas nuevas: {$newVacuna}.");
+
+    } catch (\Throwable $e) {
+        Log::error('ERROR importExcel: ' . $e->getMessage(), [
+            'trace' => $e->getTraceAsString(),
+        ]);
+
+        $progress(100, 'Ocurrió un error durante la importación. Revisa el log.', 'final', true, false, []);
+
+        return redirect()->route('afiliado')->with('error', 'Ocurrió un error al importar: ' . $e->getMessage());
+    }
+}
+
     
     /**
      * Enviar un correo con el archivo adjunto.
@@ -508,66 +698,71 @@ class AfiliadoController extends Controller
      * @return \Illuminate\Http\JsonResponse
      */
   // Método que obtiene las vacunas asociadas a un afiliado por id y número de carnet
-  public function getVacunas($id, $numeroCarnet)
+  public function getVacunas($id, $numeroCarnet = null)
 {
-    // Consulta para obtener las vacunas que coincidan con el id o el número de carnet
     $vacunas = DB::table('vacunas as a')
-    ->join('afiliados as b', 'a.afiliado_id', '=', 'b.id')
-    ->join('users as c', 'a.user_id', '=', 'c.id')
-    ->join('referencia_vacunas as d', 'a.vacunas_id', '=', 'd.id')
-    ->leftJoin(DB::connection('sqlsrv_1')->raw('[sga].[dbo].[maestroafiliados] as x'), 'b.numero_carnet', '=', 'x.numeroCarnet')
-    ->leftJoin(DB::connection('sqlsrv_1')->raw('[sga].[dbo].[maestroips] as y'), 'x.numeroCarnet', '=', 'y.numeroCarnet')
-    ->leftJoin(DB::connection('sqlsrv_1')->raw('[sga].[dbo].[maestroIpsGru] as z'), 'y.idGrupoIps', '=', 'z.id')    
-    ->leftJoin(DB::connection('sqlsrv_1')->raw('[sga].[dbo].[municipios] as w'), function($join) {
-        $join->on('w.codigoDepartamento', '=', 'x.codigoDepartamento')
-             ->on('w.codigoMunicipio', '=', 'x.codigoMunicipio');
-    })
-    ->select(
-        'd.nombre as nombre_vacuna',
-        DB::raw("
-            CASE 
-                WHEN a.vacunas_id IN (23, 24) AND a.docis IS NULL 
-                    THEN CONCAT(a.num_frascos_utilizados, ' frascos')
-                ELSE a.docis
-            END as docis_vacuna
-        "),
-        'a.fecha_vacuna as fecha_vacunacion',
-        'b.fecha_nacimiento',
-        'c.name as nombre_usuario',
-        'b.primer_nombre as prim_nom',
-        'b.segundo_nombre as seg_nom',
-        'b.primer_apellido as pri_ape',
-        'b.segundo_apellido as seg_ape',
-        'b.tipo_identificacion as tipo_id',
-        'b.numero_identificacion as numero_id',
-        'x.genero as genero',
-        'z.descrip as ips',
-        'w.descrip as municipio',
-        DB::raw('FLOOR((CAST(CONVERT(varchar(8), CONVERT(DATE, a.fecha_vacuna), 112) AS int) - CAST(CONVERT(varchar(8), CONVERT(DATE, b.fecha_nacimiento), 112) AS int)) / 10000) AS edad_anos'),
-        DB::raw('DATEDIFF(MONTH, b.fecha_nacimiento, a.fecha_vacuna) AS total_meses'),
-        'a.responsable as responsable'
-    )
-    ->where(function ($query) use ($id, $numeroCarnet) {
-        $query->where('b.id', $id)
-              ->orWhere('b.numero_carnet', $numeroCarnet);
-    })
-    ->orderBy('a.fecha_vacuna', 'asc') // Ordenar por fecha_vacuna ascendente
-    ->orderBy('d.nombre', 'asc') // Luego ordenar por nombre_vacuna ascendente
-    ->get();
+        ->join('afiliados as b', 'a.afiliado_id', '=', 'b.id')
+        ->join('users as c', 'a.user_id', '=', 'c.id')
+        ->join('referencia_vacunas as d', 'a.vacunas_id', '=', 'd.id')
+        ->leftJoin(DB::connection('sqlsrv_1')->raw('[sga].[dbo].[maestroafiliados] as x'), 'b.numero_carnet', '=', 'x.numeroCarnet')
+        ->leftJoin(DB::connection('sqlsrv_1')->raw('[sga].[dbo].[maestroips] as y'), 'x.numeroCarnet', '=', 'y.numeroCarnet')
+        ->leftJoin(DB::connection('sqlsrv_1')->raw('[sga].[dbo].[maestroIpsGru] as z'), 'y.idGrupoIps', '=', 'z.id')
+        ->leftJoin(DB::connection('sqlsrv_1')->raw('[sga].[dbo].[municipios] as w'), function($join) {
+            $join->on('w.codigoDepartamento', '=', 'x.codigoDepartamento')
+                 ->on('w.codigoMunicipio', '=', 'x.codigoMunicipio');
+        })
+        ->select(
+            'd.nombre as nombre_vacuna',
+            DB::raw("
+                CASE
+                    WHEN a.vacunas_id IN (23, 24) AND a.docis IS NULL
+                        THEN CONCAT(a.num_frascos_utilizados, ' frascos')
+                    ELSE a.docis
+                END as docis_vacuna
+            "),
+            'a.fecha_vacuna as fecha_vacunacion',
+            'b.fecha_nacimiento',
+            'c.name as nombre_usuario',
+            'b.primer_nombre as prim_nom',
+            'b.segundo_nombre as seg_nom',
+            'b.primer_apellido as pri_ape',
+            'b.segundo_apellido as seg_ape',
+            'b.tipo_identificacion as tipo_id',
+            'b.numero_identificacion as numero_id',
+            'x.genero as genero',
+            'z.descrip as ips',
+            'w.descrip as municipio',
+            DB::raw('FLOOR((CAST(CONVERT(varchar(8), CONVERT(DATE, a.fecha_vacuna), 112) AS int) - CAST(CONVERT(varchar(8), CONVERT(DATE, b.fecha_nacimiento), 112) AS int)) / 10000) AS edad_anos'),
+            DB::raw('DATEDIFF(MONTH, b.fecha_nacimiento, a.fecha_vacuna) AS total_meses'),
+            'a.responsable as responsable'
+        )
+        ->where(function ($query) use ($id, $numeroCarnet) {
+            $query->where('b.id', $id);
 
-   
+            // ✅ solo filtra por carnet si viene
+            if (!empty($numeroCarnet)) {
+                $query->orWhere('b.numero_carnet', $numeroCarnet);
+            }
+        })
+        ->orderBy('a.fecha_vacuna', 'asc')
+        ->orderBy('d.nombre', 'asc')
+        ->get();
 
-    //Calcular la edad
+    // ✅ IMPORTANTÍSIMO: si no hay vacunas, no uses $vacunas[0]
+    if ($vacunas->isEmpty()) {
+        return response()->json([]);
+    }
+
+    // Calcular edad
     $hoy = Carbon::now();
-    $fechaNacimiento = Carbon::createFromFormat('Y-m-d', $vacunas[0]->fecha_nacimiento);    
-    // Calcular la diferencia exacta en años, meses y días
+    $fechaNacimiento = Carbon::parse($vacunas[0]->fecha_nacimiento);
     $edad = $hoy->diff($fechaNacimiento);
 
     $vacunas[0]->age = $edad->y . 'a ' . $edad->m . 'm ' . $edad->d . 'd';
 
-    // Retornar la respuesta en formato JSON con los datos obtenidos
     return response()->json($vacunas);
 }
+
 
   
   
@@ -889,5 +1084,22 @@ class AfiliadoController extends Controller
     return response()->stream($callback, 200, $headers);
 }
 
+public function importProgress($token)
+{
+    $data = Cache::get("import_progress:{$token}");
+
+    if (!$data) {
+        return response()->json([
+            'percent' => 0,
+            'message' => 'En espera…',
+            'step'    => 'validacion',
+            'done'    => false,
+            'ok'      => true,
+            'done_steps' => [],
+        ]);
+    }
+
+    return response()->json($data);
+}
 
 }

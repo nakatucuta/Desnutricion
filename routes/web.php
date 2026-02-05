@@ -57,7 +57,8 @@ Route::post('/import-excel_2', [AfiliadoController::class, 'importExcel'])
 
 
 // Ruta para obtener vacunas
-Route::get('/vacunas/{id}/{numero_carnet}', [AfiliadoController::class, 'getVacunas'])->name('getVacunas');
+Route::get('/vacunas/{id}/{numeroCarnet?}', [AfiliadoController::class, 'getVacunas'])
+    ->name('getVacunas');
 
 
 // // Ruta para el reporte Excel

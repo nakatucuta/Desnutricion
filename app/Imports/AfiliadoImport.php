@@ -3,1156 +3,829 @@
 namespace App\Imports;
 
 use App\Models\batch_verifications;
-use App\Models\afiliado;
-use App\Models\vacuna;
-use Maatwebsite\Excel\Concerns\ToModel;
-use PhpOffice\PhpSpreadsheet\Shared\Date;
-use Maatwebsite\Excel\Concerns\WithStartRow;
+use App\Models\afiliado as Afiliado;
+use App\Models\vacuna as Vacuna;
 use Carbon\Carbon;
-use Illuminate\Support\Facades\Log; // Importa la clase Log
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\ValidationException;
-use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Session; // Asegúrate de importar Session
-use Illuminate\Support\Facades\DB;
+use Maatwebsite\Excel\Concerns\ToModel;
+use Maatwebsite\Excel\Concerns\WithStartRow;
+use PhpOffice\PhpSpreadsheet\Shared\Date;
 
-//Y LE DEBES  AGREGAR EL WithStartRow PARA QUE FUNCIONE LO DE LA FILAO  QUE EMPIEZE POR ESA FILA 
 class AfiliadoImport implements ToModel, WithStartRow
 {
-    protected $errores = []; // Aquí se guardarán los mensajes de advertencia
-    protected $guardar = true; // Indicador de si debemos guardar o no
-    protected $filasParaGuardar = []; // Aquí almacenamos los afiliados que pasaron la validación
+    protected $errores = [];
+    protected $guardar = true;
+    protected $filasParaGuardar = [];
 
-    //ESTA FUNCION  ES LA QUE CREA LA VERIFICACION Y LA ASIGNAS LAS TABLAS FORANEAS
-    
-    private $batch_verifications_id; // Almacena el ID único para esta importación
+    private $batch_verifications_id;
+
+    // Cache en memoria para no consultar DB externa por cada fila repetida
+    // key: "TIPO|IDENTIFICACION" => numeroCarnet|string|null
+    private array $carnetCache = [];
+
+    // Cache afiliados locales por numero_carnet (evita queries repetidas)
+    // key: numeroCarnet => afiliado_id
+    private array $afiliadoIdCache = [];
 
     public function __construct()
     {
-        // Creando una única instancia de Batch_verification al inicio de la importación
+        // Recomendación: evita que PHP corte el proceso por tiempo (solo si tu hosting lo permite)
+        @set_time_limit(0);
+        @ini_set('memory_limit', '1024M');
+
         $verificacion = new batch_verifications([
             'fecha_cargue' => Carbon::now(),
         ]);
         $verificacion->save();
 
-        // Almacenar el ID para su uso posterior
         $this->batch_verifications_id = $verificacion->id;
     }
-    
-    /**
-     * Specify the row to start reading data from.
-     *
-     * @return int
-     */
 
-    //  OJO CON ESTAFUNCION LE DIGO DESDE QUE FILA INICIA  AGUARADR
     public function startRow(): int
     {
         return 3;
     }
 
-    /**
-     * @param array $row
-     *
-     * @return \Illuminate\Database\Eloquent\Model|null
-     */
     public function model(array $row)
     {
-      
-        // validacion previa de  datos 
+        // Evita Notice/Undefined offset cuando la fila viene corta
+        $row = array_replace(array_fill(0, 272, null), $row);
 
+        $usuario_activo = Auth::id();
+
+        // ---------- Helpers rápidos ----------
+        $clean = function ($v) {
+            if ($v === null) return null;
+            $v = is_string($v) ? trim($v) : $v;
+            if ($v === '' || $v === 'NONE') return null;
+            return $v;
+        };
+
+        $excelDateToYmd = function ($v) {
+            if ($v === null || $v === '') return null;
+
+            // Si ya viene como string tipo 2025-01-31 o 31/01/2025, intenta parsear
+            if (is_string($v)) {
+                $vv = trim($v);
+                if ($vv === '' || strtoupper($vv) === 'NONE') return null;
+
+                try {
+                    // Carbon intenta muchas variantes
+                    return Carbon::parse($vv)->format('Y-m-d');
+                } catch (\Throwable $e) {
+                    return null;
+                }
+            }
+
+            // Si viene como número excel
+            try {
+                return Date::excelToDateTimeObject($v)->format('Y-m-d');
+            } catch (\Throwable $e) {
+                return null;
+            }
+        };
+
+        // ---------- Datos base ----------
+        $tipo_identifi   = $clean((string)($row[1] ?? null));
+        $numero_identifi = $clean(isset($row[2]) ? (string)$row[2] : null);
+
+        // Si viene vacía la identificación, no hagas nada (evita consultas inútiles)
+        if (!$tipo_identifi || !$numero_identifi) {
+            $this->errores[] = "Fila sin identificación (tipo o número vacío).";
+            $this->guardar = false;
+            return null;
+        }
+
+        // Fechas (robustas)
+        $fechaatencion      = $excelDateToYmd($row[0]);
+        $fechaNacimiento    = $excelDateToYmd($row[7]);
+        $fechaProbParto     = $excelDateToYmd($row[46]);
+        $fechaAntecedente   = $excelDateToYmd($row[48]);
+
+        // Campos "finales" (en tu excel real casi siempre llegan null, pero los dejamos)
+        $responsable         = $clean($row[251]);
+        $fuen_ingresado_paiweb= $clean($row[252]);
+        $motivo_noingreso    = $clean($row[253]);
+        $observaciones       = $clean($row[254]);
+
+        // ---------- Validación rápida (mínima y barata) ----------
+        // IMPORTANTE: validaciones muy pesadas por fila te pueden tumbar el request.
+        // Aquí dejamos las numéricas críticas, y lo demás nullable.
         $data = [
-            'fecha_atencion' => $row[0] ?? null,
-            'tipo_identificacion' => $row[1] ?? null,
-            'numero_identificacion' => isset($row[2]) ? (string)$row[2] : null, // Convertir a cadena de texto
-            'primer_nombre' => $row[3] ?? null,
-            'segundo_nombre' => $row[4] ?? null,
-            'primer_apellido' => $row[5] ?? null,
-            'segundo_apellido' => $row[6] ?? null,
-            'fecha_nacimiento' => $row[7] ?? null,
-            'edad_anos' => $row[8] ?? null,
-            'edad_meses' => $row[9] ?? null,
-            'edad_dias' => $row[10] ?? null,
-            'total_meses' => $row[11] ?? null,
-            'esquema_completo' => $row[12] ?? null,
-            'sexo' => $row[13] ?? null,
-            'genero' => $row[14] ?? null,
-            'orientacion_sexual' => $row[15] ?? null,
-            'edad_gestacional' => $row[16] ?? null,
-            'pais_nacimiento' => $row[17] ?? null,
-            'estatus_migratorio' => $row[18] ?? null,
-            'lugar_atencion_parto' => $row[19] ?? null,
-            'regimen' => $row[20] ?? null,
-            'aseguradora' => $row[21] ?? null,
-            'pertenencia_etnica' => $row[22] ?? null,
-            'desplazado' => $row[23] ?? null,
-            'discapacitado' => $row[24] ?? null,
-            'fallecido' => $row[25] ?? null,
-            'victima_conflicto' => $row[26] ?? null,
-            'estudia' => $row[27] ?? null,
-            'pais_residencia' => $row[28] ?? null,
-            'departamento_residencia' => $row[29] ?? null,
-            'municipio_residencia' => $row[30] ?? null,
-            'comuna' => $row[31] ?? null,
-            'area' => $row[32] ?? null,
-            'direccion' => $row[33] ?? null,
-            'telefono_fijo' => $row[34] ?? null,
-            'celular' => $row[35] ?? null,
-            'email' => $row[36] ?? null,
-            'autoriza_llamadas' => $row[37] ?? null,
-            'autoriza_correos' => $row[38] ?? null,
-            'contraindicacion_vacuna' => $row[39] ?? null,
-            'enfermedad_contraindicacion' => $row[40] ?? null,
-            'reaccion_biologicos' => $row[41] ?? null,
-            'sintomas_reaccion' => $row[42] ?? null,
-            'condicion_usuaria' => $row[43] ?? null,
-            'fecha_ultima_menstruacion' => $row[44] ?? null,
-            'semanas_gestacion' => $row[45] ?? null,
-            'fecha_prob_parto' => $row[46] ?? null,
-            'embarazos_previos' => $row[47] ?? null,
-            'fecha_antecedente' => $row[48] ?? null,
-            'tipo_antecedente' => $row[49] ?? null,
-            'descripcion_antecedente' => $row[50] ?? null,
-            'observaciones_especiales' => $row[51] ?? null,
-            'madre_tipo_identificacion' => $row[52] ?? null,
-            'madre_identificacion' => $row[53] ?? null,
-            'madre_primer_nombre' => $row[54] ?? null,
-            'madre_segundo_nombre' => $row[55] ?? null,
-            'madre_primer_apellido' => $row[56] ?? null,
-            'madre_segundo_apellido' => $row[57] ?? null,
-            'madre_correo' => $row[58] ?? null,
-            'madre_telefono' => $row[59] ?? null,
-            'madre_celular' => $row[60] ?? null,
-            'madre_regimen' => $row[61] ?? null,
-            'madre_pertenencia_etnica' => $row[62] ?? null,
-            'madre_desplazada' => $row[63] ?? null,
-            'cuidador_tipo_identificacion' => $row[64] ?? null,
-            'cuidador_identificacion' => $row[65] ?? null,
-            'cuidador_primer_nombre' => $row[66] ?? null,
-            'cuidador_segundo_nombre' => $row[67] ?? null,
-            'cuidador_primer_apellido' => $row[68] ?? null,
-            'cuidador_segundo_apellido' => $row[69] ?? null,
-            'cuidador_parentesco' => $row[70] ?? null,
-            'cuidador_correo' => $row[71] ?? null,
-            'cuidador_telefono' => $row[72] ?? null,
-            'cuidador_celular' => $row[73] ?? null,
-            'esquema_vacunacion' => $row[74] ?? null,
-            'responsable' => $row[251] ?? null,
-            'fuen_ingresado_paiweb' => $row[252] ?? null,
-            'motivo_noingreso' => $row[253] ?? null,
-            'observaciones' => $row[254] ?? null,
-            'user_id' => Auth::id(),
+            'edad_anos' => $row[8],
+            'edad_meses' => $row[9],
+            'edad_dias' => $row[10],
+            'total_meses' => $row[11],
+            'edad_gestacional' => $row[16],
+            'embarazos_previos' => $row[47],
         ];
-        // Define las reglas de validación
+
         $rules = [
-            'fecha_atencion' => 'nullable',
-            'tipo_identificacion' => 'nullable',
-            'numero_identificacion' => 'nullable',
-            'primer_nombre' => 'nullable',
-            'segundo_nombre' => 'nullable',
-            'primer_apellido' => 'nullable',
-            'segundo_apellido' => 'nullable',
-            'fecha_nacimiento' => 'nullable',
             'edad_anos' => 'nullable|integer',
             'edad_meses' => 'nullable|integer',
             'edad_dias' => 'nullable|integer',
             'total_meses' => 'nullable|integer',
-            'esquema_completo' => 'nullable',
-            'sexo' => 'nullable',
-            'genero' => 'nullable',
-            'orientacion_sexual' => 'nullable',
             'edad_gestacional' => 'nullable|integer',
-            'pais_nacimiento' => 'nullable',
-            'estatus_migratorio' => 'nullable',
-            'lugar_atencion_parto' => 'nullable',
-            'regimen' => 'nullable',
-            'aseguradora' => 'nullable',
-            'pertenencia_etnica' => 'nullable',
-            'desplazado' => 'nullable',
-            'discapacitado' => 'nullable',
-            'fallecido' => 'nullable',
-            'victima_conflicto' => 'nullable',
-            'estudia' => 'nullable',
-            'pais_residencia' => 'nullable',
-            'departamento_residencia' => 'nullable',
-            'municipio_residencia' => 'nullable',
-            'comuna' => 'nullable',
-            'area' => 'nullable',
-            'direccion' => 'nullable',
-            'telefono_fijo' => 'nullable',
-            'celular' => 'nullable
-            ',
-            'email' => 'nullable',
-            'autoriza_llamadas' => 'nullable',
-            'autoriza_correos' => 'nullable',
-            'contraindicacion_vacuna' => 'nullable',
-            'enfermedad_contraindicacion' => 'nullable',
-            'reaccion_biologicos' => 'nullable',
-            'sintomas_reaccion' => 'nullable',
-            'condicion_usuaria' => 'nullable',
-            'fecha_ultima_menstruacion' => 'nullable',
-            'semanas_gestacion' => 'nullable',
-            'fecha_prob_parto' => 'nullable',
             'embarazos_previos' => 'nullable|integer',
-            'fecha_antecedente' => 'nullable',
-            'tipo_antecedente' => 'nullable',
-            'descripcion_antecedente' => 'nullable',
-            'observaciones_especiales' => 'nullable',
-            'madre_tipo_identificacion' => 'nullable',
-            'madre_identificacion' => 'nullable',
-            'madre_primer_nombre' => 'nullable',
-            'madre_segundo_nombre' => 'nullable',
-            'madre_primer_apellido' => 'nullable',
-            'madre_segundo_apellido' => 'nullable',
-            'madre_correo' => 'nullable',
-            'madre_telefono' => 'nullable',
-            'madre_celular' => 'nullable',
-            'madre_regimen' => 'nullable',
-            'madre_pertenencia_etnica' => 'nullable',
-            'madre_desplazada' => 'nullable',
-            'cuidador_tipo_identificacion' => 'nullable',
-            'cuidador_identificacion' => 'nullable',
-            'cuidador_primer_nombre' => 'nullable',
-            'cuidador_segundo_nombre' => 'nullable',
-            'cuidador_primer_apellido' => 'nullable',
-            'cuidador_segundo_apellido' => 'nullable',
-            'cuidador_parentesco' => 'nullable',
-            'cuidador_correo' => 'nullable',
-            'cuidador_telefono' => 'nullable',
-            'cuidador_celular' => 'nullable',
-            'esquema_vacunacion' => 'nullable',
         ];
 
-        // Define los mensajes de error
-        $messages = [
-            'date' => 'El campo :attribute debe ser una fecha válida en la columna :attribute_col.',
-            'string' => 'El campo :attribute debe ser un texto válido en la columna :attribute_col.',
-            'integer' => 'El campo :attribute debe ser un número entero válido en la columna :attribute_col.',
-        ];
-
-        // Realiza la validación
-        $validator = Validator::make($data, $rules, $messages);
-
+        $validator = Validator::make($data, $rules);
         if ($validator->fails()) {
-            // Registra los errores y arroja una excepción de validación
             foreach ($validator->errors()->all() as $error) {
-                Log::error($error);
+                Log::error("VALIDATION IMPORT: ".$error." | ".$tipo_identifi." ".$numero_identifi);
             }
             throw new ValidationException($validator);
-        }    
-         
-        //
-        $responsable = isset($row[251]) ? $row[251] : null;
-        $fuen_ingresado_paiweb = isset($row[252]) ? $row[252] : null;
-        $motivo_noingreso = isset($row[253]) ? $row[253] : null;
-        $observaciones = isset($row[254]) ? $row[254] : null;
-        $usuario_activo = Auth::id();
-        // Verifica si las fechas son válidas y conviértelas
-        $fechaatencion = isset($row[0]) ? Date::excelToDateTimeObject($row[0])->format('Y-m-d') : null;
-        $fechaNacimiento = isset($row[7]) ? Date::excelToDateTimeObject($row[7])->format('Y-m-d') : null;
-        $fechaProbParto = isset($row[46]) ? Date::excelToDateTimeObject($row[46])->format('Y-m-d') : null;
-        $fechaAntecedente = isset($row[48]) ? Date::excelToDateTimeObject($row[48])->format('Y-m-d') : null;
-        $tipo_identifi = isset($row[1]) ? (string)$row[1] : null; // Convertir a cadena de texto
-        $numero_identifi = isset($row[2]) ? (string)$row[2] : null; // Convertir a cadena de texto
+        }
 
-        //PARA GUARDARE N EN MODELO VERIFICACION
-        // Supongamos que `fechaatencion` es la fecha actual
+        // ---------- Consulta DB externa con CACHE (1 sola consulta por identificación) ----------
+        $cacheKey = $tipo_identifi . '|' . $numero_identifi;
 
-        // $fechaatencion = Carbon::now();
-        // $verificacion = new Batch_verification([
+        if (!array_key_exists($cacheKey, $this->carnetCache)) {
+            $ext = DB::connection('sqlsrv_1')
+                ->table('maestroIdentificaciones')
+                ->select('numeroCarnet')
+                ->where('identificacion', $numero_identifi)
+                ->where('tipoIdentificacion', $tipo_identifi)
+                ->first();
 
-        //     'fecha_cargue' => $fechaatencion,
-            
-        // ]);
-        // $verificacion->save();
+            $this->carnetCache[$cacheKey] = $ext->numeroCarnet ?? null;
+        }
 
+        $numero_carnet = $this->carnetCache[$cacheKey];
 
-        // Consulta el afiliado en la base de datos externa
-        
-        // Verificar si el afiliado existe en la base de datos externa
-        // Consulta en la base de datos externa para validar si el afiliado existe
-        
-        $afiliado_1 = DB::connection('sqlsrv_1')
-            ->table('maestroIdentificaciones')
-            ->where('identificacion', $numero_identifi)
-            ->where('tipoIdentificacion', $tipo_identifi)
-            ->first();
-
-        // Si no se encuentra el afiliado en la base externa
-        if (!$afiliado_1) {
-            $this->errores[] = "No se encontró ningún afiliado con la identificación: $numero_identifi y tipo: $tipo_identifi";
-            $this->guardar = false; // No se debe guardar nada
+        if (!$numero_carnet) {
+            $this->errores[] = "No se encontró afiliado en DB externa con identificación: $numero_identifi y tipo: $tipo_identifi";
+            $this->guardar = false;
             return null;
         }
 
-        $numero_carnet = DB::connection('sqlsrv_1')
-            ->table('maestroIdentificaciones')
-            ->where('identificacion', $numero_identifi)
-            ->where('tipoIdentificacion', $tipo_identifi)
-            ->value('numeroCarnet');  // Obtener el valor de numeroCarnet
+        // ---------- Resolver afiliado local por CACHE ----------
+        if (!isset($this->afiliadoIdCache[$numero_carnet])) {
+            $local = Afiliado::select('id', 'numero_carnet')
+                ->where('numero_carnet', $numero_carnet)
+                ->first();
 
+            $this->afiliadoIdCache[$numero_carnet] = $local ? (int)$local->id : 0;
+        }
 
-        if (is_null($numero_carnet)) {
-            Log::info("El número de carnet es nulo para identificación: $numero_identifi");
-        } //else {
-            //Log::info("Número de carnet obtenido: $numero_carnet para identificación: $numero_identifi");
-        //}
+        $afiliado_id_local = $this->afiliadoIdCache[$numero_carnet];
 
-        // Verificar si el afiliado ya existe en la base de datos local
-        // Se cambio el parametro a nunmero de carnet, el numero de identificacion generaba duplicados
-        $afiliado = Afiliado::where('numero_carnet', $numero_carnet)->first();
-
-        // Si el afiliado no existe, creamos un nuevo registro
-        if (!$afiliado) {
+        // ---------- Armar datos afiliado (solo si no existe) ----------
+        if ($afiliado_id_local === 0) {
             $afiliadoData = [
                 'fecha_atencion' => $fechaatencion,
                 'tipo_identificacion' => $tipo_identifi,
                 'numero_identificacion' => $numero_identifi,
-                'numero_carnet' => $numero_carnet, // Asignar el número de carnet correctamente
-                'primer_nombre' => (!empty($row[3]) && $row[3] !== 'NONE') ? $row[3] : null, // Evita que se guarde 'NONE'
-                'segundo_nombre' => (!empty($row[4]) && $row[4] !== 'NONE') ? $row[4] : null,
-                'primer_apellido' => (!empty($row[5]) && $row[5] !== 'NONE') ? $row[5] : null,
-                'segundo_apellido' => (!empty($row[6]) && $row[6] !== 'NONE') ? $row[6] : null,
+                'numero_carnet' => $numero_carnet,
+
+                'primer_nombre' => $clean($row[3]),
+                'segundo_nombre' => $clean($row[4]),
+                'primer_apellido' => $clean($row[5]),
+                'segundo_apellido' => $clean($row[6]),
                 'fecha_nacimiento' => $fechaNacimiento,
-                'edad_anos' => $row[8] ?? null,
-                'edad_meses' => $row[9] ?? null,
-                'edad_dias' => $row[10] ?? null,
-                'total_meses' => $row[11] ?? null,
-                'esquema_completo' => $row[12] ?? null,
-                'sexo' => $row[13] ?? null,
-                'genero' => $row[14] ?? null,
-                'orientacion_sexual' => $row[15] ?? null,
-                'edad_gestacional' => $row[16] ?? null,
-                'pais_nacimiento' => $row[17] ?? null,
-                'estatus_migratorio' => $row[18] ?? null,
-                'lugar_atencion_parto' => $row[19] ?? null,
-                'regimen' => $row[20] ?? null,
-                'aseguradora' => $row[21] ?? null,
-                'pertenencia_etnica' => $row[22] ?? null,
-                'desplazado' => $row[23] ?? null,
-                'discapacitado' => $row[24] ?? null,
-                'fallecido' => $row[25] ?? null,
-                'victima_conflicto' => $row[26] ?? null,
-                'estudia' => $row[27] ?? null,
-                'pais_residencia' => $row[28] ?? null,
-                'departamento_residencia' => $row[29] ?? null,
-                'municipio_residencia' => $row[30] ?? null,
-                'comuna' => $row[31] ?? null,
-                'area' => $row[32] ?? null,
-                'direccion' => $row[33] ?? null,
-                'telefono_fijo' => $row[34] ?? null,
-                'celular' => $row[35] ?? null,
-                'email' => (!empty($row[36]) && $row[36] !== 'NONE') ? $row[36] : null, // Verificar también para otros campos
-                'autoriza_llamadas' => $row[37] ?? null,
-                'autoriza_correos' => $row[38] ?? null,
-                'contraindicacion_vacuna' => $row[39] ?? null,
-                'enfermedad_contraindicacion' => $row[40] ?? null,
-                'reaccion_biologicos' => $row[41] ?? null,
-                'sintomas_reaccion' => $row[42] ?? null,
-                'condicion_usuaria' => $row[43] ?? null,
-                'fecha_ultima_menstruacion' => $row[44] ?? null,
-                'semanas_gestacion' => $row[45] ?? null,
+
+                'edad_anos' => $clean($row[8]),
+                'edad_meses' => $clean($row[9]),
+                'edad_dias' => $clean($row[10]),
+                'total_meses' => $clean($row[11]),
+                'esquema_completo' => $clean($row[12]),
+                'sexo' => $clean($row[13]),
+                'genero' => $clean($row[14]),
+                'orientacion_sexual' => $clean($row[15]),
+                'edad_gestacional' => $clean($row[16]),
+                'pais_nacimiento' => $clean($row[17]),
+                'estatus_migratorio' => $clean($row[18]),
+                'lugar_atencion_parto' => $clean($row[19]),
+                'regimen' => $clean($row[20]),
+                'aseguradora' => $clean($row[21]),
+                'pertenencia_etnica' => $clean($row[22]),
+                'desplazado' => $clean($row[23]),
+                'discapacitado' => $clean($row[24]),
+                'fallecido' => $clean($row[25]),
+                'victima_conflicto' => $clean($row[26]),
+                'estudia' => $clean($row[27]),
+                'pais_residencia' => $clean($row[28]),
+                'departamento_residencia' => $clean($row[29]),
+                'municipio_residencia' => $clean($row[30]),
+                'comuna' => $clean($row[31]),
+                'area' => $clean($row[32]),
+                'direccion' => $clean($row[33]),
+                'telefono_fijo' => $clean($row[34]),
+                'celular' => $clean($row[35]),
+                'email' => $clean($row[36]),
+
+                'autoriza_llamadas' => $clean($row[37]),
+                'autoriza_correos' => $clean($row[38]),
+                'contraindicacion_vacuna' => $clean($row[39]),
+                'enfermedad_contraindicacion' => $clean($row[40]),
+                'reaccion_biologicos' => $clean($row[41]),
+                'sintomas_reaccion' => $clean($row[42]),
+                'condicion_usuaria' => $clean($row[43]),
+                'fecha_ultima_menstruacion' => $excelDateToYmd($row[44]),
+                'semanas_gestacion' => $clean($row[45]),
                 'fecha_prob_parto' => $fechaProbParto,
-                'embarazos_previos' => $row[47] ?? null,
+                'embarazos_previos' => $clean($row[47]),
                 'fecha_antecedente' => $fechaAntecedente,
-                'tipo_antecedente' => $row[49] ?? null,
-                'descripcion_antecedente' => $row[50] ?? null,
-                'observaciones_especiales' => $row[51] ?? null,
-                'madre_tipo_identificacion' => $row[52] ?? null,
-                'madre_identificacion' => $row[53] ?? null,
-                'madre_primer_nombre' => (!empty($row[54]) && $row[54] !== 'NONE') ? $row[54] : null,
-                'madre_segundo_nombre' => (!empty($row[55]) && $row[55] !== 'NONE') ? $row[55] : null,
-                'madre_primer_apellido' => (!empty($row[56]) && $row[56] !== 'NONE') ? $row[56] : null,
-                'madre_segundo_apellido' => (!empty($row[57]) && $row[57] !== 'NONE') ? $row[57] : null,
-                'madre_correo' => $row[58] ?? null,
-                'madre_telefono' => $row[59] ?? null,
-                'madre_celular' => $row[60] ?? null,
-                'madre_regimen' => $row[61] ?? null,
-                'madre_pertenencia_etnica' => $row[62] ?? null,
-                'madre_desplazada' => $row[63] ?? null,
-                'cuidador_tipo_identificacion' => $row[64] ?? null,
-                'cuidador_identificacion' => $row[65] ?? null,
-                'cuidador_primer_nombre' => (!empty($row[66]) && $row[66] !== 'NONE') ? $row[66] : null,
-                'cuidador_segundo_nombre' => (!empty($row[67]) && $row[67] !== 'NONE') ? $row[67] : null,
-                'cuidador_primer_apellido' => (!empty($row[68]) && $row[68] !== 'NONE') ? $row[68] : null,
-                'cuidador_segundo_apellido' => (!empty($row[69]) && $row[69] !== 'NONE') ? $row[69] : null,
-                'cuidador_parentesco' => $row[70] ?? null,
-                'cuidador_correo' => $row[71] ?? null,
-                'cuidador_telefono' => $row[72] ?? null,
-                'cuidador_celular' => $row[73] ?? null,
-                'esquema_vacunacion' => $row[74] ?? null,
+                'tipo_antecedente' => $clean($row[49]),
+                'descripcion_antecedente' => $clean($row[50]),
+                'observaciones_especiales' => $clean($row[51]),
+
+                'madre_tipo_identificacion' => $clean($row[52]),
+                'madre_identificacion' => $clean($row[53]),
+                'madre_primer_nombre' => $clean($row[54]),
+                'madre_segundo_nombre' => $clean($row[55]),
+                'madre_primer_apellido' => $clean($row[56]),
+                'madre_segundo_apellido' => $clean($row[57]),
+                'madre_correo' => $clean($row[58]),
+                'madre_telefono' => $clean($row[59]),
+                'madre_celular' => $clean($row[60]),
+                'madre_regimen' => $clean($row[61]),
+                'madre_pertenencia_etnica' => $clean($row[62]),
+                'madre_desplazada' => $clean($row[63]),
+
+                'cuidador_tipo_identificacion' => $clean($row[64]),
+                'cuidador_identificacion' => $clean($row[65]),
+                'cuidador_primer_nombre' => $clean($row[66]),
+                'cuidador_segundo_nombre' => $clean($row[67]),
+                'cuidador_primer_apellido' => $clean($row[68]),
+                'cuidador_segundo_apellido' => $clean($row[69]),
+                'cuidador_parentesco' => $clean($row[70]),
+                'cuidador_correo' => $clean($row[71]),
+                'cuidador_telefono' => $clean($row[72]),
+                'cuidador_celular' => $clean($row[73]),
+                'esquema_vacunacion' => $clean($row[74]),
+
                 'user_id' => $usuario_activo,
-                'batch_verifications_id' => $this->batch_verifications_id, // Clave foránea
+                'batch_verifications_id' => $this->batch_verifications_id,
+
                 'created_at' => Carbon::now()->format('Y-m-d H:i:s'),
                 'updated_at' => Carbon::now()->format('Y-m-d H:i:s'),
             ];
-  
-            // Añadir afiliado y vacunas a filasParaGuardar
-            $vacunasData = $this->extraerVacunas($row, $fechaatencion, $responsable, $fuen_ingresado_paiweb, $motivo_noingreso, $observaciones, $usuario_activo);
+
+            $vacunasData = $this->extraerVacunas(
+                $row,
+                $fechaatencion,
+                $responsable,
+                $fuen_ingresado_paiweb,
+                $motivo_noingreso,
+                $observaciones,
+                $usuario_activo
+            );
+
             $this->filasParaGuardar[] = [
                 'afiliado' => $afiliadoData,
                 'vacunas' => $vacunasData,
                 'existe' => false,
             ];
+        } else {
+            // Afiliado existe, solo vacunas nuevas
+            $vacunasData = $this->extraerVacunas(
+                $row,
+                $fechaatencion,
+                $responsable,
+                $fuen_ingresado_paiweb,
+                $motivo_noingreso,
+                $observaciones,
+                $usuario_activo
+            );
 
-        } 
-        else {
-
-            $afiliadoData = ['numero_carnet' => $numero_carnet]; //enviar el numero de carnet para referenciar
-
-            // Si el afiliado ya existe, procesamos solo las vacunas nuevas
-            $vacunasData = $this->extraerVacunas($row, $fechaatencion, $responsable, $fuen_ingresado_paiweb, $motivo_noingreso, $observaciones, $usuario_activo);
-
-            //Delaga el guardado de Vacunas al controlador 
             $this->filasParaGuardar[] = [
-                'afiliado' => $afiliadoData,
+                'afiliado' => ['numero_carnet' => $numero_carnet],
                 'vacunas' => $vacunasData,
                 'existe' => true,
             ];
-    
-           /* foreach ($vacunasData as $vacuna) {
-                // Verificar si la vacuna con la misma dosis ya está registrada para evitar duplicados solo en dosis
-                $existeVacuna = Vacuna::where('afiliado_id', $afiliado->id)
-                    ->whereRaw("docis COLLATE Latin1_General_CI_AI =?", [$vacuna['docis']])  //Case Insensitive y Accent insensitive con COLLATE
-                    ->where('vacunas_id', $vacuna['vacunas_id'])  // Verifica también el nombre de la vacuna
-                    ->first();
-                //Log::debug("Ya existe vacuna[".$vacuna['vacunas_id']."] ".$vacuna['docis']." -> Afiliado:".$afiliado->id);
-                if (!$existeVacuna) {
-                    // Guardamos la nueva vacuna si no existe la misma dosis
-                    $vacuna['afiliado_id'] = $afiliado->id;
-                    Vacuna::create($vacuna);  // Guardar la vacuna asociada
-                }
-            } */
         }
-    
+
         return null;
     }
 
-    // Retornar null para no guardar un modelo inválido
-    // $responsable = isset($row[251]) ? $row[251] : null;
-    // $fuen_ingresado_paiweb = isset($row[252]) ? $row[252] : null;
-    // $motivo_noingreso = isset($row[253]) ? $row[253] : null;
-    // $observaciones = isset($row[254]) ? $row[254] : null;
-    // $usuario_activo = Auth::id();
-    private function extraerVacunas($row, $fechaatencion, $responsable, $fuen_ingresado_paiweb, $motivo_noingreso, $observaciones, $usuario_activo)
-    {
-
+    /**
+     * IMPORTANTE:
+     * - En tu excel real, las vacunas están en el rango 75..250 (0-based)
+     * - NO uses 255 porque te metes en columnas “extra” y puedes activar vacunas por datos no relacionados.
+     */
+    private function extraerVacunas(
+        array $row,
+        ?string $fechaatencion,
+        $responsable,
+        $fuen_ingresado_paiweb,
+        $motivo_noingreso,
+        $observaciones,
+        $usuario_activo
+    ): array {
         $vacunas = [];
 
-        // Verificar si todos los campos en el rango de 75 a 250 están vacíos
-        $allVacunaFieldsEmpty = true;
-        for ($i = 75; $i <= 255; $i++) {
-            // Comprueba si la celda está establecida, no está vacía, no es nula y no está formada solo por espacios en blanco
-            if (isset($row[$i]) && !empty($row[$i]) && !is_null($row[$i]) && trim($row[$i]) !== '') {
-                $allVacunaFieldsEmpty = false; // Si encuentra algún campo no vacío, establece la variable en false
-                break; // Sale del bucle ya que encontró un campo no vacío
+        $cellHasValue = function ($v) {
+            if ($v === null) return false;
+            if (is_string($v)) return trim($v) !== '' && strtoupper(trim($v)) !== 'NONE';
+            return true;
+        };
+
+        // Si todo el bloque 75..250 está vacío, no recorremos nada
+        $allEmpty = true;
+        for ($i = 75; $i <= 250; $i++) {
+            if ($cellHasValue($row[$i] ?? null)) {
+                $allEmpty = false;
+                break;
+            }
+        }
+        if ($allEmpty) return [];
+
+        // Recorremos por “bloques” saltando al final del bloque.
+        // (Tu lógica original, pero limitada a 250 y con null-safety)
+        for ($i = 75; $i <= 250; $i++) {
+            if (!$cellHasValue($row[$i] ?? null)) {
+                continue;
+            }
+
+            $vacunaNombre = null;
+            $docis = $laboratorio = $lote = $jeringa = $lote_jeringa = $diluyente = $lote_diluyente =
+            $observacion = $gotero = $tipo_neumococo = $num_frascos_utilizados = null;
+
+            // 1
+            if ($i >= 75 && $i <= 80) {
+                $vacunaNombre = 1;
+                $docis = isset($row[75]) ? trim((string)$row[75]) : null;
+                $laboratorio = $row[76] ?? null;
+                $lote = $row[77] ?? null;
+                $jeringa = $row[78] ?? null;
+                $lote_jeringa = $row[79] ?? null;
+                $diluyente = $row[80] ?? null;
+                $i = 80;
+
+            // 2
+            } elseif ($i >= 81 && $i <= 86) {
+                $vacunaNombre = 2;
+                $docis = isset($row[81]) ? trim((string)$row[81]) : null;
+                $lote = $row[82] ?? null;
+                $jeringa = $row[83] ?? null;
+                $lote_jeringa = $row[84] ?? null;
+                $lote_diluyente = $row[85] ?? null;
+                $observacion = $row[86] ?? null;
+                $i = 86;
+
+            // 3
+            } elseif ($i >= 87 && $i <= 91) {
+                $vacunaNombre = 3;
+                $docis = isset($row[87]) ? trim((string)$row[87]) : null;
+                $lote = $row[88] ?? null;
+                $jeringa = $row[89] ?? null;
+                $lote_jeringa = $row[90] ?? null;
+                $observacion = $row[91] ?? null;
+                $i = 91;
+
+            // 4
+            } elseif ($i >= 92 && $i <= 96) {
+                $vacunaNombre = 4;
+                $docis = isset($row[92]) ? trim((string)$row[92]) : null;
+                $lote = $row[93] ?? null;
+                $jeringa = $row[94] ?? null;
+                $lote_jeringa = $row[95] ?? null;
+                $observacion = $row[96] ?? null;
+                $i = 96;
+
+            // 5
+            } elseif ($i >= 97 && $i <= 99) {
+                $vacunaNombre = 5;
+                $docis = isset($row[97]) ? trim((string)$row[97]) : null;
+                $lote = $row[98] ?? null;
+                $gotero = $row[99] ?? null;
+                $i = 99;
+
+            // 6
+            } elseif ($i >= 100 && $i <= 104) {
+                $vacunaNombre = 6;
+                $docis = isset($row[100]) ? trim((string)$row[100]) : null;
+                $lote = $row[101] ?? null;
+                $jeringa = $row[102] ?? null;
+                $lote_jeringa = $row[103] ?? null;
+                $observacion = $row[104] ?? null;
+                $i = 104;
+
+            // 7
+            } elseif ($i >= 105 && $i <= 108) {
+                $vacunaNombre = 7;
+                $docis = isset($row[105]) ? trim((string)$row[105]) : null;
+                $lote = $row[106] ?? null;
+                $jeringa = $row[107] ?? null;
+                $lote_jeringa = $row[108] ?? null;
+                $i = 108;
+
+            // 8
+            } elseif ($i >= 109 && $i <= 112) {
+                $vacunaNombre = 8;
+                $docis = isset($row[109]) ? trim((string)$row[109]) : null;
+                $lote = $row[110] ?? null;
+                $jeringa = $row[111] ?? null;
+                $lote_jeringa = $row[112] ?? null;
+                $i = 112;
+
+            // 9
+            } elseif ($i >= 113 && $i <= 116) {
+                $vacunaNombre = 9;
+                $docis = isset($row[113]) ? trim((string)$row[113]) : null;
+                $lote = $row[114] ?? null;
+                $jeringa = $row[115] ?? null;
+                $lote_jeringa = $row[116] ?? null;
+                $i = 116;
+
+            // 10
+            } elseif ($i >= 117 && $i <= 120) {
+                $vacunaNombre = 10;
+                $docis = isset($row[117]) ? trim((string)$row[117]) : null;
+                $lote = $row[118] ?? null;
+                $jeringa = $row[119] ?? null;
+                $lote_jeringa = $row[120] ?? null;
+                $i = 120;
+
+            // 11
+            } elseif ($i >= 121 && $i <= 122) {
+                $vacunaNombre = 11;
+                $docis = isset($row[121]) ? trim((string)$row[121]) : null;
+                $lote = $row[122] ?? null;
+                $i = 122;
+
+            // 12
+            } elseif ($i >= 123 && $i <= 127) {
+                $vacunaNombre = 12;
+                $tipo_neumococo = isset($row[123]) ? trim((string)$row[123]) : null;
+                $docis = $row[124] ?? null;
+                $lote = $row[125] ?? null;
+                $jeringa = $row[126] ?? null;
+                $lote_jeringa = $row[127] ?? null;
+                $i = 127;
+
+            // 13
+            } elseif ($i >= 128 && $i <= 132) {
+                $vacunaNombre = 13;
+                $docis = isset($row[128]) ? trim((string)$row[128]) : null;
+                $lote = $row[129] ?? null;
+                $jeringa = $row[130] ?? null;
+                $lote_jeringa = $row[131] ?? null;
+                $lote_diluyente = $row[132] ?? null;
+                $i = 132;
+
+            // 14
+            } elseif ($i >= 133 && $i <= 137) {
+                $vacunaNombre = 14;
+                $docis = isset($row[133]) ? trim((string)$row[133]) : null;
+                $lote = $row[134] ?? null;
+                $jeringa = $row[135] ?? null;
+                $lote_jeringa = $row[136] ?? null;
+                $lote_diluyente = $row[137] ?? null;
+                $i = 137;
+
+            // 15
+            } elseif ($i >= 138 && $i <= 142) {
+                $vacunaNombre = 15;
+                $docis = isset($row[138]) ? trim((string)$row[138]) : null;
+                $lote = $row[139] ?? null;
+                $jeringa = $row[140] ?? null;
+                $lote_jeringa = $row[141] ?? null;
+                $lote_diluyente = $row[142] ?? null;
+                $i = 142;
+
+            // 16
+            } elseif ($i >= 143 && $i <= 146) {
+                $vacunaNombre = 16;
+                $docis = isset($row[143]) ? trim((string)$row[143]) : null;
+                $lote = $row[144] ?? null;
+                $jeringa = $row[145] ?? null;
+                $lote_jeringa = $row[146] ?? null;
+                $i = 146;
+
+            // 17
+            } elseif ($i >= 147 && $i <= 151) {
+                $vacunaNombre = 17;
+                $docis = isset($row[147]) ? trim((string)$row[147]) : null;
+                $lote = $row[148] ?? null;
+                $jeringa = $row[149] ?? null;
+                $lote_jeringa = $row[150] ?? null;
+                $lote_diluyente = $row[151] ?? null;
+                $i = 151;
+
+            // 18
+            } elseif ($i >= 152 && $i <= 155) {
+                $vacunaNombre = 18;
+                $docis = isset($row[152]) ? trim((string)$row[152]) : null;
+                $lote = $row[153] ?? null;
+                $jeringa = $row[154] ?? null;
+                $lote_jeringa = $row[155] ?? null;
+                $i = 155;
+
+            // 19
+            } elseif ($i >= 156 && $i <= 159) {
+                $vacunaNombre = 19;
+                $docis = isset($row[156]) ? trim((string)$row[156]) : null;
+                $lote = $row[157] ?? null;
+                $jeringa = $row[158] ?? null;
+                $lote_jeringa = $row[159] ?? null;
+                $i = 159;
+
+            // 20
+            } elseif ($i >= 160 && $i <= 164) {
+                $vacunaNombre = 20;
+                $docis = isset($row[160]) ? trim((string)$row[160]) : null;
+                $lote = $row[161] ?? null;
+                $jeringa = $row[162] ?? null;
+                $lote_jeringa = $row[163] ?? null;
+                $observacion = $row[164] ?? null;
+                $i = 164;
+
+            // 21
+            } elseif ($i >= 165 && $i <= 168) {
+                $vacunaNombre = 21;
+                $docis = isset($row[165]) ? trim((string)$row[165]) : null;
+                $lote = $row[166] ?? null;
+                $jeringa = $row[167] ?? null;
+                $lote_jeringa = $row[168] ?? null;
+                $i = 168;
+
+            // 22
+            } elseif ($i >= 169 && $i <= 174) {
+                $vacunaNombre = 22;
+                $docis = isset($row[169]) ? trim((string)$row[169]) : null;
+                $lote = $row[170] ?? null;
+                $jeringa = $row[171] ?? null;
+                $lote_jeringa = $row[172] ?? null;
+                $lote_diluyente = $row[173] ?? null;
+                $observacion = $row[174] ?? null;
+                $i = 174;
+
+            // 23
+            } elseif ($i >= 175 && $i <= 176) {
+                $vacunaNombre = 23;
+                $num_frascos_utilizados = $row[175] ?? null;
+                $lote = $row[176] ?? null;
+                $i = 176;
+
+            // 24
+            } elseif ($i >= 177 && $i <= 181) {
+                $vacunaNombre = 24;
+                $num_frascos_utilizados = $row[177] ?? null;
+                $lote = $row[178] ?? null;
+                $jeringa = $row[179] ?? null;
+                $lote_jeringa = $row[180] ?? null;
+                $observacion = $row[181] ?? null;
+                $i = 181;
+
+            // 25
+            } elseif ($i >= 182 && $i <= 185) {
+                $vacunaNombre = 25;
+                $num_frascos_utilizados = $row[182] ?? null;
+                $lote = $row[183] ?? null;
+                $jeringa = $row[184] ?? null;
+                $lote_jeringa = $row[185] ?? null;
+                $i = 185;
+
+            // 26
+            } elseif ($i >= 186 && $i <= 189) {
+                $vacunaNombre = 26;
+                $num_frascos_utilizados = $row[186] ?? null;
+                $lote = $row[187] ?? null;
+                $jeringa = $row[188] ?? null;
+                $lote_jeringa = $row[189] ?? null;
+                $i = 189;
+
+            // 27
+            } elseif ($i >= 190 && $i <= 194) {
+                $vacunaNombre = 27;
+                $docis = isset($row[190]) ? trim((string)$row[190]) : null;
+                $lote = $row[191] ?? null;
+                $jeringa = $row[192] ?? null;
+                $lote_jeringa = $row[193] ?? null;
+                $lote_diluyente = $row[194] ?? null;
+                $i = 194;
+
+            // 28
+            } elseif ($i >= 195 && $i <= 196) {
+                $vacunaNombre = 28;
+                $docis = isset($row[195]) ? trim((string)$row[195]) : null;
+                $lote = $row[196] ?? null;
+                $i = 196;
+
+            // 29
+            } elseif ($i >= 197 && $i <= 198) {
+                $vacunaNombre = 29;
+                $docis = isset($row[197]) ? trim((string)$row[197]) : null;
+                $lote = $row[198] ?? null;
+                $i = 198;
+
+            // 30
+            } elseif ($i >= 199 && $i <= 200) {
+                $vacunaNombre = 30;
+                $docis = isset($row[199]) ? trim((string)$row[199]) : null;
+                $lote = $row[200] ?? null;
+                $i = 200;
+
+            // 31
+            } elseif ($i >= 201 && $i <= 202) {
+                $vacunaNombre = 31;
+                $docis = isset($row[201]) ? trim((string)$row[201]) : null;
+                $lote = $row[202] ?? null;
+                $i = 202;
+
+            // 32
+            } elseif ($i >= 203 && $i <= 204) {
+                $vacunaNombre = 32;
+                $docis = isset($row[203]) ? trim((string)$row[203]) : null;
+                $lote = $row[204] ?? null;
+                $i = 204;
+
+            // 33
+            } elseif ($i >= 205 && $i <= 206) {
+                $vacunaNombre = 33;
+                $docis = isset($row[205]) ? trim((string)$row[205]) : null;
+                $lote = $row[206] ?? null;
+                $i = 206;
+
+            // 34
+            } elseif ($i >= 207 && $i <= 208) {
+                $vacunaNombre = 34;
+                $docis = isset($row[207]) ? trim((string)$row[207]) : null;
+                $lote = $row[208] ?? null;
+                $i = 208;
+
+            // 35
+            } elseif ($i >= 209 && $i <= 210) {
+                $vacunaNombre = 35;
+                $docis = isset($row[209]) ? trim((string)$row[209]) : null;
+                $lote = $row[210] ?? null;
+                $i = 210;
+
+            // 36
+            } elseif ($i >= 211 && $i <= 212) {
+                $vacunaNombre = 36;
+                $docis = isset($row[211]) ? trim((string)$row[211]) : null;
+                $lote = $row[212] ?? null;
+                $i = 212;
+
+            // 37
+            } elseif ($i >= 213 && $i <= 214) {
+                $vacunaNombre = 37;
+                $docis = isset($row[213]) ? trim((string)$row[213]) : null;
+                $lote = $row[214] ?? null;
+                $i = 214;
+
+            // 38
+            } elseif ($i >= 215 && $i <= 216) {
+                $vacunaNombre = 38;
+                $docis = isset($row[215]) ? trim((string)$row[215]) : null;
+                $lote = $row[216] ?? null;
+                $i = 216;
+
+            // 39
+            } elseif ($i >= 217 && $i <= 218) {
+                $vacunaNombre = 39;
+                $docis = isset($row[217]) ? trim((string)$row[217]) : null;
+                $lote = $row[218] ?? null;
+                $i = 218;
+
+            // 40
+            } elseif ($i >= 219 && $i <= 220) {
+                $vacunaNombre = 40;
+                $docis = isset($row[219]) ? trim((string)$row[219]) : null;
+                $lote = $row[220] ?? null;
+                $i = 220;
+
+            // 41
+            } elseif ($i >= 221 && $i <= 222) {
+                $vacunaNombre = 41;
+                $docis = isset($row[221]) ? trim((string)$row[221]) : null;
+                $lote = $row[222] ?? null;
+                $i = 222;
+
+            // 42
+            } elseif ($i >= 223 && $i <= 224) {
+                $vacunaNombre = 42;
+                $docis = isset($row[223]) ? trim((string)$row[223]) : null;
+                $lote = $row[224] ?? null;
+                $i = 224;
+
+            // 43
+            } elseif ($i >= 225 && $i <= 226) {
+                $vacunaNombre = 43;
+                $docis = isset($row[225]) ? trim((string)$row[225]) : null;
+                $lote = $row[226] ?? null;
+                $i = 226;
+
+            // 44
+            } elseif ($i >= 227 && $i <= 228) {
+                $vacunaNombre = 44;
+                $docis = isset($row[227]) ? trim((string)$row[227]) : null;
+                $lote = $row[228] ?? null;
+                $i = 228;
+
+            // 45
+            } elseif ($i >= 229 && $i <= 230) {
+                $vacunaNombre = 45;
+                $docis = isset($row[229]) ? trim((string)$row[229]) : null;
+                $lote = $row[230] ?? null;
+                $i = 230;
+
+            // 46
+            } elseif ($i >= 231 && $i <= 232) {
+                $vacunaNombre = 46;
+                $docis = isset($row[231]) ? trim((string)$row[231]) : null;
+                $lote = $row[232] ?? null;
+                $i = 232;
+
+            // 47
+            } elseif ($i >= 233 && $i <= 235) {
+                $vacunaNombre = 47;
+                $docis = isset($row[233]) ? trim((string)$row[233]) : null;
+                $lote = $row[234] ?? null;
+                $observacion = $row[235] ?? null;
+                $i = 235;
+
+            // 48
+            } elseif ($i >= 236 && $i <= 237) {
+                $vacunaNombre = 48;
+                $num_frascos_utilizados = $row[236] ?? null;
+                $lote = $row[237] ?? null;
+                $i = 237;
+
+            // 49
+            } elseif ($i >= 238 && $i <= 240) {
+                $vacunaNombre = 49;
+                $num_frascos_utilizados = $row[238] ?? null;
+                $lote = $row[239] ?? null;
+                $observacion = $row[240] ?? null;
+                $i = 240;
+
+            // 50
+            } elseif ($i >= 241 && $i <= 242) {
+                $vacunaNombre = 50;
+                $num_frascos_utilizados = $row[241] ?? null;
+                $lote = $row[242] ?? null;
+                $i = 242;
+
+            // 51
+            } elseif ($i >= 243 && $i <= 244) {
+                $vacunaNombre = 51;
+                $num_frascos_utilizados = $row[243] ?? null;
+                $lote = $row[244] ?? null;
+                $i = 244;
+
+            // 52
+            } elseif ($i >= 245 && $i <= 246) {
+                $vacunaNombre = 52;
+                $docis = isset($row[245]) ? trim((string)$row[245]) : null;
+                $lote = $row[246] ?? null;
+                $i = 246;
+
+            // 53
+            } elseif ($i >= 247 && $i <= 248) {
+                $vacunaNombre = 53;
+                $docis = isset($row[247]) ? trim((string)$row[247]) : null;
+                $lote = $row[248] ?? null;
+                $i = 248;
+
+            // 54
+            } elseif ($i >= 249 && $i <= 250) {
+                $vacunaNombre = 54;
+                $docis = isset($row[249]) ? trim((string)$row[249]) : null;
+                $lote = $row[250] ?? null;
+                $i = 250;
+            } else {
+                continue;
+            }
+
+            // Si por alguna razón no trae docis/num frascos/lote/etc, igual guardas si el bloque tiene valor,
+            // pero puedes filtrar aquí si quieres.
+            if ($vacunaNombre) {
+                $vacunas[] = [
+                    'docis' => $docis ?? null,
+                    'laboratorio' => $laboratorio ?? null,
+                    'lote' => $lote ?? null,
+                    'jeringa' => $jeringa ?? null,
+                    'lote_jeringa' => $lote_jeringa ?? null,
+                    'diluyente' => $diluyente ?? null,
+                    'lote_diluyente' => $lote_diluyente ?? null,
+                    'observacion' => $observacion ?? null,
+                    'gotero' => $gotero ?? null,
+                    'num_frascos_utilizados' => $num_frascos_utilizados ?? null,
+                    'tipo_neumococo' => $tipo_neumococo ?? null,
+                    'fecha_vacuna' => $fechaatencion ?? null,
+
+                    'responsable' => $responsable ?? null,
+                    'fuen_ingresado_paiweb' => $fuen_ingresado_paiweb ?? null,
+                    'motivo_noingreso' => $motivo_noingreso ?? null,
+                    'observaciones' => $observaciones ?? null,
+
+                    'vacunas_id' => $vacunaNombre,
+                    'user_id' => $usuario_activo ?? null,
+                    'batch_verifications_id' => $this->batch_verifications_id,
+                    'created_at' => Carbon::now()->format('Y-m-d H:i:s'),
+                    'updated_at' => Carbon::now()->format('Y-m-d H:i:s'),
+                ];
             }
         }
 
-        if (!$allVacunaFieldsEmpty) { // Si hay al menos un campo no vacío
-            // Agregar las vacunas del afiliado
-            for ($i = 75; $i <= 255; $i++) {
-                $vacunaNombre = $docis = $laboratorio = $lote = $jeringa = $lote_jeringa = $diluyente = 
-                $lote_diluyente = $observacion = $gotero = $tipo_neumococo = $num_frascos_utilizados = 
-                $fecha_vacuna = $responsable_ = $fuen_ingresado_paiweb_ =  $motivo_noingreso_ = $observaciones_ = $usuario_activo_ = null;
-
-                if (isset($row[$i]) && !empty($row[$i]) && !is_null($row[$i]) && trim($row[$i]) !== '') {
-
-                    // Determinar el nombre de la vacuna basado en el rango de columnas
-                    if ($i >= 75 && $i <= 80) {
-                        $vacunaNombre = 1 ;
-                        $docis = isset($row[75]) ? trim($row[75]) : null;
-                        $laboratorio = isset($row[76]) ? $row[76] : null;
-                        $lote = isset($row[77]) ? $row[77] : null;
-                        $jeringa = isset($row[78]) ? $row[78] : null;
-                        $lote_jeringa = isset($row[79]) ? $row[79] : null;
-                        $diluyente = isset($row[80]) ? $row[80] : null;
-                        $fecha_vacuna = $fechaatencion;
-                        $responsable_ = $responsable;
-                        $fuen_ingresado_paiweb_ = $fuen_ingresado_paiweb;
-                        $motivo_noingreso_ = $motivo_noingreso;
-                        $observaciones_ = $observaciones;
-                        $usuario_activo_ = $usuario_activo;
-                        $i = 80;
-                    } elseif ($i >= 81 && $i <= 86) {
-                        $vacunaNombre = 2 ;
-                        $docis = isset($row[81]) ? trim($row[81]) : null;
-                        $lote = isset($row[82]) ? $row[82] : null;
-                        $jeringa = isset($row[83]) ? $row[83] : null;
-                        $lote_jeringa = isset($row[84]) ? $row[84] : null;
-                        $lote_diluyente = isset($row[85]) ? $row[85] : null;
-                        $observacion = isset($row[86]) ? $row[86] : null;
-                        $fecha_vacuna = $fechaatencion;
-                        $responsable_ = $responsable;
-                        $fuen_ingresado_paiweb_ = $fuen_ingresado_paiweb;
-                        $motivo_noingreso_ = $motivo_noingreso;
-                        $observaciones_ = $observaciones;
-                        $usuario_activo_ = $usuario_activo;
-                        $i = 86;
-                    } elseif ($i >= 87 && $i <= 91) {
-                        $vacunaNombre = 3 ;
-                        $docis = isset($row[87]) ? trim($row[87]) : null;
-                        $lote = isset($row[88]) ? $row[88] : null;
-                        $jeringa = isset($row[89]) ? $row[89] : null;
-                        $lote_jeringa = isset($row[90]) ? $row[90] : null;
-                        $observacion = isset($row[91]) ? $row[91] : null;
-                        $fecha_vacuna = $fechaatencion;
-                        $responsable_ = $responsable;
-                        $fuen_ingresado_paiweb_ = $fuen_ingresado_paiweb;
-                        $motivo_noingreso_ = $motivo_noingreso;
-                        $observaciones_ = $observaciones;
-                        $usuario_activo_ = $usuario_activo;
-                        $i = 91;
-                    } elseif ($i >= 92 && $i <= 96) {
-                        $vacunaNombre = 4 ;
-                        $docis = isset($row[92]) ? trim($row[92]) : null;
-                        $lote = isset($row[93]) ? $row[93] : null;
-                        $jeringa = isset($row[94]) ? $row[94] : null;
-                        $lote_jeringa = isset($row[95]) ? $row[95] : null;
-                        $observacion = isset($row[96]) ? $row[96] : null;
-                        $fecha_vacuna = $fechaatencion;
-                        $responsable_ = $responsable;
-                        $fuen_ingresado_paiweb_ = $fuen_ingresado_paiweb;
-                        $motivo_noingreso_ = $motivo_noingreso;
-                        $observaciones_ = $observaciones;
-                        $usuario_activo_ = $usuario_activo;
-                        $i = 96;
-                    } elseif ($i >= 97 && $i <= 99) {
-                        $vacunaNombre = 5 ;
-                        $docis = isset($row[97]) ? trim($row[97]) : null;
-                        $lote = isset($row[98]) ? $row[98] : null;
-                        $gotero = isset($row[99]) ? $row[99] : null;
-                        $fecha_vacuna = $fechaatencion;
-                        $responsable_ = $responsable;
-                        $fuen_ingresado_paiweb_ = $fuen_ingresado_paiweb;
-                        $motivo_noingreso_ = $motivo_noingreso;
-                        $observaciones_ = $observaciones;
-                        $usuario_activo_ = $usuario_activo;
-                        $i = 99;
-                    } elseif ($i >= 100 && $i <= 104) {
-                        $vacunaNombre = 6 ;
-                        $docis = isset($row[100]) ? trim($row[100]) : null;
-                        $lote = isset($row[101]) ? $row[101] : null;
-                        $jeringa = isset($row[102]) ? $row[102] : null;
-                        $lote_jeringa = isset($row[103]) ? $row[103] : null;
-                        $observacion = isset($row[104]) ? $row[104] : null;
-                        $fecha_vacuna = $fechaatencion;
-                        $responsable_ = $responsable;
-                        $fuen_ingresado_paiweb_ = $fuen_ingresado_paiweb;
-                        $motivo_noingreso_ = $motivo_noingreso;
-                        $observaciones_ = $observaciones;
-                        $usuario_activo_ = $usuario_activo;
-                        $i = 104;
-                    } elseif ($i >= 105 && $i <= 108) {
-                        $vacunaNombre = 7 ;
-                        $docis = isset($row[105]) ? trim($row[105]) : null;
-                        $lote = isset($row[106]) ? $row[106] : null;
-                        $jeringa = isset($row[107]) ? $row[107] : null;
-                        $lote_jeringa = isset($row[108]) ? $row[108] : null;
-                        $fecha_vacuna = $fechaatencion;
-                        $responsable_ = $responsable;
-                        $fuen_ingresado_paiweb_ = $fuen_ingresado_paiweb;
-                        $motivo_noingreso_ = $motivo_noingreso;
-                        $observaciones_ = $observaciones;
-                        $usuario_activo_ = $usuario_activo;
-                        $i = 108;
-                    } elseif ($i >= 109 && $i <= 112) {
-                        $vacunaNombre = 8 ;
-                        $docis = isset($row[109]) ? trim($row[109]) : null;
-                        $lote = isset($row[110]) ? $row[110] : null;
-                        $jeringa = isset($row[111]) ? $row[111] : null;
-                        $lote_jeringa = isset($row[112]) ? $row[112] : null;
-                        $fecha_vacuna = $fechaatencion;
-                        $responsable_ = $responsable;
-                        $fuen_ingresado_paiweb_ = $fuen_ingresado_paiweb;
-                        $motivo_noingreso_ = $motivo_noingreso;
-                        $observaciones_ = $observaciones;
-                        $usuario_activo_ = $usuario_activo;
-                        $i = 112;
-                    } elseif ($i >= 113 && $i <= 116) {
-                        $vacunaNombre = 9 ;
-                        $docis = isset($row[113]) ? trim($row[113]) : null;
-                        $lote = isset($row[114]) ? $row[114] : null;
-                        $jeringa = isset($row[115]) ? $row[115] : null;
-                        $lote_jeringa = isset($row[116]) ? $row[116] : null;
-                        $fecha_vacuna = $fechaatencion;
-                        $responsable_ = $responsable;
-                        $fuen_ingresado_paiweb_ = $fuen_ingresado_paiweb;
-                        $motivo_noingreso_ = $motivo_noingreso;
-                        $observaciones_ = $observaciones;
-                        $usuario_activo_ = $usuario_activo;
-                        $i = 116;
-                    } elseif ($i >= 117 && $i <= 120) {
-                        $vacunaNombre = 10 ;
-                        $docis = isset($row[117]) ? trim($row[117]) : null;
-                        $lote = isset($row[118]) ? $row[118] : null;
-                        $jeringa = isset($row[119]) ? $row[119] : null;
-                        $lote_jeringa = isset($row[120]) ? $row[120] : null;
-                        $fecha_vacuna = $fechaatencion;
-                        $responsable_ = $responsable;
-                        $fuen_ingresado_paiweb_ = $fuen_ingresado_paiweb;
-                        $motivo_noingreso_ = $motivo_noingreso;
-                        $observaciones_ = $observaciones;
-                        $usuario_activo_ = $usuario_activo;
-                        $i = 120;
-                    } elseif ($i >= 121 && $i <= 122) {
-                        $vacunaNombre = 11 ;
-                        $docis = isset($row[121]) ? trim($row[121]) : null;
-                        $lote = isset($row[122]) ? $row[122] : null;
-                        $fecha_vacuna = $fechaatencion;
-                        $responsable_ = $responsable;
-                        $fuen_ingresado_paiweb_ = $fuen_ingresado_paiweb;
-                        $motivo_noingreso_ = $motivo_noingreso;
-                        $observaciones_ = $observaciones;
-                        $usuario_activo_ = $usuario_activo;
-                        $i = 122;
-                    } elseif ($i >= 123 && $i <= 127) {
-                        $vacunaNombre = 12 ;
-                        $tipo_neumococo = isset($row[123]) ? trim($row[123]) : null;
-                        $docis = isset($row[124]) ? $row[124] : null;
-                        $lote = isset($row[125]) ? $row[125] : null;
-                        $jeringa = isset($row[126]) ? $row[126] : null;
-                        $lote_jeringa = isset($row[127]) ? $row[127] : null;
-                        $fecha_vacuna = $fechaatencion;
-                        $responsable_ = $responsable;
-                        $fuen_ingresado_paiweb_ = $fuen_ingresado_paiweb;
-                        $motivo_noingreso_ = $motivo_noingreso;
-                        $observaciones_ = $observaciones;
-                        $usuario_activo_ = $usuario_activo;
-                        $i = 127;                
-                    } elseif ($i >= 128 && $i <= 132) {
-                        $vacunaNombre = 13 ;
-                        $docis = isset($row[128]) ? trim($row[128]) : null;
-                        $lote = isset($row[129]) ? $row[129] : null;
-                        $jeringa = isset($row[130]) ? $row[130] : null;
-                        $lote_jeringa = isset($row[131]) ? $row[131] : null;
-                        $lote_diluyente = isset($row[132]) ? $row[132] : null;
-                        $fecha_vacuna = $fechaatencion;
-                        $responsable_ = $responsable;
-                        $fuen_ingresado_paiweb_ = $fuen_ingresado_paiweb;
-                        $motivo_noingreso_ = $motivo_noingreso;
-                        $observaciones_ = $observaciones;
-                        $usuario_activo_ = $usuario_activo;
-                        $i = 132;
-                    } elseif ($i >= 133 && $i <= 137) {
-                        $vacunaNombre =  14 ;
-                        $docis = isset($row[133]) ? trim($row[133]) : null;
-                        $lote = isset($row[134]) ? $row[134] : null;
-                        $jeringa = isset($row[135]) ? $row[135] : null;
-                        $lote_jeringa = isset($row[136]) ? $row[136] : null;
-                        $lote_diluyente = isset($row[137]) ? $row[137] : null;
-                        $fecha_vacuna = $fechaatencion;
-                        $responsable_ = $responsable;
-                        $fuen_ingresado_paiweb_ = $fuen_ingresado_paiweb;
-                        $motivo_noingreso_ = $motivo_noingreso;
-                        $observaciones_ = $observaciones;
-                        $usuario_activo_ = $usuario_activo;
-                        $i = 137;                
-                    } elseif ($i >= 138 && $i <= 142) {
-                        $vacunaNombre = 15 ;
-                        $docis = isset($row[138]) ? trim($row[138]) : null;
-                        $lote = isset($row[139]) ? $row[139] : null;
-                        $jeringa = isset($row[140]) ? $row[140] : null;
-                        $lote_jeringa = isset($row[141]) ? $row[141] : null;
-                        $lote_diluyente = isset($row[142]) ? $row[142] : null;
-                        $fecha_vacuna = $fechaatencion;
-                        $responsable_ = $responsable;
-                        $fuen_ingresado_paiweb_ = $fuen_ingresado_paiweb;
-                        $motivo_noingreso_ = $motivo_noingreso;
-                        $observaciones_ = $observaciones;
-                        $usuario_activo_ = $usuario_activo;
-                        $i = 142;    
-                    } elseif ($i >= 143 && $i <= 146) {
-                        $vacunaNombre = 16 ;
-                        $docis = isset($row[143]) ? trim($row[143]) : null;
-                        $lote = isset($row[144]) ? $row[144] : null;
-                        $jeringa = isset($row[145]) ? $row[145] : null;
-                        $lote_jeringa = isset($row[146]) ? $row[146] : null;
-                        $fecha_vacuna = $fechaatencion;
-                        $responsable_ = $responsable;
-                        $fuen_ingresado_paiweb_ = $fuen_ingresado_paiweb;
-                        $motivo_noingreso_ = $motivo_noingreso;
-                        $observaciones_ = $observaciones;
-                        $usuario_activo_ = $usuario_activo;               
-                        $i = 146;
-                    } elseif ($i >= 147 && $i <= 151) {
-                        $vacunaNombre = 17 ;
-                        $docis = isset($row[147]) ? trim($row[147]) : null;
-                        $lote = isset($row[148]) ? $row[148] : null;
-                        $jeringa = isset($row[149]) ? $row[149] : null;
-                        $lote_jeringa = isset($row[150]) ? $row[150] : null;
-                        $lote_diluyente = isset($row[151]) ? $row[151] : null;
-                        $fecha_vacuna = $fechaatencion;
-                        $responsable_ = $responsable;
-                        $fuen_ingresado_paiweb_ = $fuen_ingresado_paiweb;
-                        $motivo_noingreso_ = $motivo_noingreso;
-                        $observaciones_ = $observaciones;
-                        $usuario_activo_ = $usuario_activo;
-                        $i = 151;
-                    } elseif ($i >= 152 && $i <= 155) {
-                        $vacunaNombre = 18 ;
-                        $docis = isset($row[152]) ? trim($row[152]) : null;
-                        $lote = isset($row[153]) ? $row[153] : null;
-                        $jeringa = isset($row[154]) ? $row[154] : null;
-                        $lote_jeringa = isset($row[155]) ? $row[155] : null;               
-                        $fecha_vacuna = $fechaatencion;
-                        $responsable_ = $responsable;
-                        $fuen_ingresado_paiweb_ = $fuen_ingresado_paiweb;
-                        $motivo_noingreso_ = $motivo_noingreso;
-                        $observaciones_ = $observaciones;
-                        $usuario_activo_ = $usuario_activo;
-                        $i = 155;
-                    } elseif ($i >= 156 && $i <= 159) {
-                        $vacunaNombre = 19 ;
-                        $docis = isset($row[156]) ? trim($row[156]) : null;
-                        $lote = isset($row[157]) ? $row[157] : null;
-                        $jeringa = isset($row[158]) ? $row[158] : null;
-                        $lote_jeringa = isset($row[159]) ? $row[159] : null;
-                        $fecha_vacuna = $fechaatencion;
-                        $responsable_ = $responsable;
-                        $fuen_ingresado_paiweb_ = $fuen_ingresado_paiweb;
-                        $motivo_noingreso_ = $motivo_noingreso;
-                        $observaciones_ = $observaciones;
-                        $usuario_activo_ = $usuario_activo;               
-                        $i = 159;
-                    } elseif ($i >= 160 && $i <= 164) {
-                        $vacunaNombre = 20 ;
-                        $docis = isset($row[160]) ? trim($row[160]) : null;
-                        $lote = isset($row[161]) ? $row[161] : null;
-                        $jeringa = isset($row[162]) ? $row[162] : null;
-                        $lote_jeringa = isset($row[163]) ? $row[163] : null;
-                        $observacion = isset($row[164]) ? $row[164] : null;
-                        $fecha_vacuna = $fechaatencion;
-                        $responsable_ = $responsable;
-                        $fuen_ingresado_paiweb_ = $fuen_ingresado_paiweb;
-                        $motivo_noingreso_ = $motivo_noingreso;
-                        $observaciones_ = $observaciones;
-                        $usuario_activo_ = $usuario_activo;
-                        $i = 164;
-                    } elseif ($i >= 165 && $i <= 168) {
-                        $vacunaNombre = 21 ;
-                        $docis = isset($row[165]) ? trim($row[165]) : null;
-                        $lote = isset($row[166]) ? $row[166] : null;
-                        $jeringa = isset($row[167]) ? $row[167] : null;
-                        $lote_jeringa = isset($row[168]) ? $row[168] : null;
-                        $fecha_vacuna = $fechaatencion;
-                        $responsable_ = $responsable;
-                        $fuen_ingresado_paiweb_ = $fuen_ingresado_paiweb;
-                        $motivo_noingreso_ = $motivo_noingreso;
-                        $observaciones_ = $observaciones;
-                        $usuario_activo_ = $usuario_activo;
-                        $i = 168;
-                    } elseif ($i >= 169 && $i <= 174) {
-                        $vacunaNombre = 22 ;
-                        $docis = isset($row[169]) ? trim($row[169]) : null;
-                        $lote = isset($row[170]) ? $row[170] : null;
-                        $jeringa = isset($row[171]) ? $row[171] : null;
-                        $lote_jeringa = isset($row[172]) ? $row[172] : null;
-                        $lote_diluyente = isset($row[173]) ? $row[173] : null;
-                        $observacion = isset($row[174]) ? $row[174] : null;
-                        $fecha_vacuna = $fechaatencion;
-                        $responsable_ = $responsable;
-                        $fuen_ingresado_paiweb_ = $fuen_ingresado_paiweb;
-                        $motivo_noingreso_ = $motivo_noingreso;
-                        $observaciones_ = $observaciones;
-                        $usuario_activo_ = $usuario_activo;
-                        $i = 174;
-                    }elseif ($i >= 175 && $i <= 176) {
-                        $vacunaNombre = 23 ;
-                        $num_frascos_utilizados = isset($row[175]) ? $row[175] : null;
-                        $lote = isset($row[176]) ? $row[176] : null;
-                        $fecha_vacuna = $fechaatencion;
-                        $responsable_ = $responsable;
-                        $fuen_ingresado_paiweb_ = $fuen_ingresado_paiweb;
-                        $motivo_noingreso_ = $motivo_noingreso;
-                        $observaciones_ = $observaciones;
-                        $usuario_activo_ = $usuario_activo;
-                        $i = 176;
-                    } elseif ($i >= 177 && $i <= 181) {
-                        $vacunaNombre = 24 ;
-                        $num_frascos_utilizados = isset($row[177]) ? $row[177] : null;
-                        $lote = isset($row[178]) ? $row[178] : null;
-                        $jeringa = isset($row[179]) ? $row[179] : null;
-                        $lote_jeringa = isset($row[180]) ? $row[180] : null;                
-                        $observacion = isset($row[181]) ? $row[181] : null;
-                        $fecha_vacuna = $fechaatencion;
-                        $responsable_ = $responsable;
-                        $fuen_ingresado_paiweb_ = $fuen_ingresado_paiweb;
-                        $motivo_noingreso_ = $motivo_noingreso;
-                        $observaciones_ = $observaciones;
-                        $usuario_activo_ = $usuario_activo;
-                        $i = 181;
-                    } elseif ($i >= 182 && $i <= 185) {
-                        $vacunaNombre = 25 ;
-                        $num_frascos_utilizados = isset($row[182]) ? $row[182] : null;
-                        $lote = isset($row[183]) ? $row[183] : null;
-                        $jeringa = isset($row[184]) ? $row[184] : null;
-                        $lote_jeringa = isset($row[185]) ? $row[185] : null;
-                        $fecha_vacuna = $fechaatencion;
-                        $responsable_ = $responsable;
-                        $fuen_ingresado_paiweb_ = $fuen_ingresado_paiweb;
-                        $motivo_noingreso_ = $motivo_noingreso;
-                        $observaciones_ = $observaciones;
-                        $usuario_activo_ = $usuario_activo;
-                        $i = 185;
-                    } elseif ($i >= 186 && $i <= 189) {
-                        $vacunaNombre = 26 ;
-                        $num_frascos_utilizados = isset($row[186]) ? $row[186] : null;
-                        $lote = isset($row[187]) ? $row[187] : null;
-                        $jeringa = isset($row[188]) ? $row[188] : null;
-                        $lote_jeringa = isset($row[189]) ? $row[189] : null;
-                        $fecha_vacuna = $fechaatencion;
-                        $responsable_ = $responsable;
-                        $fuen_ingresado_paiweb_ = $fuen_ingresado_paiweb;
-                        $motivo_noingreso_ = $motivo_noingreso;
-                        $observaciones_ = $observaciones;
-                        $usuario_activo_ = $usuario_activo;
-                        $i = 189;
-                    } elseif ($i >= 190 && $i <= 194) {
-                        $vacunaNombre = 27 ;
-                        $docis = isset($row[190]) ? trim($row[190]) : null;
-                        $lote = isset($row[191]) ? $row[191] : null;
-                        $jeringa = isset($row[192]) ? $row[192] : null;
-                        $lote_jeringa = isset($row[193]) ? $row[193] : null;
-                        $lote_diluyente = isset($row[194]) ? $row[194] : null;
-                        $fecha_vacuna = $fechaatencion;
-                        $responsable_ = $responsable;
-                        $fuen_ingresado_paiweb_ = $fuen_ingresado_paiweb;
-                        $motivo_noingreso_ = $motivo_noingreso;
-                        $observaciones_ = $observaciones;
-                        $usuario_activo_ = $usuario_activo;
-                        $i = 194;
-                    } elseif ($i >= 195 && $i <= 196) {
-                        $vacunaNombre = 28 ;
-                        $docis = isset($row[195]) ? trim($row[195]) : null;
-                        $lote = isset($row[196]) ? $row[196] : null;
-                        $fecha_vacuna = $fechaatencion;
-                        $responsable_ = $responsable;
-                        $fuen_ingresado_paiweb_ = $fuen_ingresado_paiweb;
-                        $motivo_noingreso_ = $motivo_noingreso;
-                        $observaciones_ = $observaciones;
-                        $usuario_activo_ = $usuario_activo;
-                        $i = 196;
-                    } elseif ($i >= 197 && $i <= 198) {
-                        $vacunaNombre = 29 ;
-                        $docis = isset($row[197]) ? trim($row[197]) : null;
-                        $lote = isset($row[198]) ? $row[198] : null;
-                        $fecha_vacuna = $fechaatencion;
-                        $responsable_ = $responsable;
-                        $fuen_ingresado_paiweb_ = $fuen_ingresado_paiweb;
-                        $motivo_noingreso_ = $motivo_noingreso;
-                        $observaciones_ = $observaciones;
-                        $usuario_activo_ = $usuario_activo;
-                        $i = 198;
-                    } elseif ($i >= 199 && $i <= 200) {
-                        $vacunaNombre = 30 ;
-                        $docis = isset($row[199]) ? trim($row[199]) : null;
-                        $lote = isset($row[200]) ? $row[200] : null;
-                        $fecha_vacuna = $fechaatencion;
-                        $responsable_ = $responsable;
-                        $fuen_ingresado_paiweb_ = $fuen_ingresado_paiweb;
-                        $motivo_noingreso_ = $motivo_noingreso;
-                        $observaciones_ = $observaciones;
-                        $usuario_activo_ = $usuario_activo;
-                        $i = 200;
-                    } elseif ($i >= 201 && $i <= 202) {
-                        $vacunaNombre = 31 ;
-                        $docis = isset($row[201]) ? trim($row[201]) : null;
-                        $lote = isset($row[202]) ? $row[202] : null;
-                        $fecha_vacuna = $fechaatencion;
-                        $responsable_ = $responsable;
-                        $fuen_ingresado_paiweb_ = $fuen_ingresado_paiweb;
-                        $motivo_noingreso_ = $motivo_noingreso;
-                        $observaciones_ = $observaciones;
-                        $usuario_activo_ = $usuario_activo;
-                        $i = 202;
-                    } elseif ($i >= 203 && $i <= 204) {
-                        $vacunaNombre = 32 ;
-                        $docis = isset($row[203]) ? trim($row[203]) : null;
-                        $lote = isset($row[204]) ? $row[204] : null;
-                        $fecha_vacuna = $fechaatencion;
-                        $responsable_ = $responsable;
-                        $fuen_ingresado_paiweb_ = $fuen_ingresado_paiweb;
-                        $motivo_noingreso_ = $motivo_noingreso;
-                        $observaciones_ = $observaciones;
-                        $usuario_activo_ = $usuario_activo;
-                        $i = 204;
-                    } elseif ($i >= 205 && $i <= 206) {
-                        $vacunaNombre = 33 ;
-                        $docis = isset($row[205]) ? trim($row[205]) : null;
-                        $lote = isset($row[206]) ? $row[206] : null;
-                        $fecha_vacuna = $fechaatencion;
-                        $responsable_ = $responsable;
-                        $fuen_ingresado_paiweb_ = $fuen_ingresado_paiweb;
-                        $motivo_noingreso_ = $motivo_noingreso;
-                        $observaciones_ = $observaciones;
-                        $usuario_activo_ = $usuario_activo;
-                        $i = 206;
-                    } elseif ($i >= 207 && $i <= 208) {
-                        $vacunaNombre = 34 ;
-                        $docis = isset($row[207]) ? trim($row[207]) : null;
-                        $lote = isset($row[208]) ? $row[208] : null;
-                        $fecha_vacuna = $fechaatencion;
-                        $usuario_activo_ = $usuario_activo;
-                        $i = 208;
-                    } elseif ($i >= 209 && $i <= 210) {
-                        $vacunaNombre = 35 ;
-                        $docis = isset($row[209]) ? trim($row[209]) : null;
-                        $lote = isset($row[210]) ? $row[210] : null;
-                        $fecha_vacuna = $fechaatencion;
-                        $responsable_ = $responsable;
-                        $fuen_ingresado_paiweb_ = $fuen_ingresado_paiweb;
-                        $motivo_noingreso_ = $motivo_noingreso;
-                        $observaciones_ = $observaciones;
-                        $usuario_activo_ = $usuario_activo;
-                        $i = 210;
-                    } elseif ($i >= 211 && $i <= 212) {
-                        $vacunaNombre = 36 ;
-                        $docis = isset($row[211]) ? trim($row[211]) : null;
-                        $lote = isset($row[212]) ? $row[212] : null;
-                        $fecha_vacuna = $fechaatencion;
-                        $responsable_ = $responsable;
-                        $fuen_ingresado_paiweb_ = $fuen_ingresado_paiweb;
-                        $motivo_noingreso_ = $motivo_noingreso;
-                        $observaciones_ = $observaciones;
-                        $usuario_activo_ = $usuario_activo;
-                        $i = 212;
-                    } elseif ($i >= 213 && $i <= 214) {
-                        $vacunaNombre = 37 ;
-                        $docis = isset($row[213]) ? trim($row[213]) : null;
-                        $lote = isset($row[214]) ? $row[214] : null;
-                        $fecha_vacuna = $fechaatencion;
-                        $responsable_ = $responsable;
-                        $fuen_ingresado_paiweb_ = $fuen_ingresado_paiweb;
-                        $motivo_noingreso_ = $motivo_noingreso;
-                        $observaciones_ = $observaciones;
-                        $usuario_activo_ = $usuario_activo;
-                        $i = 214;
-                    } elseif ($i >= 215 && $i <= 216) {
-                        $vacunaNombre = 38 ;
-                        $docis = isset($row[215]) ? trim($row[215]) : null;
-                        $lote = isset($row[216]) ? $row[216] : null;
-                        $fecha_vacuna = $fechaatencion;
-                        $responsable_ = $responsable;
-                        $fuen_ingresado_paiweb_ = $fuen_ingresado_paiweb;
-                        $motivo_noingreso_ = $motivo_noingreso;
-                        $observaciones_ = $observaciones;
-                        $usuario_activo_ = $usuario_activo;
-                        $i = 216;
-                    } elseif ($i >= 217 && $i <= 218) {
-                        $vacunaNombre = 39 ;
-                        $docis = isset($row[217]) ? trim($row[217]) : null;
-                        $lote = isset($row[218]) ? $row[218] : null;
-                        $fecha_vacuna = $fechaatencion;
-                        $responsable_ = $responsable;
-                        $fuen_ingresado_paiweb_ = $fuen_ingresado_paiweb;
-                        $motivo_noingreso_ = $motivo_noingreso;
-                        $observaciones_ = $observaciones;
-                        $usuario_activo_ = $usuario_activo;
-                        $i = 218;
-                    } elseif ($i >= 219 && $i <= 220) {
-                        $vacunaNombre = 40 ;
-                        $docis = isset($row[219]) ? trim($row[219]) : null;
-                        $lote = isset($row[220]) ? $row[220] : null;
-                        $fecha_vacuna = $fechaatencion;
-                        $responsable_ = $responsable;
-                        $fuen_ingresado_paiweb_ = $fuen_ingresado_paiweb;
-                        $motivo_noingreso_ = $motivo_noingreso;
-                        $observaciones_ = $observaciones;
-                        $usuario_activo_ = $usuario_activo;
-                        $i = 220;
-                    } elseif ($i >= 221 && $i <= 222) {
-                        $vacunaNombre = 41 ;
-                        $docis = isset($row[221]) ? trim($row[221]) : null;
-                        $lote = isset($row[222]) ? $row[222] : null;
-                        $fecha_vacuna = $fechaatencion;
-                        $responsable_ = $responsable;
-                        $fuen_ingresado_paiweb_ = $fuen_ingresado_paiweb;
-                        $motivo_noingreso_ = $motivo_noingreso;
-                        $observaciones_ = $observaciones;
-                        $usuario_activo_ = $usuario_activo;
-                        $i = 222;
-                    } elseif ($i >= 223 && $i <= 224) {
-                        $vacunaNombre = 42 ;
-                        $docis = isset($row[223]) ? trim($row[223]) : null;
-                        $lote = isset($row[224]) ? $row[224] : null;
-                        $fecha_vacuna = $fechaatencion;
-                        $responsable_ = $responsable;
-                        $fuen_ingresado_paiweb_ = $fuen_ingresado_paiweb;
-                        $motivo_noingreso_ = $motivo_noingreso;
-                        $observaciones_ = $observaciones;
-                        $usuario_activo_ = $usuario_activo;
-                        $i = 224;
-                    } elseif ($i >= 225 && $i <= 226) {
-                        $vacunaNombre = 43 ;
-                        $docis = isset($row[225]) ? trim($row[225]) : null;
-                        $lote = isset($row[226]) ? $row[226] : null;
-                        $fecha_vacuna = $fechaatencion;
-                        $responsable_ = $responsable;
-                        $fuen_ingresado_paiweb_ = $fuen_ingresado_paiweb;
-                        $motivo_noingreso_ = $motivo_noingreso;
-                        $observaciones_ = $observaciones;
-                        $usuario_activo_ = $usuario_activo;
-                        $i = 226;
-                    } elseif ($i >= 227 && $i <= 228) {
-                        $vacunaNombre = 44 ;
-                        $docis = isset($row[227]) ? trim($row[227]) : null;
-                        $lote = isset($row[228]) ? $row[228] : null;
-                        $fecha_vacuna = $fechaatencion;
-                        $responsable_ = $responsable;
-                        $fuen_ingresado_paiweb_ = $fuen_ingresado_paiweb;
-                        $motivo_noingreso_ = $motivo_noingreso;
-                        $observaciones_ = $observaciones;
-                        $usuario_activo_ = $usuario_activo;
-                        $i = 228;
-                    } elseif ($i >= 229 && $i <= 230) {
-                        $vacunaNombre = 45 ;
-                        $docis = isset($row[229]) ? trim($row[229]) : null;
-                        $lote = isset($row[230]) ? $row[230] : null;
-                        $fecha_vacuna = $fechaatencion;
-                        $responsable_ = $responsable;
-                        $fuen_ingresado_paiweb_ = $fuen_ingresado_paiweb;
-                        $motivo_noingreso_ = $motivo_noingreso;
-                        $observaciones_ = $observaciones;
-                        $usuario_activo_ = $usuario_activo;
-                        $i = 230;
-                    } elseif ($i >= 231 && $i <= 232) {
-                        $vacunaNombre = 46 ;
-                        $docis = isset($row[231]) ? trim($row[231]) : null;
-                        $lote = isset($row[232]) ? $row[232] : null;
-                        $fecha_vacuna = $fechaatencion;
-                        $responsable_ = $responsable;
-                        $fuen_ingresado_paiweb_ = $fuen_ingresado_paiweb;
-                        $motivo_noingreso_ = $motivo_noingreso;
-                        $observaciones_ = $observaciones;
-                        $usuario_activo_ = $usuario_activo;
-                        $i = 232;
-                    } elseif ($i >= 233 && $i <= 235) {
-                        $vacunaNombre = 47 ;
-                        $docis = isset($row[233]) ? trim($row[233]) : null;
-                        $lote = isset($row[234]) ? $row[234] : null;
-                        $observacion = isset($row[235]) ? $row[235] : null;
-                        $fecha_vacuna = $fechaatencion;
-                        $responsable_ = $responsable;
-                        $fuen_ingresado_paiweb_ = $fuen_ingresado_paiweb;
-                        $motivo_noingreso_ = $motivo_noingreso;
-                        $observaciones_ = $observaciones;
-                        $usuario_activo_ = $usuario_activo;
-                        $i = 235;
-                    } elseif ($i >= 236 && $i <= 237) {
-                        $vacunaNombre = 48 ;
-                        $num_frascos_utilizados = isset($row[236]) ? $row[236] : null;
-                        $lote = isset($row[237]) ? $row[237] : null; 
-                        $fecha_vacuna = $fechaatencion;
-                        $responsable_ = $responsable;
-                        $fuen_ingresado_paiweb_ = $fuen_ingresado_paiweb;
-                        $motivo_noingreso_ = $motivo_noingreso;
-                        $observaciones_ = $observaciones;
-                        $usuario_activo_ = $usuario_activo;
-                        $i = 237;
-                    } elseif ($i >= 238 && $i <= 240) {
-                        $vacunaNombre = 49 ;
-                        $num_frascos_utilizados = isset($row[238]) ? $row[238] : null;
-                        $lote = isset($row[239]) ? $row[239] : null;
-                        $observacion = isset($row[240]) ? $row[240] : null; 
-                        $fecha_vacuna = $fechaatencion;
-                        $responsable_ = $responsable;
-                        $fuen_ingresado_paiweb_ = $fuen_ingresado_paiweb;
-                        $motivo_noingreso_ = $motivo_noingreso;
-                        $observaciones_ = $observaciones;
-                        $usuario_activo_ = $usuario_activo;
-                        $i = 240;
-                    } elseif ($i >= 241 && $i <= 242) {
-                        $vacunaNombre = 50 ;
-                        $num_frascos_utilizados = isset($row[241]) ? $row[241] : null;
-                        $lote = isset($row[242]) ? $row[242] : null;
-                        $fecha_vacuna = $fechaatencion;
-                        $responsable_ = $responsable;
-                        $fuen_ingresado_paiweb_ = $fuen_ingresado_paiweb;
-                        $motivo_noingreso_ = $motivo_noingreso;
-                        $observaciones_ = $observaciones;
-                        $usuario_activo_ = $usuario_activo;
-                        $i = 242;
-                    } elseif ($i >= 243 && $i <= 244) {
-                        $vacunaNombre = 51 ;
-                        $num_frascos_utilizados = isset($row[243]) ? $row[243] : null;
-                        $lote = isset($row[244]) ? $row[244] : null;
-                        $fecha_vacuna = $fechaatencion;
-                        $responsable_ = $responsable;
-                        $fuen_ingresado_paiweb_ = $fuen_ingresado_paiweb;
-                        $motivo_noingreso_ = $motivo_noingreso;
-                        $observaciones_ = $observaciones;
-                        $usuario_activo_ = $usuario_activo;
-                        $i = 244;
-                    } elseif ($i >= 245 && $i <= 246) {
-                        $vacunaNombre = 52 ;
-                        $docis = isset($row[245]) ? trim($row[245]) : null;
-                        $lote = isset($row[246]) ? $row[246] : null;
-                        $fecha_vacuna = $fechaatencion;
-                        $responsable_ = $responsable;
-                        $fuen_ingresado_paiweb_ = $fuen_ingresado_paiweb;
-                        $motivo_noingreso_ = $motivo_noingreso;
-                        $observaciones_ = $observaciones;
-                        $usuario_activo_ = $usuario_activo;
-                        $i = 246;
-                    } elseif ($i >= 247 && $i <= 248) {
-                        $vacunaNombre = 53 ;
-                        $docis = isset($row[247]) ? trim($row[247]) : null;
-                        $lote = isset($row[248]) ? $row[248] : null;
-                        $fecha_vacuna = $fechaatencion;
-                        $responsable_ = $responsable;
-                        $fuen_ingresado_paiweb_ = $fuen_ingresado_paiweb;
-                        $motivo_noingreso_ = $motivo_noingreso;
-                        $observaciones_ = $observaciones;
-                        $usuario_activo_ = $usuario_activo;
-                        $i = 248;
-                    } elseif ($i >= 249 && $i <= 250) {
-                        $vacunaNombre = 54 ;
-                        $docis = isset($row[249]) ? trim($row[249]) : null;
-                        $lote = isset($row[250]) ? $row[250] : null;
-                        $fecha_vacuna = $fechaatencion;
-                        $responsable_ = $responsable;
-                        $fuen_ingresado_paiweb_ = $fuen_ingresado_paiweb;
-                        $motivo_noingreso_ = $motivo_noingreso;
-                        $observaciones_ = $observaciones;
-                        $usuario_activo_ = $usuario_activo;
-                        $i = 250;
-                    } else {
-                        continue; // Saltar a la siguiente iteración si no se encuentra una vacuna válida
-                    }
-
-                    if ($vacunaNombre) {
-                        $vacunas[] = [
-                    
-                            // 'nombre' => $vacunaNombre,
-                            'docis' => $docis ?? null,
-                            'laboratorio' => $laboratorio ?? null,
-                            'lote' => $lote ?? null,
-                            'jeringa' => $jeringa ?? null,
-                            'lote_jeringa' => $lote_jeringa ?? null,
-                            'diluyente' => $diluyente ?? null,
-                            'lote_diluyente' => $lote_diluyente ?? null,
-                            'observacion' => $observacion ?? null,
-                            'gotero' => $gotero ?? null,
-                            'num_frascos_utilizados'=> $num_frascos_utilizados ?? null,
-                            'tipo_neumococo' => $tipo_neumococo ?? null,
-                            'fecha_vacuna' => $fecha_vacuna ?? null,
-
-                            'responsable' => $responsable_ ?? null,
-                            'fuen_ingresado_paiweb' => $fuen_ingresado_paiweb_ ?? null,
-                            'motivo_noingreso' => $motivo_noingreso_ ?? null,
-                            'observaciones' => $observaciones_ ?? null,
-                            'vacunas_id' => $vacunaNombre,
-                            'user_id' => $usuario_activo ?? null,
-                            
-                            'batch_verifications_id' => $this->batch_verifications_id, // Clave foránea
-                            'created_at' => Carbon::now()->format('Y-m-d H:i:s'),
-                            'updated_at' => Carbon::now()->format('Y-m-d H:i:s'),
-                        ];
-                    }
-                }
-            }
-        }
         return $vacunas;
     }
 
@@ -1175,6 +848,4 @@ class AfiliadoImport implements ToModel, WithStartRow
     {
         return $this->batch_verifications_id;
     }
-
-
 }
