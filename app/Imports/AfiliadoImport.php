@@ -4,7 +4,6 @@ namespace App\Imports;
 
 use App\Models\batch_verifications;
 use App\Models\afiliado as Afiliado;
-use App\Models\vacuna as Vacuna;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -13,9 +12,10 @@ use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\ValidationException;
 use Maatwebsite\Excel\Concerns\ToModel;
 use Maatwebsite\Excel\Concerns\WithStartRow;
+use Maatwebsite\Excel\Concerns\WithChunkReading;
 use PhpOffice\PhpSpreadsheet\Shared\Date;
 
-class AfiliadoImport implements ToModel, WithStartRow
+class AfiliadoImport implements ToModel, WithStartRow, WithChunkReading
 {
     protected $errores = [];
     protected $guardar = true;
@@ -33,7 +33,6 @@ class AfiliadoImport implements ToModel, WithStartRow
 
     public function __construct()
     {
-        // Recomendación: evita que PHP corte el proceso por tiempo (solo si tu hosting lo permite)
         @set_time_limit(0);
         @ini_set('memory_limit', '1024M');
 
@@ -50,6 +49,12 @@ class AfiliadoImport implements ToModel, WithStartRow
         return 3;
     }
 
+    public function chunkSize(): int
+    {
+        // Puedes subirlo a 300 si tu server aguanta bien
+        return 200;
+    }
+
     public function model(array $row)
     {
         // Evita Notice/Undefined offset cuando la fila viene corta
@@ -61,7 +66,7 @@ class AfiliadoImport implements ToModel, WithStartRow
         $clean = function ($v) {
             if ($v === null) return null;
             $v = is_string($v) ? trim($v) : $v;
-            if ($v === '' || $v === 'NONE') return null;
+            if ($v === '' || strtoupper((string)$v) === 'NONE') return null;
             return $v;
         };
 
@@ -74,7 +79,6 @@ class AfiliadoImport implements ToModel, WithStartRow
                 if ($vv === '' || strtoupper($vv) === 'NONE') return null;
 
                 try {
-                    // Carbon intenta muchas variantes
                     return Carbon::parse($vv)->format('Y-m-d');
                 } catch (\Throwable $e) {
                     return null;
@@ -93,7 +97,7 @@ class AfiliadoImport implements ToModel, WithStartRow
         $tipo_identifi   = $clean((string)($row[1] ?? null));
         $numero_identifi = $clean(isset($row[2]) ? (string)$row[2] : null);
 
-        // Si viene vacía la identificación, no hagas nada (evita consultas inútiles)
+        // Si viene vacía la identificación, no hagas nada
         if (!$tipo_identifi || !$numero_identifi) {
             $this->errores[] = "Fila sin identificación (tipo o número vacío).";
             $this->guardar = false;
@@ -106,15 +110,13 @@ class AfiliadoImport implements ToModel, WithStartRow
         $fechaProbParto     = $excelDateToYmd($row[46]);
         $fechaAntecedente   = $excelDateToYmd($row[48]);
 
-        // Campos "finales" (en tu excel real casi siempre llegan null, pero los dejamos)
-        $responsable         = $clean($row[251]);
+        // Campos finales
+        $responsable          = $clean($row[251]);
         $fuen_ingresado_paiweb= $clean($row[252]);
-        $motivo_noingreso    = $clean($row[253]);
-        $observaciones       = $clean($row[254]);
+        $motivo_noingreso     = $clean($row[253]);
+        $observaciones        = $clean($row[254]);
 
-        // ---------- Validación rápida (mínima y barata) ----------
-        // IMPORTANTE: validaciones muy pesadas por fila te pueden tumbar el request.
-        // Aquí dejamos las numéricas críticas, y lo demás nullable.
+        // ---------- Validación rápida ----------
         $data = [
             'edad_anos' => $row[8],
             'edad_meses' => $row[9],
@@ -141,7 +143,7 @@ class AfiliadoImport implements ToModel, WithStartRow
             throw new ValidationException($validator);
         }
 
-        // ---------- Consulta DB externa con CACHE (1 sola consulta por identificación) ----------
+        // ---------- Consulta DB externa con CACHE ----------
         $cacheKey = $tipo_identifi . '|' . $numero_identifi;
 
         if (!array_key_exists($cacheKey, $this->carnetCache)) {
@@ -176,6 +178,7 @@ class AfiliadoImport implements ToModel, WithStartRow
 
         // ---------- Armar datos afiliado (solo si no existe) ----------
         if ($afiliado_id_local === 0) {
+
             $afiliadoData = [
                 'fecha_atencion' => $fechaatencion,
                 'tipo_identificacion' => $tipo_identifi,
@@ -281,8 +284,10 @@ class AfiliadoImport implements ToModel, WithStartRow
                 'vacunas' => $vacunasData,
                 'existe' => false,
             ];
+
         } else {
-            // Afiliado existe, solo vacunas nuevas
+
+            // Afiliado existe, solo vacunas
             $vacunasData = $this->extraerVacunas(
                 $row,
                 $fechaatencion,
@@ -304,9 +309,10 @@ class AfiliadoImport implements ToModel, WithStartRow
     }
 
     /**
-     * IMPORTANTE:
-     * - En tu excel real, las vacunas están en el rango 75..250 (0-based)
-     * - NO uses 255 porque te metes en columnas “extra” y puedes activar vacunas por datos no relacionados.
+     * EXTRAER VACUNAS (OPTIMIZADO 1:1)
+     * - Sin barrer 75..250.
+     * - Revisa solo el “gatillo” de cada bloque.
+     * - Extrae exactamente las mismas columnas que tu lógica anterior.
      */
     private function extraerVacunas(
         array $row,
@@ -317,513 +323,412 @@ class AfiliadoImport implements ToModel, WithStartRow
         $observaciones,
         $usuario_activo
     ): array {
-        $vacunas = [];
 
         $cellHasValue = function ($v) {
             if ($v === null) return false;
-            if (is_string($v)) return trim($v) !== '' && strtoupper(trim($v)) !== 'NONE';
-            return true;
+            if (is_string($v)) {
+                $t = trim($v);
+                return $t !== '' && strtoupper($t) !== 'NONE';
+            }
+            return $v !== '';
         };
 
-        // Si todo el bloque 75..250 está vacío, no recorremos nada
-        $allEmpty = true;
-        for ($i = 75; $i <= 250; $i++) {
-            if ($cellHasValue($row[$i] ?? null)) {
-                $allEmpty = false;
-                break;
-            }
-        }
-        if ($allEmpty) return [];
+        // Cada vacuna: [vacunas_id, triggerIndex]
+        // triggerIndex = columna que determina si ese bloque se considera diligenciado.
+        $triggers = [
+            1=>75,  2=>81,  3=>87,  4=>92,  5=>97,  6=>100, 7=>105, 8=>109, 9=>113, 10=>117,
+            11=>121, 12=>124, 13=>128, 14=>133, 15=>138, 16=>143, 17=>147, 18=>152, 19=>156, 20=>160,
+            21=>165, 22=>169, 23=>175, 24=>177, 25=>182, 26=>186, 27=>190, 28=>195, 29=>197, 30=>199,
+            31=>201, 32=>203, 33=>205, 34=>207, 35=>209, 36=>211, 37=>213, 38=>215, 39=>217, 40=>219,
+            41=>221, 42=>223, 43=>225, 44=>227, 45=>229, 46=>231, 47=>233, 48=>236, 49=>238, 50=>241,
+            51=>243, 52=>245, 53=>247, 54=>249,
+        ];
 
-        // Recorremos por “bloques” saltando al final del bloque.
-        // (Tu lógica original, pero limitada a 250 y con null-safety)
-        for ($i = 75; $i <= 250; $i++) {
-            if (!$cellHasValue($row[$i] ?? null)) {
-                continue;
+        $vacunas = [];
+
+        foreach ($triggers as $vacunaNombre => $trigger) {
+
+            // Caso especial vacuna 12: puede venir el tipo_neumococo (123) aunque docis (124) venga vacío
+            if ($vacunaNombre === 12) {
+                if (!$cellHasValue($row[123] ?? null) && !$cellHasValue($row[124] ?? null)) {
+                    continue;
+                }
+            } else {
+                if (!$cellHasValue($row[$trigger] ?? null)) {
+                    continue;
+                }
             }
 
-            $vacunaNombre = null;
             $docis = $laboratorio = $lote = $jeringa = $lote_jeringa = $diluyente = $lote_diluyente =
             $observacion = $gotero = $tipo_neumococo = $num_frascos_utilizados = null;
 
-            // 1
-            if ($i >= 75 && $i <= 80) {
-                $vacunaNombre = 1;
-                $docis = isset($row[75]) ? trim((string)$row[75]) : null;
-                $laboratorio = $row[76] ?? null;
-                $lote = $row[77] ?? null;
-                $jeringa = $row[78] ?? null;
-                $lote_jeringa = $row[79] ?? null;
-                $diluyente = $row[80] ?? null;
-                $i = 80;
+            // === 1:1 con tu lógica anterior ===
+            switch ($vacunaNombre) {
 
-            // 2
-            } elseif ($i >= 81 && $i <= 86) {
-                $vacunaNombre = 2;
-                $docis = isset($row[81]) ? trim((string)$row[81]) : null;
-                $lote = $row[82] ?? null;
-                $jeringa = $row[83] ?? null;
-                $lote_jeringa = $row[84] ?? null;
-                $lote_diluyente = $row[85] ?? null;
-                $observacion = $row[86] ?? null;
-                $i = 86;
+                case 1:
+                    $docis = isset($row[75]) ? trim((string)$row[75]) : null;
+                    $laboratorio = $row[76] ?? null;
+                    $lote = $row[77] ?? null;
+                    $jeringa = $row[78] ?? null;
+                    $lote_jeringa = $row[79] ?? null;
+                    $diluyente = $row[80] ?? null;
+                    break;
 
-            // 3
-            } elseif ($i >= 87 && $i <= 91) {
-                $vacunaNombre = 3;
-                $docis = isset($row[87]) ? trim((string)$row[87]) : null;
-                $lote = $row[88] ?? null;
-                $jeringa = $row[89] ?? null;
-                $lote_jeringa = $row[90] ?? null;
-                $observacion = $row[91] ?? null;
-                $i = 91;
+                case 2:
+                    $docis = isset($row[81]) ? trim((string)$row[81]) : null;
+                    $lote = $row[82] ?? null;
+                    $jeringa = $row[83] ?? null;
+                    $lote_jeringa = $row[84] ?? null;
+                    $lote_diluyente = $row[85] ?? null;
+                    $observacion = $row[86] ?? null;
+                    break;
 
-            // 4
-            } elseif ($i >= 92 && $i <= 96) {
-                $vacunaNombre = 4;
-                $docis = isset($row[92]) ? trim((string)$row[92]) : null;
-                $lote = $row[93] ?? null;
-                $jeringa = $row[94] ?? null;
-                $lote_jeringa = $row[95] ?? null;
-                $observacion = $row[96] ?? null;
-                $i = 96;
+                case 3:
+                    $docis = isset($row[87]) ? trim((string)$row[87]) : null;
+                    $lote = $row[88] ?? null;
+                    $jeringa = $row[89] ?? null;
+                    $lote_jeringa = $row[90] ?? null;
+                    $observacion = $row[91] ?? null;
+                    break;
 
-            // 5
-            } elseif ($i >= 97 && $i <= 99) {
-                $vacunaNombre = 5;
-                $docis = isset($row[97]) ? trim((string)$row[97]) : null;
-                $lote = $row[98] ?? null;
-                $gotero = $row[99] ?? null;
-                $i = 99;
+                case 4:
+                    $docis = isset($row[92]) ? trim((string)$row[92]) : null;
+                    $lote = $row[93] ?? null;
+                    $jeringa = $row[94] ?? null;
+                    $lote_jeringa = $row[95] ?? null;
+                    $observacion = $row[96] ?? null;
+                    break;
 
-            // 6
-            } elseif ($i >= 100 && $i <= 104) {
-                $vacunaNombre = 6;
-                $docis = isset($row[100]) ? trim((string)$row[100]) : null;
-                $lote = $row[101] ?? null;
-                $jeringa = $row[102] ?? null;
-                $lote_jeringa = $row[103] ?? null;
-                $observacion = $row[104] ?? null;
-                $i = 104;
+                case 5:
+                    $docis = isset($row[97]) ? trim((string)$row[97]) : null;
+                    $lote = $row[98] ?? null;
+                    $gotero = $row[99] ?? null;
+                    break;
 
-            // 7
-            } elseif ($i >= 105 && $i <= 108) {
-                $vacunaNombre = 7;
-                $docis = isset($row[105]) ? trim((string)$row[105]) : null;
-                $lote = $row[106] ?? null;
-                $jeringa = $row[107] ?? null;
-                $lote_jeringa = $row[108] ?? null;
-                $i = 108;
+                case 6:
+                    $docis = isset($row[100]) ? trim((string)$row[100]) : null;
+                    $lote = $row[101] ?? null;
+                    $jeringa = $row[102] ?? null;
+                    $lote_jeringa = $row[103] ?? null;
+                    $observacion = $row[104] ?? null;
+                    break;
 
-            // 8
-            } elseif ($i >= 109 && $i <= 112) {
-                $vacunaNombre = 8;
-                $docis = isset($row[109]) ? trim((string)$row[109]) : null;
-                $lote = $row[110] ?? null;
-                $jeringa = $row[111] ?? null;
-                $lote_jeringa = $row[112] ?? null;
-                $i = 112;
+                case 7:
+                    $docis = isset($row[105]) ? trim((string)$row[105]) : null;
+                    $lote = $row[106] ?? null;
+                    $jeringa = $row[107] ?? null;
+                    $lote_jeringa = $row[108] ?? null;
+                    break;
 
-            // 9
-            } elseif ($i >= 113 && $i <= 116) {
-                $vacunaNombre = 9;
-                $docis = isset($row[113]) ? trim((string)$row[113]) : null;
-                $lote = $row[114] ?? null;
-                $jeringa = $row[115] ?? null;
-                $lote_jeringa = $row[116] ?? null;
-                $i = 116;
+                case 8:
+                    $docis = isset($row[109]) ? trim((string)$row[109]) : null;
+                    $lote = $row[110] ?? null;
+                    $jeringa = $row[111] ?? null;
+                    $lote_jeringa = $row[112] ?? null;
+                    break;
 
-            // 10
-            } elseif ($i >= 117 && $i <= 120) {
-                $vacunaNombre = 10;
-                $docis = isset($row[117]) ? trim((string)$row[117]) : null;
-                $lote = $row[118] ?? null;
-                $jeringa = $row[119] ?? null;
-                $lote_jeringa = $row[120] ?? null;
-                $i = 120;
+                case 9:
+                    $docis = isset($row[113]) ? trim((string)$row[113]) : null;
+                    $lote = $row[114] ?? null;
+                    $jeringa = $row[115] ?? null;
+                    $lote_jeringa = $row[116] ?? null;
+                    break;
 
-            // 11
-            } elseif ($i >= 121 && $i <= 122) {
-                $vacunaNombre = 11;
-                $docis = isset($row[121]) ? trim((string)$row[121]) : null;
-                $lote = $row[122] ?? null;
-                $i = 122;
+                case 10:
+                    $docis = isset($row[117]) ? trim((string)$row[117]) : null;
+                    $lote = $row[118] ?? null;
+                    $jeringa = $row[119] ?? null;
+                    $lote_jeringa = $row[120] ?? null;
+                    break;
 
-            // 12
-            } elseif ($i >= 123 && $i <= 127) {
-                $vacunaNombre = 12;
-                $tipo_neumococo = isset($row[123]) ? trim((string)$row[123]) : null;
-                $docis = $row[124] ?? null;
-                $lote = $row[125] ?? null;
-                $jeringa = $row[126] ?? null;
-                $lote_jeringa = $row[127] ?? null;
-                $i = 127;
+                case 11:
+                    $docis = isset($row[121]) ? trim((string)$row[121]) : null;
+                    $lote = $row[122] ?? null;
+                    break;
 
-            // 13
-            } elseif ($i >= 128 && $i <= 132) {
-                $vacunaNombre = 13;
-                $docis = isset($row[128]) ? trim((string)$row[128]) : null;
-                $lote = $row[129] ?? null;
-                $jeringa = $row[130] ?? null;
-                $lote_jeringa = $row[131] ?? null;
-                $lote_diluyente = $row[132] ?? null;
-                $i = 132;
+                case 12:
+                    $tipo_neumococo = isset($row[123]) ? trim((string)$row[123]) : null;
+                    $docis = $row[124] ?? null;
+                    $lote = $row[125] ?? null;
+                    $jeringa = $row[126] ?? null;
+                    $lote_jeringa = $row[127] ?? null;
+                    break;
 
-            // 14
-            } elseif ($i >= 133 && $i <= 137) {
-                $vacunaNombre = 14;
-                $docis = isset($row[133]) ? trim((string)$row[133]) : null;
-                $lote = $row[134] ?? null;
-                $jeringa = $row[135] ?? null;
-                $lote_jeringa = $row[136] ?? null;
-                $lote_diluyente = $row[137] ?? null;
-                $i = 137;
+                case 13:
+                    $docis = isset($row[128]) ? trim((string)$row[128]) : null;
+                    $lote = $row[129] ?? null;
+                    $jeringa = $row[130] ?? null;
+                    $lote_jeringa = $row[131] ?? null;
+                    $lote_diluyente = $row[132] ?? null;
+                    break;
 
-            // 15
-            } elseif ($i >= 138 && $i <= 142) {
-                $vacunaNombre = 15;
-                $docis = isset($row[138]) ? trim((string)$row[138]) : null;
-                $lote = $row[139] ?? null;
-                $jeringa = $row[140] ?? null;
-                $lote_jeringa = $row[141] ?? null;
-                $lote_diluyente = $row[142] ?? null;
-                $i = 142;
+                case 14:
+                    $docis = isset($row[133]) ? trim((string)$row[133]) : null;
+                    $lote = $row[134] ?? null;
+                    $jeringa = $row[135] ?? null;
+                    $lote_jeringa = $row[136] ?? null;
+                    $lote_diluyente = $row[137] ?? null;
+                    break;
 
-            // 16
-            } elseif ($i >= 143 && $i <= 146) {
-                $vacunaNombre = 16;
-                $docis = isset($row[143]) ? trim((string)$row[143]) : null;
-                $lote = $row[144] ?? null;
-                $jeringa = $row[145] ?? null;
-                $lote_jeringa = $row[146] ?? null;
-                $i = 146;
+                case 15:
+                    $docis = isset($row[138]) ? trim((string)$row[138]) : null;
+                    $lote = $row[139] ?? null;
+                    $jeringa = $row[140] ?? null;
+                    $lote_jeringa = $row[141] ?? null;
+                    $lote_diluyente = $row[142] ?? null;
+                    break;
 
-            // 17
-            } elseif ($i >= 147 && $i <= 151) {
-                $vacunaNombre = 17;
-                $docis = isset($row[147]) ? trim((string)$row[147]) : null;
-                $lote = $row[148] ?? null;
-                $jeringa = $row[149] ?? null;
-                $lote_jeringa = $row[150] ?? null;
-                $lote_diluyente = $row[151] ?? null;
-                $i = 151;
+                case 16:
+                    $docis = isset($row[143]) ? trim((string)$row[143]) : null;
+                    $lote = $row[144] ?? null;
+                    $jeringa = $row[145] ?? null;
+                    $lote_jeringa = $row[146] ?? null;
+                    break;
 
-            // 18
-            } elseif ($i >= 152 && $i <= 155) {
-                $vacunaNombre = 18;
-                $docis = isset($row[152]) ? trim((string)$row[152]) : null;
-                $lote = $row[153] ?? null;
-                $jeringa = $row[154] ?? null;
-                $lote_jeringa = $row[155] ?? null;
-                $i = 155;
+                case 17:
+                    $docis = isset($row[147]) ? trim((string)$row[147]) : null;
+                    $lote = $row[148] ?? null;
+                    $jeringa = $row[149] ?? null;
+                    $lote_jeringa = $row[150] ?? null;
+                    $lote_diluyente = $row[151] ?? null;
+                    break;
 
-            // 19
-            } elseif ($i >= 156 && $i <= 159) {
-                $vacunaNombre = 19;
-                $docis = isset($row[156]) ? trim((string)$row[156]) : null;
-                $lote = $row[157] ?? null;
-                $jeringa = $row[158] ?? null;
-                $lote_jeringa = $row[159] ?? null;
-                $i = 159;
+                case 18:
+                    $docis = isset($row[152]) ? trim((string)$row[152]) : null;
+                    $lote = $row[153] ?? null;
+                    $jeringa = $row[154] ?? null;
+                    $lote_jeringa = $row[155] ?? null;
+                    break;
 
-            // 20
-            } elseif ($i >= 160 && $i <= 164) {
-                $vacunaNombre = 20;
-                $docis = isset($row[160]) ? trim((string)$row[160]) : null;
-                $lote = $row[161] ?? null;
-                $jeringa = $row[162] ?? null;
-                $lote_jeringa = $row[163] ?? null;
-                $observacion = $row[164] ?? null;
-                $i = 164;
+                case 19:
+                    $docis = isset($row[156]) ? trim((string)$row[156]) : null;
+                    $lote = $row[157] ?? null;
+                    $jeringa = $row[158] ?? null;
+                    $lote_jeringa = $row[159] ?? null;
+                    break;
 
-            // 21
-            } elseif ($i >= 165 && $i <= 168) {
-                $vacunaNombre = 21;
-                $docis = isset($row[165]) ? trim((string)$row[165]) : null;
-                $lote = $row[166] ?? null;
-                $jeringa = $row[167] ?? null;
-                $lote_jeringa = $row[168] ?? null;
-                $i = 168;
+                case 20:
+                    $docis = isset($row[160]) ? trim((string)$row[160]) : null;
+                    $lote = $row[161] ?? null;
+                    $jeringa = $row[162] ?? null;
+                    $lote_jeringa = $row[163] ?? null;
+                    $observacion = $row[164] ?? null;
+                    break;
 
-            // 22
-            } elseif ($i >= 169 && $i <= 174) {
-                $vacunaNombre = 22;
-                $docis = isset($row[169]) ? trim((string)$row[169]) : null;
-                $lote = $row[170] ?? null;
-                $jeringa = $row[171] ?? null;
-                $lote_jeringa = $row[172] ?? null;
-                $lote_diluyente = $row[173] ?? null;
-                $observacion = $row[174] ?? null;
-                $i = 174;
+                case 21:
+                    $docis = isset($row[165]) ? trim((string)$row[165]) : null;
+                    $lote = $row[166] ?? null;
+                    $jeringa = $row[167] ?? null;
+                    $lote_jeringa = $row[168] ?? null;
+                    break;
 
-            // 23
-            } elseif ($i >= 175 && $i <= 176) {
-                $vacunaNombre = 23;
-                $num_frascos_utilizados = $row[175] ?? null;
-                $lote = $row[176] ?? null;
-                $i = 176;
+                case 22:
+                    $docis = isset($row[169]) ? trim((string)$row[169]) : null;
+                    $lote = $row[170] ?? null;
+                    $jeringa = $row[171] ?? null;
+                    $lote_jeringa = $row[172] ?? null;
+                    $lote_diluyente = $row[173] ?? null;
+                    $observacion = $row[174] ?? null;
+                    break;
 
-            // 24
-            } elseif ($i >= 177 && $i <= 181) {
-                $vacunaNombre = 24;
-                $num_frascos_utilizados = $row[177] ?? null;
-                $lote = $row[178] ?? null;
-                $jeringa = $row[179] ?? null;
-                $lote_jeringa = $row[180] ?? null;
-                $observacion = $row[181] ?? null;
-                $i = 181;
+                case 23:
+                    $num_frascos_utilizados = $row[175] ?? null;
+                    $lote = $row[176] ?? null;
+                    break;
 
-            // 25
-            } elseif ($i >= 182 && $i <= 185) {
-                $vacunaNombre = 25;
-                $num_frascos_utilizados = $row[182] ?? null;
-                $lote = $row[183] ?? null;
-                $jeringa = $row[184] ?? null;
-                $lote_jeringa = $row[185] ?? null;
-                $i = 185;
+                case 24:
+                    $num_frascos_utilizados = $row[177] ?? null;
+                    $lote = $row[178] ?? null;
+                    $jeringa = $row[179] ?? null;
+                    $lote_jeringa = $row[180] ?? null;
+                    $observacion = $row[181] ?? null;
+                    break;
 
-            // 26
-            } elseif ($i >= 186 && $i <= 189) {
-                $vacunaNombre = 26;
-                $num_frascos_utilizados = $row[186] ?? null;
-                $lote = $row[187] ?? null;
-                $jeringa = $row[188] ?? null;
-                $lote_jeringa = $row[189] ?? null;
-                $i = 189;
+                case 25:
+                    $num_frascos_utilizados = $row[182] ?? null;
+                    $lote = $row[183] ?? null;
+                    $jeringa = $row[184] ?? null;
+                    $lote_jeringa = $row[185] ?? null;
+                    break;
 
-            // 27
-            } elseif ($i >= 190 && $i <= 194) {
-                $vacunaNombre = 27;
-                $docis = isset($row[190]) ? trim((string)$row[190]) : null;
-                $lote = $row[191] ?? null;
-                $jeringa = $row[192] ?? null;
-                $lote_jeringa = $row[193] ?? null;
-                $lote_diluyente = $row[194] ?? null;
-                $i = 194;
+                case 26:
+                    $num_frascos_utilizados = $row[186] ?? null;
+                    $lote = $row[187] ?? null;
+                    $jeringa = $row[188] ?? null;
+                    $lote_jeringa = $row[189] ?? null;
+                    break;
 
-            // 28
-            } elseif ($i >= 195 && $i <= 196) {
-                $vacunaNombre = 28;
-                $docis = isset($row[195]) ? trim((string)$row[195]) : null;
-                $lote = $row[196] ?? null;
-                $i = 196;
+                case 27:
+                    $docis = isset($row[190]) ? trim((string)$row[190]) : null;
+                    $lote = $row[191] ?? null;
+                    $jeringa = $row[192] ?? null;
+                    $lote_jeringa = $row[193] ?? null;
+                    $lote_diluyente = $row[194] ?? null;
+                    break;
 
-            // 29
-            } elseif ($i >= 197 && $i <= 198) {
-                $vacunaNombre = 29;
-                $docis = isset($row[197]) ? trim((string)$row[197]) : null;
-                $lote = $row[198] ?? null;
-                $i = 198;
+                case 28:
+                    $docis = isset($row[195]) ? trim((string)$row[195]) : null;
+                    $lote = $row[196] ?? null;
+                    break;
 
-            // 30
-            } elseif ($i >= 199 && $i <= 200) {
-                $vacunaNombre = 30;
-                $docis = isset($row[199]) ? trim((string)$row[199]) : null;
-                $lote = $row[200] ?? null;
-                $i = 200;
+                case 29:
+                    $docis = isset($row[197]) ? trim((string)$row[197]) : null;
+                    $lote = $row[198] ?? null;
+                    break;
 
-            // 31
-            } elseif ($i >= 201 && $i <= 202) {
-                $vacunaNombre = 31;
-                $docis = isset($row[201]) ? trim((string)$row[201]) : null;
-                $lote = $row[202] ?? null;
-                $i = 202;
+                case 30:
+                    $docis = isset($row[199]) ? trim((string)$row[199]) : null;
+                    $lote = $row[200] ?? null;
+                    break;
 
-            // 32
-            } elseif ($i >= 203 && $i <= 204) {
-                $vacunaNombre = 32;
-                $docis = isset($row[203]) ? trim((string)$row[203]) : null;
-                $lote = $row[204] ?? null;
-                $i = 204;
+                case 31:
+                    $docis = isset($row[201]) ? trim((string)$row[201]) : null;
+                    $lote = $row[202] ?? null;
+                    break;
 
-            // 33
-            } elseif ($i >= 205 && $i <= 206) {
-                $vacunaNombre = 33;
-                $docis = isset($row[205]) ? trim((string)$row[205]) : null;
-                $lote = $row[206] ?? null;
-                $i = 206;
+                case 32:
+                    $docis = isset($row[203]) ? trim((string)$row[203]) : null;
+                    $lote = $row[204] ?? null;
+                    break;
 
-            // 34
-            } elseif ($i >= 207 && $i <= 208) {
-                $vacunaNombre = 34;
-                $docis = isset($row[207]) ? trim((string)$row[207]) : null;
-                $lote = $row[208] ?? null;
-                $i = 208;
+                case 33:
+                    $docis = isset($row[205]) ? trim((string)$row[205]) : null;
+                    $lote = $row[206] ?? null;
+                    break;
 
-            // 35
-            } elseif ($i >= 209 && $i <= 210) {
-                $vacunaNombre = 35;
-                $docis = isset($row[209]) ? trim((string)$row[209]) : null;
-                $lote = $row[210] ?? null;
-                $i = 210;
+                case 34:
+                    $docis = isset($row[207]) ? trim((string)$row[207]) : null;
+                    $lote = $row[208] ?? null;
+                    break;
 
-            // 36
-            } elseif ($i >= 211 && $i <= 212) {
-                $vacunaNombre = 36;
-                $docis = isset($row[211]) ? trim((string)$row[211]) : null;
-                $lote = $row[212] ?? null;
-                $i = 212;
+                case 35:
+                    $docis = isset($row[209]) ? trim((string)$row[209]) : null;
+                    $lote = $row[210] ?? null;
+                    break;
 
-            // 37
-            } elseif ($i >= 213 && $i <= 214) {
-                $vacunaNombre = 37;
-                $docis = isset($row[213]) ? trim((string)$row[213]) : null;
-                $lote = $row[214] ?? null;
-                $i = 214;
+                case 36:
+                    $docis = isset($row[211]) ? trim((string)$row[211]) : null;
+                    $lote = $row[212] ?? null;
+                    break;
 
-            // 38
-            } elseif ($i >= 215 && $i <= 216) {
-                $vacunaNombre = 38;
-                $docis = isset($row[215]) ? trim((string)$row[215]) : null;
-                $lote = $row[216] ?? null;
-                $i = 216;
+                case 37:
+                    $docis = isset($row[213]) ? trim((string)$row[213]) : null;
+                    $lote = $row[214] ?? null;
+                    break;
 
-            // 39
-            } elseif ($i >= 217 && $i <= 218) {
-                $vacunaNombre = 39;
-                $docis = isset($row[217]) ? trim((string)$row[217]) : null;
-                $lote = $row[218] ?? null;
-                $i = 218;
+                case 38:
+                    $docis = isset($row[215]) ? trim((string)$row[215]) : null;
+                    $lote = $row[216] ?? null;
+                    break;
 
-            // 40
-            } elseif ($i >= 219 && $i <= 220) {
-                $vacunaNombre = 40;
-                $docis = isset($row[219]) ? trim((string)$row[219]) : null;
-                $lote = $row[220] ?? null;
-                $i = 220;
+                case 39:
+                    $docis = isset($row[217]) ? trim((string)$row[217]) : null;
+                    $lote = $row[218] ?? null;
+                    break;
 
-            // 41
-            } elseif ($i >= 221 && $i <= 222) {
-                $vacunaNombre = 41;
-                $docis = isset($row[221]) ? trim((string)$row[221]) : null;
-                $lote = $row[222] ?? null;
-                $i = 222;
+                case 40:
+                    $docis = isset($row[219]) ? trim((string)$row[219]) : null;
+                    $lote = $row[220] ?? null;
+                    break;
 
-            // 42
-            } elseif ($i >= 223 && $i <= 224) {
-                $vacunaNombre = 42;
-                $docis = isset($row[223]) ? trim((string)$row[223]) : null;
-                $lote = $row[224] ?? null;
-                $i = 224;
+                case 41:
+                    $docis = isset($row[221]) ? trim((string)$row[221]) : null;
+                    $lote = $row[222] ?? null;
+                    break;
 
-            // 43
-            } elseif ($i >= 225 && $i <= 226) {
-                $vacunaNombre = 43;
-                $docis = isset($row[225]) ? trim((string)$row[225]) : null;
-                $lote = $row[226] ?? null;
-                $i = 226;
+                case 42:
+                    $docis = isset($row[223]) ? trim((string)$row[223]) : null;
+                    $lote = $row[224] ?? null;
+                    break;
 
-            // 44
-            } elseif ($i >= 227 && $i <= 228) {
-                $vacunaNombre = 44;
-                $docis = isset($row[227]) ? trim((string)$row[227]) : null;
-                $lote = $row[228] ?? null;
-                $i = 228;
+                case 43:
+                    $docis = isset($row[225]) ? trim((string)$row[225]) : null;
+                    $lote = $row[226] ?? null;
+                    break;
 
-            // 45
-            } elseif ($i >= 229 && $i <= 230) {
-                $vacunaNombre = 45;
-                $docis = isset($row[229]) ? trim((string)$row[229]) : null;
-                $lote = $row[230] ?? null;
-                $i = 230;
+                case 44:
+                    $docis = isset($row[227]) ? trim((string)$row[227]) : null;
+                    $lote = $row[228] ?? null;
+                    break;
 
-            // 46
-            } elseif ($i >= 231 && $i <= 232) {
-                $vacunaNombre = 46;
-                $docis = isset($row[231]) ? trim((string)$row[231]) : null;
-                $lote = $row[232] ?? null;
-                $i = 232;
+                case 45:
+                    $docis = isset($row[229]) ? trim((string)$row[229]) : null;
+                    $lote = $row[230] ?? null;
+                    break;
 
-            // 47
-            } elseif ($i >= 233 && $i <= 235) {
-                $vacunaNombre = 47;
-                $docis = isset($row[233]) ? trim((string)$row[233]) : null;
-                $lote = $row[234] ?? null;
-                $observacion = $row[235] ?? null;
-                $i = 235;
+                case 46:
+                    $docis = isset($row[231]) ? trim((string)$row[231]) : null;
+                    $lote = $row[232] ?? null;
+                    break;
 
-            // 48
-            } elseif ($i >= 236 && $i <= 237) {
-                $vacunaNombre = 48;
-                $num_frascos_utilizados = $row[236] ?? null;
-                $lote = $row[237] ?? null;
-                $i = 237;
+                case 47:
+                    $docis = isset($row[233]) ? trim((string)$row[233]) : null;
+                    $lote = $row[234] ?? null;
+                    $observacion = $row[235] ?? null;
+                    break;
 
-            // 49
-            } elseif ($i >= 238 && $i <= 240) {
-                $vacunaNombre = 49;
-                $num_frascos_utilizados = $row[238] ?? null;
-                $lote = $row[239] ?? null;
-                $observacion = $row[240] ?? null;
-                $i = 240;
+                case 48:
+                    $num_frascos_utilizados = $row[236] ?? null;
+                    $lote = $row[237] ?? null;
+                    break;
 
-            // 50
-            } elseif ($i >= 241 && $i <= 242) {
-                $vacunaNombre = 50;
-                $num_frascos_utilizados = $row[241] ?? null;
-                $lote = $row[242] ?? null;
-                $i = 242;
+                case 49:
+                    $num_frascos_utilizados = $row[238] ?? null;
+                    $lote = $row[239] ?? null;
+                    $observacion = $row[240] ?? null;
+                    break;
 
-            // 51
-            } elseif ($i >= 243 && $i <= 244) {
-                $vacunaNombre = 51;
-                $num_frascos_utilizados = $row[243] ?? null;
-                $lote = $row[244] ?? null;
-                $i = 244;
+                case 50:
+                    $num_frascos_utilizados = $row[241] ?? null;
+                    $lote = $row[242] ?? null;
+                    break;
 
-            // 52
-            } elseif ($i >= 245 && $i <= 246) {
-                $vacunaNombre = 52;
-                $docis = isset($row[245]) ? trim((string)$row[245]) : null;
-                $lote = $row[246] ?? null;
-                $i = 246;
+                case 51:
+                    $num_frascos_utilizados = $row[243] ?? null;
+                    $lote = $row[244] ?? null;
+                    break;
 
-            // 53
-            } elseif ($i >= 247 && $i <= 248) {
-                $vacunaNombre = 53;
-                $docis = isset($row[247]) ? trim((string)$row[247]) : null;
-                $lote = $row[248] ?? null;
-                $i = 248;
+                case 52:
+                    $docis = isset($row[245]) ? trim((string)$row[245]) : null;
+                    $lote = $row[246] ?? null;
+                    break;
 
-            // 54
-            } elseif ($i >= 249 && $i <= 250) {
-                $vacunaNombre = 54;
-                $docis = isset($row[249]) ? trim((string)$row[249]) : null;
-                $lote = $row[250] ?? null;
-                $i = 250;
-            } else {
-                continue;
+                case 53:
+                    $docis = isset($row[247]) ? trim((string)$row[247]) : null;
+                    $lote = $row[248] ?? null;
+                    break;
+
+                case 54:
+                    $docis = isset($row[249]) ? trim((string)$row[249]) : null;
+                    $lote = $row[250] ?? null;
+                    break;
             }
 
-            // Si por alguna razón no trae docis/num frascos/lote/etc, igual guardas si el bloque tiene valor,
-            // pero puedes filtrar aquí si quieres.
-            if ($vacunaNombre) {
-                $vacunas[] = [
-                    'docis' => $docis ?? null,
-                    'laboratorio' => $laboratorio ?? null,
-                    'lote' => $lote ?? null,
-                    'jeringa' => $jeringa ?? null,
-                    'lote_jeringa' => $lote_jeringa ?? null,
-                    'diluyente' => $diluyente ?? null,
-                    'lote_diluyente' => $lote_diluyente ?? null,
-                    'observacion' => $observacion ?? null,
-                    'gotero' => $gotero ?? null,
-                    'num_frascos_utilizados' => $num_frascos_utilizados ?? null,
-                    'tipo_neumococo' => $tipo_neumococo ?? null,
-                    'fecha_vacuna' => $fechaatencion ?? null,
+            $vacunas[] = [
+                'docis' => $docis ?? null,
+                'laboratorio' => $laboratorio ?? null,
+                'lote' => $lote ?? null,
+                'jeringa' => $jeringa ?? null,
+                'lote_jeringa' => $lote_jeringa ?? null,
+                'diluyente' => $diluyente ?? null,
+                'lote_diluyente' => $lote_diluyente ?? null,
+                'observacion' => $observacion ?? null,
+                'gotero' => $gotero ?? null,
+                'num_frascos_utilizados' => $num_frascos_utilizados ?? null,
+                'tipo_neumococo' => $tipo_neumococo ?? null,
+                'fecha_vacuna' => $fechaatencion ?? null,
 
-                    'responsable' => $responsable ?? null,
-                    'fuen_ingresado_paiweb' => $fuen_ingresado_paiweb ?? null,
-                    'motivo_noingreso' => $motivo_noingreso ?? null,
-                    'observaciones' => $observaciones ?? null,
+                'responsable' => $responsable ?? null,
+                'fuen_ingresado_paiweb' => $fuen_ingresado_paiweb ?? null,
+                'motivo_noingreso' => $motivo_noingreso ?? null,
+                'observaciones' => $observaciones ?? null,
 
-                    'vacunas_id' => $vacunaNombre,
-                    'user_id' => $usuario_activo ?? null,
-                    'batch_verifications_id' => $this->batch_verifications_id,
-                    'created_at' => Carbon::now()->format('Y-m-d H:i:s'),
-                    'updated_at' => Carbon::now()->format('Y-m-d H:i:s'),
-                ];
-            }
+                'vacunas_id' => $vacunaNombre,
+                'user_id' => $usuario_activo ?? null,
+                'batch_verifications_id' => $this->batch_verifications_id,
+                'created_at' => Carbon::now()->format('Y-m-d H:i:s'),
+                'updated_at' => Carbon::now()->format('Y-m-d H:i:s'),
+            ];
         }
 
         return $vacunas;
