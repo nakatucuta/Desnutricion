@@ -19,7 +19,10 @@ use Illuminate\Support\Facades\Storage;
 use App\Models\referencia_vacuna; // Importa el modelo aquí
 use App\Exports\VacunaExport;             // <- agrega
 use Illuminate\Support\Facades\Cache;
-
+use Illuminate\Support\Str; // ✅ ESTE ES EL FIX
+use App\Models\ImportJob;
+use App\Jobs\ImportAfiliadosExcelJob;
+  // ✅ ESTE ES EL JOB (cola)
 use ZipArchive;
 
 
@@ -254,9 +257,6 @@ class AfiliadoController extends Controller
      */
 public function importExcel(Request $request)
 {
-    @set_time_limit(0);
-    @ini_set('memory_limit', '1024M');
-
     $request->validate([
         'file' => 'required|mimes:xlsx,xls',
         'upload_token' => 'nullable|string',
@@ -271,79 +271,33 @@ public function importExcel(Request $request)
     $user   = Auth::user()->name ?? 'SIN_NOMBRE';
     $token  = $request->input('upload_token');
 
-    // Helpers
-    $progress = function (int $percent, string $message, string $step, bool $done = false, bool $ok = true, array $doneSteps = []) use ($token) {
-        if (!$token) return;
+    // Guardar el archivo en storage/app/imports
+    $storedPath = $file->storeAs(
+        'imports',
+        'import_' . $userId . '_' . now()->format('Ymd_His') . '_' . uniqid() . '.' . $file->getClientOriginalExtension()
+    );
+
+    if ($token) {
         Cache::put("import_progress:{$token}", [
-            'percent' => $percent,
-            'message' => $message,
-            'step'    => $step,
-            'done'    => $done,
-            'ok'      => $ok,
-            'done_steps' => $doneSteps,
-        ], now()->addMinutes(30));
-    };
-
-    try {
-        $progress(5, 'Validando archivo y preparando importación…', 'validacion');
-
-        // ✅ NUEVO IMPORT: guarda en streaming (NO acumula filasParaGuardar)
-        $import   = new \App\Imports\AfiliadoImportStreaming($userId, $token);
-        $batch_id = $import->getBatchVerificationsID();
-
-        Log::info("INICIO importExcel STREAMING: batch={$batch_id} user={$user} (id={$userId})");
-
-        // Ejecuta el import (ya guarda por bloques)
-        Excel::import($import, $file);
-
-        // Errores del import (si hubo)
-        $errores = $import->getErrores();
-        if (!empty($errores)) {
-            Log::info("Errores import STREAMING: batch={$batch_id} user={$user}");
-            $progress(100, 'Se encontraron errores. Revisa el detalle.', 'final', true, false, []);
-            return redirect()->route('afiliado')->with('error1', $errores);
-        }
-
-        // Contadores finales
-        $stats = $import->getStats(); // ['newAfil'=>..,'oldAfil'=>..,'newVacuna'=>..,'oldVacuna'=>..]
-
-        // Generar TXT desde BD (sin usar filasParaGuardar)
-        $progress(85, 'Generando reporte TXT…', 'txt', false, true, ['validacion','afiliados','vacunas']);
-
-        $filePath = storage_path('app/public/vacunas_cargadas_' . $batch_id . '.txt');
-        $this->generarArchivoVacunasDesdeDB($batch_id, $filePath);
-
-        $progress(92, 'Enviando correo con adjunto…', 'correo', false, true, ['validacion','afiliados','vacunas','txt']);
-
-        $this->enviarCorreoConAdjunto($filePath);
-
-        $progress(
-            100,
-            "Importación finalizada. Afiliados nuevos: {$stats['newAfil']}. Vacunas nuevas: {$stats['newVacuna']}.",
-            'final',
-            true,
-            true,
-            ['validacion','afiliados','vacunas','txt','correo','final']
-        );
-
-        Log::info("FIN importExcel STREAMING OK: batch={$batch_id} user={$user}", $stats);
-
-        return redirect()->route('afiliado')->with(
-            'success',
-            "Datos importados correctamente. Batch: {$batch_id}. Afiliados nuevos: {$stats['newAfil']}. Vacunas nuevas: {$stats['newVacuna']}."
-        );
-
-    } catch (\Throwable $e) {
-
-        Log::error('ERROR importExcel STREAMING: ' . $e->getMessage(), [
-            'trace' => $e->getTraceAsString(),
-        ]);
-
-        $progress(100, 'Ocurrió un error durante la importación. Revisa el log.', 'final', true, false, []);
-
-        return redirect()->route('afiliado')->with('error', 'Ocurrió un error al importar: ' . $e->getMessage());
+            'percent' => 1,
+            'message' => 'Archivo recibido. Encolando procesamiento…',
+            'step'    => 'encolado',
+            'done'    => false,
+            'ok'      => true,
+            'done_steps' => ['encolado'],
+        ], now()->addMinutes(60));
     }
+
+    // ✅ Disparar el job (background)
+    \App\Jobs\ImportAfiliadosExcelJob::dispatch($storedPath, $userId, $user, $token);
+
+    // Responder rápido (NO se cae la página por procesamiento)
+    return redirect()->route('afiliado')->with(
+        'success',
+        'Archivo recibido. El sistema lo está procesando en segundo plano. Puedes ver el progreso en pantalla.'
+    );
 }
+
 
 private function generarArchivoVacunasDesdeDB(int $batchId, string $filePath): void
 {
@@ -938,5 +892,91 @@ public function importProgress($token)
 
     return response()->json($data);
 }
+
+public function startImport(Request $request)
+{
+    try {
+        $request->validate([
+            'file' => 'required|mimes:xlsx,xls|max:10240',
+        ]);
+
+        $userId = Auth::id();
+        if (!$userId) {
+            return response()->json(['ok' => false, 'message' => 'No autenticado'], 401);
+        }
+
+        $path = $request->file('file')->store('imports');
+        $fullPath = storage_path('app/' . $path);
+
+        $token = (string) \Illuminate\Support\Str::uuid();
+
+        $jobRow = \App\Models\ImportJob::create([
+            'user_id' => $userId,
+            'token' => $token,
+            'status' => 'queued',
+            'percent' => 0,
+            'step' => 'cola',
+            'message' => 'En cola…',
+            'errors' => null,
+            'errors_count' => 0,
+            'report_path' => null,
+            'batch_verifications_id' => null,
+        ]);
+
+        \App\Jobs\ImportAfiliadosExcelJob::dispatch($jobRow->id, $fullPath, $userId, $token)
+            ->onQueue('imports');
+
+        return response()->json(['ok' => true, 'token' => $token]);
+
+    } catch (\Throwable $e) {
+        Log::error('startImport ERROR: '.$e->getMessage(), [
+            'trace' => $e->getTraceAsString(),
+            'userId' => Auth::id(),
+        ]);
+
+        return response()->json([
+            'ok' => false,
+            'message' => 'Error en startImport: '.$e->getMessage(),
+        ], 500);
+    }
+}
+
+public function importStatus(string $token)
+{
+    $job = ImportJob::where('token', $token)->latest('id')->first();
+
+    if (!$job) {
+        return response()->json([
+            'status' => 'not_found',
+            'percent' => 0,
+            'step' => 'init',
+            'message' => 'No existe import con ese token.',
+            'errors' => [],
+            'batch_verifications_id' => null,
+        ]);
+    }
+
+    $errors = [];
+    if (!empty($job->errors)) {
+        $decoded = json_decode($job->errors, true);
+        if (is_array($decoded)) {
+            $errors = $decoded;
+        } else {
+            // si no es JSON válido, devuélvelo como texto
+            $errors = [(string)$job->errors];
+        }
+    }
+
+    return response()->json([
+        'status' => (string)$job->status,                 // queued | running | done | failed
+        'percent' => (int)($job->percent ?? 0),           // 0..100
+        'step' => (string)($job->step ?? ''),
+        'message' => (string)($job->message ?? ''),
+        'errors' => $errors,
+        'batch_verifications_id' => $job->batch_verifications_id ?? null,
+    ]);
+}
+
+
 
 }

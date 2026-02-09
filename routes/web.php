@@ -575,3 +575,9 @@ Route::get('/debug-php', function () {
         'upload_max_filesize' => ini_get('upload_max_filesize'),
     ]);
 });
+
+
+
+// routes/web.php
+Route::post('/import/start', [AfiliadoController::class, 'startImport'])->middleware('auth');
+Route::get('/import/status/{token}', [AfiliadoController::class, 'importStatus'])->middleware('auth');
