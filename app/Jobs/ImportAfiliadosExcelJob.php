@@ -4,6 +4,8 @@ namespace App\Jobs;
 
 use App\Imports\AfiliadoImportStreaming;
 use App\Models\ImportJob;
+use App\Models\User;
+use App\Mail\ImportResumenMail;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -12,6 +14,7 @@ use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
 use Maatwebsite\Excel\Facades\Excel;
 use PhpOffice\PhpSpreadsheet\IOFactory;
 
@@ -125,6 +128,19 @@ class ImportAfiliadosExcelJob implements ShouldQueue
                     'Importación con errores. No se guardó nada.',
                     $errores
                 );
+
+                // ✅ correo FAIL (opcional pero recomendado)
+                $this->sendImportEmailSafe(
+                    ok: false,
+                    batchId: (int)($jobRow->batch_verifications_id ?? 0),
+                    insertedAfil: 0,
+                    insertedVac: 0,
+                    stats: $this->safeStats($import),
+                    errores: $errores,
+                    noAfiliados: $this->safeNoAfiliados($import),
+                    extraMsg: 'Importación con errores. Se hizo rollback (no se guardó nada).'
+                );
+
                 return;
             }
 
@@ -134,8 +150,7 @@ class ImportAfiliadosExcelJob implements ShouldQueue
             [$insertedAfil, $insertedVac] = $this->countInsertedByBatch($batchId);
 
             // ✅ Stats extra (si están disponibles) solo como complemento
-            $stats = [];
-            try { $stats = $import->getStats(); } catch (\Throwable $e) { $stats = []; }
+            $stats = $this->safeStats($import);
 
             $oldAfil   = (int)($stats['oldAfil'] ?? 0);
             $oldVacuna = (int)($stats['oldVacuna'] ?? 0);
@@ -149,6 +164,18 @@ class ImportAfiliadosExcelJob implements ShouldQueue
             }
 
             $this->updateJobSafe($jobRow, 'done', 100, 'final', $msg);
+
+            // ✅ correo OK (en cola, no estorba)
+            $this->sendImportEmailSafe(
+                ok: true,
+                batchId: $batchId,
+                insertedAfil: $insertedAfil,
+                insertedVac: $insertedVac,
+                stats: $stats,
+                errores: [],
+                noAfiliados: $this->safeNoAfiliados($import),
+                extraMsg: $msg
+            );
 
         } catch (\Throwable $e) {
 
@@ -184,6 +211,18 @@ class ImportAfiliadosExcelJob implements ShouldQueue
 
             $this->updateJobSafe($jobRow, 'failed', 100, 'error', 'Importación detenida por error.', $errorsList);
 
+            // ✅ correo FAIL por excepción
+            $this->sendImportEmailSafe(
+                ok: false,
+                batchId: (int)($jobRow->batch_verifications_id ?? 0),
+                insertedAfil: 0,
+                insertedVac: 0,
+                stats: $this->safeStats($import),
+                errores: $errorsList,
+                noAfiliados: $this->safeNoAfiliados($import),
+                extraMsg: 'Importación detenida por excepción.'
+            );
+
             // ✅ re-lanza para que la cola lo marque como failed correctamente
             throw $e;
 
@@ -193,6 +232,89 @@ class ImportAfiliadosExcelJob implements ShouldQueue
         }
     }
 
+    // =========================================================
+    // ✅ ENVÍO DE CORREO (NO BLOQUEA)
+    // =========================================================
+    private function sendImportEmailSafe(
+        bool $ok,
+        int $batchId,
+        int $insertedAfil,
+        int $insertedVac,
+        array $stats,
+        array $errores,
+        array $noAfiliados,
+        string $extraMsg = ''
+    ): void {
+        try {
+            $user = User::find($this->userId);
+
+            if (!$user || empty($user->email)) {
+                Log::warning("MAIL IMPORT: no se envía (usuario sin email)", ['userId' => $this->userId]);
+                return;
+            }
+
+            // limita tamaños para que no reviente el correo
+            $errores = array_slice($errores ?? [], 0, 50);
+            $noAfiliados = array_slice($noAfiliados ?? [], 0, 50);
+
+            $stats = array_merge([
+                'insertedAfil' => $insertedAfil,
+                'insertedVac'  => $insertedVac,
+                'ok' => $ok,
+                'message' => $extraMsg,
+            ], $stats ?? []);
+
+            $mail = new ImportResumenMail(
+                usuario: ($user->name ?? 'SIN_NOMBRE'),
+                batchId: $batchId,
+                stats: $stats,
+                errores: $errores,
+                noAfiliados: $noAfiliados
+            );
+
+            // ✅ en cola (no entorpece)
+            Mail::to($user->email)
+                ->cc(['jsuarez@epsianaswayuu.com','pai@epsianaswayuu.com'])
+                ->queue($mail);
+
+            Log::info("MAIL IMPORT: encolado", [
+                'to' => $user->email,
+                'batch' => $batchId,
+                'ok' => $ok,
+            ]);
+        } catch (\Throwable $e) {
+            Log::error("MAIL IMPORT: fallo enviando correo: ".$e->getMessage(), [
+                'userId' => $this->userId,
+                'batch' => $batchId,
+            ]);
+        }
+    }
+
+    private function safeStats($import): array
+    {
+        try {
+            if ($import && method_exists($import, 'getStats')) {
+                $s = $import->getStats();
+                return is_array($s) ? $s : [];
+            }
+        } catch (\Throwable $e) {}
+        return [];
+    }
+
+    private function safeNoAfiliados($import): array
+    {
+        try {
+            if ($import && method_exists($import, 'getNoAfiliados')) {
+                $s = $import->getNoAfiliados();
+                return is_array($s) ? $s : [];
+            }
+        } catch (\Throwable $e) {}
+        return [];
+    }
+
+    // =========================================================
+    // utilidades
+    // =========================================================
     private function rollbackBatchSafe(int $batchId): void
     {
         if ($batchId <= 0) return;
