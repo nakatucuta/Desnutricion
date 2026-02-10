@@ -11,6 +11,8 @@ use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
+use App\Mail\VacunasCargadasResumen; // el mailable que uses
+
 
 class SendImportResumenEmailJob implements ShouldQueue
 {
