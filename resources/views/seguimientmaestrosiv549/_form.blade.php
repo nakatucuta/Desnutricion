@@ -34,6 +34,7 @@
     <form action="{{ route('asignaciones.seguimientmaestrosiv549.store', $asignacion) }}" method="POST">
       @csrf
 
+      {{-- ======================= HOSPITALIZACIÓN ======================= --}}
       <h5 class="mb-2 text-primary"><i class="fas fa-hospital-user"></i> Hospitalización</h5>
       <div class="row">
         <div class="form-group col-md-3">
@@ -41,24 +42,107 @@
           <input type="date" name="fecha_hospitalizacion" class="form-control"
                  value="{{ old('fecha_hospitalizacion', optional($seguimiento)->fecha_hospitalizacion) }}">
         </div>
+
         <div class="form-group col-md-3">
           <label>Fecha egreso</label>
           <input type="date" name="fecha_egreso" class="form-control"
                  value="{{ old('fecha_egreso', optional($seguimiento)->fecha_egreso) }}">
         </div>
+
         <div class="form-group col-md-6">
+          <label>Institución que da el egreso a la paciente</label>
+          <input type="text" name="institucion_egreso_paciente" class="form-control"
+                 value="{{ old('institucion_egreso_paciente', optional($seguimiento)->institucion_egreso_paciente) }}">
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="form-group col-md-12">
           <label>Gestión durante hospitalización</label>
           <textarea name="gestion_hospitalizacion" class="form-control" rows="2">{{ old('gestion_hospitalizacion', optional($seguimiento)->gestion_hospitalizacion) }}</textarea>
         </div>
       </div>
 
+      <h6 class="mt-2 text-secondary">Criterios / complicaciones</h6>
+      @php
+        $crit = [
+          'eclampsia' => 'Eclampsia',
+          'preeclampsia_severa' => 'Preeclampsia severa',
+          'sepsis_infeccion_sistemica_severa' => 'Sepsis o infección sistémica severa',
+          'hemorragia_obstetrica_severa' => 'Hemorragia obstétrica severa',
+          'ruptura_uterina' => 'Ruptura uterina',
+          'falla_cardiovascular' => 'Falla cardiovascular',
+          'falla_renal' => 'Falla renal',
+          'falla_hepatica' => 'Falla hepática',
+          'falla_cerebral' => 'Falla cerebral',
+          'falla_respiratoria' => 'Falla respiratoria',
+          'falla_coagulacion' => 'Falla coagulación',
+          'cirugia_adicional' => 'Cirugía adicional',
+        ];
+      @endphp
+
+      <div class="row">
+        @foreach($crit as $name => $label)
+          @php
+            $checked = old($name, (bool) optional($seguimiento)->{$name});
+          @endphp
+          <div class="form-group col-md-3">
+            <div class="custom-control custom-checkbox">
+              <input type="checkbox" class="custom-control-input" id="{{ $name }}" name="{{ $name }}" {{ $checked ? 'checked' : '' }}>
+              <label class="custom-control-label" for="{{ $name }}">{{ $label }}</label>
+            </div>
+          </div>
+        @endforeach
+      </div>
+
+      <div class="row">
+        <div class="form-group col-md-3">
+          <label>Ttl_criter</label>
+          <input type="number" min="0" max="50" name="ttl_criter" class="form-control"
+                 value="{{ old('ttl_criter', optional($seguimiento)->ttl_criter) }}">
+        </div>
+
+        <div class="form-group col-md-3">
+          <label>Diagnóstico CIE 10</label>
+          <input type="text" name="diagnostico_cie10" class="form-control"
+                 value="{{ old('diagnostico_cie10', optional($seguimiento)->diagnostico_cie10) }}">
+        </div>
+
+        <div class="form-group col-md-6">
+          <label>Causa agrupada</label>
+          <input type="text" name="causa_agrupada" class="form-control"
+                 value="{{ old('causa_agrupada', optional($seguimiento)->causa_agrupada) }}">
+        </div>
+      </div>
+
+      {{-- ======================= SEGUIMIENTO INMEDIATO ======================= --}}
       <h5 class="mt-3 mb-2 text-primary"><i class="fas fa-bolt"></i> Seguimiento inmediato (48–72h)</h5>
-      <div class="form-group">
-        <label>Descripción</label>
-        <textarea name="descripcion_seguimiento_inmediato" class="form-control" rows="2">{{ old('descripcion_seguimiento_inmediato', optional($seguimiento)->descripcion_seguimiento_inmediato) }}</textarea>
+
+      <div class="row">
+        <div class="form-group col-md-8">
+          <label>Descripción</label>
+          <textarea name="descripcion_seguimiento_inmediato" class="form-control" rows="2">{{ old('descripcion_seguimiento_inmediato', optional($seguimiento)->descripcion_seguimiento_inmediato) }}</textarea>
+        </div>
+
+        <div class="form-group col-md-2">
+          <label>Control del recién nacido (sin pérdida perinatal)</label>
+          <input type="date" name="fecha_control_rn_inmediato" class="form-control"
+                 value="{{ old('fecha_control_rn_inmediato', optional($seguimiento)->fecha_control_rn_inmediato) }}">
+        </div>
+
+        <div class="form-group col-md-2">
+          <label>¿Seguimiento efectivo?</label><br>
+          @php $seInm = old('seguimiento_efectivo_inmediato', (bool) optional($seguimiento)->seguimiento_efectivo_inmediato); @endphp
+          <div class="custom-control custom-checkbox mt-2">
+            <input type="checkbox" class="custom-control-input" id="seguimiento_efectivo_inmediato" name="seguimiento_efectivo_inmediato" {{ $seInm ? 'checked' : '' }}>
+            <label class="custom-control-label" for="seguimiento_efectivo_inmediato">Sí</label>
+          </div>
+        </div>
       </div>
 
       <hr>
+
+      {{-- ======================= SEGUIMIENTO 1 ======================= --}}
       <h5 class="mb-2 text-primary"><i class="fas fa-phone"></i> Seguimiento 1 (post egreso)</h5>
       <div class="row">
         <div class="form-group col-md-3">
@@ -114,6 +198,8 @@
       </div>
 
       <hr>
+
+      {{-- ======================= SEGUIMIENTO 2 ======================= --}}
       <h5 class="mb-2 text-primary"><i class="far fa-calendar-check"></i> Seguimiento 2 (7 días)</h5>
       <div class="row">
         <div class="form-group col-md-3">
@@ -142,19 +228,29 @@
         </div>
       </div>
       <div class="row">
-        <div class="form-group col-md-6">
+        <div class="form-group col-md-4">
           <label>Entrega meds/labs en casa</label>
           <input type="text" name="entrega_medicamentos_labs_2" class="form-control"
                  value="{{ old('entrega_medicamentos_labs_2', optional($seguimiento)->entrega_medicamentos_labs_2) }}">
         </div>
-        <div class="form-group col-md-6">
+        <div class="form-group col-md-4">
           <label>Gestión primera semana</label>
           <input type="text" name="gestion_primera_semana" class="form-control"
                  value="{{ old('gestion_primera_semana', optional($seguimiento)->gestion_primera_semana) }}">
         </div>
+        <div class="form-group col-md-4">
+          <label>¿Seguimiento efectivo?</label><br>
+          @php $se2 = old('seguimiento_efectivo_2', (bool) optional($seguimiento)->seguimiento_efectivo_2); @endphp
+          <div class="custom-control custom-checkbox mt-2">
+            <input type="checkbox" class="custom-control-input" id="seguimiento_efectivo_2" name="seguimiento_efectivo_2" {{ $se2 ? 'checked' : '' }}>
+            <label class="custom-control-label" for="seguimiento_efectivo_2">Sí</label>
+          </div>
+        </div>
       </div>
 
       <hr>
+
+      {{-- ======================= SEGUIMIENTO 3 ======================= --}}
       <h5 class="mb-2 text-primary">Seguimiento 3 (14 días)</h5>
       <div class="row">
         <div class="form-group col-md-3">
@@ -192,10 +288,18 @@
           <input type="date" name="fecha_consulta_rn_3" class="form-control"
                  value="{{ old('fecha_consulta_rn_3', optional($seguimiento)->fecha_consulta_rn_3) }}">
         </div>
-        <div class="form-group col-md-8">
+        <div class="form-group col-md-4">
           <label>Entrega meds/labs en casa</label>
           <input type="text" name="entrega_medicamentos_labs_3" class="form-control"
                  value="{{ old('entrega_medicamentos_labs_3', optional($seguimiento)->entrega_medicamentos_labs_3) }}">
+        </div>
+        <div class="form-group col-md-4">
+          <label>¿Seguimiento efectivo?</label><br>
+          @php $se3 = old('seguimiento_efectivo_3', (bool) optional($seguimiento)->seguimiento_efectivo_3); @endphp
+          <div class="custom-control custom-checkbox mt-2">
+            <input type="checkbox" class="custom-control-input" id="seguimiento_efectivo_3" name="seguimiento_efectivo_3" {{ $se3 ? 'checked' : '' }}>
+            <label class="custom-control-label" for="seguimiento_efectivo_3">Sí</label>
+          </div>
         </div>
       </div>
       <div class="form-group">
@@ -205,6 +309,8 @@
       </div>
 
       <hr>
+
+      {{-- ======================= SEGUIMIENTO 4 ======================= --}}
       <h5 class="mb-2 text-primary">Seguimiento 4 (21 días)</h5>
       <div class="row">
         <div class="form-group col-md-3">
@@ -242,10 +348,18 @@
           <input type="date" name="fecha_consulta_rn_4" class="form-control"
                  value="{{ old('fecha_consulta_rn_4', optional($seguimiento)->fecha_consulta_rn_4) }}">
         </div>
-        <div class="form-group col-md-8">
+        <div class="form-group col-md-4">
           <label>Entrega meds/labs en casa</label>
           <input type="text" name="entrega_medicamentos_labs_4" class="form-control"
                  value="{{ old('entrega_medicamentos_labs_4', optional($seguimiento)->entrega_medicamentos_labs_4) }}">
+        </div>
+        <div class="form-group col-md-4">
+          <label>¿Seguimiento efectivo?</label><br>
+          @php $se4 = old('seguimiento_efectivo_4', (bool) optional($seguimiento)->seguimiento_efectivo_4); @endphp
+          <div class="custom-control custom-checkbox mt-2">
+            <input type="checkbox" class="custom-control-input" id="seguimiento_efectivo_4" name="seguimiento_efectivo_4" {{ $se4 ? 'checked' : '' }}>
+            <label class="custom-control-label" for="seguimiento_efectivo_4">Sí</label>
+          </div>
         </div>
       </div>
       <div class="form-group">
@@ -255,6 +369,8 @@
       </div>
 
       <hr>
+
+      {{-- ======================= SEGUIMIENTO 5 ======================= --}}
       <h5 class="mb-2 text-primary">Seguimiento 5 (28 días)</h5>
       <div class="row">
         <div class="form-group col-md-3">
@@ -286,20 +402,36 @@
                  value="{{ old('fecha_control_5', optional($seguimiento)->fecha_control_5) }}">
         </div>
       </div>
+
+      {{-- ✅ MODIFICACIÓN AQUÍ: agregué otro checkbox para seguimiento_efectivo_6 --}}
       <div class="row">
-        <div class="form-group col-md-6">
-          <label>Fecha consulta RN (si aplica)</label>
+        <div class="form-group col-md-3">
+          <label>Fecha consulta RNsssssssss (si aplica)</label>
           <input type="date" name="fecha_consulta_rn_5" class="form-control"
                  value="{{ old('fecha_consulta_rn_5', optional($seguimiento)->fecha_consulta_rn_5) }}">
         </div>
-        <div class="form-group col-md-6">
+
+        <div class="form-group col-md-3">
           <label>Entrega meds/labs en casa</label>
           <input type="text" name="entrega_medicamentos_labs_5" class="form-control"
                  value="{{ old('entrega_medicamentos_labs_5', optional($seguimiento)->entrega_medicamentos_labs_5) }}">
         </div>
+
+        <div class="form-group col-md-3">
+          <label>¿Seguimiento efectivo? (28 días)</label><br>
+          @php $se5 = old('seguimiento_efectivo_5', (bool) optional($seguimiento)->seguimiento_efectivo_5); @endphp
+          <div class="custom-control custom-checkbox mt-2">
+            <input type="checkbox" class="custom-control-input" id="seguimiento_efectivo_5" name="seguimiento_efectivo_5" {{ $se5 ? 'checked' : '' }}>
+            <label class="custom-control-label" for="seguimiento_efectivo_5">Sí</label>
+          </div>
+        </div>
+
+       
       </div>
 
       <hr>
+
+      {{-- ======================= CONTROLES ADICIONALES ======================= --}}
       <h5 class="mb-2 text-primary"><i class="fas fa-baby"></i> Controles adicionales</h5>
       <div class="row">
         <div class="form-group col-md-4">
@@ -318,6 +450,7 @@
                  value="{{ old('gestion_despues_mes', optional($seguimiento)->gestion_despues_mes) }}">
         </div>
       </div>
+
       <div class="row">
         <div class="form-group col-md-6">
           <label>Consulta 6 meses</label>

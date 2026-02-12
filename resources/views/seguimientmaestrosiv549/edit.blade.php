@@ -23,7 +23,6 @@
 
     {{-- === Resumen del caso asignado (solo lectura) === --}}
     @php
-      use Illuminate\Support\Arr;
       use Illuminate\Support\Carbon;
 
       $fmt = function($v) { return ($v !== null && $v !== '') ? $v : 'N/D'; };
@@ -181,7 +180,7 @@
     </div>
     {{-- === /Resumen === --}}
 
-    {{-- Helpers locales para el formulario (sin funciones globales) --}}
+    {{-- Helpers locales --}}
     @php
       $v = function($name, $val = null) { return old($name, $val); };
       $vdate = function($name, $val = null) {
@@ -190,13 +189,16 @@
         try { return Carbon::parse($raw)->format('Y-m-d'); }
         catch (\Throwable $e) { return is_string($raw) ? $raw : ''; }
       };
+      $boolSelect = function($name, $val) use ($v) {
+        return (string) $v($name, ($val === null || $val === '') ? '0' : (string)$val);
+      };
     @endphp
 
     <form action="{{ route('asignaciones.seguimientmaestrosiv549.update', [$asignacion, $seguimiento]) }}" method="POST">
       @csrf
       @method('PUT')
 
-      {{-- HOSPITALIZACIÓN --}}
+      {{-- ======================= HOSPITALIZACIÓN ======================= --}}
       <h5 class="mb-2 text-primary"><i class="fas fa-hospital-user"></i> Hospitalización</h5>
       <div class="row">
         <div class="form-group col-md-3">
@@ -204,26 +206,109 @@
           <input type="date" name="fecha_hospitalizacion" class="form-control"
                  value="{{ $vdate('fecha_hospitalizacion', $seguimiento->fecha_hospitalizacion) }}">
         </div>
+
         <div class="form-group col-md-3">
           <label>Fecha egreso</label>
           <input type="date" name="fecha_egreso" class="form-control"
                  value="{{ $vdate('fecha_egreso', $seguimiento->fecha_egreso) }}">
         </div>
+
+        {{-- ✅ NUEVO --}}
         <div class="form-group col-md-6">
+          <label>Institución que da el egreso a la paciente</label>
+          <input type="text" name="institucion_egreso_paciente" class="form-control"
+                 value="{{ $v('institucion_egreso_paciente', $seguimiento->institucion_egreso_paciente) }}">
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="form-group col-md-12">
           <label>Gestión durante hospitalización</label>
           <textarea name="gestion_hospitalizacion" class="form-control" rows="2">{{ $v('gestion_hospitalizacion', $seguimiento->gestion_hospitalizacion) }}</textarea>
         </div>
       </div>
 
-      {{-- INMEDIATO (48–72h) --}}
+      {{-- ✅ NUEVO: criterios --}}
+      @php
+        $crit = [
+          'eclampsia' => 'Eclampsia',
+          'preeclampsia_severa' => 'Preeclampsia severa',
+          'sepsis_infeccion_sistemica_severa' => 'Sepsis o infección sistémica severa',
+          'hemorragia_obstetrica_severa' => 'Hemorragia obstétrica severa',
+          'ruptura_uterina' => 'Ruptura uterina',
+          'falla_cardiovascular' => 'Falla cardiovascular',
+          'falla_renal' => 'Falla renal',
+          'falla_hepatica' => 'Falla hepática',
+          'falla_cerebral' => 'Falla cerebral',
+          'falla_respiratoria' => 'Falla respiratoria',
+          'falla_coagulacion' => 'Falla coagulación',
+          'cirugia_adicional' => 'Cirugía adicional',
+        ];
+      @endphp
+
+      <h6 class="mt-2 text-secondary">Criterios / complicaciones</h6>
+      <div class="row">
+        @foreach($crit as $name => $label)
+          @php $checked = (bool) $v($name, $seguimiento->{$name} ?? false); @endphp
+          <input type="hidden" name="{{ $name }}" value="0">
+          <div class="form-group col-md-3">
+            <div class="custom-control custom-checkbox">
+              <input type="checkbox" class="custom-control-input" id="{{ $name }}" name="{{ $name }}" value="1" {{ $checked ? 'checked' : '' }}>
+              <label class="custom-control-label" for="{{ $name }}">{{ $label }}</label>
+            </div>
+          </div>
+        @endforeach
+      </div>
+
+      {{-- ✅ NUEVO: ttl_criter / cie10 / causa --}}
+      <div class="row">
+        <div class="form-group col-md-3">
+          <label>Ttl_criter</label>
+          <input type="number" min="0" max="50" name="ttl_criter" class="form-control"
+                 value="{{ $v('ttl_criter', $seguimiento->ttl_criter) }}">
+        </div>
+        <div class="form-group col-md-3">
+          <label>Diagnóstico CIE 10</label>
+          <input type="text" name="diagnostico_cie10" class="form-control"
+                 value="{{ $v('diagnostico_cie10', $seguimiento->diagnostico_cie10) }}">
+        </div>
+        <div class="form-group col-md-6">
+          <label>Causa agrupada</label>
+          <input type="text" name="causa_agrupada" class="form-control"
+                 value="{{ $v('causa_agrupada', $seguimiento->causa_agrupada) }}">
+        </div>
+      </div>
+
+      {{-- ======================= INMEDIATO (48–72h) ======================= --}}
       <h5 class="mt-3 mb-2 text-primary"><i class="fas fa-bolt"></i> Seguimiento inmediato (48–72h)</h5>
-      <div class="form-group">
-        <label>Descripción</label>
-        <textarea name="descripcion_seguimiento_inmediato" class="form-control" rows="2">{{ $v('descripcion_seguimiento_inmediato', $seguimiento->descripcion_seguimiento_inmediato) }}</textarea>
+
+      <div class="row">
+        <div class="form-group col-md-8">
+          <label>Descripción</label>
+          <textarea name="descripcion_seguimiento_inmediato" class="form-control" rows="2">{{ $v('descripcion_seguimiento_inmediato', $seguimiento->descripcion_seguimiento_inmediato) }}</textarea>
+        </div>
+
+        {{-- ✅ NUEVO --}}
+        <div class="form-group col-md-2">
+          <label>Control del recién nacido (sin pérdida perinatal)</label>
+          <input type="date" name="fecha_control_rn_inmediato" class="form-control"
+                 value="{{ $vdate('fecha_control_rn_inmediato', $seguimiento->fecha_control_rn_inmediato) }}">
+        </div>
+
+        {{-- ✅ SELECT SI/NO --}}
+        <div class="form-group col-md-2">
+          <label>¿Seguimiento efectivo?</label>
+          @php $sei = $boolSelect('seguimiento_efectivo_inmediato', $seguimiento->seguimiento_efectivo_inmediato); @endphp
+          <select name="seguimiento_efectivo_inmediato" class="form-control">
+            <option value="0" {{ $sei==='0' ? 'selected' : '' }}>No</option>
+            <option value="1" {{ $sei==='1' ? 'selected' : '' }}>Sí</option>
+          </select>
+        </div>
       </div>
 
       <hr>
-      {{-- SEGUIMIENTO 1 --}}
+
+      {{-- ======================= SEGUIMIENTO 1 ======================= --}}
       <h5 class="mb-2 text-primary"><i class="fas fa-phone"></i> Seguimiento 1 (post egreso)</h5>
       <div class="row">
         <div class="form-group col-md-3">
@@ -279,7 +364,8 @@
       </div>
 
       <hr>
-      {{-- SEGUIMIENTO 2 (7 días) --}}
+
+      {{-- ======================= SEGUIMIENTO 2 (7 días) ======================= --}}
       <h5 class="mb-2 text-primary"><i class="far fa-calendar-check"></i> Seguimiento 2 (7 días)</h5>
       <div class="row">
         <div class="form-group col-md-3">
@@ -287,6 +373,7 @@
           <input type="date" name="fecha_seguimiento_2" class="form-control"
                  value="{{ $vdate('fecha_seguimiento_2', $seguimiento->fecha_seguimiento_2) }}">
         </div>
+
         <div class="form-group col-md-3">
           <label>¿Sigue en embarazo?</label>
           @php $emb2 = (string) $v('paciente_sigue_embarazo_2', $seguimiento->paciente_sigue_embarazo_2); @endphp
@@ -296,32 +383,47 @@
             <option value="0" {{ $emb2==='0'?'selected':'' }}>No</option>
           </select>
         </div>
+
         <div class="form-group col-md-3">
           <label>Fecha control (especialista)</label>
           <input type="date" name="fecha_control_2" class="form-control"
                  value="{{ $vdate('fecha_control_2', $seguimiento->fecha_control_2) }}">
         </div>
+
         <div class="form-group col-md-3">
           <label>Fecha consulta RN (si aplica)</label>
           <input type="date" name="fecha_consulta_rn_2" class="form-control"
                  value="{{ $vdate('fecha_consulta_rn_2', $seguimiento->fecha_consulta_rn_2) }}">
         </div>
       </div>
+
       <div class="row">
-        <div class="form-group col-md-6">
+        <div class="form-group col-md-4">
           <label>Entrega meds/labs en casa</label>
           <input type="text" name="entrega_medicamentos_labs_2" class="form-control"
                  value="{{ $v('entrega_medicamentos_labs_2', $seguimiento->entrega_medicamentos_labs_2) }}">
         </div>
-        <div class="form-group col-md-6">
+
+        <div class="form-group col-md-4">
           <label>Gestión primera semana</label>
           <input type="text" name="gestion_primera_semana" class="form-control"
                  value="{{ $v('gestion_primera_semana', $seguimiento->gestion_primera_semana) }}">
         </div>
+
+        {{-- ✅ SELECT SI/NO --}}
+        <div class="form-group col-md-4">
+          <label>¿Seguimiento efectivo?</label>
+          @php $se2 = $boolSelect('seguimiento_efectivo_2', $seguimiento->seguimiento_efectivo_2); @endphp
+          <select name="seguimiento_efectivo_2" class="form-control">
+            <option value="0" {{ $se2==='0' ? 'selected' : '' }}>No</option>
+            <option value="1" {{ $se2==='1' ? 'selected' : '' }}>Sí</option>
+          </select>
+        </div>
       </div>
 
       <hr>
-      {{-- SEGUIMIENTO 3 (14 días) --}}
+
+      {{-- ======================= SEGUIMIENTO 3 (14 días) ======================= --}}
       <h5 class="mb-2 text-primary">Seguimiento 3 (14 días)</h5>
       <div class="row">
         <div class="form-group col-md-3">
@@ -329,6 +431,7 @@
           <input type="date" name="fecha_seguimiento_3" class="form-control"
                  value="{{ $vdate('fecha_seguimiento_3', $seguimiento->fecha_seguimiento_3) }}">
         </div>
+
         <div class="form-group col-md-3">
           <label>Tipo</label>
           @php $ts3 = (string) $v('tipo_seguimiento_3', $seguimiento->tipo_seguimiento_3); @endphp
@@ -338,6 +441,7 @@
             <option value="2" {{ $ts3==='2'?'selected':'' }}>Domiciliario</option>
           </select>
         </div>
+
         <div class="form-group col-md-3">
           <label>¿Sigue en embarazo?</label>
           @php $emb3 = (string) $v('paciente_sigue_embarazo_3', $seguimiento->paciente_sigue_embarazo_3); @endphp
@@ -347,24 +451,38 @@
             <option value="0" {{ $emb3==='0'?'selected':'' }}>No</option>
           </select>
         </div>
+
         <div class="form-group col-md-3">
           <label>Fecha control</label>
           <input type="date" name="fecha_control_3" class="form-control"
                  value="{{ $vdate('fecha_control_3', $seguimiento->fecha_control_3) }}">
         </div>
       </div>
+
       <div class="row">
         <div class="form-group col-md-4">
           <label>Fecha consulta RN</label>
           <input type="date" name="fecha_consulta_rn_3" class="form-control"
                  value="{{ $vdate('fecha_consulta_rn_3', $seguimiento->fecha_consulta_rn_3) }}">
         </div>
-        <div class="form-group col-md-8">
+
+        <div class="form-group col-md-4">
           <label>Entrega meds/labs en casa</label>
           <input type="text" name="entrega_medicamentos_labs_3" class="form-control"
                  value="{{ $v('entrega_medicamentos_labs_3', $seguimiento->entrega_medicamentos_labs_3) }}">
         </div>
+
+        {{-- ✅ SELECT SI/NO --}}
+        <div class="form-group col-md-4">
+          <label>¿Seguimiento efectivo?</label>
+          @php $se3 = $boolSelect('seguimiento_efectivo_3', $seguimiento->seguimiento_efectivo_3); @endphp
+          <select name="seguimiento_efectivo_3" class="form-control">
+            <option value="0" {{ $se3==='0' ? 'selected' : '' }}>No</option>
+            <option value="1" {{ $se3==='1' ? 'selected' : '' }}>Sí</option>
+          </select>
+        </div>
       </div>
+
       <div class="form-group">
         <label>Gestión segunda semana</label>
         <input type="text" name="gestion_segunda_semana" class="form-control"
@@ -372,7 +490,8 @@
       </div>
 
       <hr>
-      {{-- SEGUIMIENTO 4 (21 días) --}}
+
+      {{-- ======================= SEGUIMIENTO 4 (21 días) ======================= --}}
       <h5 class="mb-2 text-primary">Seguimiento 4 (21 días)</h5>
       <div class="row">
         <div class="form-group col-md-3">
@@ -380,6 +499,7 @@
           <input type="date" name="fecha_seguimiento_4" class="form-control"
                  value="{{ $vdate('fecha_seguimiento_4', $seguimiento->fecha_seguimiento_4) }}">
         </div>
+
         <div class="form-group col-md-3">
           <label>Tipo</label>
           @php $ts4 = (string) $v('tipo_seguimiento_4', $seguimiento->tipo_seguimiento_4); @endphp
@@ -389,6 +509,7 @@
             <option value="2" {{ $ts4==='2'?'selected':'' }}>Domiciliario</option>
           </select>
         </div>
+
         <div class="form-group col-md-3">
           <label>¿Sigue en embarazo?</label>
           @php $emb4 = (string) $v('paciente_sigue_embarazo_4', $seguimiento->paciente_sigue_embarazo_4); @endphp
@@ -398,24 +519,38 @@
             <option value="0" {{ $emb4==='0'?'selected':'' }}>No</option>
           </select>
         </div>
+
         <div class="form-group col-md-3">
           <label>Fecha control</label>
           <input type="date" name="fecha_control_4" class="form-control"
                  value="{{ $vdate('fecha_control_4', $seguimiento->fecha_control_4) }}">
         </div>
       </div>
+
       <div class="row">
         <div class="form-group col-md-4">
           <label>Fecha consulta RN</label>
           <input type="date" name="fecha_consulta_rn_4" class="form-control"
                  value="{{ $vdate('fecha_consulta_rn_4', $seguimiento->fecha_consulta_rn_4) }}">
         </div>
-        <div class="form-group col-md-8">
+
+        <div class="form-group col-md-4">
           <label>Entrega meds/labs en casa</label>
           <input type="text" name="entrega_medicamentos_labs_4" class="form-control"
                  value="{{ $v('entrega_medicamentos_labs_4', $seguimiento->entrega_medicamentos_labs_4) }}">
         </div>
+
+        {{-- ✅ SELECT SI/NO --}}
+        <div class="form-group col-md-4">
+          <label>¿Seguimiento efectivo?</label>
+          @php $se4 = $boolSelect('seguimiento_efectivo_4', $seguimiento->seguimiento_efectivo_4); @endphp
+          <select name="seguimiento_efectivo_4" class="form-control">
+            <option value="0" {{ $se4==='0' ? 'selected' : '' }}>No</option>
+            <option value="1" {{ $se4==='1' ? 'selected' : '' }}>Sí</option>
+          </select>
+        </div>
       </div>
+
       <div class="form-group">
         <label>Gestión tercera semana</label>
         <input type="text" name="gestion_tercera_semana" class="form-control"
@@ -423,7 +558,8 @@
       </div>
 
       <hr>
-      {{-- SEGUIMIENTO 5 (28 días) --}}
+
+      {{-- ======================= SEGUIMIENTO 5 (28 días) ======================= --}}
       <h5 class="mb-2 text-primary">Seguimiento 5 (28 días)</h5>
       <div class="row">
         <div class="form-group col-md-3">
@@ -431,6 +567,7 @@
           <input type="date" name="fecha_seguimiento_5" class="form-control"
                  value="{{ $vdate('fecha_seguimiento_5', $seguimiento->fecha_seguimiento_5) }}">
         </div>
+
         <div class="form-group col-md-3">
           <label>Tipo</label>
           @php $ts5 = (string) $v('tipo_seguimiento_5', $seguimiento->tipo_seguimiento_5); @endphp
@@ -440,6 +577,7 @@
             <option value="2" {{ $ts5==='2'?'selected':'' }}>Domiciliario</option>
           </select>
         </div>
+
         <div class="form-group col-md-3">
           <label>¿Sigue en embarazo?</label>
           @php $emb5 = (string) $v('paciente_sigue_embarazo_5', $seguimiento->paciente_sigue_embarazo_5); @endphp
@@ -449,27 +587,41 @@
             <option value="0" {{ $emb5==='0'?'selected':'' }}>No</option>
           </select>
         </div>
+
         <div class="form-group col-md-3">
           <label>Fecha control</label>
           <input type="date" name="fecha_control_5" class="form-control"
                  value="{{ $vdate('fecha_control_5', $seguimiento->fecha_control_5) }}">
         </div>
       </div>
+
       <div class="row">
-        <div class="form-group col-md-6">
+        <div class="form-group col-md-4">
           <label>Fecha consulta RN (si aplica)</label>
           <input type="date" name="fecha_consulta_rn_5" class="form-control"
                  value="{{ $vdate('fecha_consulta_rn_5', $seguimiento->fecha_consulta_rn_5) }}">
         </div>
-        <div class="form-group col-md-6">
+
+        <div class="form-group col-md-4">
           <label>Entrega meds/labs en casa</label>
           <input type="text" name="entrega_medicamentos_labs_5" class="form-control"
                  value="{{ $v('entrega_medicamentos_labs_5', $seguimiento->entrega_medicamentos_labs_5) }}">
         </div>
+
+        {{-- ✅ SELECT SI/NO --}}
+        <div class="form-group col-md-4">
+          <label>¿Seguimiento efectivo?</label>
+          @php $se5 = $boolSelect('seguimiento_efectivo_5', $seguimiento->seguimiento_efectivo_5); @endphp
+          <select name="seguimiento_efectivo_5" class="form-control">
+            <option value="0" {{ $se5==='0' ? 'selected' : '' }}>No</option>
+            <option value="1" {{ $se5==='1' ? 'selected' : '' }}>Sí</option>
+          </select>
+        </div>
       </div>
 
       <hr>
-      {{-- CONTROLES ADICIONALES --}}
+
+      {{-- ======================= CONTROLES ADICIONALES ======================= --}}
       <h5 class="mb-2 text-primary"><i class="fas fa-baby"></i> Controles adicionales</h5>
       <div class="row">
         <div class="form-group col-md-4">
@@ -488,6 +640,7 @@
                  value="{{ $v('gestion_despues_mes', $seguimiento->gestion_despues_mes) }}">
         </div>
       </div>
+
       <div class="row">
         <div class="form-group col-md-6">
           <label>Consulta 6 meses</label>
