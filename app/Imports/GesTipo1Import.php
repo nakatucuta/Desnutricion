@@ -3,19 +3,33 @@
 namespace App\Imports;
 
 use App\Models\GesTipo1;
-use Illuminate\Support\Collection;
-use Illuminate\Support\Facades\DB;
+use App\Models\batch_verifications;
 use Illuminate\Support\Facades\Auth;
-use Maatwebsite\Excel\Concerns\ToCollection;
-use Maatwebsite\Excel\Concerns\WithStartRow;
-use PhpOffice\PhpSpreadsheet\Shared\Date as ExcelDate;
+use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
 use Exception;
-use App\Models\batch_verifications;
 
-class GesTipo1Import implements ToCollection, WithStartRow
+use PhpOffice\PhpSpreadsheet\Shared\Date as ExcelDate;
+
+use Maatwebsite\Excel\Concerns\OnEachRow;
+use Maatwebsite\Excel\Concerns\WithStartRow;
+use Maatwebsite\Excel\Concerns\WithChunkReading;
+use Maatwebsite\Excel\Concerns\WithEvents;
+
+use Maatwebsite\Excel\Row;
+use Maatwebsite\Excel\Events\BeforeImport;
+use Maatwebsite\Excel\Events\AfterImport;
+use Maatwebsite\Excel\Events\ImportFailed;
+
+class GesTipo1Import implements OnEachRow, WithStartRow, WithChunkReading, WithEvents
 {
     private int $batch_verifications_id;
+
+    private array $buffer = [];
+    private array $sinCarnet = [];
+    private array $yaExistentes = [];
+
+    private ?int $maxRowsPerInsert = null;
 
     public function __construct()
     {
@@ -35,6 +49,52 @@ class GesTipo1Import implements ToCollection, WithStartRow
     public function startRow(): int
     {
         return 2;
+    }
+
+    // Tamaño del chunk de lectura del Excel (puedes subir/bajar)
+    public function chunkSize(): int
+    {
+        return 500;
+    }
+
+    public function registerEvents(): array
+    {
+        return [
+            BeforeImport::class => function (BeforeImport $event) {
+                DB::connection('sqlsrv')->disableQueryLog();
+                DB::beginTransaction();
+            },
+
+            AfterImport::class => function (AfterImport $event) {
+                // Inserta lo último que quede en buffer
+                $this->flushBuffer();
+
+                // Si hubo problemas, rollback y lanza error
+                if (!empty($this->yaExistentes)) {
+                    DB::rollBack();
+                    throw new Exception(
+                        "Import DETENIDO: usuarios ya existen y su FPP no ha pasado:\n\n" . implode("\n", $this->yaExistentes)
+                    );
+                }
+
+                if (!empty($this->sinCarnet)) {
+                    DB::rollBack();
+                    throw new Exception(
+                        "Import DETENIDO: usuarios sin carnet:\n\n" . implode("\n", $this->sinCarnet)
+                    );
+                }
+
+                // Todo ok
+                DB::commit();
+            },
+
+            ImportFailed::class => function (ImportFailed $event) {
+                // Si algo falla en medio del proceso, rollback
+                if (DB::transactionLevel() > 0) {
+                    DB::rollBack();
+                }
+            },
+        ];
     }
 
     private function parseExcelDate($value, int $excelRowNumber, string $campo): string
@@ -89,133 +149,112 @@ class GesTipo1Import implements ToCollection, WithStartRow
         throw new Exception("Fecha inválida en fila {$excelRowNumber} ({$campo}): '{$value}'");
     }
 
-    public function collection(Collection $rows)
+    public function onRow(Row $row)
     {
-        $toInsert     = [];
-        $sinCarnet    = [];
-        $yaExistentes = [];
+        $excelRowNumber = (int) $row->getIndex(); // número real de fila en Excel
+        $r = $row->toArray();
 
-        $excelRowNumber = $this->startRow();
+        // 1) Fechas
+        $fechaN = $this->parseExcelDate($r[12] ?? null, $excelRowNumber, 'fecha_de_nacimiento');
+        $fechaP = $this->parseExcelDate($r[16] ?? null, $excelRowNumber, 'fecha_probable_de_parto');
 
-        foreach ($rows as $row) {
+        // 2) Identificación
+        $tipoIdent = trim((string)($r[6] ?? ''));
+        $noId      = trim((string)($r[7] ?? ''));
 
-            // 1) Fechas (date)
-            $fechaN = $this->parseExcelDate($row[12] ?? null, $excelRowNumber, 'fecha_de_nacimiento');
-            $fechaP = $this->parseExcelDate($row[16] ?? null, $excelRowNumber, 'fecha_probable_de_parto');
-
-            // 2) Identificación
-            $tipoIdent = trim((string)($row[6] ?? ''));
-            $noId      = trim((string)($row[7] ?? ''));
-
-            if ($tipoIdent === '' || $noId === '') {
-                throw new Exception("Fila {$excelRowNumber}: tipo_identificación o no_id_del_usuario vacío.");
-            }
-
-            // 3) Si ya existe y su FPP no pasó => abortar al final
-            if ($existing = GesTipo1::where('tipo_de_identificacion_de_la_usuaria', $tipoIdent)
-                ->where('no_id_del_usuario', $noId)
-                ->first())
-            {
-                $hoy = Carbon::today();
-                $fp  = Carbon::parse($fechaP);
-
-                if ($hoy->lte($fp)) {
-                    $nombreCompleto = trim(($row[10] ?? '')." ".($row[11] ?? '')." ".($row[8] ?? '')." ".($row[9] ?? ''));
-                    $yaExistentes[] = "{$nombreCompleto} (ID: {$noId}) — fecha_probable_de_parto: {$fechaP}";
-                    $excelRowNumber++;
-                    continue;
-                }
-            }
-
-            // 4) Carnet
-            $numeroCarnet = DB::connection('sqlsrv_1')
-                ->table('maestroIdentificaciones')
-                ->where('identificacion', $noId)
-                ->where('tipoIdentificacion', $tipoIdent)
-                ->value('numeroCarnet');
-
-            if (!$numeroCarnet) {
-                $nombreCompleto = trim(($row[10] ?? '')." ".($row[11] ?? '')." ".($row[8] ?? '')." ".($row[9] ?? ''));
-                $sinCarnet[]    = "{$nombreCompleto} (ID: {$noId})";
-                $excelRowNumber++;
-                continue;
-            }
-
-            // 5) Preparar fila para INSERT directo (sin Eloquent)
-            $toInsert[] = [
-                'user_id'   => Auth::id(),
-                'tipo_de_registro'                                    => $row[0] ?? null,
-                'consecutivo'                                         => $row[1] ?? null,
-                'pais_de_la_nacionalidad'                             => $row[2] ?? null,
-                'municipio_de_residencia_habitual'                    => $row[3] ?? null,
-                'zona_territorial_de_residencia'                      => $row[4] ?? null,
-                'codigo_de_habilitacion_ips_primaria_de_la_gestante'  => $row[5] ?? null,
-                'tipo_de_identificacion_de_la_usuaria'                => $tipoIdent,
-                'no_id_del_usuario'                                   => $noId,
-                'numero_carnet'                                       => $numeroCarnet,
-                'primer_apellido'                                     => $row[8] ?? null,
-                'segundo_apellido'                                    => $row[9] ?? null,
-                'primer_nombre'                                       => $row[10] ?? null,
-                'segundo_nombre'                                      => $row[11] ?? null,
-                'fecha_de_nacimiento'                                 => $fechaN,
-                'codigo_pertenencia_etnica'                           => $row[13] ?? null,
-                'codigo_de_ocupacion'                                 => $row[14] ?? null,
-                'codigo_nivel_educativo_de_la_gestante'               => $row[15] ?? null,
-                'fecha_probable_de_parto'                             => $fechaP,
-                'direccion_de_residencia_de_la_gestante'              => $row[17] ?? null,
-                'antecedente_hipertension_cronica'                    => $row[18] ?? null,
-                'antecedente_preeclampsia'                            => $row[19] ?? null,
-                'antecedente_diabetes'                                => $row[20] ?? null,
-                'antecedente_les_enfermedad_autoinmune'               => $row[21] ?? null,
-                'antecedente_sindrome_metabolico'                     => $row[22] ?? null,
-                'antecedente_erc'                                     => $row[23] ?? null,
-                'antecedente_trombofilia_o_trombosis_venosa_profunda' => $row[24] ?? null,
-                'antecedentes_anemia_celulas_falciformes'             => $row[25] ?? null,
-                'antecedente_sepsis_durante_gestaciones_previas'      => $row[26] ?? null,
-                'consumo_tabaco_durante_la_gestacion'                 => $row[27] ?? null,
-                'periodo_intergenesico'                               => $row[28] ?? null,
-                'embarazo_multiple'                                   => $row[29] ?? null,
-                'metodo_de_concepcion'                                => $row[30] ?? null,
-                'batch_verifications_id'                              => $this->batch_verifications_id,
-
-                // timestamps por SQL Server
-                'created_at' => DB::raw('GETDATE()'),
-                'updated_at' => DB::raw('GETDATE()'),
-            ];
-
-            $excelRowNumber++;
+        if ($tipoIdent === '' || $noId === '') {
+            throw new Exception("Fila {$excelRowNumber}: tipo_identificación o no_id_del_usuario vacío.");
         }
 
-        if (!empty($yaExistentes)) {
-            throw new Exception(
-                "Import DETENIDO: usuarios ya existen y su FPP no ha pasado:\n\n" . implode("\n", $yaExistentes)
-            );
-        }
+        // 3) Si ya existe y su FPP no pasó => registrar y saltar
+        if (GesTipo1::where('tipo_de_identificacion_de_la_usuaria', $tipoIdent)
+            ->where('no_id_del_usuario', $noId)
+            ->exists())
+        {
+            $hoy = Carbon::today();
+            $fp  = Carbon::parse($fechaP);
 
-        if (!empty($sinCarnet)) {
-            throw new Exception(
-                "Import DETENIDO: usuarios sin carnet:\n\n" . implode("\n", $sinCarnet)
-            );
-        }
-
-        // ✅ INSERT POR CHUNKS para no pasar el límite de 2100 parámetros en SQL Server
-        DB::connection('sqlsrv')->disableQueryLog();
-
-        DB::transaction(function () use ($toInsert) {
-
-            if (empty($toInsert)) {
+            if ($hoy->lte($fp)) {
+                $nombreCompleto = trim(($r[10] ?? '')." ".($r[11] ?? '')." ".($r[8] ?? '')." ".($r[9] ?? ''));
+                $this->yaExistentes[] = "{$nombreCompleto} (ID: {$noId}) — fecha_probable_de_parto: {$fechaP}";
                 return;
             }
+        }
 
-            // Calcula automáticamente el tamaño seguro del chunk
-            // SQL Server: 2100 params máximo. Usamos 2000 para margen.
-            $columnsCount = count($toInsert[0]); // cuántas columnas insertas por fila
-            $maxRowsPerInsert = intdiv(2000, max(1, $columnsCount));
-            $maxRowsPerInsert = max(1, $maxRowsPerInsert);
+        // 4) Carnet
+        $numeroCarnet = DB::connection('sqlsrv_1')
+            ->table('maestroIdentificaciones')
+            ->where('identificacion', $noId)
+            ->where('tipoIdentificacion', $tipoIdent)
+            ->value('numeroCarnet');
 
-            foreach (array_chunk($toInsert, $maxRowsPerInsert) as $chunk) {
-                DB::table('ges_tipo1')->insert($chunk);
-            }
-        });
+        if (!$numeroCarnet) {
+            $nombreCompleto = trim(($r[10] ?? '')." ".($r[11] ?? '')." ".($r[8] ?? '')." ".($r[9] ?? ''));
+            $this->sinCarnet[] = "{$nombreCompleto} (ID: {$noId})";
+            return;
+        }
+
+        // 5) Armar fila
+        $data = [
+            'user_id'   => Auth::id(),
+            'tipo_de_registro'                                    => $r[0] ?? null,
+            'consecutivo'                                         => $r[1] ?? null,
+            'pais_de_la_nacionalidad'                             => $r[2] ?? null,
+            'municipio_de_residencia_habitual'                    => $r[3] ?? null,
+            'zona_territorial_de_residencia'                      => $r[4] ?? null,
+            'codigo_de_habilitacion_ips_primaria_de_la_gestante'  => $r[5] ?? null,
+            'tipo_de_identificacion_de_la_usuaria'                => $tipoIdent,
+            'no_id_del_usuario'                                   => $noId,
+            'numero_carnet'                                       => $numeroCarnet,
+            'primer_apellido'                                     => $r[8] ?? null,
+            'segundo_apellido'                                    => $r[9] ?? null,
+            'primer_nombre'                                       => $r[10] ?? null,
+            'segundo_nombre'                                      => $r[11] ?? null,
+            'fecha_de_nacimiento'                                 => $fechaN,
+            'codigo_pertenencia_etnica'                           => $r[13] ?? null,
+            'codigo_de_ocupacion'                                 => $r[14] ?? null,
+            'codigo_nivel_educativo_de_la_gestante'               => $r[15] ?? null,
+            'fecha_probable_de_parto'                             => $fechaP,
+            'direccion_de_residencia_de_la_gestante'              => $r[17] ?? null,
+            'antecedente_hipertension_cronica'                    => $r[18] ?? null,
+            'antecedente_preeclampsia'                            => $r[19] ?? null,
+            'antecedente_diabetes'                                => $r[20] ?? null,
+            'antecedente_les_enfermedad_autoinmune'               => $r[21] ?? null,
+            'antecedente_sindrome_metabolico'                     => $r[22] ?? null,
+            'antecedente_erc'                                     => $r[23] ?? null,
+            'antecedente_trombofilia_o_trombosis_venosa_profunda' => $r[24] ?? null,
+            'antecedentes_anemia_celulas_falciformes'             => $r[25] ?? null,
+            'antecedente_sepsis_durante_gestaciones_previas'      => $r[26] ?? null,
+            'consumo_tabaco_durante_la_gestacion'                 => $r[27] ?? null,
+            'periodo_intergenesico'                               => $r[28] ?? null,
+            'embarazo_multiple'                                   => $r[29] ?? null,
+            'metodo_de_concepcion'                                => $r[30] ?? null,
+            'batch_verifications_id'                              => $this->batch_verifications_id,
+
+            // timestamps por SQL Server
+            'created_at' => DB::raw('GETDATE()'),
+            'updated_at' => DB::raw('GETDATE()'),
+        ];
+
+        $this->buffer[] = $data;
+
+        // Calcular maxRowsPerInsert una sola vez (límite 2100 params; usamos 2000 por margen)
+        if ($this->maxRowsPerInsert === null) {
+            $columnsCount = count($data); // columnas insertadas
+            $this->maxRowsPerInsert = max(1, intdiv(2000, max(1, $columnsCount)));
+        }
+
+        // Cuando llegue al tope, insert y vaciar
+        if (count($this->buffer) >= $this->maxRowsPerInsert) {
+            $this->flushBuffer();
+        }
+    }
+
+    private function flushBuffer(): void
+    {
+        if (empty($this->buffer)) return;
+
+        DB::table('ges_tipo1')->insert($this->buffer);
+        $this->buffer = [];
     }
 }
