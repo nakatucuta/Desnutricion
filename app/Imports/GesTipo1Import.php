@@ -178,7 +178,7 @@ class GesTipo1Import implements ToCollection, WithStartRow
                 'metodo_de_concepcion'                                => $row[30] ?? null,
                 'batch_verifications_id'                              => $this->batch_verifications_id,
 
-                // 🔥 CLAVE: timestamps generados por SQL Server (cero nvarchar->datetime)
+                // timestamps por SQL Server
                 'created_at' => DB::raw('GETDATE()'),
                 'updated_at' => DB::raw('GETDATE()'),
             ];
@@ -198,10 +198,23 @@ class GesTipo1Import implements ToCollection, WithStartRow
             );
         }
 
-        // ✅ Insert masivo en transacción (rápido y sin problemas de formato)
+        // ✅ INSERT POR CHUNKS para no pasar el límite de 2100 parámetros en SQL Server
+        DB::connection('sqlsrv')->disableQueryLog();
+
         DB::transaction(function () use ($toInsert) {
-            if (!empty($toInsert)) {
-                DB::table('ges_tipo1')->insert($toInsert);
+
+            if (empty($toInsert)) {
+                return;
+            }
+
+            // Calcula automáticamente el tamaño seguro del chunk
+            // SQL Server: 2100 params máximo. Usamos 2000 para margen.
+            $columnsCount = count($toInsert[0]); // cuántas columnas insertas por fila
+            $maxRowsPerInsert = intdiv(2000, max(1, $columnsCount));
+            $maxRowsPerInsert = max(1, $maxRowsPerInsert);
+
+            foreach (array_chunk($toInsert, $maxRowsPerInsert) as $chunk) {
+                DB::table('ges_tipo1')->insert($chunk);
             }
         });
     }
