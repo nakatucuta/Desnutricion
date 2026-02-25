@@ -54,15 +54,10 @@ class AfiliadoImportStreaming implements ToModel, WithStartRow, WithChunkReading
 
     private bool $loggedTarget = false;
 
-    /**
-     * ✅ Columnas numéricas donde 0 ES VÁLIDO y NO se debe “limpiar”
-     * (solo por claridad; tus edades ya vienen por toIntOrNull y 0 se conserva)
-     */
     private array $zeroIsValidNumericCols = [
         'edad_anos', 'edad_meses', 'edad_dias', 'total_meses',
     ];
 
-    /** fallback (por si TODO falla) */
     private array $fallbackNumericColsAfiliados = [
         'id' => 'int',
         'edad_anos' => 'int',
@@ -92,13 +87,10 @@ class AfiliadoImportStreaming implements ToModel, WithStartRow, WithChunkReading
         'comuna','area','direccion','telefono_fijo','celular','email',
         'enfermedad_contraindicacion','sintomas_reaccion','condicion_usuaria','tipo_antecedente','descripcion_antecedente',
         'observaciones_especiales',
-
         'madre_primer_nombre','madre_segundo_nombre','madre_primer_apellido','madre_segundo_apellido',
         'madre_correo','madre_telefono','madre_celular','madre_regimen','madre_pertenencia_etnica',
-
         'cuidador_primer_nombre','cuidador_segundo_nombre','cuidador_primer_apellido','cuidador_segundo_apellido',
         'cuidador_parentesco','cuidador_correo','cuidador_telefono','cuidador_celular',
-
         'esquema_vacunacion',
     ];
 
@@ -314,7 +306,6 @@ class AfiliadoImportStreaming implements ToModel, WithStartRow, WithChunkReading
 
         if ($v === '' || strtoupper((string)$v) === 'NONE' || $v === '?') return null;
 
-        // ✅ Para texto: 0 suele ser “relleno” => lo volvemos null
         if ($this->isZeroLike($v)) return null;
 
         return is_string($v) ? trim($v) : $v;
@@ -327,12 +318,6 @@ class AfiliadoImportStreaming implements ToModel, WithStartRow, WithChunkReading
 
         if ($v === '' || strtoupper((string)$v) === 'NONE' || $v === '?') return null;
 
-        /**
-         * ✅ CAMBIO IMPORTANTE:
-         * Muchos Excels traen "0" como relleno en campos tipo identificación, correo, etc.
-         * Si dejamos "0", termina guardándose basura.
-         * OJO: tus edades NO pasan por cleanAny(), pasan por toIntOrNull(), así que NO se afectan.
-         */
         if ($this->isZeroLike($v)) return null;
 
         return $v;
@@ -371,9 +356,93 @@ class AfiliadoImportStreaming implements ToModel, WithStartRow, WithChunkReading
         }
 
         if (!is_numeric($v)) return null;
-
-        // ✅ 0 se conserva (edades)
         return (int) floor((float) $v);
+    }
+
+    /**
+     * ✅ FECHAS: convierte Excel/strings (dd/mm/yyyy) a Y-m-d.
+     * Vacío / NO TIENE / ? => null (evita 22007).
+     */
+    private function toSqlDate($v): ?string
+    {
+        if ($v === null) return null;
+
+        if ($v instanceof \DateTimeInterface) {
+            return $v->format('Y-m-d');
+        }
+
+        // Excel serial
+        if (is_int($v) || is_float($v) || (is_string($v) && is_numeric(trim($v)))) {
+            try {
+                $dt = Date::excelToDateTimeObject((float)$v);
+                return $dt ? $dt->format('Y-m-d') : null;
+            } catch (\Throwable $e) {
+                // sigue
+            }
+        }
+
+        $s = trim((string)$v);
+        if ($s === '' || $s === '-' || $s === '0') return null;
+
+        $upper = mb_strtoupper($s);
+        if (in_array($upper, ['NO TIENE', 'N/A', 'NA', 'SIN DATO', 'NULL', 'NONE', '?'], true)) {
+            return null;
+        }
+
+        foreach (['d/m/Y', 'd/m/y', 'Y-m-d', 'Y/m/d'] as $fmt) {
+            try {
+                $dt = Carbon::createFromFormat($fmt, $s);
+                if ($dt !== false) return $dt->format('Y-m-d');
+            } catch (\Throwable $e) {}
+        }
+
+        try {
+            return Carbon::parse($s)->format('Y-m-d');
+        } catch (\Throwable $e) {
+            return null;
+        }
+    }
+
+    /**
+     * ✅ timestamps compatibles con datetime (sin milisegundos)
+     */
+    private function nowSqlDateTime(): string
+    {
+        return now()->format('Y-m-d H:i:s');
+    }
+
+    /**
+     * ✅ FECHAS ESTRICTAS ANTES DE INSERTAR:
+     * Si no queda YYYY-MM-DD => NULL y log (para detectar el culpable).
+     */
+    private function sanitizeDateColumnsStrict(array $row, int $excelRow): array
+    {
+        $dateCols = [
+            'fecha_antecedente',
+            'fecha_atencion',
+            'fecha_nacimiento',
+            'fecha_prob_parto',
+            'fecha_ultima_menstruacion',
+        ];
+
+        foreach ($dateCols as $k) {
+            if (!array_key_exists($k, $row)) continue;
+
+            $raw = $row[$k];
+            $row[$k] = $this->toSqlDate($raw);
+
+            if ($row[$k] !== null && !preg_match('/^\d{4}-\d{2}-\d{2}$/', (string)$row[$k])) {
+                Log::warning("IMPORT FECHA INVALIDA => NULL", [
+                    'excelRow' => $excelRow,
+                    'col' => $k,
+                    'raw' => is_scalar($raw) ? (string)$raw : gettype($raw),
+                    'after' => $row[$k],
+                ]);
+                $row[$k] = null;
+            }
+        }
+
+        return $row;
     }
 
     /**
@@ -451,7 +520,6 @@ class AfiliadoImportStreaming implements ToModel, WithStartRow, WithChunkReading
             }
 
             if (in_array($type, ['int','bigint','smallint','tinyint'], true)) {
-                // ✅ 0 se guarda normal (incluye edades)
                 $data[$col] = (int) floor((float)$v);
             } else {
                 $data[$col] = (string)$v;
@@ -512,18 +580,6 @@ class AfiliadoImportStreaming implements ToModel, WithStartRow, WithChunkReading
             ]);
         }
 
-        $excelDateToYmd = function ($v) {
-            if ($v === null || $v === '') return null;
-
-            if (is_string($v)) {
-                $vv = trim($v);
-                if ($vv === '' || strtoupper($vv) === 'NONE') return null;
-                try { return Carbon::parse($vv)->format('Y-m-d'); } catch (\Throwable $e) { return null; }
-            }
-
-            try { return Date::excelToDateTimeObject($v)->format('Y-m-d'); } catch (\Throwable $e) { return null; }
-        };
-
         $tipo_identifi   = $this->cleanAny((string)($row[1] ?? null));
         $numero_identifi = $this->cleanAny(isset($row[2]) ? (string)$row[2] : null);
 
@@ -533,13 +589,13 @@ class AfiliadoImportStreaming implements ToModel, WithStartRow, WithChunkReading
             return null;
         }
 
-        // Fechas
-        $fechaatencion    = $excelDateToYmd($row[0]);
-        $fechaNacimiento  = $excelDateToYmd($row[7]);
-        $fechaProbParto   = $excelDateToYmd($row[46]);
-        $fechaAntecedente = $excelDateToYmd($row[48]);
+        // ✅ Fechas robustas
+        $fechaatencion    = $this->toSqlDate($row[0] ?? null);
+        $fechaNacimiento  = $this->toSqlDate($row[7] ?? null);
+        $fechaProbParto   = $this->toSqlDate($row[46] ?? null);
+        $fechaAntecedente = $this->toSqlDate($row[48] ?? null);
 
-        // ✅ Edades (0 ES VÁLIDO)
+        // ✅ Edades
         $edad_anos         = $this->toIntOrNull($row[8]  ?? null);
         $edad_meses        = $this->toIntOrNull($row[9]  ?? null);
         $edad_dias         = $this->toIntOrNull($row[10] ?? null);
@@ -630,6 +686,8 @@ class AfiliadoImportStreaming implements ToModel, WithStartRow, WithChunkReading
 
         $afiliadoData = null;
         if ($afiliado_id_local === 0) {
+            $nowTs = $this->nowSqlDateTime();
+
             $afiliadoData = [
                 'fecha_atencion' => $fechaatencion,
                 'tipo_identificacion' => $tipo_identifi,
@@ -642,7 +700,6 @@ class AfiliadoImportStreaming implements ToModel, WithStartRow, WithChunkReading
                 'segundo_apellido' => $this->cleanText($row[6] ?? null),
                 'fecha_nacimiento' => $fechaNacimiento,
 
-                // ✅ Edades: 0 se guarda
                 'edad_anos' => $edad_anos,
                 'edad_meses' => $edad_meses,
                 'edad_dias' => $edad_dias,
@@ -681,11 +738,13 @@ class AfiliadoImportStreaming implements ToModel, WithStartRow, WithChunkReading
                 'reaccion_biologicos' => $this->cleanText($row[41] ?? null),
                 'sintomas_reaccion' => $this->cleanText($row[42] ?? null),
                 'condicion_usuaria' => $this->cleanText($row[43] ?? null),
-                'fecha_ultima_menstruacion' => $excelDateToYmd($row[44] ?? null),
+
+                'fecha_ultima_menstruacion' => $this->toSqlDate($row[44] ?? null),
                 'semanas_gestacion' => $this->toIntOrNull($row[45] ?? null),
                 'fecha_prob_parto' => $fechaProbParto,
                 'embarazos_previos' => $embarazos_previos,
                 'fecha_antecedente' => $fechaAntecedente,
+
                 'tipo_antecedente' => $this->cleanText($row[49] ?? null),
                 'descripcion_antecedente' => $this->cleanText($row[50] ?? null),
                 'observaciones_especiales' => $this->cleanText($row[51] ?? null),
@@ -718,10 +777,13 @@ class AfiliadoImportStreaming implements ToModel, WithStartRow, WithChunkReading
 
                 'user_id' => $this->userId,
                 'batch_verifications_id' => $this->batch_verifications_id,
-                'created_at' => now(),
-                'updated_at' => now(),
+
+                'created_at' => $nowTs,
+                'updated_at' => $nowTs,
             ];
 
+            // Sanitiza por si algo raro se coló
+            $afiliadoData = $this->sanitizeDateColumnsStrict($afiliadoData, $excelRow);
             $afiliadoData = $this->sanitizeTextZeroColumns($afiliadoData, $excelRow);
             $afiliadoData = $this->sanitizeAfiliadoInsert($afiliadoData, $excelRow);
             $afiliadoData = $this->normalizeAfiliadoRow($afiliadoData);
@@ -844,6 +906,13 @@ class AfiliadoImportStreaming implements ToModel, WithStartRow, WithChunkReading
 
                     $excelRow = (int)($fila['excelRow'] ?? 0);
 
+                    // ✅ FIX DEFINITIVO: fechas vacías/basura => NULL (evita 22007)
+                    $row = $this->sanitizeDateColumnsStrict($row, $excelRow);
+
+                    // ✅ timestamps compatibles con datetime (sin ms)
+                    $row['created_at'] = $this->nowSqlDateTime();
+                    $row['updated_at'] = $this->nowSqlDateTime();
+
                     $row = $this->sanitizeTextZeroColumns($row, $excelRow);
                     $row = $this->sanitizeAfiliadoInsert($row, $excelRow);
                     $row = $this->normalizeAfiliadoRow($row);
@@ -954,8 +1023,15 @@ class AfiliadoImportStreaming implements ToModel, WithStartRow, WithChunkReading
                         $vacunaData['afiliado_id'] = (int)$afiliadoId;
                         $vacunaData['user_id'] = (int)$this->userId;
                         $vacunaData['batch_verifications_id'] = (int)$this->batch_verifications_id;
-                        $vacunaData['created_at'] = $vacunaData['created_at'] ?? now();
-                        $vacunaData['updated_at'] = $vacunaData['updated_at'] ?? now();
+
+                        // ✅ timestamps sin milisegundos
+                       $vacunaData['created_at'] = DB::raw('GETDATE()');
+                        $vacunaData['updated_at'] = DB::raw('GETDATE()');
+
+                        // ✅ fecha vacuna segura
+                        if (array_key_exists('fecha_vacuna', $vacunaData)) {
+                            $vacunaData['fecha_vacuna'] = $this->toSqlDate($vacunaData['fecha_vacuna']);
+                        }
 
                         $vacunaData = $this->forceStringLots($vacunaData);
 
@@ -1011,6 +1087,7 @@ class AfiliadoImportStreaming implements ToModel, WithStartRow, WithChunkReading
         $observaciones
     ): array {
         $vacunas = [];
+        $nowTs = $this->nowSqlDateTime();
 
         $cell = function(int $idx) use (&$row) {
             return $row[$idx] ?? null;
@@ -1049,6 +1126,7 @@ class AfiliadoImportStreaming implements ToModel, WithStartRow, WithChunkReading
             return false;
         };
 
+        // 👇 (tu bloque de vacunas completo, sin cambios de índices)
         $blocks = [
             [1,  range(75,80),  function() use ($doc,$val){ return ['docis'=>$doc(75),'laboratorio'=>$val(76),'lote'=>$val(77),'jeringa'=>$val(78),'lote_jeringa'=>$val(79),'diluyente'=>$val(80)]; }],
             [2,  range(81,86),  function() use ($doc,$val){ return ['docis'=>$doc(81),'lote'=>$val(82),'jeringa'=>$val(83),'lote_jeringa'=>$val(84),'lote_diluyente'=>$val(85),'observacion'=>$val(86)]; }],
@@ -1116,7 +1194,7 @@ class AfiliadoImportStreaming implements ToModel, WithStartRow, WithChunkReading
 
             $vacunas[] = array_merge([
                 'docis' => $payload['docis'] ?? null,
-                'fecha_vacuna' => $fechaatencion ?? null,
+                'fecha_vacuna' => $this->toSqlDate($fechaatencion ?? null),
                 'responsable' => $responsable ?? null,
                 'fuen_ingresado_paiweb' => $fuen_ingresado_paiweb ?? null,
                 'motivo_noingreso' => $motivo_noingreso ?? null,
@@ -1124,8 +1202,8 @@ class AfiliadoImportStreaming implements ToModel, WithStartRow, WithChunkReading
                 'vacunas_id' => (int)$vacunasId,
                 'user_id' => (int)$this->userId,
                 'batch_verifications_id' => (int)$this->batch_verifications_id,
-                'created_at' => now(),
-                'updated_at' => now(),
+                'created_at' => $nowTs,
+                'updated_at' => $nowTs,
             ], $payload);
         }
 
