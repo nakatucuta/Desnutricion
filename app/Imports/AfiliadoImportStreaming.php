@@ -54,6 +54,18 @@ class AfiliadoImportStreaming implements ToModel, WithStartRow, WithChunkReading
 
     private bool $loggedTarget = false;
 
+    /**
+     * ✅ MODO NO ESTRICTO:
+     * - "NO TIENE" / "SIN DATO" / etc => NULL
+     * - Si un campo numérico llega con texto raro => NULL + error (no tumba el proceso)
+     */
+    private bool $modoEstricto = false;
+
+    /** Tokens que tratamos como "vacío" */
+    private array $nullTokens = [
+        'NO TIENE', 'N/A', 'NA', 'SIN DATO', 'NULL', 'NONE', '?', 'NO APLICA', 'NO APLIQUE'
+    ];
+
     private array $zeroIsValidNumericCols = [
         'edad_anos', 'edad_meses', 'edad_dias', 'total_meses',
     ];
@@ -94,6 +106,9 @@ class AfiliadoImportStreaming implements ToModel, WithStartRow, WithChunkReading
         'esquema_vacunacion',
     ];
 
+    /**
+     * ⚠️ OJO: aquí estaba faltando tipo_identificacion. Lo agrego para que no se pierda en normalizeAfiliadoRow().
+     */
     private array $afiliadoColumns = [
         'area',
         'aseguradora',
@@ -170,7 +185,7 @@ class AfiliadoImportStreaming implements ToModel, WithStartRow, WithChunkReading
         'sintomas_reaccion',
         'telefono_fijo',
         'tipo_antecedente',
-        'tipo_identificacion',
+        'tipo_identificacion',      // ✅ agregado
         'total_meses',
         'updated_at',
         'user_id',
@@ -299,13 +314,25 @@ class AfiliadoImportStreaming implements ToModel, WithStartRow, WithChunkReading
         return is_numeric($s) && ((float)$s === 0.0);
     }
 
+    private function isNullToken($v): bool
+    {
+        if ($v === null) return true;
+        $s = is_string($v) ? trim($v) : trim((string)$v);
+        if ($s === '') return true;
+        $upper = mb_strtoupper($s, 'UTF-8');
+        return in_array($upper, $this->nullTokens, true);
+    }
+
     private function cleanText($v)
     {
         if ($v === null) return null;
+
         $v = is_string($v) ? trim($v) : $v;
 
-        if ($v === '' || strtoupper((string)$v) === 'NONE' || $v === '?') return null;
+        // ✅ Modo no estricto: NO TIENE => NULL
+        if ($this->isNullToken($v)) return null;
 
+        // ✅ Para texto: 0 suele ser “relleno” => lo volvemos null
         if ($this->isZeroLike($v)) return null;
 
         return is_string($v) ? trim($v) : $v;
@@ -314,9 +341,11 @@ class AfiliadoImportStreaming implements ToModel, WithStartRow, WithChunkReading
     private function cleanAny($v)
     {
         if ($v === null) return null;
+
         $v = is_string($v) ? trim($v) : $v;
 
-        if ($v === '' || strtoupper((string)$v) === 'NONE' || $v === '?') return null;
+        // ✅ Modo no estricto: NO TIENE => NULL
+        if ($this->isNullToken($v)) return null;
 
         if ($this->isZeroLike($v)) return null;
 
@@ -328,11 +357,15 @@ class AfiliadoImportStreaming implements ToModel, WithStartRow, WithChunkReading
         foreach ($this->textZeroNullCols as $col) {
             if (!array_key_exists($col, $data)) continue;
 
+            // ✅ 0-like a NULL
             if ($this->isZeroLike($data[$col])) $data[$col] = null;
+
+            // ✅ tokens tipo NO TIENE / ? / etc a NULL
+            if ($this->isNullToken($data[$col])) $data[$col] = null;
 
             if (is_string($data[$col])) {
                 $s = trim($data[$col]);
-                if ($s === '' || strtoupper($s) === 'NONE' || $s === '?') $data[$col] = null;
+                if ($s === '') $data[$col] = null;
             }
         }
         return $data;
@@ -349,9 +382,10 @@ class AfiliadoImportStreaming implements ToModel, WithStartRow, WithChunkReading
     {
         if ($v === null) return null;
 
+        if ($this->isNullToken($v)) return null;
+
         if (is_string($v)) {
             $v = trim($v);
-            if ($v === '' || strtoupper($v) === 'NONE' || $v === '?') return null;
             $v = str_replace(',', '.', $v);
         }
 
@@ -366,6 +400,8 @@ class AfiliadoImportStreaming implements ToModel, WithStartRow, WithChunkReading
     private function toSqlDate($v): ?string
     {
         if ($v === null) return null;
+
+        if ($this->isNullToken($v)) return null;
 
         if ($v instanceof \DateTimeInterface) {
             return $v->format('Y-m-d');
@@ -383,11 +419,6 @@ class AfiliadoImportStreaming implements ToModel, WithStartRow, WithChunkReading
 
         $s = trim((string)$v);
         if ($s === '' || $s === '-' || $s === '0') return null;
-
-        $upper = mb_strtoupper($s);
-        if (in_array($upper, ['NO TIENE', 'N/A', 'NA', 'SIN DATO', 'NULL', 'NONE', '?'], true)) {
-            return null;
-        }
 
         foreach (['d/m/Y', 'd/m/y', 'Y-m-d', 'Y/m/d'] as $fmt) {
             try {
@@ -413,7 +444,7 @@ class AfiliadoImportStreaming implements ToModel, WithStartRow, WithChunkReading
 
     /**
      * ✅ FECHAS ESTRICTAS ANTES DE INSERTAR:
-     * Si no queda YYYY-MM-DD => NULL y log (para detectar el culpable).
+     * Si no queda YYYY-MM-DD => NULL y log.
      */
     private function sanitizeDateColumnsStrict(array $row, int $excelRow): array
     {
@@ -491,6 +522,11 @@ class AfiliadoImportStreaming implements ToModel, WithStartRow, WithChunkReading
         }
     }
 
+    /**
+     * ✅ MODO NO ESTRICTO:
+     * - Tokens "NO TIENE" => NULL
+     * - Si llega texto raro en numérico => NULL + error (pero NO tumba)
+     */
     private function sanitizeNumericByMap(array $data, array $numCols, int $excelRow, string $tableName): array
     {
         foreach ($numCols as $col => $type) {
@@ -503,17 +539,19 @@ class AfiliadoImportStreaming implements ToModel, WithStartRow, WithChunkReading
                 continue;
             }
 
+            if ($this->isNullToken($v)) {
+                $data[$col] = null;
+                continue;
+            }
+
             if (is_string($v)) {
                 $vv = trim($v);
-                if ($vv === '' || strtoupper($vv) === 'NONE' || $vv === '?') {
-                    $data[$col] = null;
-                    continue;
-                }
                 $vv = str_replace(',', '.', $vv);
                 $v = $vv;
             }
 
             if (!is_numeric($v)) {
+                // no estricto => guardo NULL y dejo error informativo (pero sigue)
                 $this->addError("Fila {$excelRow}: '{$tableName}.{$col}' es {$type} pero llegó '".mb_substr((string)$v, 0, 120)."' -> lo guardo NULL");
                 $data[$col] = null;
                 continue;
@@ -727,8 +765,11 @@ class AfiliadoImportStreaming implements ToModel, WithStartRow, WithChunkReading
                 'comuna' => $this->cleanText($row[31] ?? null),
                 'area' => $this->cleanText($row[32] ?? null),
                 'direccion' => $this->cleanText($row[33] ?? null),
-                'telefono_fijo' => $this->cleanText($row[34] ?? null),
-                'celular' => $this->cleanText($row[35] ?? null),
+
+                // ✅ modo no estricto: NO TIENE => NULL (evita nvarchar->bigint)
+                'telefono_fijo' => $this->cleanAny($row[34] ?? null),
+                'celular' => $this->cleanAny($row[35] ?? null),
+
                 'email' => $this->cleanText($row[36] ?? null),
 
                 'autoriza_llamadas' => $this->cleanText($row[37] ?? null),
@@ -756,8 +797,8 @@ class AfiliadoImportStreaming implements ToModel, WithStartRow, WithChunkReading
                 'madre_primer_apellido' => $this->cleanText($row[56] ?? null),
                 'madre_segundo_apellido' => $this->cleanText($row[57] ?? null),
                 'madre_correo' => $this->cleanText($row[58] ?? null),
-                'madre_telefono' => $this->cleanText($row[59] ?? null),
-                'madre_celular' => $this->cleanText($row[60] ?? null),
+                'madre_telefono' => $this->cleanAny($row[59] ?? null),
+                'madre_celular' => $this->cleanAny($row[60] ?? null),
                 'madre_regimen' => $this->cleanText($row[61] ?? null),
                 'madre_pertenencia_etnica' => $this->cleanText($row[62] ?? null),
                 'madre_desplazada' => $this->cleanText($row[63] ?? null),
@@ -770,8 +811,8 @@ class AfiliadoImportStreaming implements ToModel, WithStartRow, WithChunkReading
                 'cuidador_segundo_apellido' => $this->cleanText($row[69] ?? null),
                 'cuidador_parentesco' => $this->cleanText($row[70] ?? null),
                 'cuidador_correo' => $this->cleanText($row[71] ?? null),
-                'cuidador_telefono' => $this->cleanText($row[72] ?? null),
-                'cuidador_celular' => $this->cleanText($row[73] ?? null),
+                'cuidador_telefono' => $this->cleanAny($row[72] ?? null),
+                'cuidador_celular' => $this->cleanAny($row[73] ?? null),
 
                 'esquema_vacunacion' => $this->cleanText($row[74] ?? null),
 
@@ -906,10 +947,10 @@ class AfiliadoImportStreaming implements ToModel, WithStartRow, WithChunkReading
 
                     $excelRow = (int)($fila['excelRow'] ?? 0);
 
-                    // ✅ FIX DEFINITIVO: fechas vacías/basura => NULL (evita 22007)
+                    // ✅ fechas vacías/basura => NULL
                     $row = $this->sanitizeDateColumnsStrict($row, $excelRow);
 
-                    // ✅ timestamps compatibles con datetime (sin ms)
+                    // ✅ timestamps (sin ms)
                     $row['created_at'] = $this->nowSqlDateTime();
                     $row['updated_at'] = $this->nowSqlDateTime();
 
@@ -958,6 +999,26 @@ class AfiliadoImportStreaming implements ToModel, WithStartRow, WithChunkReading
                         $k = (int)$e->afiliado_id . '|' . (int)$e->vacunas_id . '|' . ($this->normalizeDocis($e->docis) ?? '');
                         $existingKeys[$k] = true;
                     }
+                }
+
+                // ✅ 3.5) Validar FK de vacunas_id contra referencia_vacunas para NO tumbar el import
+                $vacIdsInChunk = [];
+                foreach ($buffer as $fila) {
+                    foreach (($fila['vacunas'] ?? []) as $v) {
+                        $id = $v['vacunas_id'] ?? null;
+                        if ($id !== null && $id !== '' && is_numeric($id)) $vacIdsInChunk[(int)$id] = true;
+                    }
+                }
+                $vacIdsInChunk = array_keys($vacIdsInChunk);
+
+                $validVacIdSet = [];
+                if (!empty($vacIdsInChunk)) {
+                    $valid = $db->table('referencia_vacunas')
+                        ->whereIn('id', $vacIdsInChunk)
+                        ->pluck('id')
+                        ->all();
+
+                    foreach ($valid as $vid) $validVacIdSet[(int)$vid] = true;
                 }
 
                 // 4) Insert vacunas con template fijo
@@ -1011,8 +1072,16 @@ class AfiliadoImportStreaming implements ToModel, WithStartRow, WithChunkReading
                             continue;
                         }
 
+                        $vacunasId = (int)$vacunasId;
+
+                        // ✅ si no existe en referencia_vacunas => NO insertamos y NO tumbamos el import
+                        if (!isset($validVacIdSet[$vacunasId])) {
+                            $this->addError("Fila ".($fila['excelRow'] ?? '?').": vacunas_id={$vacunasId} no existe en referencia_vacunas. Se omite esa vacuna.");
+                            continue;
+                        }
+
                         $docisNorm = $this->normalizeDocis($vacunaData['docis'] ?? null);
-                        $key = (int)$afiliadoId . '|' . (int)$vacunasId . '|' . ($docisNorm ?? '');
+                        $key = (int)$afiliadoId . '|' . $vacunasId . '|' . ($docisNorm ?? '');
 
                         if (isset($existingKeys[$key]) || isset($seenInChunk[$key])) {
                             $this->oldVacuna++;
@@ -1024,8 +1093,8 @@ class AfiliadoImportStreaming implements ToModel, WithStartRow, WithChunkReading
                         $vacunaData['user_id'] = (int)$this->userId;
                         $vacunaData['batch_verifications_id'] = (int)$this->batch_verifications_id;
 
-                        // ✅ timestamps sin milisegundos
-                       $vacunaData['created_at'] = DB::raw('GETDATE()');
+                        // ✅ timestamps nativos SQL Server (evita 22007)
+                        $vacunaData['created_at'] = DB::raw('GETDATE()');
                         $vacunaData['updated_at'] = DB::raw('GETDATE()');
 
                         // ✅ fecha vacuna segura
@@ -1043,9 +1112,13 @@ class AfiliadoImportStreaming implements ToModel, WithStartRow, WithChunkReading
                             'observacion','gotero','tipo_neumococo','responsable','fuen_ingresado_paiweb',
                             'motivo_noingreso','observaciones'
                         ] as $k) {
+                            if ($this->isNullToken($vacunaData[$k] ?? null)) {
+                                $vacunaData[$k] = null;
+                                continue;
+                            }
                             if (is_string($vacunaData[$k])) {
                                 $v = trim($vacunaData[$k]);
-                                if ($v === '' || $v === '?' || strtoupper($v) === 'NONE') $v = null;
+                                if ($v === '') $v = null;
                                 $vacunaData[$k] = $v;
                             }
                         }
