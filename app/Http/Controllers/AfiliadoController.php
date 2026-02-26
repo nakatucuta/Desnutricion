@@ -30,6 +30,11 @@ use Yajra\DataTables\Facades\DataTables;
 
 class AfiliadoController extends Controller
 {
+    private function ensureAdmin(): void
+    {
+        abort_unless((int) (Auth::user()->usertype ?? 0) === 1, 403, 'Acceso solo para administradores.');
+    }
+
     /**
      * Muestra la vista principal con los datos de los afiliados.
      *
@@ -178,7 +183,7 @@ class AfiliadoController extends Controller
                 );
         } else {
             $query = DB::table('afiliados as b')
-                ->leftJoin('correo_enviados as ce', function ($join) use ($user) {
+                ->leftJoin('correos_enviados as ce', function ($join) use ($user) {
                     $join->on('ce.patient_id', '=', 'b.id')
                         ->where('ce.user_id', '=', $user->id);
                 })
@@ -249,19 +254,7 @@ class AfiliadoController extends Controller
             })
             ->addColumn('acciones', function ($row) use ($isAdmin) {
                 if ($isAdmin) {
-                    $edit = '<a href="#" class="btn btn-pai btn-pai-pastel-warning btn-sm">' .
-                        '<i class="fas fa-edit mr-1"></i> Editar</a>';
-
-                    $delete = '';
-                    if (!empty($row->batch_verifications_id)) {
-                        $delete = '<form action="' . route('batch_verifications.destroy', $row->batch_verifications_id) . '" method="POST" class="d-inline">'
-                            . csrf_field()
-                            . method_field('DELETE')
-                            . '<button type="submit" class="btn btn-pai btn-pai-pastel-danger btn-sm" onclick="return confirm(\'¿Estás seguro de que deseas eliminar este registro?\')">'
-                            . '<i class="fas fa-trash mr-1"></i> Eliminar</button></form>';
-                    }
-
-                    return '<div class="pai-actions">' . $edit . $delete . '</div>';
+                    return '<span class="text-muted font-weight-bold">Gestion desde Lotes</span>';
                 }
 
                 $fullName = trim(implode(' ', array_filter([
@@ -729,6 +722,176 @@ public function getVacunasPdf($id, $numeroCarnet = null)
     return $pdf->download($fileName);
 }
 
+    public function batchCleanupIndex(Request $request)
+    {
+        $this->ensureAdmin();
+
+        $search = trim((string) $request->input('search', ''));
+
+        $afiliadosSub = DB::table('afiliados')
+            ->select('batch_verifications_id', DB::raw('COUNT(*) as afiliados_count'))
+            ->groupBy('batch_verifications_id');
+
+        $vacunasSub = DB::table('vacunas')
+            ->select('batch_verifications_id', DB::raw('COUNT(*) as vacunas_count'))
+            ->groupBy('batch_verifications_id');
+
+        $lotes = DB::table('batch_verifications as b')
+            ->leftJoinSub($afiliadosSub, 'a', function ($join) {
+                $join->on('a.batch_verifications_id', '=', 'b.id');
+            })
+            ->leftJoinSub($vacunasSub, 'v', function ($join) {
+                $join->on('v.batch_verifications_id', '=', 'b.id');
+            })
+            ->select([
+                'b.id',
+                'b.fecha_cargue',
+                DB::raw('COALESCE(a.afiliados_count, 0) as afiliados_count'),
+                DB::raw('COALESCE(v.vacunas_count, 0) as vacunas_count'),
+            ])
+            ->when($search !== '', function ($q) use ($search) {
+                $q->where(function ($w) use ($search) {
+                    $w->where('b.id', 'LIKE', "%{$search}%")
+                        ->orWhere('b.fecha_cargue', 'LIKE', "%{$search}%");
+                });
+            })
+            ->orderByDesc('b.id')
+            ->paginate(18)
+            ->withQueryString();
+
+        $stats = [
+            'total_lotes' => DB::table('batch_verifications')->count(),
+            'total_afiliados' => DB::table('afiliados')->count(),
+            'total_vacunas' => DB::table('vacunas')->count(),
+        ];
+
+        $audits = DB::table('batch_cleanup_audits as a')
+            ->leftJoin('users as u', 'u.id', '=', 'a.user_id')
+            ->select([
+                'a.action',
+                'a.batches_count',
+                'a.afiliados_count',
+                'a.vacunas_count',
+                'a.batch_ids',
+                'a.created_at',
+                'u.name as user_name',
+            ])
+            ->orderByDesc('a.id')
+            ->limit(30)
+            ->get();
+
+        return view('livewire.batch_cleanup', compact('lotes', 'stats', 'search', 'audits'));
+    }
+
+    public function destroyMultipleBatches(Request $request)
+    {
+        $this->ensureAdmin();
+
+        $data = $request->validate([
+            'batch_ids' => ['required', 'array', 'min:1'],
+            'batch_ids.*' => ['integer'],
+        ], [
+            'batch_ids.required' => 'Selecciona al menos un lote para eliminar.',
+        ]);
+
+        $deleted = $this->deleteBatchSets($data['batch_ids']);
+        $this->registerCleanupAudit($request, 'bulk_delete', $deleted);
+
+        return redirect()
+            ->route('batch.cleanup.index')
+            ->with('success', "Se eliminaron {$deleted['deleted_batches']} lote(s), {$deleted['deleted_afiliados']} afiliado(s) y {$deleted['deleted_vacunas']} vacuna(s).");
+    }
+
+    private function deleteBatchSets(array $ids): array
+    {
+        $ids = collect($ids)
+            ->map(fn ($id) => (int) $id)
+            ->filter(fn ($id) => $id > 0)
+            ->unique()
+            ->values()
+            ->all();
+
+        if (empty($ids)) {
+            return [
+                'batch_ids' => [],
+                'deleted_batches' => 0,
+                'deleted_afiliados' => 0,
+                'deleted_vacunas' => 0,
+            ];
+        }
+
+        $existingIds = DB::table('batch_verifications')
+            ->whereIn('id', $ids)
+            ->pluck('id')
+            ->map(fn ($id) => (int) $id)
+            ->all();
+
+        if (empty($existingIds)) {
+            return [
+                'batch_ids' => [],
+                'deleted_batches' => 0,
+                'deleted_afiliados' => 0,
+                'deleted_vacunas' => 0,
+            ];
+        }
+
+        $totalAfiliados = (int) DB::table('afiliados')
+            ->whereIn('batch_verifications_id', $existingIds)
+            ->count();
+
+        $totalVacunas = (int) DB::table('vacunas')
+            ->whereIn('batch_verifications_id', $existingIds)
+            ->count();
+
+        $deletedBatches = 0;
+
+        DB::transaction(function () use ($existingIds, &$deletedBatches) {
+            foreach (array_chunk($existingIds, 500) as $chunk) {
+                DB::table('vacunas')
+                    ->whereIn('batch_verifications_id', $chunk)
+                    ->delete();
+
+                DB::table('afiliados')
+                    ->whereIn('batch_verifications_id', $chunk)
+                    ->delete();
+
+                $deletedBatches += DB::table('batch_verifications')
+                    ->whereIn('id', $chunk)
+                    ->delete();
+            }
+        });
+
+        return [
+            'batch_ids' => $existingIds,
+            'deleted_batches' => (int) $deletedBatches,
+            'deleted_afiliados' => $totalAfiliados,
+            'deleted_vacunas' => $totalVacunas,
+        ];
+    }
+
+    private function registerCleanupAudit(Request $request, string $action, array $result): void
+    {
+        try {
+            DB::table('batch_cleanup_audits')->insert([
+                'user_id' => Auth::id(),
+                'action' => $action,
+                'batches_count' => (int) ($result['deleted_batches'] ?? 0),
+                'afiliados_count' => (int) ($result['deleted_afiliados'] ?? 0),
+                'vacunas_count' => (int) ($result['deleted_vacunas'] ?? 0),
+                'batch_ids' => !empty($result['batch_ids']) ? implode(',', $result['batch_ids']) : null,
+                'ip_address' => $request->ip(),
+                'user_agent' => substr((string) $request->userAgent(), 0, 255),
+                // Evita conversiones regionales nvarchar->datetime en SQL Server
+                'created_at' => DB::raw('GETDATE()'),
+                'updated_at' => DB::raw('GETDATE()'),
+            ]);
+        } catch (\Throwable $e) {
+            Log::warning('No se pudo registrar auditoria de limpieza de lotes', [
+                'error' => $e->getMessage(),
+            ]);
+        }
+    }
+
 
   
   
@@ -740,36 +903,18 @@ public function getVacunasPdf($id, $numeroCarnet = null)
      * @param  int  $id
      * @return \Illuminate\Http\RedirectResponse
      */
-    public function destroy($id)
+    public function destroy(Request $request, $id)
     {
-        DB::beginTransaction();
-
+        $this->ensureAdmin();
         try {
-            $batchVerification = batch_verifications::findOrFail($id);
-            $afiliados = afiliado::where('batch_verifications_id', $batchVerification->id)->get();
-
-            foreach ($afiliados as $afiliado) {
-                $vacunas = vacuna::where('afiliado_id', $afiliado->id)
-                                 ->where('batch_verifications_id', $batchVerification->id)
-                                 ->get();
-
-                if ($vacunas->isNotEmpty()) {
-                    foreach ($vacunas as $vacuna) {
-                        $vacuna->delete();
-                    }
-                    $afiliado->delete();
-                }
+            $deleted = $this->deleteBatchSets([(int) $id]);
+            if (($deleted['deleted_batches'] ?? 0) === 0) {
+                return redirect()->back()->with('error', 'El lote no existe o ya fue eliminado.');
             }
-
-            vacuna::where('batch_verifications_id', $batchVerification->id)->delete();
-            $batchVerification->delete();
-
-            DB::commit();
-
-            return redirect()->route('afiliado')->with('success', 'Los registros fueron eliminados correctamente.');
+            $this->registerCleanupAudit($request, 'single_delete', $deleted);
+            return redirect()->back()->with('success', 'Lote eliminado correctamente.');
         } catch (\Exception $e) {
-            DB::rollBack();
-            return redirect()->route('afiliado')->with('error', 'Hubo un problema al eliminar los registros: ' . $e->getMessage());
+            return redirect()->back()->with('error', 'Hubo un problema al eliminar los registros: ' . $e->getMessage());
         }
     }
 
@@ -786,12 +931,19 @@ public function getVacunasPdf($id, $numeroCarnet = null)
         // Verifica si ya se ha enviado un correo para este paciente
         $userId = auth()->id();
         $patientId = $request->patientId;
+        $destinatarios = ['jsuarez@epsianaswayuu.com'];
     
         $correoExistente = CorreoEnviado::where('user_id', $userId)
             ->where('patient_id', $patientId)
             ->first();
     
         if ($correoExistente) {
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'ok' => false,
+                    'message' => 'Ya has enviado un correo de solicitud para este paciente.',
+                ], 409);
+            }
             return redirect()->back()->with('error', 'Ya has enviado un correo de solicitud para este paciente.');
         }
     
@@ -807,16 +959,28 @@ public function getVacunasPdf($id, $numeroCarnet = null)
         ];
     
         // Enviar el correo
-        Mail::to('jsuarez@epsianaswayuu.com')->send(new SolicitudMail($details));
+        Mail::to($destinatarios)->send(new SolicitudMail($details));
     
-        // Registrar que se ha enviado un correo para este paciente
-        CorreoEnviado::create([
+        // Registrar envio usando fecha del motor SQL Server para evitar problemas de formato regional.
+        DB::table('correos_enviados')->insert([
             'user_id' => $userId,
             'patient_id' => $patientId,
-            'sent_at' => Carbon::now()->toDateTimeString(),  // Devuelve la fecha en formato compatible con SQL Server
+            'sent_at' => DB::raw('GETDATE()'),
+            'created_at' => DB::raw('GETDATE()'),
+            'updated_at' => DB::raw('GETDATE()'),
         ]);
     
-        return redirect()->back()->with('success', 'Correo enviado exitosamente.');
+        $successMessage = 'Correo enviado exitosamente.';
+
+        if ($request->expectsJson()) {
+            return response()->json([
+                'ok' => true,
+                'message' => $successMessage,
+                'destinatarios' => $destinatarios,
+            ]);
+        }
+
+        return redirect()->back()->with('success', $successMessage . ' Destinatarios: ' . implode(', ', $destinatarios));
     }
 
 // METODO PARA DESCARGAR EL  FORMATO EXCEL 

@@ -79,6 +79,12 @@ Route::get('export-vacunas', [AfiliadoController::class, 'exportVacunas'])
 
 // Ruta para eliminar registros
 Route::delete('/batch_verifications/{id}', [AfiliadoController::class, 'destroy'])->name('batch_verifications.destroy');
+Route::get('/batch-verifications/manage', [AfiliadoController::class, 'batchCleanupIndex'])
+    ->name('batch.cleanup.index')
+    ->middleware('auth');
+Route::delete('/batch-verifications/bulk-delete', [AfiliadoController::class, 'destroyMultipleBatches'])
+    ->name('batch.cleanup.bulkDestroy')
+    ->middleware('auth');
 
 
 //AQUI TERMINAN LAS  RUTAS  DE PAI

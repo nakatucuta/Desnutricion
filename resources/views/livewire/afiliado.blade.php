@@ -1077,6 +1077,7 @@ window.IMPORT_ENDPOINTS = {
       url = url.replace(':carnet', encodeURIComponent(carnet ?? 0));
       return url;
   };
+  const SEND_EMAIL_URL = "{{ route('send.email') }}";
 
   let pollTimer = null;
   let safetyTimer = null;
@@ -1729,6 +1730,73 @@ window.IMPORT_ENDPOINTS = {
           $(this).val($(this).val().substring(0, maxLen));
       }
       $('#email-char-count').text((($(this).val() || '').length) + ' / ' + maxLen);
+  });
+
+  $('#sendEmailButton').on('click', function () {
+      const $btn = $(this);
+      const patientId = ($('#patientId').val() || '').trim();
+      const patientName = ($('#patientName').val() || '').trim();
+      const subject = ($('#emailSubject').val() || '').trim();
+      const message = ($('#emailMessage').val() || '').trim();
+
+      if (!patientId || !subject || !message) {
+          Swal.fire({
+              icon: 'warning',
+              title: 'Campos requeridos',
+              text: 'Completa asunto y mensaje antes de enviar.'
+          });
+          return;
+      }
+
+      const originalHtml = $btn.html();
+      $btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin mr-1"></i> Enviando...');
+
+      $.ajax({
+          url: SEND_EMAIL_URL,
+          method: 'POST',
+          dataType: 'json',
+          headers: {
+              'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content'),
+              'Accept': 'application/json'
+          },
+          data: {
+              patientId: patientId,
+              patientName: patientName,
+              subject: subject,
+              message: message
+          },
+          success: function (resp) {
+              const destinatarios = (resp && Array.isArray(resp.destinatarios)) ? resp.destinatarios : [];
+              const destinatariosHtml = destinatarios.length
+                  ? '<div style="text-align:left;margin-top:8px;"><b>Destinatarios:</b><br>' + destinatarios.join('<br>') + '</div>'
+                  : '';
+
+              forceCloseBootstrapModal('#emailModal');
+              $('#emailSubject').val('');
+              $('#emailMessage').val('');
+              $('#email-char-count').text('0 / 500');
+
+              Swal.fire({
+                  icon: 'success',
+                  title: 'Solicitud enviada',
+                  html: (resp && resp.message ? resp.message : 'Correo enviado exitosamente.') + destinatariosHtml
+              });
+          },
+          error: function (xhr) {
+              let msg = 'No se pudo enviar el correo. Intenta nuevamente.';
+              if (xhr.responseJSON && xhr.responseJSON.message) {
+                  msg = xhr.responseJSON.message;
+              }
+              Swal.fire({
+                  icon: 'error',
+                  title: 'Error al enviar',
+                  text: msg
+              });
+          },
+          complete: function () {
+              $btn.prop('disabled', false).html(originalHtml);
+          }
+      });
   });
 
   $('#exportButton').on('click', function (e) {

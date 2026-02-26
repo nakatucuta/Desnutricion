@@ -11,6 +11,11 @@
         </div>
 
         <div class="pai-card__head-right">
+            @if((int) (auth()->user()->usertype ?? 0) === 1)
+            <a href="{{ route('batch.cleanup.index') }}" class="btn btn-pai btn-pai-pastel-warning">
+                <i class="fas fa-layer-group mr-2"></i> Gestion de lotes
+            </a>
+            @endif
             {{-- ✅ Botón pastel (suave) --}}
             <a href="#"
                class="btn btn-pai btn-pai-pastel-success"
