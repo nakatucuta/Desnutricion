@@ -9,7 +9,7 @@
             <div class="pai-brand__logo">PAI</div>
             <div class="pai-brand__text">
                 <div class="pai-brand__title">Cargue Registro Diario</div>
-                <div class="pai-brand__subtitle">Importación masiva de afiliados y vacunas (Excel .xlsx / .xls)</div>
+                <div class="pai-brand__subtitle">Importacion masiva de afiliados y vacunas (Excel .xlsx / .xls)</div>
             </div>
         </div>
     </div>
@@ -25,13 +25,43 @@
 @section('content')
 <div class="container-fluid pb-4">
 
-    {{-- ✅ Mensajes dentro del DOM (si usas include) --}}
+    {{-- OK Mensajes dentro del DOM (si usas include) --}}
     <div id="mensajes-container" class="mb-3">
         @include('livewire.mensajes')
     </div>
 
+    <div class="row pai-kpi-row mb-3">
+        <div class="col-md-4 mb-2 mb-md-0">
+            <div class="pai-kpi-card">
+                <div class="pai-kpi-card__icon"><i class="fas fa-syringe"></i></div>
+                <div class="pai-kpi-card__body">
+                    <div class="pai-kpi-card__label">Registros con vacunas</div>
+                    <div class="pai-kpi-card__value">{{ number_format($sivigilas->total() ?? 0) }}</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4 mb-2 mb-md-0">
+            <div class="pai-kpi-card">
+                <div class="pai-kpi-card__icon"><i class="fas fa-users"></i></div>
+                <div class="pai-kpi-card__body">
+                    <div class="pai-kpi-card__label">Afiliados listados</div>
+                    <div class="pai-kpi-card__value">{{ number_format($sivigilas_usernormal->total() ?? 0) }}</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="pai-kpi-card pai-kpi-card--soft">
+                <div class="pai-kpi-card__icon"><i class="far fa-calendar-alt"></i></div>
+                <div class="pai-kpi-card__body">
+                    <div class="pai-kpi-card__label">Fecha del sistema</div>
+                    <div class="pai-kpi-card__value">{{ now()->format('d/m/Y') }}</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <div class="row">
-        {{-- ===== Panel Importación ===== --}}
+        {{-- ===== Panel Importacion ===== --}}
         <div class="col-lg-5 col-xl-4">
             <div class="pai-card">
                 <div class="pai-card__head">
@@ -56,7 +86,7 @@
                             </div>
 
                             <div class="pai-dropzone__text">
-                                <div class="pai-dropzone__title">Suelta tu archivo aquí</div>
+                                <div class="pai-dropzone__title">Suelta tu archivo aqui</div>
                                 <div class="pai-dropzone__sub">o haz clic para buscar en tu equipo</div>
                             </div>
 
@@ -74,21 +104,21 @@
                     </div>
 
                     <div id="date-warning" class="alert alert-warning mt-3 text-center" style="display:none;">
-                        El formulario no está disponible fuera del rango de fechas permitido.
+                        El formulario no esta disponible fuera del rango de fechas permitido.
                     </div>
 
                     <button type="submit" class="btn btn-pai btn-pai-primary btn-block mt-3" id="submit-button">
-                        <i class="fas fa-play mr-2"></i> Iniciar importación
+                        <i class="fas fa-play mr-2"></i> Iniciar importacion
                     </button>
 
                     <div class="pai-minihelp mt-3">
                         <i class="fas fa-info-circle mr-2"></i>
-                        El sistema validará el archivo antes de guardar información.
+                        El sistema validara el archivo antes de guardar informacion.
                     </div>
                 </form>
             </div>
 
-            {{-- ✅ MODAL LOADING (VENTANA CONSOLA BLANCA + PASTELES SUAVES / SIN AZUL) --}}
+            {{-- OK MODAL LOADING (VENTANA CONSOLA BLANCA + PASTELES SUAVES / SIN AZUL) --}}
             <div class="modal fade pai-console-modal" id="loadingModal" tabindex="-1" role="dialog"
                 aria-labelledby="loadingModalLabel" aria-hidden="true"
                 data-backdrop="static" data-keyboard="false">
@@ -104,7 +134,7 @@
                             <div class="pai-console__noise"></div>
                         </div>
 
-                        {{-- Header tipo “ventana” --}}
+                        {{-- Header tipo "ventana" --}}
                         <div class="modal-header pai-console__header">
                             <div class="pai-console__window">
                                 <span class="pai-console__dot pai-console__dot--red"></span>
@@ -114,11 +144,11 @@
 
                             <div class="pai-console__titlewrap">
                                 <div class="pai-console__title" id="loadingModalLabel">
-                                    PAI • Import Engine
+                                    PAI - Import Engine
                                 </div>
                                 <div class="pai-console__subtitle">
                                     <span class="pai-console__k">Paso:</span>
-                                    <span id="import_step">preparando…</span>
+                                    <span id="import_step">preparando...</span>
                                 </div>
                             </div>
 
@@ -132,10 +162,10 @@
 
                             <div class="pai-console__layout">
 
-                                {{-- Columna izquierda: loader tipo “scanner” --}}
+                                {{-- Columna izquierda: loader tipo "scanner" --}}
                                 <div class="pai-console__left">
                                     <div class="pai-console__loader">
-                                        {{-- ✅ IMPORTANTE: tu JS usa este id para estados --}}
+                                        {{-- OK IMPORTANTE: tu JS usa este id para estados --}}
                                         <div class="pai-console__ring" id="import_ring"></div>
 
                                         <div class="pai-console__core">
@@ -148,11 +178,11 @@
                                     <div class="pai-console__chips">
                                         <span class="pai-console__chip"><i class="fas fa-shield-alt"></i> Seguro</span>
                                         <span class="pai-console__chip"><i class="fas fa-bolt"></i> Worker</span>
-                                        <span class="pai-console__chip"><i class="fas fa-database"></i> Validación</span>
+                                        <span class="pai-console__chip"><i class="fas fa-database"></i> Validacion</span>
                                     </div>
                                 </div>
 
-                                {{-- Columna derecha: “consola” de información --}}
+                                {{-- Columna derecha: "consola" de informacion --}}
                                 <div class="pai-console__right">
 
                                     <div class="pai-console__panel">
@@ -169,16 +199,16 @@
                                         <div class="pai-console__terminal" role="status" aria-live="polite">
                                             <div class="pai-console__line">
                                                 <span class="pai-console__prompt">pai@import</span><span class="pai-console__sep">:</span><span class="pai-console__path">~</span><span class="pai-console__sep">$</span>
-                                                <span class="pai-console__msg" id="import_msg">Subiendo archivo… (no cierres esta ventana)</span>
+                                                <span class="pai-console__msg" id="import_msg">Subiendo archivo... (no cierres esta ventana)</span>
                                             </div>
 
                                             <div class="pai-console__line pai-console__muted">
                                                 <span class="pai-console__tag">TIP</span>
-                                                Si el archivo es grande, el porcentaje puede subir por “saltos” mientras valida.
+                                                Si el archivo es grande, el porcentaje puede subir por "saltos" mientras valida.
                                             </div>
                                             <div class="pai-console__line pai-console__muted">
                                                 <span class="pai-console__tag">TIP</span>
-                                                Recuerda no llenar ningún espacio vacío con cero (0).
+                                                Recuerda no llenar ningun espacio vacio con cero (0).
                                             </div>
                                         </div>
 
@@ -218,7 +248,7 @@
                         <div class="modal-footer pai-console__footer">
                             <div class="pai-console__footleft">
                                 <span class="pai-console__statusdot"></span>
-                                <span class="pai-console__footnote">No cierres mientras esté procesando.</span>
+                                <span class="pai-console__footnote">No cierres mientras este procesando.</span>
                             </div>
 
                             <button type="button" class="btn btn-secondary" data-dismiss="modal"
@@ -243,25 +273,29 @@
     {{-- Modal correo --}}
     <div class="modal fade" id="emailModal" tabindex="-1" role="dialog" aria-labelledby="emailModalLabel" aria-hidden="true">
         <div class="modal-dialog" role="document">
-            <div class="modal-content">
-                <div class="modal-header">
+            <div class="modal-content pai-mail-modal">
+                <div class="modal-header pai-mail-modal__header">
                     <h5 class="modal-title" id="emailModalLabel">Enviar Correo</h5>
                     <button type="button" class="close" data-dismiss="modal" aria-label="Close">
                         <span aria-hidden="true">&times;</span>
                     </button>
                 </div>
-                <div class="modal-body">
+                <div class="modal-body pai-mail-modal__body">
                     <form>
                         <input type="hidden" id="patientId">
                         <input type="hidden" id="patientName">
 
                         <div class="form-group">
                             <label for="emailSubject">Asunto</label>
-                            <input type="text" class="form-control" id="emailSubject" placeholder="Asunto">
+                            <input type="text" class="form-control" id="emailSubject" placeholder="Asunto del correo">
                         </div>
                         <div class="form-group">
                             <label for="emailMessage">Mensaje</label>
                             <textarea class="form-control" id="emailMessage" rows="3"></textarea>
+                            <small class="form-text text-muted d-flex justify-content-between">
+                                <span>Redacta un mensaje claro y formal.</span>
+                                <span id="email-char-count">0 / 500</span>
+                            </small>
                         </div>
                         <input type="hidden" id="emailPatientName">
                     </form>
@@ -282,22 +316,184 @@
 <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
 <link href="https://cdn.datatables.net/1.11.5/css/jquery.dataTables.min.css" rel="stylesheet">
 <link href="https://cdn.jsdelivr.net/npm/sweetalert2@11.3.4/dist/sweetalert2.min.css" rel="stylesheet">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700;800;900&display=swap" rel="stylesheet">
 
 @include('livewire.css')
 
 <style>
+:root{
+  --pai-bg-1:#f8fbff;
+  --pai-bg-2:#f4f8fc;
+  --pai-text:#0f172a;
+  --pai-muted:#64748b;
+  --pai-brand-1:#2563eb;
+  --pai-brand-2:#0ea5e9;
+  --pai-line:rgba(15,23,42,.08);
+  --pai-card:#ffffff;
+  --pai-radius-sm:10px;
+  --pai-radius-md:14px;
+  --pai-radius-lg:18px;
+  --pai-shadow-sm:0 8px 18px rgba(2,6,23,.06);
+  --pai-shadow-md:0 14px 30px rgba(2,6,23,.10);
+  --pai-shadow-lg:0 26px 56px rgba(2,6,23,.14);
+  --pai-ease:cubic-bezier(.22,.61,.36,1);
+}
+html, body{font-family:'Manrope', sans-serif; color:var(--pai-text);}
+
 /* ====== Topbar ====== */
 .pai-topbar{display:flex; justify-content:space-between; align-items:center; padding:18px 10px; margin-bottom:10px; border-bottom:1px solid rgba(0,0,0,.08);}
 .pai-brand{display:flex; align-items:center; gap:14px;}
-.pai-brand__logo{background:linear-gradient(135deg,#0ea5e9,#2563eb); color:#fff; font-weight:900; border-radius:14px; padding:10px 12px; box-shadow:0 10px 25px rgba(37,99,235,.25); letter-spacing:.5px;}
-.pai-brand__title{font-weight:900; color:#0f172a; font-size:1.25rem; line-height:1.1;}
-.pai-brand__subtitle{color:#64748b; font-size:.92rem; margin-top:2px;}
+.pai-brand__logo{background:linear-gradient(135deg,var(--pai-brand-2),var(--pai-brand-1)); color:#fff; font-weight:900; border-radius:14px; padding:10px 12px; box-shadow:0 10px 25px rgba(37,99,235,.25); letter-spacing:.5px;}
+.pai-brand__title{font-weight:900; color:var(--pai-text); font-size:1.25rem; line-height:1.1;}
+.pai-brand__subtitle{color:var(--pai-muted); font-size:.92rem; margin-top:2px;}
+
+.content-wrapper{
+  background:
+    radial-gradient(circle at 10% 12%, rgba(56,189,248,.10), transparent 30%),
+    radial-gradient(circle at 88% 5%, rgba(14,165,233,.10), transparent 26%),
+    linear-gradient(180deg, var(--pai-bg-1) 0%, var(--pai-bg-2) 100%);
+}
+.pai-topbar{
+  position: sticky;
+  top: 0;
+  z-index: 12;
+  backdrop-filter: blur(8px);
+  background: rgba(248,251,255,.82);
+}
+
+/* ====== KPI ====== */
+.pai-kpi-card{
+  display:flex;
+  align-items:center;
+  gap:12px;
+  background:#fff;
+  border:1px solid rgba(15,23,42,.06);
+  border-radius:16px;
+  padding:12px 14px;
+  box-shadow:0 10px 24px rgba(2,6,23,.06);
+  transition:transform .15s ease, box-shadow .15s ease;
+}
+.pai-kpi-card:hover{transform:translateY(-1px); box-shadow:0 14px 30px rgba(2,6,23,.09);}
+.pai-kpi-card__icon{
+  width:44px; height:44px; border-radius:12px; display:flex; align-items:center; justify-content:center;
+  background:linear-gradient(135deg, rgba(14,165,233,.15), rgba(37,99,235,.18));
+  color:#1d4ed8; font-size:1rem;
+}
+.pai-kpi-card__label{font-size:.78rem; text-transform:uppercase; letter-spacing:.4px; color:#64748b; font-weight:800;}
+.pai-kpi-card__value{font-size:1.15rem; color:#0f172a; font-weight:900; line-height:1.2;}
+.pai-kpi-card--soft .pai-kpi-card__icon{background:linear-gradient(135deg, rgba(16,185,129,.14), rgba(14,165,233,.16)); color:#0f766e;}
+
+/* ====== Search + table UX ====== */
+#search-results{
+  border:1px solid rgba(15,23,42,.08);
+  border-radius:12px;
+  box-shadow:0 18px 32px rgba(2,6,23,.10);
+  overflow:hidden;
+}
+#search-results .list-group-item{
+  border-left:0; border-right:0;
+  transition:background .14s ease, transform .14s ease;
+}
+#search-results .list-group-item:hover{
+  background:#eef6ff;
+  transform:translateX(2px);
+}
+#search-results .list-group-item.is-active{
+  background:#dbeafe;
+  color:#0b3f91;
+}
+#sivigila tbody tr{
+  transition:background-color .15s ease, box-shadow .15s ease;
+}
+#sivigila tbody tr:hover{
+  background:rgba(59,130,246,.06);
+}
+.numero-identificacion{font-weight:700;}
+.pai-empty-state{
+  text-align:center;
+  padding:18px 12px;
+  color:var(--pai-muted);
+  font-weight:700;
+}
+.pai-empty-state i{display:block; font-size:1.15rem; margin-bottom:6px; color:#94a3b8;}
+.pai-skeleton{
+  position:relative;
+  overflow:hidden;
+  background:#e5edf8;
+  border-radius:8px;
+}
+.pai-skeleton::after{
+  content:"";
+  position:absolute;
+  inset:0;
+  transform:translateX(-100%);
+  background:linear-gradient(90deg, transparent, rgba(255,255,255,.75), transparent);
+  animation:paiShimmer 1.1s infinite;
+}
+@keyframes paiShimmer{100%{transform:translateX(100%);}}
+.pai-skeleton-row{padding:10px 12px; border-bottom:1px solid #f1f5f9;}
+.pai-skeleton-line{height:10px; margin-bottom:8px;}
+.pai-skeleton-line:last-child{margin-bottom:0; width:62%;}
+
+.swal2-popup.pai-swal{
+  border-radius:16px !important;
+  border:1px solid var(--pai-line) !important;
+  box-shadow:var(--pai-shadow-lg) !important;
+  font-family:'Manrope', sans-serif !important;
+}
+.swal2-confirm.btn.btn-pai-confirm{
+  background:linear-gradient(135deg,var(--pai-brand-1),var(--pai-brand-2)) !important;
+  border:none !important;
+  border-radius:10px !important;
+  font-weight:800 !important;
+}
+.swal2-title{color:var(--pai-text) !important;}
+.swal2-html-container,.swal2-content{color:#334155 !important;}
+
+/* micro-efecto premium para filas de vacunas */
+#vacunaList tr.pai-row-enter{
+  opacity:0;
+  transform:translateY(6px);
+  animation:paiRowIn .34s ease forwards;
+  animation-delay:var(--d, 0ms);
+}
+@keyframes paiRowIn{
+  to{opacity:1; transform:translateY(0);}
+}
+@media (prefers-reduced-motion: reduce){
+  #vacunaList tr.pai-row-enter{animation:none; opacity:1; transform:none;}
+}
+
+/* ====== Mail modal ====== */
+.pai-mail-modal{
+  border:1px solid rgba(15,23,42,.08);
+  border-radius:16px;
+}
+.pai-mail-modal__header{
+  background:linear-gradient(180deg,#f8fbff,#f1f5f9);
+  border-bottom:1px solid rgba(15,23,42,.08);
+}
+.pai-mail-modal input.form-control,
+.pai-mail-modal textarea.form-control{
+  border-radius:10px;
+  border-color:rgba(15,23,42,.18);
+}
+.pai-mail-modal textarea.form-control{min-height:120px; resize:vertical;}
 
 /* ====== Buttons ====== */
 .btn-pai{border-radius:12px; padding:10px 14px; font-weight:800; transition:transform .15s ease, box-shadow .15s ease; box-shadow:0 12px 25px rgba(0,0,0,.08);}
 .btn-pai:hover{transform:translateY(-1px); box-shadow:0 18px 35px rgba(0,0,0,.10);}
 .btn-pai-primary{background:linear-gradient(135deg,#2563eb,#0ea5e9); border:none; color:#fff;}
 .btn-pai-secondary{background:#fff; border:1px solid rgba(0,0,0,.08); color:#0f172a;}
+.btn-pai:focus,
+.pai-dropzone:focus-within,
+.numero-identificacion:focus,
+#search:focus{
+  outline:none;
+  box-shadow:0 0 0 3px rgba(59,130,246,.24);
+}
 
 /* ====== Card ====== */
 .pai-card{background:#fff; border-radius:18px; padding:18px; box-shadow:0 16px 40px rgba(2,6,23,.08); border:1px solid rgba(15,23,42,.06);}
@@ -322,7 +518,7 @@
 .pai-minihelp{color:#64748b; font-size:.9rem; display:flex; align-items:center;}
 
 /* =========================================================
-   ✅ MODAL “VENTANA CONSOLA” BLANCA + PASTELES (SIN AZUL)
+   OK MODAL "VENTANA CONSOLA" BLANCA + PASTELES (SIN AZUL)
    ========================================================= */
 .pai-console-modal .modal-dialog{max-width:920px;}
 
@@ -556,7 +752,7 @@
   color: rgba(15,23,42,.72);
 }
 
-/* Terminal blanca tipo “consola” */
+/* Terminal blanca tipo "consola" */
 .pai-console__terminal{
   padding: 12px;
   background: rgba(248,250,252,.75);
@@ -697,14 +893,14 @@
 .pai-console__footnote{color: rgba(100,116,139,.95); font-weight: 800; font-size: .90rem;}
 
 /* ================================
-   ✅ FIX TIPS: NEGROS + LLAMATIVOS
-   PÉGALO AL FINAL DEL <style>
+   OK FIX TIPS: NEGROS + LLAMATIVOS
+   PEGALO AL FINAL DEL <style>
    ================================ */
 
 .pai-console__terminal .pai-console__line.pai-console__muted{
   color:#0f172a !important;          /* negro */
-  font-weight:900 !important;        /* más fuerte */
-  padding:10px 12px !important;      /* más “bloque” */
+  font-weight:900 !important;        /* mas fuerte */
+  padding:10px 12px !important;      /* mas "bloque" */
   border-radius:14px !important;
   border:1px solid rgba(15,23,42,.12) !important;
   background: rgba(255,255,255,.92) !important;
@@ -726,8 +922,8 @@
 
 
 /* ==========================================
-   ✅ ERRORES COMO CONSOLA (FONDO NEGRO)
-   PÉGALO AL FINAL DEL <style>
+   OK ERRORES COMO CONSOLA (FONDO NEGRO)
+   PEGALO AL FINAL DEL <style>
    ========================================== */
 
 .pai-console__errors{
@@ -741,7 +937,7 @@
 }
 
 .pai-console__errorsbody{
-  background: rgba(2,6,23,.94) !important;     /* ✅ negro consola */
+  background: rgba(2,6,23,.94) !important;     /* OK negro consola */
   border-top: 0 !important;
 }
 
@@ -797,9 +993,17 @@ window.IMPORT_ENDPOINTS = {
 
 <script>
 (function(){
+  const swalPremium = Swal.mixin({
+      customClass: {
+          popup: 'pai-swal',
+          confirmButton: 'btn btn-pai-confirm'
+      },
+      buttonsStyling: false
+  });
+  Swal.fire = swalPremium.fire.bind(swalPremium);
 
   // =========================================================
-  // ✅ Modal close seguro (quita backdrop y libera pantalla)
+  // OK Modal close seguro (quita backdrop y libera pantalla)
   // =========================================================
   function forceCloseBootstrapModal(modalSelector){
       try{
@@ -819,7 +1023,7 @@ window.IMPORT_ENDPOINTS = {
   }
 
   // =========================================================
-  // ✅ refs
+  // OK refs
   // =========================================================
   const form = document.getElementById('file-upload-form');
   const dz = document.getElementById('drag-drop-area');
@@ -841,10 +1045,10 @@ window.IMPORT_ENDPOINTS = {
   const errList = document.getElementById('import_errors_list');
   const btnClose = document.getElementById('btnCloseImport');
 
-  // ✅ Habilita la X del header cuando termina
+  // OK Habilita la X del header cuando termina
   const btnCloseX = document.getElementById('btnCloseX');
 
-  // ✅ Ring para cambiar colores según estado
+  // OK Ring para cambiar colores segun estado
   const importRing = document.getElementById('import_ring');
 
   const START_URL  = window.IMPORT_ENDPOINTS.start;
@@ -854,12 +1058,12 @@ window.IMPORT_ENDPOINTS = {
   let safetyTimer = null;
   let currentToken = null;
 
-  // ✅ banderas para no repetir mensajes finales
+  // OK banderas para no repetir mensajes finales
   let alreadyFinished = false;
   let alreadyAlerted = false;
   let isPolling = false;
 
-  // ✅ helper: ring states (tu CSS ahora es pastel)
+  // OK helper: ring states (tu CSS ahora es pastel)
   function setRingState(state){
       if(!importRing) return;
       importRing.classList.remove('is-success','is-error');
@@ -870,7 +1074,7 @@ window.IMPORT_ENDPOINTS = {
   function setProgress(pct, message, step){
       const p = Math.max(0, Math.min(100, parseInt(pct || 0)));
       if(importMsg) importMsg.textContent = message || '';
-      if(importStep) importStep.textContent = step ? (step) : 'preparando…';
+      if(importStep) importStep.textContent = step ? (step) : 'preparando...';
       if(importBar) importBar.style.width = p + '%';
       if(importPct) importPct.textContent = p + '%';
   }
@@ -882,7 +1086,10 @@ window.IMPORT_ENDPOINTS = {
   }
 
   function resetImportUI(){
-      if(submitButton) submitButton.disabled = false;
+      if(submitButton){
+          submitButton.disabled = false;
+          submitButton.innerHTML = '<i class="fas fa-play mr-2"></i> Iniciar importacion';
+      }
 
       if(input) input.value = '';
       if(filemeta) filemeta.style.display = 'none';
@@ -895,7 +1102,7 @@ window.IMPORT_ENDPOINTS = {
       if(btnClose) btnClose.style.display = 'none';
       if(btnCloseX) btnCloseX.style.display = 'none';
 
-      // ✅ volver ring a normal (sin clases)
+      // OK volver ring a normal (sin clases)
       setRingState('normal');
 
       stopPolling();
@@ -924,14 +1131,14 @@ window.IMPORT_ENDPOINTS = {
       stopPolling();
 
       setRingState('success');
-      setProgress(100, message || 'Importación finalizada.', 'final');
+      setProgress(100, message || 'Importacion finalizada.', 'final');
 
       if(btnClose) btnClose.style.display = 'inline-block';
       if(btnCloseX) btnCloseX.style.display = 'inline-flex';
 
       Swal.fire({
           icon: 'success',
-          title: 'Importación finalizada',
+          title: 'Importacion finalizada',
           text: message || 'Proceso completado.',
           toast: true,
           position: 'top-end',
@@ -962,12 +1169,15 @@ window.IMPORT_ENDPOINTS = {
 
       Swal.fire({
           icon: 'error',
-          title: 'Importación con errores',
+          title: 'Importacion con errores',
           text: message || 'Revisa el listado de errores.',
           confirmButtonText: 'Entendido'
       });
 
-      if(submitButton) submitButton.disabled = false;
+      if(submitButton){
+          submitButton.disabled = false;
+          submitButton.innerHTML = '<i class="fas fa-play mr-2"></i> Iniciar importacion';
+      }
   }
 
   // =========================================================
@@ -982,7 +1192,7 @@ window.IMPORT_ENDPOINTS = {
       if(!ok){
           Swal.fire({
               icon: 'warning',
-              title: 'Archivo inválido',
+              title: 'Archivo invalido',
               text: 'Sube un Excel (.xlsx o .xls)',
               toast: true,
               position: 'top-end',
@@ -996,7 +1206,10 @@ window.IMPORT_ENDPOINTS = {
 
       if(filemeta) filemeta.style.display='block';
       if(filename) filename.textContent = file.name;
-      if(filesub) filesub.textContent = 'Listo para importar';
+      if(filesub){
+          const sizeMb = ((file.size || 0) / (1024 * 1024)).toFixed(2);
+          filesub.textContent = 'Listo para importar - ' + sizeMb + ' MB';
+      }
       return true;
   }
 
@@ -1058,11 +1271,11 @@ window.IMPORT_ENDPOINTS = {
 
               Swal.fire({
                 icon: 'info',
-                title: 'Aún estamos procesando…',
+                title: 'Aun estamos procesando...',
                 html: `
                     <div style="text-align:left">
-                    El archivo es grande y puede tardar más de lo normal.<br><br>
-                    <b>Recomendación:</b> deja esta ventana abierta.<br>
+                    El archivo es grande y puede tardar mas de lo normal.<br><br>
+                    <b>Recomendacion:</b> deja esta ventana abierta.<br>
                     Si la barra sigue avanzando, el proceso va bien.
                     </div>
                 `,
@@ -1090,7 +1303,7 @@ window.IMPORT_ENDPOINTS = {
               });
 
               if(!r.ok){
-                  if(importMsg) importMsg.textContent = 'Consultando estado…';
+                  if(importMsg) importMsg.textContent = 'Consultando estado...';
                   isPolling = false;
                   return;
               }
@@ -1098,7 +1311,7 @@ window.IMPORT_ENDPOINTS = {
               let s = null;
               try{ s = await r.json(); }
               catch(e){
-                  if(importMsg) importMsg.textContent = 'Consultando estado…';
+                  if(importMsg) importMsg.textContent = 'Consultando estado...';
                   isPolling = false;
                   return;
               }
@@ -1123,14 +1336,14 @@ window.IMPORT_ENDPOINTS = {
                   if(hasErrors){
                       finishFailed(s.message || 'Se encontraron errores.', s.errors || []);
                   }else{
-                      finishSuccess(s.message || 'Importación finalizada.');
+                      finishSuccess(s.message || 'Importacion finalizada.');
                   }
                   isPolling = false;
                   return;
               }
 
           }catch(e){
-              if(importMsg) importMsg.textContent = 'Consultando estado…';
+              if(importMsg) importMsg.textContent = 'Consultando estado...';
           }finally{
               isPolling = false;
           }
@@ -1158,7 +1371,10 @@ window.IMPORT_ENDPOINTS = {
           }
           if(!showFile(input.files[0])) return;
 
-          if(submitButton) submitButton.disabled = true;
+          if(submitButton){
+              submitButton.disabled = true;
+              submitButton.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Procesando...';
+          }
 
           if(btnClose) btnClose.style.display = 'none';
           if(btnCloseX) btnCloseX.style.display = 'none';
@@ -1170,7 +1386,7 @@ window.IMPORT_ENDPOINTS = {
 
           setRingState('normal');
 
-          setProgress(2, 'Subiendo archivo… (no cierres esta ventana)', 'subida');
+          setProgress(2, 'Subiendo archivo... (no cierres esta ventana)', 'subida');
           $('#loadingModal').modal('show');
 
           const formData = new FormData();
@@ -1195,10 +1411,13 @@ window.IMPORT_ENDPOINTS = {
               if(!resp.ok || !data || !data.ok || !data.token){
                   if(btnClose) btnClose.style.display = 'inline-block';
                   if(btnCloseX) btnCloseX.style.display = 'inline-flex';
-                  if(submitButton) submitButton.disabled = false;
+                  if(submitButton){
+                      submitButton.disabled = false;
+                      submitButton.innerHTML = '<i class="fas fa-play mr-2"></i> Iniciar importacion';
+                  }
 
                   setRingState('error');
-                  setProgress(0, 'No se pudo iniciar la importación.', 'error');
+                  setProgress(0, 'No se pudo iniciar la importacion.', 'error');
 
                   Swal.fire({
                       icon: 'error',
@@ -1209,13 +1428,16 @@ window.IMPORT_ENDPOINTS = {
                   return;
               }
 
-              setProgress(5, 'Importación en cola…', 'cola');
+              setProgress(5, 'Importacion en cola...', 'cola');
               startPolling(data.token);
 
           }catch(err){
               if(btnClose) btnClose.style.display = 'inline-block';
               if(btnCloseX) btnCloseX.style.display = 'inline-flex';
-              if(submitButton) submitButton.disabled = false;
+              if(submitButton){
+                  submitButton.disabled = false;
+                  submitButton.innerHTML = '<i class="fas fa-play mr-2"></i> Iniciar importacion';
+              }
 
               setRingState('error');
               setProgress(0, 'Error enviando el archivo al servidor.', 'error');
@@ -1223,7 +1445,7 @@ window.IMPORT_ENDPOINTS = {
               Swal.fire({
                   icon: 'error',
                   title: 'Error de red',
-                  text: 'No se pudo enviar el archivo. Revisa tu conexión y vuelve a intentar.',
+                  text: 'No se pudo enviar el archivo. Revisa tu conexion y vuelve a intentar.',
                   confirmButtonText: 'Entendido'
               });
           }
@@ -1249,7 +1471,7 @@ window.IMPORT_ENDPOINTS = {
   });
 
   // =========================================================
-  // 5) MENSAJES SESSION (si aún los usas)
+  // 5) MENSAJES SESSION (si aun los usas)
   // =========================================================
   document.addEventListener('DOMContentLoaded', function(){
 
@@ -1282,7 +1504,7 @@ window.IMPORT_ENDPOINTS = {
           @else
               Swal.fire({
                   icon: 'error',
-                  title: 'Ocurrió un error',
+                  title: 'Ocurrio un error',
                   text: @json(Session::get('error1')),
                   confirmButtonText: 'Entendido'
               });
@@ -1298,7 +1520,7 @@ window.IMPORT_ENDPOINTS = {
 
           Swal.fire({
               icon: 'warning',
-              title: 'Errores de validación',
+              title: 'Errores de validacion',
               html: validationErrors,
               confirmButtonText: 'Revisar'
           });
@@ -1306,7 +1528,7 @@ window.IMPORT_ENDPOINTS = {
   });
 
   // =========================================================
-  // 6) TU CÓDIGO EXISTENTE (NO lo toco)
+  // 6) TU CODIGO EXISTENTE (NO lo toco)
   // =========================================================
 
   $(document).on('hidden.bs.modal', '#exportModal', function () {
@@ -1316,20 +1538,57 @@ window.IMPORT_ENDPOINTS = {
   });
 
   let searchTimer = null;
+  let searchIndex = -1;
+  const searchSkeleton = `
+      <div class="pai-skeleton-row">
+          <div class="pai-skeleton pai-skeleton-line"></div>
+          <div class="pai-skeleton pai-skeleton-line"></div>
+      </div>
+      <div class="pai-skeleton-row">
+          <div class="pai-skeleton pai-skeleton-line"></div>
+          <div class="pai-skeleton pai-skeleton-line"></div>
+      </div>
+  `;
+
+  $('#search-results').attr({
+      role: 'listbox',
+      'aria-live': 'polite'
+  });
+
+  function ensureSearchStatusBadge() {
+      if ($('#search-live-status').length) return;
+      const badge = '<small id="search-live-status" class="text-muted d-block mt-1" aria-live="polite"></small>';
+      $('#search').closest('.search-container').append(badge);
+  }
+
+  function setSearchStatus(text) {
+      ensureSearchStatusBadge();
+      $('#search-live-status').text(text || '');
+  }
+
+  function refreshSearchActiveItem() {
+      const $items = $('#search-results .search-result-item');
+      $items.removeClass('is-active').attr('aria-selected', 'false');
+      if (searchIndex >= 0 && searchIndex < $items.length) {
+          $items.eq(searchIndex).addClass('is-active').attr('aria-selected', 'true');
+      }
+  }
 
   $('#search').on('keyup', function(){
       const query = $(this).val().trim();
       clearTimeout(searchTimer);
+      searchIndex = -1;
 
       if(query.length < 2){
+          setSearchStatus('Escribe al menos 2 caracteres para buscar.');
           $('#search-results').hide().empty();
           return;
       }
 
       searchTimer = setTimeout(function(){
+          setSearchStatus('Buscando...');
 
-          $('#search-results').show().empty()
-              .append('<div style="text-align:center; padding:10px;"><i class="fas fa-spinner fa-spin"></i> Cargando...</div>');
+          $('#search-results').show().empty().append(searchSkeleton);
 
           $.ajax({
               url: "{{ route('buscar.afiliados') }}",
@@ -1340,6 +1599,7 @@ window.IMPORT_ENDPOINTS = {
                   $('#search-results').empty();
 
                   if(data.length > 0){
+                      setSearchStatus('Resultados encontrados: ' + data.length);
                       $.each(data, function(index, afiliado){
 
                           const nombre = [
@@ -1353,21 +1613,48 @@ window.IMPORT_ENDPOINTS = {
                               '<a href="#" class="list-group-item list-group-item-action search-result-item" ' +
                               'data-id="'+afiliado.numero_identificacion+'">' +
                               (afiliado.tipo_identificacion ? afiliado.tipo_identificacion + ' ' : '') +
-                              afiliado.numero_identificacion + ' – ' + nombre +
+                              afiliado.numero_identificacion + ' - ' + nombre +
                               '</a>'
                           );
                       });
+                      refreshSearchActiveItem();
                   }else{
-                      $('#search-results').append('<a href="#" class="list-group-item list-group-item-action disabled">No se encontraron resultados</a>');
+                      setSearchStatus('Sin resultados.');
+                      $('#search-results').append('<div class="pai-empty-state"><i class="far fa-folder-open"></i>No se encontraron resultados</div>');
                   }
               },
               error: function(xhr){
-                  $('#search-results').empty().append('<a href="#" class="list-group-item list-group-item-action disabled">Error en la búsqueda</a>');
+                  setSearchStatus('Error en la busqueda.');
+                  $('#search-results').empty().append('<div class="pai-empty-state"><i class="fas fa-triangle-exclamation"></i>Error en la busqueda</div>');
                   console.log("Error AJAX buscador:", xhr.responseText);
               }
           });
 
       }, 250);
+  });
+
+  $('#search').on('keydown', function(e){
+      const $items = $('#search-results .search-result-item');
+      if (!$items.length || !$('#search-results').is(':visible')) return;
+
+      if (e.key === 'ArrowDown') {
+          e.preventDefault();
+          searchIndex = (searchIndex + 1) % $items.length;
+          refreshSearchActiveItem();
+      } else if (e.key === 'ArrowUp') {
+          e.preventDefault();
+          searchIndex = (searchIndex <= 0) ? ($items.length - 1) : (searchIndex - 1);
+          refreshSearchActiveItem();
+      } else if (e.key === 'Enter') {
+          if (searchIndex >= 0 && searchIndex < $items.length) {
+              e.preventDefault();
+              $items.eq(searchIndex).trigger('click');
+          }
+      } else if (e.key === 'Escape') {
+          $('#search-results').hide().empty();
+          searchIndex = -1;
+          setSearchStatus('');
+      }
   });
 
   $(document).on('click', '.search-result-item', function(e){
@@ -1376,6 +1663,7 @@ window.IMPORT_ENDPOINTS = {
       const numeroIdentificacion = $(this).data('id');
       $('#search').val(numeroIdentificacion);
       $('#search-results').hide().empty();
+      setSearchStatus('Filtrando tabla...');
 
       $.ajax({
           url: "{{ route('afiliado') }}",
@@ -1408,8 +1696,11 @@ window.IMPORT_ENDPOINTS = {
                   );
               });
 
+              setSearchStatus('Filas mostradas: ' + rows.length);
+
           },
           error: function(xhr){
+              setSearchStatus('No se pudo actualizar la tabla.');
               console.log("Error filtrando tabla:", xhr.responseText);
           }
       });
@@ -1418,6 +1709,7 @@ window.IMPORT_ENDPOINTS = {
   $(document).on('click', function(e){
       if(!$(e.target).closest('.search-container').length){
           $('#search-results').hide().empty();
+          searchIndex = -1;
       }
   });
 
@@ -1435,6 +1727,15 @@ window.IMPORT_ENDPOINTS = {
       url = url.replace(':id', encodeURIComponent(id));
       url = url.replace(':carnet', encodeURIComponent(carnet));
 
+      $('#vacunaList').html(
+          '<tr><td colspan="7">' +
+              '<div class="pai-skeleton-row"><div class="pai-skeleton pai-skeleton-line"></div><div class="pai-skeleton pai-skeleton-line"></div></div>' +
+              '<div class="pai-skeleton-row"><div class="pai-skeleton pai-skeleton-line"></div><div class="pai-skeleton pai-skeleton-line"></div></div>' +
+              '<div class="pai-skeleton-row"><div class="pai-skeleton pai-skeleton-line"></div><div class="pai-skeleton pai-skeleton-line"></div></div>' +
+          '</td></tr>'
+      );
+      $('#vacunaModal').modal('show');
+
       $.ajax({
           url: url,
           method: 'GET',
@@ -1443,7 +1744,7 @@ window.IMPORT_ENDPOINTS = {
               $('#vacunaList').empty();
 
               if(!data || data.length === 0){
-                  $('#vacunaList').append('<tr><td colspan="7" class="text-center">No se encontraron vacunas</td></tr>');
+                  $('#vacunaList').append('<tr><td colspan="7"><div class="pai-empty-state"><i class="fas fa-syringe"></i>No se encontraron vacunas para este afiliado.</div></td></tr>');
                   $('#vacunaModal').modal('show');
                   return;
               }
@@ -1459,9 +1760,10 @@ window.IMPORT_ENDPOINTS = {
               $('#ips').text(data[0].ips ?? '');
               $('#edad').text(data[0].age ?? '');
 
-              data.forEach(function(v){
+              data.forEach(function(v, idx){
+                  const delay = Math.min(idx * 45, 500);
                   $('#vacunaList').append(
-                      '<tr>' +
+                      '<tr class="pai-row-enter" style="--d:'+delay+'ms;">' +
                           '<td>' + (v.nombre_vacuna ?? '') + '</td>' +
                           '<td>' + (v.docis_vacuna ?? '') + '</td>' +
                           '<td>' + (v.fecha_vacunacion ?? '') + '</td>' +
@@ -1492,8 +1794,21 @@ window.IMPORT_ENDPOINTS = {
 
       $('#patientName').val(patientName);
       $('#patientId').val(patientId);
+      $('#emailSubject').val('Solicitud de revision PAI - ' + patientName);
+      $('#emailMessage').val(
+          'Cordial saludo,\n\nSolicito por favor revisar el registro PAI del paciente ' + patientName + '.\n\nQuedo atento(a) a su gestion.\n\nGracias.'
+      ).trigger('input');
 
       $('#emailModal').modal('show');
+  });
+
+  $('#emailMessage').on('input', function(){
+      const maxLen = 500;
+      const current = ($(this).val() || '').length;
+      if (current > maxLen) {
+          $(this).val($(this).val().substring(0, maxLen));
+      }
+      $('#email-char-count').text((($(this).val() || '').length) + ' / ' + maxLen);
   });
 
   $('#exportButton').on('click', function (e) {
