@@ -24,6 +24,7 @@ use App\Models\ImportJob;
 use App\Jobs\ImportAfiliadosExcelJob;
   // ✅ ESTE ES EL JOB (cola)
 use ZipArchive;
+use Barryvdh\DomPDF\Facade\Pdf;
 
 
 class AfiliadoController extends Controller
@@ -552,6 +553,89 @@ private function generarArchivoVacunasDesdeDB(int $batchId, string $filePath): v
     $vacunas[0]->age = $edad->y . 'a ' . $edad->m . 'm ' . $edad->d . 'd';
 
     return response()->json($vacunas);
+}
+
+public function getVacunasPdf($id, $numeroCarnet = null)
+{
+    $vacunas = DB::table('vacunas as a')
+        ->join('afiliados as b', 'a.afiliado_id', '=', 'b.id')
+        ->join('users as c', 'a.user_id', '=', 'c.id')
+        ->join('referencia_vacunas as d', 'a.vacunas_id', '=', 'd.id')
+        ->leftJoin(DB::connection('sqlsrv_1')->raw('[sga].[dbo].[maestroafiliados] as x'), 'b.numero_carnet', '=', 'x.numeroCarnet')
+        ->leftJoin(DB::connection('sqlsrv_1')->raw('[sga].[dbo].[maestroips] as y'), 'x.numeroCarnet', '=', 'y.numeroCarnet')
+        ->leftJoin(DB::connection('sqlsrv_1')->raw('[sga].[dbo].[maestroIpsGru] as z'), 'y.idGrupoIps', '=', 'z.id')
+        ->select(
+            'd.nombre as nombre_vacuna',
+            DB::raw("
+                CASE
+                    WHEN a.vacunas_id IN (23, 24) AND a.docis IS NULL
+                        THEN CONCAT(a.num_frascos_utilizados, ' frascos')
+                    ELSE a.docis
+                END as docis_vacuna
+            "),
+            'a.fecha_vacuna as fecha_vacunacion',
+            'b.fecha_nacimiento',
+            'c.name as nombre_usuario',
+            'b.primer_nombre as prim_nom',
+            'b.segundo_nombre as seg_nom',
+            'b.primer_apellido as pri_ape',
+            'b.segundo_apellido as seg_ape',
+            'b.tipo_identificacion as tipo_id',
+            'b.numero_identificacion as numero_id',
+            'x.genero as genero',
+            'z.descrip as ips',
+            DB::raw('FLOOR((CAST(CONVERT(varchar(8), CONVERT(DATE, a.fecha_vacuna), 112) AS int) - CAST(CONVERT(varchar(8), CONVERT(DATE, b.fecha_nacimiento), 112) AS int)) / 10000) AS edad_anos'),
+            DB::raw('DATEDIFF(MONTH, b.fecha_nacimiento, a.fecha_vacuna) AS total_meses'),
+            'a.responsable as responsable'
+        )
+        ->where(function ($query) use ($id, $numeroCarnet) {
+            $query->where('b.id', $id);
+            if (!empty($numeroCarnet)) {
+                $query->orWhere('b.numero_carnet', $numeroCarnet);
+            }
+        })
+        ->orderBy('a.fecha_vacuna', 'asc')
+        ->orderBy('d.nombre', 'asc')
+        ->get();
+
+    $paciente = null;
+    if ($vacunas->isNotEmpty()) {
+        $primero = $vacunas->first();
+        $edad = Carbon::parse($primero->fecha_nacimiento)->diff(Carbon::now());
+        $paciente = [
+            'nombre' => trim(($primero->prim_nom ?? '') . ' ' . ($primero->seg_nom ?? '') . ' ' . ($primero->pri_ape ?? '') . ' ' . ($primero->seg_ape ?? '')),
+            'tipo_id' => $primero->tipo_id ?? '',
+            'numero_id' => $primero->numero_id ?? '',
+            'sexo' => $primero->genero ?? '',
+            'fecha_nacimiento' => $primero->fecha_nacimiento ?? '',
+            'ips' => $primero->ips ?? '',
+            'edad' => $edad->y . 'a ' . $edad->m . 'm ' . $edad->d . 'd',
+        ];
+    } else {
+        $afiliado = DB::table('afiliados')
+            ->select('primer_nombre', 'segundo_nombre', 'primer_apellido', 'segundo_apellido', 'tipo_identificacion', 'numero_identificacion', 'fecha_nacimiento')
+            ->where('id', $id)
+            ->first();
+
+        $paciente = [
+            'nombre' => $afiliado ? trim(($afiliado->primer_nombre ?? '') . ' ' . ($afiliado->segundo_nombre ?? '') . ' ' . ($afiliado->primer_apellido ?? '') . ' ' . ($afiliado->segundo_apellido ?? '')) : 'Afiliado no encontrado',
+            'tipo_id' => $afiliado->tipo_identificacion ?? '',
+            'numero_id' => $afiliado->numero_identificacion ?? '',
+            'sexo' => '',
+            'fecha_nacimiento' => $afiliado->fecha_nacimiento ?? '',
+            'ips' => '',
+            'edad' => '',
+        ];
+    }
+
+    $pdf = Pdf::loadView('pdf.vacunas_afiliado', [
+        'paciente' => $paciente,
+        'vacunas' => $vacunas,
+        'fechaGeneracion' => now()->format('Y-m-d H:i:s'),
+    ])->setPaper('a4', 'portrait');
+
+    $fileName = 'reporte_vacunas_' . ($paciente['numero_id'] ?: $id) . '_' . now()->format('Ymd_His') . '.pdf';
+    return $pdf->download($fileName);
 }
 
 

@@ -6,7 +6,9 @@
 <div class="pai-topbar">
     <div class="pai-topbar__left">
         <div class="pai-brand">
-            <div class="pai-brand__logo">PAI</div>
+            <div class="pai-brand__logo">
+                <img src="{{ asset('img/logo.png') }}" alt="Escudo EPS IANAS WAYUU" class="pai-brand__logo-img">
+            </div>
             <div class="pai-brand__text">
                 <div class="pai-brand__title">Cargue Registro Diario</div>
                 <div class="pai-brand__subtitle">Importacion masiva de afiliados y vacunas (Excel .xlsx / .xls)</div>
@@ -345,7 +347,23 @@ html, body{font-family:'Manrope', sans-serif; color:var(--pai-text);}
 /* ====== Topbar ====== */
 .pai-topbar{display:flex; justify-content:space-between; align-items:center; padding:18px 10px; margin-bottom:10px; border-bottom:1px solid rgba(0,0,0,.08);}
 .pai-brand{display:flex; align-items:center; gap:14px;}
-.pai-brand__logo{background:linear-gradient(135deg,var(--pai-brand-2),var(--pai-brand-1)); color:#fff; font-weight:900; border-radius:14px; padding:10px 12px; box-shadow:0 10px 25px rgba(37,99,235,.25); letter-spacing:.5px;}
+.pai-brand__logo{
+  width:56px;
+  height:56px;
+  border-radius:14px;
+  background:#ffffff;
+  border:1px solid rgba(15,23,42,.08);
+  box-shadow:0 12px 28px rgba(2,6,23,.12);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  overflow:hidden;
+}
+.pai-brand__logo-img{
+  width:42px;
+  height:42px;
+  object-fit:contain;
+}
 .pai-brand__title{font-weight:900; color:var(--pai-text); font-size:1.25rem; line-height:1.1;}
 .pai-brand__subtitle{color:var(--pai-muted); font-size:.92rem; margin-top:2px;}
 
@@ -1053,6 +1071,12 @@ window.IMPORT_ENDPOINTS = {
 
   const START_URL  = window.IMPORT_ENDPOINTS.start;
   const STATUS_URL = (token) => window.IMPORT_ENDPOINTS.statusBase + '/' + encodeURIComponent(token);
+  const VACUNAS_PDF_URL = (id, carnet) => {
+      let url = "{{ route('getVacunasPdf', ['id' => ':id', 'numeroCarnet' => ':carnet']) }}";
+      url = url.replace(':id', encodeURIComponent(id));
+      url = url.replace(':carnet', encodeURIComponent(carnet ?? 0));
+      return url;
+  };
 
   let pollTimer = null;
   let safetyTimer = null;
@@ -1721,6 +1745,12 @@ window.IMPORT_ENDPOINTS = {
 
       if(carnet === undefined || carnet === null || carnet === ''){
           carnet = 0;
+      }
+
+      const pdfBtn = document.getElementById('btnVacunasPdf');
+      if (pdfBtn) {
+          pdfBtn.setAttribute('href', VACUNAS_PDF_URL(id, carnet));
+          pdfBtn.setAttribute('aria-disabled', 'false');
       }
 
       let url = "{{ route('getVacunas', ['id' => ':id', 'numeroCarnet' => ':carnet']) }}";
