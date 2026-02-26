@@ -952,19 +952,101 @@ public function importStatus(string $token)
             'step' => 'init',
             'message' => 'No existe import con ese token.',
             'errors' => [],
+            'no_afiliados' => [],
+            'vacunas_omitidas' => [],
             'batch_verifications_id' => null,
         ]);
     }
 
+    // 1) Errores del job (como ya lo tienes)
     $errors = [];
     if (!empty($job->errors)) {
         $decoded = json_decode($job->errors, true);
         if (is_array($decoded)) {
             $errors = $decoded;
         } else {
-            // si no es JSON válido, devuélvelo como texto
             $errors = [(string)$job->errors];
         }
+    }
+
+    // 2) ✅ Leer el resultado final (no_afiliados / vacunas_omitidas / errores) desde Storage JSON
+    $noAfiliados = [];
+    $vacunasOmitidas = [];
+    $erroresJson = [];
+
+    $path = "imports/{$token}_resultado.json";
+    if (Storage::exists($path)) {
+        $payload = json_decode(Storage::get($path), true);
+
+        if (is_array($payload)) {
+            $noAfiliados = $payload['no_afiliados'] ?? [];
+            $vacunasOmitidas = $payload['vacunas_omitidas'] ?? [];
+            $erroresJson = $payload['errores'] ?? [];
+        }
+    }
+
+    // 3) ✅ Unir errores del job + errores del json (sin duplicar)
+    if (is_array($erroresJson) && !empty($erroresJson)) {
+        foreach ($erroresJson as $e) {
+            $e = trim((string)$e);
+            if ($e !== '' && !in_array($e, $errors, true)) {
+                $errors[] = $e;
+            }
+        }
+    }
+
+    // 4) ✅ PARA QUE SALGA EN LA VENTANITA NEGRA SIN CAMBIAR TU JS:
+    //    Convertimos NO afiliados y Vacunas omitidas en líneas de texto dentro de errors[]
+    //    (Tu JS solo pinta errors[], entonces aquí lo resolvemos)
+    if (is_array($noAfiliados) && count($noAfiliados) > 0) {
+        $errors[] = "==============================";
+        $errors[] = "NO AFILIADOS (no existen en BD externa)";
+        $errors[] = "==============================";
+
+        foreach ($noAfiliados as $x) {
+            if (!is_array($x)) continue;
+
+            $fila  = $x['fila_excel'] ?? '?';
+            $tipo  = $x['tipo_identificacion'] ?? '';
+            $num   = $x['numero_identificacion'] ?? '';
+            $mot   = $x['motivo'] ?? 'No existe en BD externa';
+
+            $errors[] = "Fila {$fila}: {$tipo} {$num} — {$mot}";
+        }
+    }
+
+    if (is_array($vacunasOmitidas) && count($vacunasOmitidas) > 0) {
+        $errors[] = "==============================";
+        $errors[] = "VACUNAS NO INSERTADAS (ya existen / repetidas / inválidas)";
+        $errors[] = "==============================";
+
+        foreach ($vacunasOmitidas as $x) {
+            if (!is_array($x)) continue;
+
+            $fila   = $x['fila_excel'] ?? '?';
+            $tipo = $x['tipo_identificacion'] ?? '';
+            $num  = $x['numero_identificacion'] ?? '';
+
+            $who = trim("{$tipo} {$num}");
+            if ($who === '') $who = 'Identificación desconocida';
+
+            $vacunaNombre = $x['vacuna_nombre'] ?? null;
+            $vacId = $x['vacunas_id'] ?? null;
+            $vacuna = $vacunaNombre ? $vacunaNombre : ("vacunas_id=" . ($vacId ?? '?'));
+
+            $docis = $x['docis'] ?? null;
+            $docisTxt = $docis ? " DOCIS:{$docis}" : "";
+
+            $motivo = $x['motivo'] ?? 'No se insertó.';
+
+            $errors[] = "Fila {$fila}: {$who} — {$vacuna}{$docisTxt} — {$motivo}";
+        }
+    }
+
+    // (Opcional) evitar que el payload se vuelva enorme en UI
+    if (count($errors) > 5000) {
+        $errors = array_slice($errors, 0, 5000);
+        $errors[] = "… (Se truncó la lista de mensajes a 5000 líneas)";
     }
 
     return response()->json([
@@ -972,11 +1054,17 @@ public function importStatus(string $token)
         'percent' => (int)($job->percent ?? 0),           // 0..100
         'step' => (string)($job->step ?? ''),
         'message' => (string)($job->message ?? ''),
+
+        // ✅ Esto es lo que tu JS pinta en la ventanita negra
         'errors' => $errors,
+
+        // ✅ Además los mando separados (por si luego quieres pestañas)
+        'no_afiliados' => $noAfiliados,
+        'vacunas_omitidas' => $vacunasOmitidas,
+
         'batch_verifications_id' => $job->batch_verifications_id ?? null,
     ]);
 }
-
 
 
 }

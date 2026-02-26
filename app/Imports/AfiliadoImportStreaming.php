@@ -19,6 +19,9 @@ class AfiliadoImportStreaming implements ToModel, WithStartRow, WithChunkReading
     protected array $errores = [];
     protected array $noAfiliados = [];
 
+    // ✅ NUEVO: vacunas omitidas (duplicadas ya existentes o repetidas en el mismo Excel / FK inválida)
+    protected array $vacunasOmitidas = [];
+
     private int $batch_verifications_id;
     private int $userId;
     private ?string $token;
@@ -107,7 +110,9 @@ class AfiliadoImportStreaming implements ToModel, WithStartRow, WithChunkReading
     ];
 
     /**
-     * ⚠️ OJO: aquí estaba faltando tipo_identificacion. Lo agrego para que no se pierda en normalizeAfiliadoRow().
+     * ✅ IMPORTANTE:
+     * - Incluye tipo_identificacion para que no se pierda en normalizeAfiliadoRow()
+     * - (Si tu tabla afiliados NO tiene tipo_identificacion, elimínala aquí y del insert)
      */
     private array $afiliadoColumns = [
         'area',
@@ -185,12 +190,16 @@ class AfiliadoImportStreaming implements ToModel, WithStartRow, WithChunkReading
         'sintomas_reaccion',
         'telefono_fijo',
         'tipo_antecedente',
-        'tipo_identificacion',      // ✅ agregado
+        'tipo_identificacion',      // ✅
         'total_meses',
         'updated_at',
         'user_id',
         'victima_conflicto',
     ];
+
+    // ✅ NUEVO: cache para resolver nombre de vacuna desde referencia_vacunas
+    private array $vacunaNombreCache = [];
+    private ?string $vacunaNombreColumn = null;
 
     public function __construct(
         int $userId,
@@ -225,6 +234,7 @@ class AfiliadoImportStreaming implements ToModel, WithStartRow, WithChunkReading
     public function getBatchVerificationsID(): int { return $this->batch_verifications_id; }
     public function getErrores(): array { return $this->errores; }
     public function getNoAfiliados(): array { return $this->noAfiliados; }
+    public function getVacunasOmitidas(): array { return $this->vacunasOmitidas; } // ✅ nuevo
 
     public function getStats(): array
     {
@@ -234,6 +244,7 @@ class AfiliadoImportStreaming implements ToModel, WithStartRow, WithChunkReading
             'newVacuna'   => $this->newVacuna,
             'oldVacuna'   => $this->oldVacuna,
             'noAfiliados' => count($this->noAfiliados),
+            'vacunasOmitidas' => count($this->vacunasOmitidas), // ✅ nuevo
         ];
     }
 
@@ -251,6 +262,7 @@ class AfiliadoImportStreaming implements ToModel, WithStartRow, WithChunkReading
                     'batch_verifications_id' => $this->batch_verifications_id,
                     'stats' => $this->getStats(),
                     'no_afiliados' => $this->noAfiliados,
+                    'vacunas_omitidas' => $this->vacunasOmitidas, // ✅ nuevo (para mostrarlo en la UI)
                     'errores' => $this->errores,
                     'generated_at' => now()->toDateTimeString(),
                 ];
@@ -298,6 +310,37 @@ class AfiliadoImportStreaming implements ToModel, WithStartRow, WithChunkReading
 
         if (count($this->noAfiliados) > 5000) {
             $this->noAfiliados = array_slice($this->noAfiliados, 0, 5000);
+        }
+    }
+
+    // ✅ NUEVO: registrar vacunas omitidas (duplicadas / repetidas / FK inválida)
+    private function addVacunaOmitida(
+        int $excelRow,
+        string $tipo,
+        string $numero,
+        ?string $carnet,
+        ?int $afiliadoId,
+        int $vacunasId,
+        ?string $vacunaNombre,
+        ?string $docis,
+        ?string $fechaVacuna,
+        string $motivo
+    ): void {
+        $this->vacunasOmitidas[] = [
+            'fila_excel' => $excelRow,
+            'tipo_identificacion' => $tipo,
+            'numero_identificacion' => $numero,
+            'numero_carnet' => $carnet,
+            'afiliado_id' => $afiliadoId,
+            'vacunas_id' => $vacunasId,
+            'vacuna_nombre' => $vacunaNombre,
+            'docis' => $docis,
+            'fecha_vacuna' => $fechaVacuna,
+            'motivo' => $motivo,
+        ];
+
+        if (count($this->vacunasOmitidas) > 5000) {
+            $this->vacunasOmitidas = array_slice($this->vacunasOmitidas, 0, 5000);
         }
     }
 
@@ -551,7 +594,6 @@ class AfiliadoImportStreaming implements ToModel, WithStartRow, WithChunkReading
             }
 
             if (!is_numeric($v)) {
-                // no estricto => guardo NULL y dejo error informativo (pero sigue)
                 $this->addError("Fila {$excelRow}: '{$tableName}.{$col}' es {$type} pero llegó '".mb_substr((string)$v, 0, 120)."' -> lo guardo NULL");
                 $data[$col] = null;
                 continue;
@@ -592,6 +634,81 @@ class AfiliadoImportStreaming implements ToModel, WithStartRow, WithChunkReading
                 throw new \RuntimeException("Chunk afiliados desalineado");
             }
         }
+    }
+
+    // ✅ NUEVO: detectar columna de "nombre" en referencia_vacunas sin romper si no existe
+    private function detectVacunaNombreColumn(): string
+    {
+        if ($this->vacunaNombreColumn) return $this->vacunaNombreColumn;
+
+        $candidates = ['nombre', 'biologico', 'vacuna', 'descripcion', 'descripcion_vacuna', 'nombre_vacuna'];
+
+        try {
+            $rows = DB::connection($this->localConn)->select("
+                SELECT COLUMN_NAME
+                FROM INFORMATION_SCHEMA.COLUMNS
+                WHERE TABLE_NAME = 'referencia_vacunas'
+            ");
+
+            $cols = array_map(fn($r) => mb_strtolower((string)$r->COLUMN_NAME, 'UTF-8'), $rows);
+
+            foreach ($candidates as $cand) {
+                if (in_array($cand, $cols, true)) {
+                    $this->vacunaNombreColumn = $cand;
+                    return $this->vacunaNombreColumn;
+                }
+            }
+        } catch (\Throwable $e) {
+            Log::warning("No se pudo detectar columna nombre en referencia_vacunas: ".$e->getMessage());
+        }
+
+        // fallback: si no existe nada, devolvemos 'id' (y luego nombre queda null)
+        $this->vacunaNombreColumn = 'id';
+        return $this->vacunaNombreColumn;
+    }
+
+    // ✅ NUEVO: precargar nombres de vacunas por IDs (cache)
+    private function preloadVacunaNames(array $vacIds): array
+    {
+        $vacIds = array_values(array_unique(array_filter($vacIds, fn($x) => is_int($x) && $x > 0)));
+
+        $missing = [];
+        foreach ($vacIds as $id) {
+            if (!array_key_exists($id, $this->vacunaNombreCache)) $missing[] = $id;
+        }
+        if (empty($missing)) return $this->vacunaNombreCache;
+
+        $col = $this->detectVacunaNombreColumn();
+
+        // Si no logramos columna de nombre, no hacemos query de nombre (evita SQL error)
+        if ($col === 'id') {
+            foreach ($missing as $id) $this->vacunaNombreCache[$id] = null;
+            return $this->vacunaNombreCache;
+        }
+
+        try {
+            $rows = DB::connection($this->localConn)
+                ->table('referencia_vacunas')
+                ->select(['id', DB::raw("CAST([$col] AS NVARCHAR(255)) AS vacuna_nombre")])
+                ->whereIn('id', $missing)
+                ->get();
+
+            foreach ($rows as $r) {
+                $id = (int)$r->id;
+                $name = $r->vacuna_nombre !== null ? trim((string)$r->vacuna_nombre) : null;
+                $this->vacunaNombreCache[$id] = ($name === '' ? null : $name);
+            }
+
+            // los que no aparecieron => null
+            foreach ($missing as $id) {
+                if (!array_key_exists($id, $this->vacunaNombreCache)) $this->vacunaNombreCache[$id] = null;
+            }
+        } catch (\Throwable $e) {
+            Log::warning("No se pudo precargar nombres de referencia_vacunas: ".$e->getMessage());
+            foreach ($missing as $id) $this->vacunaNombreCache[$id] = null;
+        }
+
+        return $this->vacunaNombreCache;
     }
 
     public function model(array $row)
@@ -766,7 +883,7 @@ class AfiliadoImportStreaming implements ToModel, WithStartRow, WithChunkReading
                 'area' => $this->cleanText($row[32] ?? null),
                 'direccion' => $this->cleanText($row[33] ?? null),
 
-                // ✅ modo no estricto: NO TIENE => NULL (evita nvarchar->bigint)
+                // ✅ modo no estricto: NO TIENE => NULL (evita nvarchar->bigint si tu columna fuera numérica)
                 'telefono_fijo' => $this->cleanAny($row[34] ?? null),
                 'celular' => $this->cleanAny($row[35] ?? null),
 
@@ -1001,7 +1118,7 @@ class AfiliadoImportStreaming implements ToModel, WithStartRow, WithChunkReading
                     }
                 }
 
-                // ✅ 3.5) Validar FK de vacunas_id contra referencia_vacunas para NO tumbar el import
+                // ✅ 3.5) Validar FK de vacunas_id contra referencia_vacunas (y precargar nombres)
                 $vacIdsInChunk = [];
                 foreach ($buffer as $fila) {
                     foreach (($fila['vacunas'] ?? []) as $v) {
@@ -1019,6 +1136,9 @@ class AfiliadoImportStreaming implements ToModel, WithStartRow, WithChunkReading
                         ->all();
 
                     foreach ($valid as $vid) $validVacIdSet[(int)$vid] = true;
+
+                    // ✅ precargar nombres solo de los válidos
+                    $this->preloadVacunaNames(array_keys($validVacIdSet));
                 }
 
                 // 4) Insert vacunas con template fijo
@@ -1074,19 +1194,66 @@ class AfiliadoImportStreaming implements ToModel, WithStartRow, WithChunkReading
 
                         $vacunasId = (int)$vacunasId;
 
-                        // ✅ si no existe en referencia_vacunas => NO insertamos y NO tumbamos el import
+                        $docisNorm = $this->normalizeDocis($vacunaData['docis'] ?? null);
+                        $fechaVac = $this->toSqlDate($vacunaData['fecha_vacuna'] ?? null);
+                        $vacunaNombre = $this->vacunaNombreCache[$vacunasId] ?? null;
+
+                        // ✅ si no existe en referencia_vacunas => NO insertamos y lo mostramos al usuario
                         if (!isset($validVacIdSet[$vacunasId])) {
-                            $this->addError("Fila ".($fila['excelRow'] ?? '?').": vacunas_id={$vacunasId} no existe en referencia_vacunas. Se omite esa vacuna.");
+                            $this->oldVacuna++;
+                            $this->addVacunaOmitida(
+                                (int)($fila['excelRow'] ?? 0),
+                                (string)($fila['tipo'] ?? ''),
+                                (string)($fila['numero'] ?? ''),
+                                (string)($fila['carnet'] ?? null),
+                                (int)$afiliadoId,
+                                $vacunasId,
+                                $vacunaNombre,
+                                $docisNorm,
+                                $fechaVac,
+                                "La vacuna (vacunas_id={$vacunasId}) no existe en referencia_vacunas. No se insertó."
+                            );
                             continue;
                         }
 
-                        $docisNorm = $this->normalizeDocis($vacunaData['docis'] ?? null);
                         $key = (int)$afiliadoId . '|' . $vacunasId . '|' . ($docisNorm ?? '');
 
-                        if (isset($existingKeys[$key]) || isset($seenInChunk[$key])) {
+                        // ✅ YA EXISTE EN BD => no insertamos y lo reportamos
+                        if (isset($existingKeys[$key])) {
                             $this->oldVacuna++;
+                            $this->addVacunaOmitida(
+                                (int)($fila['excelRow'] ?? 0),
+                                (string)($fila['tipo'] ?? ''),
+                                (string)($fila['numero'] ?? ''),
+                                (string)($fila['carnet'] ?? null),
+                                (int)$afiliadoId,
+                                $vacunasId,
+                                $vacunaNombre,
+                                $docisNorm,
+                                $fechaVac,
+                                "El afiliado ya tiene registrada esta vacuna. No se insertó."
+                            );
                             continue;
                         }
+
+                        // ✅ REPETIDA EN EL MISMO EXCEL => no insertamos y lo reportamos
+                        if (isset($seenInChunk[$key])) {
+                            $this->oldVacuna++;
+                            $this->addVacunaOmitida(
+                                (int)($fila['excelRow'] ?? 0),
+                                (string)($fila['tipo'] ?? ''),
+                                (string)($fila['numero'] ?? ''),
+                                (string)($fila['carnet'] ?? null),
+                                (int)$afiliadoId,
+                                $vacunasId,
+                                $vacunaNombre,
+                                $docisNorm,
+                                $fechaVac,
+                                "Vacuna repetida dentro del mismo archivo Excel. No se insertó."
+                            );
+                            continue;
+                        }
+
                         $seenInChunk[$key] = true;
 
                         $vacunaData['afiliado_id'] = (int)$afiliadoId;
