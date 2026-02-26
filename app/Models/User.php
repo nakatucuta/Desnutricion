@@ -10,7 +10,7 @@ use Laravel\Sanctum\HasApiTokens;
 
 class User extends Authenticatable
 {
-    use HasApiTokens, Notifiable;
+    use HasApiTokens, HasFactory, Notifiable;
 
     public function getUsername()
     {
@@ -19,12 +19,10 @@ class User extends Authenticatable
 
 
 
-    use HasFactory;
-    public function getDateFormat(){
-        return 'Y-d-m h:m:s';
-        }
-
-    use HasApiTokens, HasFactory, Notifiable;
+    public function getDateFormat()
+    {
+        return 'Y-m-d H:i:s';
+    }
 
     /**
      * The attributes that are mass assignable.

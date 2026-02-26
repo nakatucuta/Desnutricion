@@ -17,7 +17,7 @@ class LoginController extends Controller
     // Mantén tu campo original. No se usará para validar, pero no estorba.
     public function username()
     {
-        return 'codigohabilitacion';
+        return request()->filled('email') ? 'email' : 'codigohabilitacion';
     }
 
     /**
@@ -52,6 +52,29 @@ class LoginController extends Controller
             'codigohabilitacion' => $request->input('codigohabilitacion'),
             'password'           => $request->input('password'),
         ];
+    }
+
+    /**
+     * Permite ingresar por correo o por usuario/código.
+     */
+    protected function attemptLogin(Request $request)
+    {
+        $remember = $request->boolean('remember');
+
+        if ($request->filled('email')) {
+            return $this->guard()->attempt($this->credentials($request), $remember);
+        }
+
+        $loginValue = trim((string) $request->input('codigohabilitacion'));
+        $password = (string) $request->input('password');
+
+        return $this->guard()->attempt([
+            'codigohabilitacion' => $loginValue,
+            'password' => $password,
+        ], $remember) || $this->guard()->attempt([
+            'name' => $loginValue,
+            'password' => $password,
+        ], $remember);
     }
 
     /**
