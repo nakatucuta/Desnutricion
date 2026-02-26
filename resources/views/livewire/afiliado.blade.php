@@ -38,7 +38,7 @@
                 <div class="pai-kpi-card__icon"><i class="fas fa-syringe"></i></div>
                 <div class="pai-kpi-card__body">
                     <div class="pai-kpi-card__label">Registros con vacunas</div>
-                    <div class="pai-kpi-card__value">{{ number_format($sivigilas->total() ?? 0) }}</div>
+                    <div class="pai-kpi-card__value">{{ number_format($kpiVacunas ?? 0) }}</div>
                 </div>
             </div>
         </div>
@@ -47,7 +47,7 @@
                 <div class="pai-kpi-card__icon"><i class="fas fa-users"></i></div>
                 <div class="pai-kpi-card__body">
                     <div class="pai-kpi-card__label">Afiliados listados</div>
-                    <div class="pai-kpi-card__value">{{ number_format($sivigilas_usernormal->total() ?? 0) }}</div>
+                    <div class="pai-kpi-card__value">{{ number_format($kpiAfiliados ?? 0) }}</div>
                 </div>
             </div>
         </div>
@@ -1561,28 +1561,48 @@ window.IMPORT_ENDPOINTS = {
       $('.modal-backdrop').remove();
   });
 
-  let searchTimer = null;
-  let searchIndex = -1;
-  const searchSkeleton = `
-      <div class="pai-skeleton-row">
-          <div class="pai-skeleton pai-skeleton-line"></div>
-          <div class="pai-skeleton pai-skeleton-line"></div>
-      </div>
-      <div class="pai-skeleton-row">
-          <div class="pai-skeleton pai-skeleton-line"></div>
-          <div class="pai-skeleton pai-skeleton-line"></div>
-      </div>
-  `;
-
-  $('#search-results').attr({
-      role: 'listbox',
-      'aria-live': 'polite'
+  const afiliadoTable = $('#sivigila').DataTable({
+      processing: true,
+      serverSide: true,
+      deferRender: true,
+      pageLength: 10,
+      searchDelay: 300,
+      lengthChange: false,
+      ajax: {
+          url: "{{ route('afiliado.data') }}",
+          type: 'GET'
+      },
+      columns: [
+          { data: 'id_badge', orderable: true, searchable: false },
+          { data: 'documento', orderable: false, searchable: false },
+          { data: 'paciente', orderable: false, searchable: false },
+          { data: 'lote_carnet', orderable: false, searchable: false },
+          { data: 'acciones', orderable: false, searchable: false, className: 'text-right' }
+      ],
+      order: [[0, 'desc']],
+      dom: "rt<'d-flex justify-content-between align-items-center px-3 py-2'ip>",
+      language: {
+          processing: '<span class="pai-dt-loader"><i class="fas fa-circle-notch fa-spin mr-2"></i>Cargando registros...</span>',
+          info: 'Mostrando _START_ a _END_ de _TOTAL_ registros',
+          infoEmpty: 'Mostrando 0 a 0 de 0 registros',
+          emptyTable: 'No hay registros disponibles',
+          zeroRecords: 'No se encontraron coincidencias',
+          paginate: {
+              first: 'Primero',
+              previous: 'Anterior',
+              next: 'Siguiente',
+              last: 'Último'
+          }
+      }
   });
+
+  let searchTimer = null;
+  $('#search-results').hide().empty();
 
   function ensureSearchStatusBadge() {
       if ($('#search-live-status').length) return;
       const badge = '<small id="search-live-status" class="text-muted d-block mt-1" aria-live="polite"></small>';
-      $('#search').closest('.search-container').append(badge);
+      $('#search').closest('.pai-search').append(badge);
   }
 
   function setSearchStatus(text) {
@@ -1590,151 +1610,21 @@ window.IMPORT_ENDPOINTS = {
       $('#search-live-status').text(text || '');
   }
 
-  function refreshSearchActiveItem() {
-      const $items = $('#search-results .search-result-item');
-      $items.removeClass('is-active').attr('aria-selected', 'false');
-      if (searchIndex >= 0 && searchIndex < $items.length) {
-          $items.eq(searchIndex).addClass('is-active').attr('aria-selected', 'true');
-      }
-  }
-
   $('#search').on('keyup', function(){
       const query = $(this).val().trim();
       clearTimeout(searchTimer);
-      searchIndex = -1;
 
       if(query.length < 2){
+          afiliadoTable.search('').draw();
           setSearchStatus('Escribe al menos 2 caracteres para buscar.');
-          $('#search-results').hide().empty();
           return;
       }
 
       searchTimer = setTimeout(function(){
-          setSearchStatus('Buscando...');
-
-          $('#search-results').show().empty().append(searchSkeleton);
-
-          $.ajax({
-              url: "{{ route('buscar.afiliados') }}",
-              method: "GET",
-              dataType: "json",
-              data: { search: query },
-              success: function(data){
-                  $('#search-results').empty();
-
-                  if(data.length > 0){
-                      setSearchStatus('Resultados encontrados: ' + data.length);
-                      $.each(data, function(index, afiliado){
-
-                          const nombre = [
-                              afiliado.primer_nombre,
-                              afiliado.segundo_nombre,
-                              afiliado.primer_apellido,
-                              afiliado.segundo_apellido
-                          ].filter(Boolean).join(' ');
-
-                          $('#search-results').append(
-                              '<a href="#" class="list-group-item list-group-item-action search-result-item" ' +
-                              'data-id="'+afiliado.numero_identificacion+'">' +
-                              (afiliado.tipo_identificacion ? afiliado.tipo_identificacion + ' ' : '') +
-                              afiliado.numero_identificacion + ' - ' + nombre +
-                              '</a>'
-                          );
-                      });
-                      refreshSearchActiveItem();
-                  }else{
-                      setSearchStatus('Sin resultados.');
-                      $('#search-results').append('<div class="pai-empty-state"><i class="far fa-folder-open"></i>No se encontraron resultados</div>');
-                  }
-              },
-              error: function(xhr){
-                  setSearchStatus('Error en la busqueda.');
-                  $('#search-results').empty().append('<div class="pai-empty-state"><i class="fas fa-triangle-exclamation"></i>Error en la busqueda</div>');
-                  console.log("Error AJAX buscador:", xhr.responseText);
-              }
-          });
-
+          setSearchStatus('Filtrando tabla...');
+          afiliadoTable.search(query).draw();
+          setSearchStatus('Filtro aplicado.');
       }, 250);
-  });
-
-  $('#search').on('keydown', function(e){
-      const $items = $('#search-results .search-result-item');
-      if (!$items.length || !$('#search-results').is(':visible')) return;
-
-      if (e.key === 'ArrowDown') {
-          e.preventDefault();
-          searchIndex = (searchIndex + 1) % $items.length;
-          refreshSearchActiveItem();
-      } else if (e.key === 'ArrowUp') {
-          e.preventDefault();
-          searchIndex = (searchIndex <= 0) ? ($items.length - 1) : (searchIndex - 1);
-          refreshSearchActiveItem();
-      } else if (e.key === 'Enter') {
-          if (searchIndex >= 0 && searchIndex < $items.length) {
-              e.preventDefault();
-              $items.eq(searchIndex).trigger('click');
-          }
-      } else if (e.key === 'Escape') {
-          $('#search-results').hide().empty();
-          searchIndex = -1;
-          setSearchStatus('');
-      }
-  });
-
-  $(document).on('click', '.search-result-item', function(e){
-      e.preventDefault();
-
-      const numeroIdentificacion = $(this).data('id');
-      $('#search').val(numeroIdentificacion);
-      $('#search-results').hide().empty();
-      setSearchStatus('Filtrando tabla...');
-
-      $.ajax({
-          url: "{{ route('afiliado') }}",
-          method: "GET",
-          dataType: "json",
-          data: { search: numeroIdentificacion },
-          success: function(response){
-
-              const rows = response.sivigilas_usernormal || response.sivigilas || [];
-              const $tbody = $('#sivigila tbody');
-              $tbody.empty();
-
-              $.each(rows, function(index, r){
-
-                  const fullName = [r.primer_nombre, r.segundo_nombre, r.primer_apellido, r.segundo_apellido]
-                      .filter(Boolean).join(' ');
-
-                  const carnet = (r.numero_carnet ?? 0);
-
-                  const acciones = '<a href="#" class="btn btn-sm btn-warning blinking-button send-email" data-toggle="modal" data-target="#emailModal" data-id="'+r.id+'" data-name="'+fullName+'"><i class="fas fa-envelope"></i> Solicitud</a>';
-
-                  $tbody.append(
-                      '<tr>' +
-                          '<td><small>'+ (r.id ?? '') +'</small></td>' +
-                          '<td><a href="#" class="numero-identificacion" data-id="'+(r.id ?? '')+'" data-carnet="'+carnet+'" style="text-decoration:underline;">'+ (r.numero_identificacion ?? '') +'</a></td>' +
-                          '<td><small>'+fullName+'</small></td>' +
-                          '<td><small>'+(r.numero_carnet ?? (r.batch_verifications_id ?? '') )+'</small></td>' +
-                          '<td>'+acciones+'</td>' +
-                      '</tr>'
-                  );
-              });
-
-              setSearchStatus('Filas mostradas: ' + rows.length);
-
-          },
-          error: function(xhr){
-              setSearchStatus('No se pudo actualizar la tabla.');
-              console.log("Error filtrando tabla:", xhr.responseText);
-          }
-      });
-  });
-
-  $(document).on('click', function(e){
-      if(!$(e.target).closest('.search-container').length){
-          $('#search-results').hide().empty();
-          searchIndex = -1;
-      }
   });
 
   $(document).on('click', '.numero-identificacion', function(e){

@@ -25,6 +25,7 @@ use App\Jobs\ImportAfiliadosExcelJob;
   // ✅ ESTE ES EL JOB (cola)
 use ZipArchive;
 use Barryvdh\DomPDF\Facade\Pdf;
+use Yajra\DataTables\Facades\DataTables;
 
 
 class AfiliadoController extends Controller
@@ -36,64 +37,14 @@ class AfiliadoController extends Controller
      */
     public function index(Request $request)
     {
-        $search = $request->input('search');
-        $carnets = collect();
-    
-        if ($search) {
-            // traducir identificación → carnet(es)
-            $carnets = DB::table('sga.dbo.maestroidentificaciones')
-                ->where('identificacion', 'LIKE', "%{$search}%")
-                ->pluck('numeroCarnet');
-        }
-    
-        // Consulta principal (usuarios con vacunas)
-        $sivigilas = DB::table('afiliados as b')
-            ->select(
-                'b.id',
-                'b.primer_nombre',
-                'b.segundo_nombre',
-                'b.primer_apellido',
-                'b.segundo_apellido',
-                'b.numero_identificacion',
-                'c.batch_verifications_id'
-            )
-            ->join('vacunas as c', 'b.id', '=', 'c.afiliado_id')
-            ->when($carnets->isNotEmpty(), function ($q) use ($carnets) {
-                return $q->whereIn('b.numero_carnet', $carnets);
-            })
-            // si no hay carnets, devolvemos vacío
-            ->when($search && $carnets->isEmpty(), function ($q) {
-                return $q->whereRaw('1 = 0');
-            })
-            ->paginate(10);
-    
-        // Consulta para usuarios normales
-        $sivigilas_usernormal = DB::table('afiliados as b')
-            ->select(
-                'b.id',
-                'b.primer_nombre',
-                'b.segundo_nombre',
-                'b.primer_apellido',
-                'b.segundo_apellido',
-                'b.numero_identificacion',
-                'b.numero_carnet'
-            )
-            ->when($carnets->isNotEmpty(), function ($q) use ($carnets) {
-                return $q->whereIn('b.numero_carnet', $carnets);
-            })
-            ->when($search && $carnets->isEmpty(), function ($q) {
-                return $q->whereRaw('1 = 0');
-            })
-            ->paginate(10);
-    
-        if ($request->ajax()) {
-            return response()->json([
-                'sivigilas'            => $sivigilas->items(),
-                'sivigilas_usernormal' => $sivigilas_usernormal->items(),
-            ]);
-        }
-    
-        return view('livewire.afiliado', compact('sivigilas', 'sivigilas_usernormal', 'search'));
+        $kpiVacunas = DB::table('vacunas')
+            ->distinct()
+            ->count('afiliado_id');
+
+        $kpiAfiliados = DB::table('afiliados')
+            ->count('id');
+
+        return view('livewire.afiliado', compact('kpiVacunas', 'kpiAfiliados'));
     }
 
 
@@ -112,21 +63,19 @@ class AfiliadoController extends Controller
         $connSGA = DB::connection('sqlsrv_1');  // SGA
         $connDES = DB::connection('sqlsrv');    // DESNUTRICION
     
-        // 2) Sacar los carnets que coincidan con lo tecleado (SGA)
-        $carnets = $connSGA->table('maestroidentificaciones')
-            ->where('identificacion', 'LIKE', "%{$search}%")
-            ->pluck('numeroCarnet')
-            ->toArray();
-    
-        if (empty($carnets)) {
-            return response()->json([]);
-        }
-    
-        // 3) Subconsulta: para cada carnet, quedarnos con la identificación máxima (SGA)
-        $maxPerCarnet = $connSGA->table('maestroidentificaciones')
-            ->select('numeroCarnet', DB::raw('MAX(identificacion) as numero_identificacion'))
-            ->whereIn('numeroCarnet', $carnets)
-            ->groupBy('numeroCarnet');
+        // 2) Subconsulta de carnets filtrados (evita whereIn masivo > 2100 parámetros)
+        $filteredCarnets = $connSGA->table('maestroidentificaciones as x')
+            ->select('x.numeroCarnet')
+            ->where('x.identificacion', 'LIKE', "%{$search}%")
+            ->groupBy('x.numeroCarnet');
+
+        // 3) Por cada carnet filtrado, obtener identificación máxima (SGA)
+        $maxPerCarnet = $connSGA->table('maestroidentificaciones as mi')
+            ->joinSub($filteredCarnets, 'fc', function ($join) {
+                $join->on('fc.numeroCarnet', '=', 'mi.numeroCarnet');
+            })
+            ->select('mi.numeroCarnet', DB::raw('MAX(mi.identificacion) as numero_identificacion'))
+            ->groupBy('mi.numeroCarnet');
     
         // 4) Obtener datos del afiliado + maestro + solo la fila "máxima" por carnet (SGA)
         $results = $connSGA->table('maestroafiliados as c')
@@ -146,9 +95,14 @@ class AfiliadoController extends Controller
                 'c.tipoIdentificacion as tipo_identificacion',
                 'c.identificacion     as numero_identificacion',
             ])
+            ->limit(20)
             ->get()
             ->unique('numero_identificacion')  // quitar duplicados
             ->values();
+
+        if ($results->isEmpty()) {
+            return response()->json([]);
+        }
     
         // 5) Actualizar la tabla afiliados en DESNUTRICION solo si hay cambios
         foreach ($results as $row) {
@@ -193,6 +147,143 @@ class AfiliadoController extends Controller
     
         // 6) Devolver JSON con los datos (ya sincronizados)
         return response()->json($results);
+    }
+
+    public function dataTable(Request $request)
+    {
+        $user = Auth::user();
+        $isAdmin = (int) ($user->usertype ?? 0) === 1;
+
+        if ($isAdmin) {
+            $query = DB::table('afiliados as b')
+                ->join('vacunas as c', 'b.id', '=', 'c.afiliado_id')
+                ->select([
+                    'b.id',
+                    'b.primer_nombre',
+                    'b.segundo_nombre',
+                    'b.primer_apellido',
+                    'b.segundo_apellido',
+                    'b.numero_identificacion',
+                    'b.numero_carnet',
+                    DB::raw('MAX(c.batch_verifications_id) AS batch_verifications_id'),
+                ])
+                ->groupBy(
+                    'b.id',
+                    'b.primer_nombre',
+                    'b.segundo_nombre',
+                    'b.primer_apellido',
+                    'b.segundo_apellido',
+                    'b.numero_identificacion',
+                    'b.numero_carnet'
+                );
+        } else {
+            $query = DB::table('afiliados as b')
+                ->leftJoin('correo_enviados as ce', function ($join) use ($user) {
+                    $join->on('ce.patient_id', '=', 'b.id')
+                        ->where('ce.user_id', '=', $user->id);
+                })
+                ->select([
+                    'b.id',
+                    'b.primer_nombre',
+                    'b.segundo_nombre',
+                    'b.primer_apellido',
+                    'b.segundo_apellido',
+                    'b.numero_identificacion',
+                    'b.numero_carnet',
+                    DB::raw('CASE WHEN ce.patient_id IS NULL THEN 0 ELSE 1 END AS correo_enviado'),
+                ]);
+        }
+
+        return DataTables::of($query)
+            ->filter(function ($builder) use ($request) {
+                $search = trim((string) data_get($request->input('search'), 'value', ''));
+                if ($search === '') {
+                    return;
+                }
+
+                $builder->where(function ($q) use ($search) {
+                    $q->where('b.numero_identificacion', 'LIKE', "%{$search}%")
+                        ->orWhere('b.primer_nombre', 'LIKE', "%{$search}%")
+                        ->orWhere('b.segundo_nombre', 'LIKE', "%{$search}%")
+                        ->orWhere('b.primer_apellido', 'LIKE', "%{$search}%")
+                        ->orWhere('b.segundo_apellido', 'LIKE', "%{$search}%");
+                });
+            })
+            ->addColumn('id_badge', function ($row) {
+                return '<span class="pai-badge-id">#' . e($row->id) . '</span>';
+            })
+            ->addColumn('documento', function ($row) {
+                $doc = e($row->numero_identificacion ?? '');
+                $id = e($row->id);
+                $carnet = e($row->numero_carnet ?? '');
+
+                return '<a href="#" class="numero-identificacion pai-doclink" data-id="' . $id . '" data-carnet="' . $carnet . '">' .
+                    '<span class="pai-dot"></span>' .
+                    '<span class="pai-doclink__text">' . $doc . '</span>' .
+                    '</a>' .
+                    '<div class="pai-muted">Clic para ver vacunas</div>';
+            })
+            ->addColumn('paciente', function ($row) {
+                $fullName = trim(implode(' ', array_filter([
+                    $row->primer_nombre ?? '',
+                    $row->segundo_nombre ?? '',
+                    $row->primer_apellido ?? '',
+                    $row->segundo_apellido ?? '',
+                ])));
+
+                $initials = strtoupper(
+                    mb_substr((string) ($row->primer_nombre ?? 'P'), 0, 1) .
+                    mb_substr((string) ($row->primer_apellido ?? 'A'), 0, 1)
+                );
+
+                return '<div class="pai-person">' .
+                    '<div class="pai-avatar">' . e($initials) . '</div>' .
+                    '<div class="pai-person__meta">' .
+                    '<div class="pai-person__name">' . e($fullName) . '</div>' .
+                    '</div>' .
+                    '</div>';
+            })
+            ->addColumn('lote_carnet', function ($row) use ($isAdmin) {
+                $value = $isAdmin ? ($row->batch_verifications_id ?? '') : ($row->numero_carnet ?? '');
+                return '<span class="pai-pill">' . e($value) . '</span>';
+            })
+            ->addColumn('acciones', function ($row) use ($isAdmin) {
+                if ($isAdmin) {
+                    $edit = '<a href="#" class="btn btn-pai btn-pai-pastel-warning btn-sm">' .
+                        '<i class="fas fa-edit mr-1"></i> Editar</a>';
+
+                    $delete = '';
+                    if (!empty($row->batch_verifications_id)) {
+                        $delete = '<form action="' . route('batch_verifications.destroy', $row->batch_verifications_id) . '" method="POST" class="d-inline">'
+                            . csrf_field()
+                            . method_field('DELETE')
+                            . '<button type="submit" class="btn btn-pai btn-pai-pastel-danger btn-sm" onclick="return confirm(\'¿Estás seguro de que deseas eliminar este registro?\')">'
+                            . '<i class="fas fa-trash mr-1"></i> Eliminar</button></form>';
+                    }
+
+                    return '<div class="pai-actions">' . $edit . $delete . '</div>';
+                }
+
+                $fullName = trim(implode(' ', array_filter([
+                    $row->primer_nombre ?? '',
+                    $row->segundo_nombre ?? '',
+                    $row->primer_apellido ?? '',
+                    $row->segundo_apellido ?? '',
+                ])));
+
+                if ((int) ($row->correo_enviado ?? 0) === 1) {
+                    return '<div class="pai-actions"><button class="btn btn-pai btn-pai-pastel-neutral btn-sm" disabled>'
+                        . '<i class="fas fa-envelope mr-1"></i> Correo enviado</button></div>';
+                }
+
+                return '<div class="pai-actions"><a href="#" class="btn btn-pai btn-pai-pastel-primary btn-sm send-email"'
+                    . ' data-toggle="modal" data-target="#emailModal"'
+                    . ' data-id="' . e($row->id) . '"'
+                    . ' data-name="' . e($fullName) . '">'
+                    . '<i class="fas fa-envelope mr-1"></i> Solicitud</a></div>';
+            })
+            ->rawColumns(['id_badge', 'documento', 'paciente', 'lote_carnet', 'acciones'])
+            ->toJson();
     }
     
     

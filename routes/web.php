@@ -46,6 +46,8 @@ Route::get('/', function () {
 //OJO AQUI COMIENZAN LAS RUTAS  DE PAI
 Route::get('/afiliado', [AfiliadoController::class, 'index'])->name('afiliado')
 ->middleware('auth');
+Route::get('/afiliado/data', [AfiliadoController::class, 'dataTable'])->name('afiliado.data')
+->middleware('auth');
 
 
 // Rutas para el cargue de la información

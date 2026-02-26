@@ -44,168 +44,18 @@
 {{-- Tabla --}}
 <div class="pai-card">
     <div class="pai-table-wrap">
-
-        @if(auth()->user()->usertype == 1)
-
-            <table class="pai-table" id="sivigila">
-                <thead>
-                    <tr>
-                        <th style="width:90px;">ID</th>
-                        <th style="width:240px;">Documento</th>
-                        <th>Paciente</th>
-                        <th style="width:170px;">Lote</th>
-                        <th style="width:240px;" class="text-right">Acciones</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @foreach($sivigilas as $student2)
-                        @php
-                            $fullName = trim(($student2->primer_nombre ?? '').' '.($student2->segundo_nombre ?? '').' '.($student2->primer_apellido ?? '').' '.($student2->segundo_apellido ?? ''));
-                            $doc = $student2->numero_identificacion ?? '';
-                            $initials = strtoupper(substr($student2->primer_nombre ?? 'P',0,1).substr($student2->primer_apellido ?? 'A',0,1));
-                        @endphp
-                        <tr>
-                            <td>
-                                <span class="pai-badge-id">#{{ $student2->id }}</span>
-                            </td>
-
-                            <td>
-                                <a href="#"
-                                   class="numero-identificacion pai-doclink"
-                                   data-id="{{ $student2->id }}"
-                                   data-carnet="{{ $student2->numero_carnet ?? '' }}">
-                                    <span class="pai-dot"></span>
-                                    <span class="pai-doclink__text">{{ $doc }}</span>
-                                </a>
-                                <div class="pai-muted">Clic para ver vacunas</div>
-                            </td>
-
-                            <td>
-                                <div class="pai-person">
-                                    <div class="pai-avatar">{{ $initials }}</div>
-                                    <div class="pai-person__meta">
-                                        <div class="pai-person__name">{{ $fullName }}</div>
-                                        <div class="pai-muted">Usuario: {{ auth()->user()->name ?? '' }}</div>
-                                    </div>
-                                </div>
-                            </td>
-
-                            <td>
-                                <span class="pai-pill">{{ $student2->batch_verifications_id }}</span>
-                            </td>
-
-                            <td class="text-right">
-                                <div class="pai-actions">
-                                    <a href="#" class="btn btn-pai btn-pai-pastel-warning btn-sm">
-                                        <i class="fas fa-edit mr-1"></i> Editar
-                                    </a>
-
-                                    <form action="{{ route('batch_verifications.destroy', $student2->batch_verifications_id) }}"
-                                          method="POST"
-                                          class="d-inline">
-                                        @csrf
-                                        @method('DELETE')
-                                        <button type="submit"
-                                                class="btn btn-pai btn-pai-pastel-danger btn-sm"
-                                                onclick="return confirm('¿Estás seguro de que deseas eliminar este registro?')">
-                                            <i class="fas fa-trash mr-1"></i> Eliminar
-                                        </button>
-                                    </form>
-                                </div>
-                            </td>
-                        </tr>
-                    @endforeach
-                </tbody>
-            </table>
-
-            <div class="pai-pagination">
-                {{ $sivigilas->links() }}
-            </div>
-
-        @else
-
-            <table class="pai-table" id="sivigila">
-                <thead>
-                    <tr>
-                        <th style="width:90px;">ID</th>
-                        <th style="width:240px;">Documento</th>
-                        <th>Paciente</th>
-                        <th style="width:170px;">Carnet</th>
-                        <th style="width:240px;" class="text-right">Acciones</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @foreach($sivigilas_usernormal as $student21)
-                        @php
-                            $correoEnviado = App\Models\CorreoEnviado::where('user_id', auth()->id())
-                                ->where('patient_id', $student21->id)
-                                ->exists();
-
-                            $fullName = trim(($student21->primer_nombre ?? '').' '.($student21->segundo_nombre ?? '').' '.($student21->primer_apellido ?? '').' '.($student21->segundo_apellido ?? ''));
-                            $doc = $student21->numero_identificacion ?? '';
-                            $carnet = $student21->numero_carnet ?? '';
-                            $initials = strtoupper(substr($student21->primer_nombre ?? 'P',0,1).substr($student21->primer_apellido ?? 'A',0,1));
-                        @endphp
-
-                        <tr>
-                            <td>
-                                <span class="pai-badge-id">#{{ $student21->id }}</span>
-                            </td>
-
-                            <td>
-                                <a href="#"
-                                   class="numero-identificacion pai-doclink"
-                                   data-id="{{ $student21->id }}"
-                                   data-carnet="{{ $student21->numero_carnet }}">
-                                    <span class="pai-dot"></span>
-                                    <span class="pai-doclink__text">{{ $doc }}</span>
-                                </a>
-                                <div class="pai-muted">Clic para ver vacunas</div>
-                            </td>
-
-                            <td>
-                                <div class="pai-person">
-                                    <div class="pai-avatar">{{ $initials }}</div>
-                                    <div class="pai-person__meta">
-                                        <div class="pai-person__name">{{ $fullName }}</div>
-                                        <div class="pai-muted">Estado: {{ $correoEnviado ? 'Solicitud enviada' : 'Sin solicitud' }}</div>
-                                    </div>
-                                </div>
-                            </td>
-
-                            <td>
-                                <span class="pai-pill">{{ $carnet }}</span>
-                            </td>
-
-                            <td class="text-right">
-                                <div class="pai-actions">
-                                    @if($correoEnviado)
-                                        <button class="btn btn-pai btn-pai-pastel-neutral btn-sm" disabled>
-                                            <i class="fas fa-envelope mr-1"></i> Correo enviado
-                                        </button>
-                                    @else
-                                        <a href="#"
-                                           class="btn btn-pai btn-pai-pastel-primary btn-sm send-email"
-                                           data-toggle="modal"
-                                           data-target="#emailModal"
-                                           data-id="{{ $student21->id }}"
-                                           data-name="{{ $fullName }}">
-                                            <i class="fas fa-envelope mr-1"></i> Solicitud
-                                        </a>
-                                    @endif
-                                </div>
-                            </td>
-                        </tr>
-                    @endforeach
-                </tbody>
-            </table>
-
-            <div class="pai-pagination">
-                {{ $sivigilas_usernormal->links() }}
-            </div>
-
-        @endif
-
+        <table class="pai-table" id="sivigila" data-usertype="{{ auth()->user()->usertype }}">
+            <thead>
+                <tr>
+                    <th style="width:90px;">ID</th>
+                    <th style="width:240px;">Documento</th>
+                    <th>Paciente</th>
+                    <th style="width:170px;">{{ auth()->user()->usertype == 1 ? 'Lote' : 'Carnet' }}</th>
+                    <th style="width:240px;" class="text-right">Acciones</th>
+                </tr>
+            </thead>
+            <tbody></tbody>
+        </table>
     </div>
 </div>
 
@@ -404,6 +254,32 @@
 .pai-table tbody tr:hover td{
   background:rgba(234,242,255,.55);
 }
+#sivigila.dataTable{
+  margin:0 !important;
+  border-collapse:separate !important;
+  border-spacing:0 !important;
+  width:100% !important;
+}
+#sivigila.dataTable thead th{
+  background: linear-gradient(180deg, rgba(234,242,255,.95), rgba(255,255,255,1)) !important;
+  color:#0b1220 !important;
+  font-weight:900 !important;
+  font-size:.95rem !important;
+  padding:16px 14px !important;
+  border-bottom:1px solid rgba(2,6,23,.12) !important;
+}
+#sivigila.dataTable tbody td{
+  padding:14px 14px !important;
+  border-bottom:1px solid rgba(2,6,23,.08) !important;
+  vertical-align:middle !important;
+  background:#fff !important;
+}
+#sivigila.dataTable tbody tr:hover td{
+  background:rgba(234,242,255,.55) !important;
+}
+#sivigila.dataTable.no-footer{
+  border-bottom:0 !important;
+}
 
 /* ID badge */
 .pai-badge-id{
@@ -491,10 +367,99 @@
   background:rgba(241,245,249,.7);
 }
 
+/* ===== DataTables premium ===== */
+.dataTables_wrapper{
+  padding-bottom:10px;
+}
+.dataTables_wrapper .dataTables_info{
+  color:var(--pai-muted);
+  font-weight:800;
+  font-size:.9rem;
+}
+.dataTables_wrapper .dataTables_paginate{
+  display:flex;
+  align-items:center;
+  gap:8px;
+}
+.dataTables_wrapper .dataTables_paginate .paginate_button{
+  border:1px solid var(--pai-border) !important;
+  background:#fff !important;
+  color:var(--pai-text) !important;
+  border-radius:10px !important;
+  padding:6px 11px !important;
+  min-width:38px;
+  font-weight:900;
+  line-height:1.1;
+  transition:all .14s ease;
+}
+.dataTables_wrapper .dataTables_paginate .paginate_button:hover{
+  border-color:var(--p-blue-bd) !important;
+  background:var(--p-blue-bg) !important;
+  color:var(--p-blue-tx) !important;
+  box-shadow:0 8px 18px rgba(2,6,23,.08);
+}
+.dataTables_wrapper .dataTables_paginate .paginate_button.current{
+  border-color:var(--p-blue-bd) !important;
+  background:linear-gradient(180deg,#eff6ff,#dbeafe) !important;
+  color:var(--p-blue-tx) !important;
+  box-shadow:0 8px 18px rgba(37,99,235,.16);
+}
+.dataTables_wrapper .dataTables_paginate .paginate_button.disabled,
+.dataTables_wrapper .dataTables_paginate .paginate_button.disabled:hover{
+  opacity:.45;
+  cursor:not-allowed !important;
+  box-shadow:none !important;
+  background:#fff !important;
+}
+.dataTables_wrapper .dataTables_processing{
+  top:12px !important;
+  left:50% !important;
+  transform:translateX(-50%);
+  margin-left:0 !important;
+  width:auto !important;
+  min-width:210px;
+  max-width:320px;
+  border:1px solid rgba(2,6,23,.12) !important;
+  border-radius:12px !important;
+  padding:8px 12px !important;
+  background:#fff !important;
+  color:var(--pai-text) !important;
+  font-weight:800 !important;
+  font-size:.88rem !important;
+  white-space:nowrap;
+  box-shadow:0 12px 24px rgba(2,6,23,.12);
+  z-index:5;
+}
+.pai-dt-loader{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap:4px;
+}
+
 /* responsive */
 @media(max-width: 992px){
   .pai-card__head{flex-direction:column; align-items:stretch;}
   .pai-card__head-right{justify-content:space-between;}
   .pai-table{min-width:820px;}
+  .dataTables_wrapper .dataTables_paginate{margin-top:8px;}
+}
+@media(max-width: 640px){
+  .dataTables_wrapper .dataTables_info{
+    width:100%;
+    text-align:center;
+    margin-bottom:8px;
+  }
+  .dataTables_wrapper .dataTables_paginate{
+    width:100%;
+    justify-content:center;
+    flex-wrap:wrap;
+    gap:6px;
+  }
+  .dataTables_wrapper .dataTables_paginate .paginate_button{
+    min-width:34px;
+    padding:5px 9px !important;
+    font-size:.84rem;
+  }
 }
 </style>
