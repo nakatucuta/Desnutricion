@@ -170,6 +170,102 @@
 }
 .pai-export-btn:hover{filter:brightness(1.03);}
 .pai-export-btn:disabled{opacity:.75;cursor:not-allowed;}
+.pai-export-actions{
+    display:grid;
+    grid-template-columns:1fr;
+    gap:10px;
+    margin-top:12px;
+}
+.pai-export-btn-alt{
+    background:#fff !important;
+    border:1px solid rgba(37,99,235,.35) !important;
+    color:#1d4ed8 !important;
+    box-shadow:none !important;
+}
+
+/* ===== Informe dinamico de cargue ===== */
+.pai-load-report-modal .modal-dialog{max-width:1160px;}
+.pai-load-report-card{
+    border:1px solid var(--m-line);
+    border-radius:18px;
+    overflow:hidden;
+    box-shadow:0 28px 70px rgba(2,6,23,.18);
+}
+.pai-load-report-head{
+    border-bottom:1px solid var(--m-line);
+    background:linear-gradient(180deg,#f8fbff,#eef5ff);
+}
+.pai-load-report-brand{display:flex;align-items:center;gap:10px;}
+.pai-load-report-logo{
+    width:42px;height:42px;object-fit:contain;border-radius:10px;
+    border:1px solid var(--m-line);background:#fff;padding:4px;
+}
+.pai-load-report-title{font-weight:900;color:var(--m-text);margin-bottom:0;}
+.pai-load-report-sub{font-size:.86rem;color:var(--m-muted);}
+.pai-load-report-body{padding:14px;background:#fff;}
+.pai-load-filterbar{
+    display:grid;
+    grid-template-columns: minmax(220px, 320px) 1fr auto;
+    gap:10px;
+    align-items:end;
+    margin-bottom:10px;
+}
+.pai-load-filterbar label{
+    font-size:.8rem;
+    font-weight:800;
+    color:#475569;
+}
+.pai-load-kpis{
+    display:grid;
+    grid-template-columns:repeat(5,minmax(0,1fr));
+    gap:10px;
+    margin-bottom:12px;
+}
+.pai-load-kpi{
+    border:1px solid var(--m-line);
+    border-radius:12px;
+    background:#f8fafc;
+    padding:10px;
+}
+.pai-load-kpi__label{font-size:.77rem;font-weight:800;color:#64748b;text-transform:uppercase;letter-spacing:.3px;}
+.pai-load-kpi__value{font-size:1.2rem;font-weight:900;color:#0f172a;line-height:1.2;}
+.pai-load-kpi--ok{background:#ecfdf3;border-color:#c8f1d9;}
+.pai-load-kpi--warn{background:#fff7e6;border-color:#ffe2b8;}
+.pai-load-kpi--info{background:#eaf2ff;border-color:#cfe0ff;}
+.pai-load-kpi--soft{background:#f8f7ff;border-color:#e4dbff;}
+.pai-load-table-wrap{
+    border:1px solid var(--m-line);
+    border-radius:12px;
+    max-height:430px;
+    overflow:auto;
+}
+.pai-load-table thead th{
+    position:sticky;top:0;z-index:2;
+    background:linear-gradient(180deg,#eaf2ff,#e2ecfb);
+    border:0;
+    font-size:.78rem;
+    text-transform:uppercase;
+    letter-spacing:.35px;
+    color:#0f172a;
+    font-weight:900;
+}
+.pai-load-table tbody td{
+    font-size:.86rem;
+    color:#334155;
+    vertical-align:top;
+    border-top:1px solid #eef2f7;
+}
+.pai-load-user{font-weight:900;color:#0f172a;}
+.pai-load-badge{
+    display:inline-flex;align-items:center;justify-content:center;
+    min-width:42px;padding:3px 10px;border-radius:999px;
+    font-weight:900;font-size:.8rem;
+}
+.pai-load-badge--ok{background:#dcfce7;color:#166534;border:1px solid #b7ecc9;}
+.pai-load-badge--zero{background:#ffe4e6;color:#9f1239;border:1px solid #fecdd3;}
+.pai-load-list{margin:0;padding-left:16px;}
+.pai-load-list li{margin:2px 0;line-height:1.3;}
+.pai-load-report-foot{border-top:1px solid var(--m-line);background:#f8fafc;}
 
 /* ===== Vacunas Modal (centralizado) ===== */
 .pai-vac-modal{
@@ -306,6 +402,12 @@
     .pai-export-help{font-size:.8rem; padding:7px 9px;}
     .pai-export-btn{margin-top:10px; border-radius:10px; font-size:.9rem;}
     .pai-export-field label{font-size:.8rem;}
+    .pai-load-kpis{grid-template-columns:1fr 1fr;}
+    .pai-load-filterbar{grid-template-columns:1fr;}
+    .pai-load-kpi__value{font-size:1.05rem;}
+    .pai-load-report-body{padding:10px;}
+    .pai-load-table thead th{font-size:.67rem;}
+    .pai-load-table tbody td{font-size:.78rem;}
 
     .pai-vac-head{padding:12px 12px 10px;}
     .pai-vac-logo{width:38px;height:38px;border-radius:9px;}

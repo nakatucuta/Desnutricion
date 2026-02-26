@@ -1078,6 +1078,8 @@ window.IMPORT_ENDPOINTS = {
       return url;
   };
   const SEND_EMAIL_URL = "{{ route('send.email') }}";
+  const LOAD_REPORT_URL = "{{ route('afiliado.load.summary') }}";
+  const LOAD_REPORT_PDF_URL = "{{ route('afiliado.load.summary.pdf') }}";
 
   let pollTimer = null;
   let safetyTimer = null;
@@ -1562,6 +1564,12 @@ window.IMPORT_ENDPOINTS = {
       $('.modal-backdrop').remove();
   });
 
+  $(document).on('hidden.bs.modal', '#loadReportModal', function () {
+      $('body').removeClass('modal-open');
+      $('body').css('padding-right','');
+      $('.modal-backdrop').remove();
+  });
+
   const afiliadoTable = $('#sivigila').DataTable({
       processing: true,
       serverSide: true,
@@ -1799,6 +1807,161 @@ window.IMPORT_ENDPOINTS = {
       });
   });
 
+  function formatNumber(value){
+      const n = Number(value || 0);
+      return n.toLocaleString('es-CO');
+  }
+
+  function dateToDisplay(isoDate){
+      if (!isoDate) return '--';
+      const parts = String(isoDate).split('-');
+      if (parts.length !== 3) return isoDate;
+      return parts[2] + '/' + parts[1] + '/' + parts[0];
+  }
+
+  function escapeHtml(value){
+      return String(value ?? '')
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;')
+          .replace(/'/g, '&#039;');
+  }
+  function formatDateTime(value){
+      if (!value) return '<span class="text-muted">Sin cargue</span>';
+      const dt = new Date(String(value).replace(' ', 'T'));
+      if (Number.isNaN(dt.getTime())) return escapeHtml(String(value));
+      return dt.toLocaleString('es-CO');
+  }
+
+  const loadReportState = {
+      start: '',
+      end: '',
+      rows: [],
+      usersCatalog: []
+  };
+
+  function populateLoadUserFilter(users, selectedUserId){
+      const $sel = $('#loadFilterUser');
+      const previous = selectedUserId || $sel.val() || '';
+      $sel.empty();
+      $sel.append('<option value="">Todos los usuarios</option>');
+      (users || []).forEach(function(u){
+          const val = String(u.id);
+          const selected = (String(previous) === val) ? ' selected' : '';
+          $sel.append('<option value="' + val + '"' + selected + '>' + escapeHtml(u.name) + '</option>');
+      });
+  }
+
+  function getActiveLoadFilters(){
+      return {
+          user_id: ($('#loadFilterUser').val() || '').trim(),
+          only_without_load: $('#loadFilterOnlyWithout').is(':checked')
+      };
+  }
+
+  function applyLoadFilters(rows){
+      const filters = getActiveLoadFilters();
+      return (rows || []).filter(function(row){
+          if (filters.user_id && String(row.user_id) !== String(filters.user_id)) {
+              return false;
+          }
+          if (filters.only_without_load && Number(row.vacunas_count || 0) > 0) {
+              return false;
+          }
+          return true;
+      });
+  }
+
+  function updateLoadKpis(rows){
+      const usersTotal = rows.length;
+      const usersWith = rows.filter(r => Number(r.vacunas_count || 0) > 0).length;
+      const usersWithout = rows.filter(r => Number(r.vacunas_count || 0) === 0).length;
+      const vacunasTotal = rows.reduce((acc, r) => acc + Number(r.vacunas_count || 0), 0);
+      const afiliadosTotal = rows.reduce((acc, r) => acc + Number(r.afiliados_count || 0), 0);
+
+      $('#loadUsersTotal').text(formatNumber(usersTotal));
+      $('#loadUsersWith').text(formatNumber(usersWith));
+      $('#loadUsersWithout').text(formatNumber(usersWithout));
+      $('#loadVacunasTotal').text(formatNumber(vacunasTotal));
+      $('#loadAfiliadosTotal').text(formatNumber(afiliadosTotal));
+  }
+
+  function renderLoadRows(rows){
+      const $tbody = $('#loadReportBody');
+      $tbody.empty();
+
+      if (!rows.length) {
+          $tbody.append('<tr><td colspan="8" class="text-center text-muted py-3">No se encontraron datos con los filtros actuales.</td></tr>');
+          return;
+      }
+
+      rows.forEach(function(row){
+          const vacunasCount = Number(row.vacunas_count || 0);
+          const badgeClass = vacunasCount > 0 ? 'pai-load-badge pai-load-badge--ok' : 'pai-load-badge pai-load-badge--zero';
+          const afiliadosPreview = Array.isArray(row.afiliados_preview) ? row.afiliados_preview : [];
+          const extraCount = Number(row.afiliados_extra_count || 0);
+
+          let afiliadosHtml = '<span class="text-muted">Sin afiliados cargados</span>';
+          if (afiliadosPreview.length) {
+              afiliadosHtml = '<ul class="pai-load-list">' + afiliadosPreview.map(function(item){
+                  return '<li>' + escapeHtml(item) + '</li>';
+              }).join('') + '</ul>';
+              if (extraCount > 0) {
+                  afiliadosHtml += '<div class="small text-muted mt-1">+' + formatNumber(extraCount) + ' afiliados mas</div>';
+              }
+          }
+
+          const rowHtml = ''
+              + '<tr>'
+              + '  <td><div class="pai-load-user">' + escapeHtml(row.usuario || 'Sin nombre') + '</div></td>'
+              + '  <td>' + escapeHtml(row.correo || 'Sin correo') + '</td>'
+              + '  <td class="text-center"><span class="' + badgeClass + '">' + formatNumber(vacunasCount) + '</span></td>'
+              + '  <td class="text-center"><strong>' + formatNumber(row.afiliados_count || 0) + '</strong></td>'
+              + '  <td class="text-center">' + formatNumber(row.lotes_count || 0) + '</td>'
+              + '  <td>' + formatDateTime(row.last_load_at) + '</td>'
+              + '  <td class="text-center">' + formatNumber(row.solicitudes_count || 0) + '</td>'
+              + '  <td>' + afiliadosHtml + '</td>'
+              + '</tr>';
+
+          $tbody.append(rowHtml);
+      });
+  }
+
+  function updateLoadPdfHref(){
+      const filters = getActiveLoadFilters();
+      let url = LOAD_REPORT_PDF_URL + '?start_date=' + encodeURIComponent(loadReportState.start) + '&end_date=' + encodeURIComponent(loadReportState.end);
+      if (filters.user_id) {
+          url += '&user_id=' + encodeURIComponent(filters.user_id);
+      }
+      if (filters.only_without_load) {
+          url += '&only_without_load=1';
+      }
+      $('#downloadLoadReportPdfButton').attr('href', url);
+  }
+
+  function renderLoadReportByFilters(){
+      const filteredRows = applyLoadFilters(loadReportState.rows);
+      updateLoadKpis(filteredRows);
+      renderLoadRows(filteredRows);
+      updateLoadPdfHref();
+  }
+
+  function updateLoadSummaryUI(resp, start, end){
+      loadReportState.start = start;
+      loadReportState.end = end;
+      loadReportState.rows = (resp && Array.isArray(resp.rows)) ? resp.rows : [];
+      loadReportState.usersCatalog = (resp && Array.isArray(resp.users_catalog)) ? resp.users_catalog : [];
+
+      $('#loadReportRangeText').text('Rango: ' + dateToDisplay(start) + ' a ' + dateToDisplay(end));
+
+      const serverFilters = (resp && resp.filters) ? resp.filters : {};
+      populateLoadUserFilter(loadReportState.usersCatalog, serverFilters.user_id ? String(serverFilters.user_id) : '');
+      $('#loadFilterOnlyWithout').prop('checked', !!serverFilters.only_without_load);
+
+      renderLoadReportByFilters();
+  }
+
   $('#exportButton').on('click', function (e) {
       e.preventDefault();
 
@@ -1864,6 +2027,70 @@ window.IMPORT_ENDPOINTS = {
               window.location.href = fallback;
           }
       });
+  });
+
+  $('#viewLoadReportButton').on('click', function (e) {
+      e.preventDefault();
+
+      const start = $('#start_date').val();
+      const end = $('#end_date').val();
+
+      if (!start || !end) {
+          Swal.fire({
+              icon: 'warning',
+              title: 'Fechas requeridas',
+              text: 'Selecciona fecha de inicio y fecha final.'
+          });
+          return;
+      }
+
+      const $btn = $('#viewLoadReportButton');
+      $('#view-report-text').hide();
+      $('#view-report-loading').show();
+      $('#view-report-sending').show();
+      $btn.prop('disabled', true);
+
+      $.ajax({
+          url: LOAD_REPORT_URL,
+          method: 'GET',
+          dataType: 'json',
+          data: {
+              start_date: start,
+              end_date: end
+          },
+          success: function (resp) {
+              updateLoadSummaryUI(resp, start, end);
+              forceCloseBootstrapModal('#exportModal');
+              $('#loadReportModal').modal('show');
+          },
+          error: function (xhr) {
+              let msg = 'No se pudo construir el informe dinamico.';
+              if (xhr.responseJSON && xhr.responseJSON.message) {
+                  msg = xhr.responseJSON.message;
+              }
+              Swal.fire({
+                  icon: 'error',
+                  title: 'Error en informe',
+                  text: msg
+              });
+          },
+          complete: function () {
+              $('#view-report-text').show();
+              $('#view-report-loading').hide();
+              $('#view-report-sending').hide();
+              $btn.prop('disabled', false);
+          }
+      });
+  });
+
+  $('#loadFilterUser, #loadFilterOnlyWithout').on('change', function(){
+      renderLoadReportByFilters();
+  });
+
+  $('#loadFilterReset').on('click', function(){
+      $('#loadFilterUser').val('');
+      $('#loadFilterOnlyWithout').prop('checked', false);
+      renderLoadReportByFilters();
   });
 
 })();

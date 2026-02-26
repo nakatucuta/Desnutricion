@@ -1405,5 +1405,195 @@ public function importStatus(string $token)
     ]);
 }
 
+public function loadSummary(Request $request)
+{
+    [$startDate, $endDate] = $this->validatedDateRange($request);
+    $filters = $this->extractLoadSummaryFilters($request);
+    $report = $this->buildLoadSummaryReport($startDate, $endDate, $filters);
+
+    return response()->json(array_merge([
+        'ok' => true,
+        'start_date' => $startDate,
+        'end_date' => $endDate,
+        'filters' => $filters,
+    ], $report));
+}
+
+public function loadSummaryPdf(Request $request)
+{
+    [$startDate, $endDate] = $this->validatedDateRange($request);
+    $filters = $this->extractLoadSummaryFilters($request);
+    $report = $this->buildLoadSummaryReport($startDate, $endDate, $filters);
+
+    $pdf = Pdf::loadView('livewire.reporte_cargue_pdf', [
+        'startDate' => $startDate,
+        'endDate' => $endDate,
+        'rows' => $report['rows'],
+        'totals' => $report['totals'],
+        'filters' => $filters,
+        'generatedAt' => now()->format('d/m/Y H:i:s'),
+    ])->setPaper('a4', 'landscape');
+
+    return $pdf->download("informe_cargue_{$startDate}_{$endDate}.pdf");
+}
+
+private function validatedDateRange(Request $request): array
+{
+    $validated = $request->validate([
+        'start_date' => 'required|date',
+        'end_date' => 'required|date|after_or_equal:start_date',
+    ]);
+
+    return [$validated['start_date'], $validated['end_date']];
+}
+
+private function extractLoadSummaryFilters(Request $request): array
+{
+    $validated = $request->validate([
+        'user_id' => 'nullable|integer|exists:users,id',
+        'only_without_load' => 'nullable',
+    ]);
+
+    return [
+        'user_id' => isset($validated['user_id']) ? (int) $validated['user_id'] : null,
+        'only_without_load' => filter_var($request->input('only_without_load', false), FILTER_VALIDATE_BOOLEAN),
+    ];
+}
+
+private function buildLoadSummaryReport(string $startDate, string $endDate, array $filters = []): array
+{
+    $summaryQuery = DB::table('users as u')
+        ->leftJoin('vacunas as v', function ($join) use ($startDate, $endDate) {
+            $join->on('u.id', '=', 'v.user_id')
+                ->whereBetween(DB::raw('CAST(v.created_at AS DATE)'), [$startDate, $endDate]);
+        })
+        ->select([
+            'u.id',
+            'u.name',
+            'u.email',
+            DB::raw('COUNT(v.id) as vacunas_count'),
+            DB::raw('COUNT(DISTINCT v.afiliado_id) as afiliados_count'),
+            DB::raw('COUNT(DISTINCT v.batch_verifications_id) as lotes_count'),
+            DB::raw('MAX(v.created_at) as last_load_at'),
+        ])
+        ->groupBy('u.id', 'u.name', 'u.email')
+        ->orderByRaw('COUNT(v.id) DESC')
+        ->orderBy('u.name');
+
+    if (!empty($filters['user_id'])) {
+        $summaryQuery->where('u.id', (int) $filters['user_id']);
+    }
+
+    $summaryRows = $summaryQuery->get();
+
+    $afiliadoQuery = DB::table('vacunas as v')
+        ->join('afiliados as a', 'a.id', '=', 'v.afiliado_id')
+        ->whereBetween(DB::raw('CAST(v.created_at AS DATE)'), [$startDate, $endDate])
+        ->select([
+            'v.user_id',
+            'a.id as afiliado_id',
+            DB::raw("COALESCE(NULLIF(a.numero_identificacion, ''), CAST(a.id as varchar(50))) as afiliado_documento"),
+            DB::raw("LTRIM(RTRIM(CONCAT(ISNULL(a.primer_nombre,''), ' ', ISNULL(a.segundo_nombre,''), ' ', ISNULL(a.primer_apellido,''), ' ', ISNULL(a.segundo_apellido,'')))) as afiliado_nombre"),
+        ])
+        ->groupBy(
+            'v.user_id',
+            'a.id',
+            'a.numero_identificacion',
+            'a.primer_nombre',
+            'a.segundo_nombre',
+            'a.primer_apellido',
+            'a.segundo_apellido'
+        )
+        ->orderBy('v.user_id')
+        ->orderBy('afiliado_nombre');
+
+    if (!empty($filters['user_id'])) {
+        $afiliadoQuery->where('v.user_id', (int) $filters['user_id']);
+    }
+
+    $afiliadoRows = $afiliadoQuery->get();
+
+    $solicitudesQuery = DB::table('correos_enviados')
+        ->select([
+            'user_id',
+            DB::raw('COUNT(id) as solicitudes_count'),
+        ])
+        ->whereBetween(DB::raw('CAST(sent_at AS DATE)'), [$startDate, $endDate])
+        ->groupBy('user_id');
+
+    if (!empty($filters['user_id'])) {
+        $solicitudesQuery->where('user_id', (int) $filters['user_id']);
+    }
+
+    $solicitudesRows = $solicitudesQuery->get()->keyBy('user_id');
+
+    $afiliadosByUser = [];
+    foreach ($afiliadoRows as $af) {
+        $afiliadosByUser[$af->user_id][] = [
+            'id' => (int) $af->afiliado_id,
+            'documento' => (string) $af->afiliado_documento,
+            'nombre' => trim((string) $af->afiliado_nombre),
+        ];
+    }
+
+    $rowsCollection = $summaryRows->map(function ($row) use ($afiliadosByUser, $solicitudesRows) {
+        $userAfiliados = $afiliadosByUser[$row->id] ?? [];
+        $preview = collect($userAfiliados)
+            ->take(6)
+            ->map(function ($a) {
+                return $a['documento'] . ' - ' . $a['nombre'];
+            })
+            ->values()
+            ->all();
+
+        return [
+            'user_id' => (int) $row->id,
+            'usuario' => $row->name ?: 'Sin nombre',
+            'correo' => $row->email ?: 'Sin correo',
+            'vacunas_count' => (int) $row->vacunas_count,
+            'afiliados_count' => (int) $row->afiliados_count,
+            'lotes_count' => (int) $row->lotes_count,
+            'last_load_at' => $row->last_load_at ? Carbon::parse($row->last_load_at)->format('Y-m-d H:i:s') : null,
+            'solicitudes_count' => (int) ($solicitudesRows[$row->id]->solicitudes_count ?? 0),
+            'afiliados' => $userAfiliados,
+            'afiliados_preview' => $preview,
+            'afiliados_extra_count' => max(count($userAfiliados) - count($preview), 0),
+        ];
+    });
+
+    if (!empty($filters['only_without_load'])) {
+        $rowsCollection = $rowsCollection->where('vacunas_count', '=', 0);
+    }
+
+    $rows = $rowsCollection->values()->all();
+
+    $usersWithLoad = collect($rows)->where('vacunas_count', '>', 0)->count();
+    $usersWithoutLoad = collect($rows)->where('vacunas_count', '=', 0)->count();
+    $totalVacunas = collect($rows)->sum('vacunas_count');
+    $totalAfiliados = collect($rows)
+        ->flatMap(function ($r) {
+            return collect($r['afiliados'] ?? [])->pluck('id');
+        })
+        ->unique()
+        ->count();
+
+    return [
+        'rows' => $rows,
+        'users_catalog' => collect($summaryRows)->map(function ($u) {
+            return [
+                'id' => (int) $u->id,
+                'name' => $u->name ?: 'Sin nombre',
+            ];
+        })->values()->all(),
+        'totals' => [
+            'users_total' => count($rows),
+            'users_with_load' => $usersWithLoad,
+            'users_without_load' => $usersWithoutLoad,
+            'vacunas_total' => (int) $totalVacunas,
+            'afiliados_total' => (int) $totalAfiliados,
+        ],
+    ];
+}
+
 
 }

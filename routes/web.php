@@ -74,6 +74,12 @@ Route::get('/vacunas/{id}/{numeroCarnet?}/pdf', [AfiliadoController::class, 'get
 // Ruta para el reporte Excel con fechas
 Route::get('export-vacunas', [AfiliadoController::class, 'exportVacunas'])
      ->name('exportVacunas');
+Route::get('afiliado/reportes/cargue-resumen', [AfiliadoController::class, 'loadSummary'])
+     ->name('afiliado.load.summary')
+     ->middleware('auth');
+Route::get('afiliado/reportes/cargue-resumen/pdf', [AfiliadoController::class, 'loadSummaryPdf'])
+     ->name('afiliado.load.summary.pdf')
+     ->middleware('auth');
 
 
 
