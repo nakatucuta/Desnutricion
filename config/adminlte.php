@@ -64,11 +64,11 @@ return [
     |
     */
 
-'logo' => '<span class="brand-text font-weight-bold">Anas <b>Wayuu</b></span>',
+'logo' => 'ANAS <b>WAYUU</b>',
 
-'logo_img' => 'vendor/adminlte/dist/img/logo.png',
+'logo_img' => 'img/logo.png',
 
-'logo_img_class' => 'brand-image custom-logo', // Cambia a una clase personalizada
+'logo_img_class' => 'brand-image tech-brand-logo',
 
     'logo_img_xl' => null,
     'logo_img_xl_class' => 'brand-image-xs',
@@ -211,9 +211,9 @@ return [
     'classes_content_wrapper' => '', //es todo el contenindo dentro de la plantilla ojo
     'classes_content_header' => '',  //estilos al header de la pgina 
     'classes_content' => '',
-    'classes_sidebar' => 'sidebar-dark-success elevation-4',
+    'classes_sidebar' => 'sidebar-dark-primary elevation-4',
     'classes_sidebar_nav' => '',
-    'classes_topnav' => 'navbar-dark-info ', //AQUI CAMBIAS  DE COLOR LAS LESTRAS AZULES DEL LOGIN navbar-white navbar-light
+    'classes_topnav' => 'navbar-white navbar-light',
     'classes_topnav_nav' => 'navbar-expand',
     'classes_topnav_container' => 'container',
 
@@ -278,7 +278,7 @@ return [
     'register_url' => 'register',
     'password_reset_url' => 'password/reset',
     'password_email_url' => 'password/email',
-    'profile_url' => false,
+    'profile_url' => 'profile',
 
     /*
     |--------------------------------------------------------------------------
@@ -357,7 +357,7 @@ return [
                     'text'        => 'Seguimiento',
                     'url'         => 'Seguimiento',
                      'icon'        => 'fas fa-fw fa-user',
-                     'label'       => 'ZONA PARA IPS',
+                     'label'       => '',
                      'label_color' => 'warning',
                      'icon_color'  => 'yellow',
                     //  'icon_color'  => 'green'

@@ -27,6 +27,7 @@ use App\Http\Controllers\PreconcepcionalController;
 use App\Http\Controllers\FormatosController;
 use App\Http\Controllers\GestantesStatsController;
 use App\Http\Controllers\AlertasController;
+use App\Http\Controllers\ProfileController;
 
 /*
 |--------------------------------------------------------------------------
@@ -98,6 +99,13 @@ Route::delete('/batch-verifications/bulk-delete', [AfiliadoController::class, 'd
 
 
 Auth::routes();
+
+Route::middleware('auth')->group(function () {
+    Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
+    Route::put('/profile', [ProfileController::class, 'updateProfile'])->name('profile.update');
+    Route::put('/profile/password', [ProfileController::class, 'updatePassword'])->name('profile.password.update');
+    Route::get('/profile/audit', [ProfileController::class, 'auditIndex'])->name('profile.audit');
+});
 
 Route::get('/home', [App\Http\Controllers\HomeController::class, 'index'])->name('home');
 

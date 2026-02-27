@@ -92,9 +92,12 @@ class LoginController extends Controller
         $this->logAuthEvent('login_failed', $request);
 
         $field = $request->filled('email') ? 'email' : 'codigohabilitacion';
+        $attempts = (int) $this->limiter()->attempts($this->throttleKey($request));
+        $max = (int) $this->maxAttempts();
+        $remaining = max(0, $max - $attempts);
 
         throw ValidationException::withMessages([
-            $field => [trans('auth.failed')],
+            $field => [trans('auth.failed') . " Intento {$attempts} de {$max}. Te quedan {$remaining} intento(s) antes del bloqueo."],
         ]);
     }
 
@@ -132,9 +135,10 @@ class LoginController extends Controller
 
         $seconds = $this->limiter()->availableIn($this->throttleKey($request));
         $minutes = (int) ceil($seconds / 60);
+        $max = (int) $this->maxAttempts();
 
         throw ValidationException::withMessages([
-            $this->username() => ["Demasiados intentos fallidos. Intenta de nuevo en {$minutes} minuto(s)."],
+            $this->username() => ["Demasiados intentos fallidos ({$max}/{$max}). Tu acceso esta bloqueado temporalmente. Intenta de nuevo en {$minutes} minuto(s)."],
         ]);
     }
 

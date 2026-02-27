@@ -21,7 +21,8 @@ class User extends Authenticatable
 
     public function getDateFormat()
     {
-        return 'Y-m-d H:i:s';
+        // Formato no ambiguo para SQL Server (evita interpretacion regional y errores de conversion).
+        return 'Ymd H:i:s';
     }
 
     /**
