@@ -345,6 +345,12 @@
             scrollbar-width:thin;
             scrollbar-color:#4f7ea9 #0a1a2d;
         }
+        .main-sidebar .sidebar nav.pt-2{
+            padding-top:1rem !important;
+        }
+        .main-sidebar .sidebar .nav-sidebar > .nav-item:first-child{
+            margin-top:.45rem;
+        }
         .main-sidebar .nav-sidebar>.nav-item{
             margin:4px 8px;
         }
@@ -454,6 +460,33 @@
             text-transform:uppercase;
             font-size:.68rem;
             margin-top:11px;
+        }
+        .main-sidebar .sidebar .form-inline{
+            margin:.8rem .62rem .48rem;
+            position:relative;
+            z-index:2;
+        }
+        .main-sidebar .sidebar .form-inline .input-group{
+            width:86% !important;
+            max-width:200px;
+            margin:0 auto;
+        }
+        .main-sidebar .sidebar .form-control-sidebar{
+            height:30px;
+            font-size:.78rem;
+            padding:.28rem .52rem;
+            border-radius:10px 0 0 10px;
+            line-height:1.15;
+        }
+        .main-sidebar .sidebar .btn-sidebar{
+            height:30px;
+            width:34px;
+            min-width:34px;
+            padding:0;
+            border-radius:0 10px 10px 0;
+        }
+        .main-sidebar .sidebar .btn-sidebar i{
+            font-size:.76rem;
         }
 
         .content-wrapper{
