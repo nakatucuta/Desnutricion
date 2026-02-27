@@ -231,7 +231,16 @@ class GesTipo1Import implements OnEachRow, WithStartRow, WithChunkReading, Skips
         }
 
         $v = mb_strtoupper(trim((string) $value), 'UTF-8');
-        $allowed = ['CC', 'TI', 'CE', 'PT', 'PPT', 'RC', 'PA', 'AS', 'MS', 'CD', 'NIT', 'NUIP'];
+        // Normalizaciones comunes en fuentes de salud/aseguramiento.
+        if ($v === 'PPT') {
+            $v = 'PT';
+        }
+        if ($v === 'TE') {
+            $v = 'CE';
+        }
+
+        // Catalogo amplio usado en reportes de salud en Colombia (RIPS/maestro personas).
+        $allowed = ['CC', 'TI', 'RC', 'CE', 'PA', 'AS', 'MS', 'CD', 'SC', 'PE', 'PT', 'CN', 'DE', 'SI', 'NIT', 'NUIP'];
 
         if (!in_array($v, $allowed, true)) {
             $this->addError($excelRow, 'Tipo identificacion', 'valor no permitido', $value);
