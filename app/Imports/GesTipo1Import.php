@@ -3,47 +3,63 @@
 namespace App\Imports;
 
 use App\Models\GesTipo1;
-use App\Models\batch_verifications;
-use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
-use Exception;
-
+use Illuminate\Support\Facades\DB;
+use Maatwebsite\Excel\Concerns\OnEachRow;
+use Maatwebsite\Excel\Concerns\SkipsEmptyRows;
+use Maatwebsite\Excel\Concerns\WithChunkReading;
+use Maatwebsite\Excel\Concerns\WithStartRow;
+use Maatwebsite\Excel\Row;
 use PhpOffice\PhpSpreadsheet\Shared\Date as ExcelDate;
 
-use Maatwebsite\Excel\Concerns\OnEachRow;
-use Maatwebsite\Excel\Concerns\WithStartRow;
-use Maatwebsite\Excel\Concerns\WithChunkReading;
-use Maatwebsite\Excel\Concerns\WithEvents;
-
-use Maatwebsite\Excel\Row;
-use Maatwebsite\Excel\Events\BeforeImport;
-use Maatwebsite\Excel\Events\AfterImport;
-use Maatwebsite\Excel\Events\ImportFailed;
-
-class GesTipo1Import implements OnEachRow, WithStartRow, WithChunkReading, WithEvents
+class GesTipo1Import implements OnEachRow, WithStartRow, WithChunkReading, SkipsEmptyRows
 {
-    private int $batch_verifications_id;
+    private int $batchVerificationsId;
+    private int $userId;
 
     private array $buffer = [];
-    private array $sinCarnet = [];
-    private array $yaExistentes = [];
-
     private ?int $maxRowsPerInsert = null;
+    private array $carnetCache = [];
+    private array $seenInFile = [];
+    private array $errores = [];
 
-    public function __construct()
+    private int $rowsTotal = 0;
+    private int $rowsCreated = 0;
+    private int $rowsInvalid = 0;
+    private int $rowsSkipped = 0;
+    private int $rowsDuplicated = 0;
+
+    public function __construct(int $userId, int $batchVerificationsId)
     {
-        $verificacion = new batch_verifications([
-            'fecha_cargue' => now()->format('Y-m-d H:i:s'),
-        ]);
-        $verificacion->save();
-
-        $this->batch_verifications_id = (int) $verificacion->id;
+        $this->userId = $userId;
+        $this->batchVerificationsId = $batchVerificationsId;
     }
 
     public function getBatchVerificationsId(): int
     {
-        return $this->batch_verifications_id;
+        return $this->batchVerificationsId;
+    }
+
+    public function getErrores(): array
+    {
+        return $this->errores;
+    }
+
+    public function getCounters(): array
+    {
+        return [
+            'rows_total' => $this->rowsTotal,
+            'rows_created' => $this->rowsCreated,
+            'rows_invalid' => $this->rowsInvalid,
+            'rows_skipped' => $this->rowsSkipped,
+            'rows_duplicated' => $this->rowsDuplicated,
+            'errors_count' => count($this->errores),
+        ];
+    }
+
+    public function finalize(): void
+    {
+        $this->flushBuffer();
     }
 
     public function startRow(): int
@@ -51,200 +67,374 @@ class GesTipo1Import implements OnEachRow, WithStartRow, WithChunkReading, WithE
         return 2;
     }
 
-    // Tamaño del chunk de lectura del Excel (puedes subir/bajar)
     public function chunkSize(): int
     {
         return 500;
     }
 
-    public function registerEvents(): array
-    {
-        return [
-            BeforeImport::class => function (BeforeImport $event) {
-                DB::connection('sqlsrv')->disableQueryLog();
-                DB::beginTransaction();
-            },
-
-            AfterImport::class => function (AfterImport $event) {
-                // Inserta lo último que quede en buffer
-                $this->flushBuffer();
-
-                // Si hubo problemas, rollback y lanza error
-                if (!empty($this->yaExistentes)) {
-                    DB::rollBack();
-                    throw new Exception(
-                        "Import DETENIDO: usuarios ya existen y su FPP no ha pasado:\n\n" . implode("\n", $this->yaExistentes)
-                    );
-                }
-
-                if (!empty($this->sinCarnet)) {
-                    DB::rollBack();
-                    throw new Exception(
-                        "Import DETENIDO: usuarios sin carnet:\n\n" . implode("\n", $this->sinCarnet)
-                    );
-                }
-
-                // Todo ok
-                DB::commit();
-            },
-
-            ImportFailed::class => function (ImportFailed $event) {
-                // Si algo falla en medio del proceso, rollback
-                if (DB::transactionLevel() > 0) {
-                    DB::rollBack();
-                }
-            },
-        ];
-    }
-
-    private function parseExcelDate($value, int $excelRowNumber, string $campo): string
+    private function clean($value)
     {
         if ($value === null) {
-            throw new Exception("Fecha vacía en fila {$excelRowNumber} ({$campo}).");
+            return null;
         }
 
         if (is_string($value)) {
             $value = trim($value);
-            if ($value === '' || $value === '0' || strtoupper($value) === 'N/A') {
-                throw new Exception("Fecha vacía en fila {$excelRowNumber} ({$campo}).");
+            $upper = mb_strtoupper($value, 'UTF-8');
+            if ($value === '' || $upper === 'N/A' || $upper === 'NA' || $upper === 'NULL' || $upper === 'NONE') {
+                return null;
             }
         }
 
-        // Serial de Excel
-        if (is_numeric($value)) {
-            try {
-                $dt = ExcelDate::excelToDateTimeObject((float)$value);
-                return Carbon::instance($dt)->format('Y-m-d');
-            } catch (\Throwable $e) {
-                throw new Exception("Fecha inválida en fila {$excelRowNumber} ({$campo}): '{$value}'");
-            }
-        }
-
-        // Strings comunes
-        $formats = [
-            'Y-m-d', 'Y/m/d',
-            'd-m-Y', 'd/m/Y',
-            'm-d-Y', 'm/d/Y',
-            'd-m-y', 'd/m/y',
-            'm-d-y', 'm/d/y',
-        ];
-
-        foreach ($formats as $fmt) {
-            try {
-                $c = Carbon::createFromFormat($fmt, (string)$value);
-                if ($c && $c->year >= 1753 && $c->year <= 9999) {
-                    return $c->format('Y-m-d');
-                }
-            } catch (\Throwable $e) {}
-        }
-
-        // último intento
-        try {
-            $c = Carbon::parse((string)$value);
-            if ($c->year >= 1753 && $c->year <= 9999) {
-                return $c->format('Y-m-d');
-            }
-        } catch (\Throwable $e) {}
-
-        throw new Exception("Fecha inválida en fila {$excelRowNumber} ({$campo}): '{$value}'");
+        return $value;
     }
 
-    public function onRow(Row $row)
+    private function addError(int $excelRow, string $field, string $message, $value = null): void
     {
-        $excelRowNumber = (int) $row->getIndex(); // número real de fila en Excel
-        $r = $row->toArray();
-
-        // 1) Fechas
-        $fechaN = $this->parseExcelDate($r[12] ?? null, $excelRowNumber, 'fecha_de_nacimiento');
-        $fechaP = $this->parseExcelDate($r[16] ?? null, $excelRowNumber, 'fecha_probable_de_parto');
-
-        // 2) Identificación
-        $tipoIdent = trim((string)($r[6] ?? ''));
-        $noId      = trim((string)($r[7] ?? ''));
-
-        if ($tipoIdent === '' || $noId === '') {
-            throw new Exception("Fila {$excelRowNumber}: tipo_identificación o no_id_del_usuario vacío.");
+        if (count($this->errores) >= 5000) {
+            return;
         }
 
-        // 3) Si ya existe y su FPP no pasó => registrar y saltar
-        if (GesTipo1::where('tipo_de_identificacion_de_la_usuaria', $tipoIdent)
-            ->where('no_id_del_usuario', $noId)
-            ->exists())
-        {
-            $hoy = Carbon::today();
-            $fp  = Carbon::parse($fechaP);
+        $msg = "Fila {$excelRow} | {$field}: {$message}";
+        $value = $this->clean($value);
+        if ($value !== null) {
+            $msg .= ' (valor: ' . mb_substr((string) $value, 0, 120) . ')';
+        }
+        $this->errores[] = $msg;
+    }
 
-            if ($hoy->lte($fp)) {
-                $nombreCompleto = trim(($r[10] ?? '')." ".($r[11] ?? '')." ".($r[8] ?? '')." ".($r[9] ?? ''));
-                $this->yaExistentes[] = "{$nombreCompleto} (ID: {$noId}) — fecha_probable_de_parto: {$fechaP}";
-                return;
+    private function parseDate($value, int $excelRow, string $field): ?string
+    {
+        $value = $this->clean($value);
+        if ($value === null) {
+            $this->addError($excelRow, $field, 'fecha vacia');
+            return null;
+        }
+
+        $dt = null;
+
+        if ($value instanceof \DateTimeInterface) {
+            $dt = Carbon::instance($value);
+        }
+
+        if ($dt === null && is_numeric($value)) {
+            try {
+                $dt = Carbon::instance(ExcelDate::excelToDateTimeObject((float) $value));
+            } catch (\Throwable $e) {
+                $this->addError($excelRow, $field, 'fecha invalida', $value);
+                return null;
             }
         }
 
-        // 4) Carnet
-        $numeroCarnet = DB::connection('sqlsrv_1')
+        if ($dt === null) {
+            $raw = (string) $value;
+            foreach (['Y-m-d', 'Y/m/d', 'd/m/Y', 'd-m-Y', 'm/d/Y', 'm-d-Y'] as $fmt) {
+                try {
+                    $dt = Carbon::createFromFormat($fmt, $raw);
+                    break;
+                } catch (\Throwable $e) {
+                }
+            }
+        }
+
+        if ($dt === null) {
+            try {
+                $dt = Carbon::parse((string) $value);
+            } catch (\Throwable $e) {
+                $this->addError($excelRow, $field, 'fecha invalida', $value);
+                return null;
+            }
+        }
+
+        if ((int) $dt->year < 1753 || (int) $dt->year > 9999) {
+            $this->addError($excelRow, $field, 'fecha fuera de rango SQL Server', $value);
+            return null;
+        }
+
+        return $dt->format('Y-m-d');
+    }
+
+    private function parseInteger($value, int $excelRow, string $field, bool $required = false, ?int $min = null, ?int $max = null): ?int
+    {
+        $value = $this->clean($value);
+        if ($value === null) {
+            if ($required) {
+                $this->addError($excelRow, $field, 'campo obligatorio');
+            }
+            return null;
+        }
+
+        $normalized = str_replace([' ', ','], ['', '.'], (string) $value);
+        if (!preg_match('/^-?\d+(\.0+)?$/', $normalized)) {
+            $this->addError($excelRow, $field, 'debe ser numero entero', $value);
+            return null;
+        }
+
+        $n = (int) round((float) $normalized);
+
+        if ($min !== null && $n < $min) {
+            $this->addError($excelRow, $field, "debe ser >= {$min}", $value);
+            return null;
+        }
+        if ($max !== null && $n > $max) {
+            $this->addError($excelRow, $field, "debe ser <= {$max}", $value);
+            return null;
+        }
+
+        return $n;
+    }
+
+    private function parseTinyCode($value, int $excelRow, string $field): ?int
+    {
+        return $this->parseInteger($value, $excelRow, $field, true, 0, 2);
+    }
+
+    private function parseZona($value, int $excelRow): ?string
+    {
+        $value = $this->clean($value);
+        if ($value === null) {
+            $this->addError($excelRow, 'Zona territorial de residencia', 'campo obligatorio');
+            return null;
+        }
+
+        $v = mb_strtoupper(trim((string) $value), 'UTF-8');
+        $map = [
+            'URBANA' => 'U',
+            'U' => 'U',
+            'RURAL' => 'R',
+            'R' => 'R',
+        ];
+
+        if (!isset($map[$v])) {
+            $this->addError($excelRow, 'Zona territorial de residencia', 'solo permite U/R o Urbana/Rural', $value);
+            return null;
+        }
+
+        return $map[$v];
+    }
+
+    private function parseTipoDocumento($value, int $excelRow): ?string
+    {
+        $value = $this->clean($value);
+        if ($value === null) {
+            $this->addError($excelRow, 'Tipo identificacion', 'campo obligatorio');
+            return null;
+        }
+
+        $v = mb_strtoupper(trim((string) $value), 'UTF-8');
+        $allowed = ['CC', 'TI', 'CE', 'PT', 'PPT', 'RC', 'PA', 'AS', 'MS', 'CD', 'NIT', 'NUIP'];
+
+        if (!in_array($v, $allowed, true)) {
+            $this->addError($excelRow, 'Tipo identificacion', 'valor no permitido', $value);
+            return null;
+        }
+
+        return $v;
+    }
+
+    private function parseString($value, int $excelRow, string $field, bool $required = false, int $max = 255): ?string
+    {
+        $value = $this->clean($value);
+        if ($value === null) {
+            if ($required) {
+                $this->addError($excelRow, $field, 'campo obligatorio');
+            }
+            return null;
+        }
+
+        $v = trim((string) $value);
+        if (mb_strlen($v) > $max) {
+            $this->addError($excelRow, $field, "supera {$max} caracteres");
+            return null;
+        }
+
+        return $v;
+    }
+
+    private function getNumeroCarnet(string $tipoIdent, string $noId): ?string
+    {
+        $key = $tipoIdent . '|' . $noId;
+        if (array_key_exists($key, $this->carnetCache)) {
+            return $this->carnetCache[$key];
+        }
+
+        $carnet = DB::connection('sqlsrv_1')
             ->table('maestroIdentificaciones')
             ->where('identificacion', $noId)
             ->where('tipoIdentificacion', $tipoIdent)
             ->value('numeroCarnet');
 
-        if (!$numeroCarnet) {
-            $nombreCompleto = trim(($r[10] ?? '')." ".($r[11] ?? '')." ".($r[8] ?? '')." ".($r[9] ?? ''));
-            $this->sinCarnet[] = "{$nombreCompleto} (ID: {$noId})";
+        $this->carnetCache[$key] = $carnet ? (string) $carnet : null;
+
+        return $this->carnetCache[$key];
+    }
+
+    public function onRow(Row $row)
+    {
+        $excelRow = (int) $row->getIndex();
+        $this->rowsTotal++;
+
+        $r = $row->toArray();
+
+        $hasAny = false;
+        foreach ($r as $v) {
+            if ($this->clean($v) !== null) {
+                $hasAny = true;
+                break;
+            }
+        }
+
+        if (!$hasAny) {
+            $this->rowsSkipped++;
             return;
         }
 
-        // 5) Armar fila
-        $data = [
-            'user_id'   => Auth::id(),
-            'tipo_de_registro'                                    => $r[0] ?? null,
-            'consecutivo'                                         => $r[1] ?? null,
-            'pais_de_la_nacionalidad'                             => $r[2] ?? null,
-            'municipio_de_residencia_habitual'                    => $r[3] ?? null,
-            'zona_territorial_de_residencia'                      => $r[4] ?? null,
-            'codigo_de_habilitacion_ips_primaria_de_la_gestante'  => $r[5] ?? null,
-            'tipo_de_identificacion_de_la_usuaria'                => $tipoIdent,
-            'no_id_del_usuario'                                   => $noId,
-            'numero_carnet'                                       => $numeroCarnet,
-            'primer_apellido'                                     => $r[8] ?? null,
-            'segundo_apellido'                                    => $r[9] ?? null,
-            'primer_nombre'                                       => $r[10] ?? null,
-            'segundo_nombre'                                      => $r[11] ?? null,
-            'fecha_de_nacimiento'                                 => $fechaN,
-            'codigo_pertenencia_etnica'                           => $r[13] ?? null,
-            'codigo_de_ocupacion'                                 => $r[14] ?? null,
-            'codigo_nivel_educativo_de_la_gestante'               => $r[15] ?? null,
-            'fecha_probable_de_parto'                             => $fechaP,
-            'direccion_de_residencia_de_la_gestante'              => $r[17] ?? null,
-            'antecedente_hipertension_cronica'                    => $r[18] ?? null,
-            'antecedente_preeclampsia'                            => $r[19] ?? null,
-            'antecedente_diabetes'                                => $r[20] ?? null,
-            'antecedente_les_enfermedad_autoinmune'               => $r[21] ?? null,
-            'antecedente_sindrome_metabolico'                     => $r[22] ?? null,
-            'antecedente_erc'                                     => $r[23] ?? null,
-            'antecedente_trombofilia_o_trombosis_venosa_profunda' => $r[24] ?? null,
-            'antecedentes_anemia_celulas_falciformes'             => $r[25] ?? null,
-            'antecedente_sepsis_durante_gestaciones_previas'      => $r[26] ?? null,
-            'consumo_tabaco_durante_la_gestacion'                 => $r[27] ?? null,
-            'periodo_intergenesico'                               => $r[28] ?? null,
-            'embarazo_multiple'                                   => $r[29] ?? null,
-            'metodo_de_concepcion'                                => $r[30] ?? null,
-            'batch_verifications_id'                              => $this->batch_verifications_id,
+        if (count($r) < 31) {
+            $this->addError($excelRow, 'Estructura', 'el archivo no tiene las 31 columnas esperadas');
+            $this->rowsInvalid++;
+            return;
+        }
 
-            // timestamps por SQL Server
+        if (count($r) > 31) {
+            foreach ($r as $idx => $val) {
+                if ((int) $idx > 30 && $this->clean($val) !== null) {
+                    $this->addError($excelRow, 'Estructura', 'se detectaron columnas adicionales no permitidas');
+                    $this->rowsInvalid++;
+                    return;
+                }
+            }
+        }
+
+        $errorsBefore = count($this->errores);
+
+        $tipoRegistro = $this->parseInteger($r[0] ?? null, $excelRow, 'Tipo de registro', true, 1, 9);
+        if ($tipoRegistro !== null && $tipoRegistro !== 2) {
+            $this->addError($excelRow, 'Tipo de registro', 'debe ser 2 para cargue tipo 1', $tipoRegistro);
+        }
+
+        $consecutivo = $this->parseInteger($r[1] ?? null, $excelRow, 'Consecutivo', true, 1);
+        $paisNacionalidad = $this->parseInteger($r[2] ?? null, $excelRow, 'Pais nacionalidad', true, 1);
+        $municipioResidencia = $this->parseInteger($r[3] ?? null, $excelRow, 'Municipio residencia habitual', true, 1);
+        $zona = $this->parseZona($r[4] ?? null, $excelRow);
+        $codigoIps = $this->parseString($r[5] ?? null, $excelRow, 'Codigo IPS primaria', true, 30);
+        $tipoIdent = $this->parseTipoDocumento($r[6] ?? null, $excelRow);
+        $noId = $this->parseString($r[7] ?? null, $excelRow, 'No ID usuario', true, 30);
+
+        if ($noId !== null && !preg_match('/^[A-Za-z0-9\-]+$/', $noId)) {
+            $this->addError($excelRow, 'No ID usuario', 'solo permite letras, numeros y guion', $noId);
+        }
+
+        $primerApellido = $this->parseString($r[8] ?? null, $excelRow, 'Primer apellido', true, 100);
+        $segundoApellido = $this->parseString($r[9] ?? null, $excelRow, 'Segundo apellido', false, 100) ?? '';
+        $primerNombre = $this->parseString($r[10] ?? null, $excelRow, 'Primer nombre', true, 100);
+        $segundoNombre = $this->parseString($r[11] ?? null, $excelRow, 'Segundo nombre', false, 100) ?? '';
+
+        $fechaNacimiento = $this->parseDate($r[12] ?? null, $excelRow, 'Fecha nacimiento');
+        $codigoEtnia = $this->parseInteger($r[13] ?? null, $excelRow, 'Codigo pertenencia etnica', true, 0);
+        $codigoOcupacion = $this->parseInteger($r[14] ?? null, $excelRow, 'Codigo ocupacion', true, 0);
+        $codigoNivelEducativo = $this->parseInteger($r[15] ?? null, $excelRow, 'Codigo nivel educativo', true, 0);
+        $fechaProbableParto = $this->parseDate($r[16] ?? null, $excelRow, 'Fecha probable parto');
+        $direccion = $this->parseString($r[17] ?? null, $excelRow, 'Direccion residencia', true, 500);
+
+        $hta = $this->parseTinyCode($r[18] ?? null, $excelRow, 'Antecedente HTA cronica');
+        $preeclampsia = $this->parseTinyCode($r[19] ?? null, $excelRow, 'Antecedente preeclampsia');
+        $diabetes = $this->parseTinyCode($r[20] ?? null, $excelRow, 'Antecedente diabetes');
+        $autoinmune = $this->parseTinyCode($r[21] ?? null, $excelRow, 'Antecedente LES/autoinmune');
+        $sindrome = $this->parseTinyCode($r[22] ?? null, $excelRow, 'Antecedente sindrome metabolico');
+        $erc = $this->parseTinyCode($r[23] ?? null, $excelRow, 'Antecedente ERC');
+        $trombofilia = $this->parseTinyCode($r[24] ?? null, $excelRow, 'Antecedente trombofilia');
+        $anemia = $this->parseTinyCode($r[25] ?? null, $excelRow, 'Antecedente anemia celulas falciformes');
+        $sepsis = $this->parseTinyCode($r[26] ?? null, $excelRow, 'Antecedente sepsis previa');
+        $tabaco = $this->parseTinyCode($r[27] ?? null, $excelRow, 'Consumo tabaco durante gestacion');
+        $periodoIntergenesico = $this->parseInteger($r[28] ?? null, $excelRow, 'Periodo intergenesico', true, 0, 999);
+        $embarazoMultiple = $this->parseTinyCode($r[29] ?? null, $excelRow, 'Embarazo multiple');
+        $metodoConcepcion = $this->parseInteger($r[30] ?? null, $excelRow, 'Metodo de concepcion', true, 0, 9);
+
+        if ($fechaNacimiento && Carbon::parse($fechaNacimiento)->gt(Carbon::today())) {
+            $this->addError($excelRow, 'Fecha nacimiento', 'no puede ser futura', $fechaNacimiento);
+        }
+
+        if ($fechaProbableParto && $fechaNacimiento && Carbon::parse($fechaProbableParto)->lt(Carbon::parse($fechaNacimiento))) {
+            $this->addError($excelRow, 'Fecha probable parto', 'no puede ser menor a fecha nacimiento');
+        }
+
+        if ($tipoIdent !== null && $noId !== null) {
+            $key = $tipoIdent . '|' . $noId;
+            if (isset($this->seenInFile[$key])) {
+                $this->addError($excelRow, 'Identificacion', 'registro duplicado dentro del archivo', $noId);
+            } else {
+                $this->seenInFile[$key] = true;
+            }
+
+            $exists = GesTipo1::where('tipo_de_identificacion_de_la_usuaria', $tipoIdent)
+                ->where('no_id_del_usuario', $noId)
+                ->exists();
+
+            if ($exists && $fechaProbableParto !== null && Carbon::today()->lte(Carbon::parse($fechaProbableParto))) {
+                $this->rowsDuplicated++;
+                $this->addError($excelRow, 'Identificacion', 'ya existe caso activo (FPP no vencida)', $noId);
+            }
+        }
+
+        $numeroCarnet = null;
+        if ($tipoIdent !== null && $noId !== null) {
+            $numeroCarnet = $this->getNumeroCarnet($tipoIdent, $noId);
+            if (empty($numeroCarnet)) {
+                $this->addError($excelRow, 'Numero carnet', 'no se encontro en maestroIdentificaciones');
+            }
+        }
+
+        if (count($this->errores) > $errorsBefore) {
+            $this->rowsInvalid++;
+            return;
+        }
+
+        $data = [
+            'user_id' => $this->userId,
+            'tipo_de_registro' => $tipoRegistro,
+            'consecutivo' => $consecutivo,
+            'pais_de_la_nacionalidad' => $paisNacionalidad,
+            'municipio_de_residencia_habitual' => $municipioResidencia,
+            'zona_territorial_de_residencia' => $zona,
+            'codigo_de_habilitacion_ips_primaria_de_la_gestante' => $codigoIps,
+            'tipo_de_identificacion_de_la_usuaria' => $tipoIdent,
+            'no_id_del_usuario' => $noId,
+            'numero_carnet' => $numeroCarnet,
+            'primer_apellido' => $primerApellido,
+            'segundo_apellido' => $segundoApellido,
+            'primer_nombre' => $primerNombre,
+            'segundo_nombre' => $segundoNombre,
+            'fecha_de_nacimiento' => $fechaNacimiento,
+            'codigo_pertenencia_etnica' => $codigoEtnia,
+            'codigo_de_ocupacion' => $codigoOcupacion,
+            'codigo_nivel_educativo_de_la_gestante' => $codigoNivelEducativo,
+            'fecha_probable_de_parto' => $fechaProbableParto,
+            'direccion_de_residencia_de_la_gestante' => $direccion,
+            'antecedente_hipertension_cronica' => $hta,
+            'antecedente_preeclampsia' => $preeclampsia,
+            'antecedente_diabetes' => $diabetes,
+            'antecedente_les_enfermedad_autoinmune' => $autoinmune,
+            'antecedente_sindrome_metabolico' => $sindrome,
+            'antecedente_erc' => $erc,
+            'antecedente_trombofilia_o_trombosis_venosa_profunda' => $trombofilia,
+            'antecedentes_anemia_celulas_falciformes' => $anemia,
+            'antecedente_sepsis_durante_gestaciones_previas' => $sepsis,
+            'consumo_tabaco_durante_la_gestacion' => $tabaco,
+            'periodo_intergenesico' => $periodoIntergenesico,
+            'embarazo_multiple' => $embarazoMultiple,
+            'metodo_de_concepcion' => $metodoConcepcion,
+            'batch_verifications_id' => $this->batchVerificationsId,
             'created_at' => DB::raw('GETDATE()'),
             'updated_at' => DB::raw('GETDATE()'),
         ];
 
         $this->buffer[] = $data;
 
-        // Calcular maxRowsPerInsert una sola vez (límite 2100 params; usamos 2000 por margen)
         if ($this->maxRowsPerInsert === null) {
-            $columnsCount = count($data); // columnas insertadas
+            $columnsCount = count($data);
             $this->maxRowsPerInsert = max(1, intdiv(2000, max(1, $columnsCount)));
         }
 
-        // Cuando llegue al tope, insert y vaciar
         if (count($this->buffer) >= $this->maxRowsPerInsert) {
             $this->flushBuffer();
         }
@@ -252,9 +442,13 @@ class GesTipo1Import implements OnEachRow, WithStartRow, WithChunkReading, WithE
 
     private function flushBuffer(): void
     {
-        if (empty($this->buffer)) return;
+        if (empty($this->buffer)) {
+            return;
+        }
 
+        $count = count($this->buffer);
         DB::table('ges_tipo1')->insert($this->buffer);
+        $this->rowsCreated += $count;
         $this->buffer = [];
     }
 }

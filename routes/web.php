@@ -53,7 +53,7 @@ Route::get('/afiliado/data', [AfiliadoController::class, 'dataTable'])->name('af
 ->middleware('auth');
 
 
-// Rutas para el cargue de la información
+// Rutas para el cargue de la informaciÃ³n
  Route::get('/import-excel_2', [AfiliadoController::class, 'showImportForm'])->name('import-excel-form_2');//->middleware('auth');
 Route::post('/import-excel_2', [AfiliadoController::class, 'importExcel'])
     ->name('import-excel_2')
@@ -123,11 +123,11 @@ Route::get('/home', [HomeController::class, 'index'])->name('home');
 Route::get('/home/dashboard', [HomeController::class, 'dashboard'])->name('home.dashboard');
 
 Route::middleware(['auth', \App\Http\Middleware\IncreaseExecutionTime::class])->group(function(){
-    // 👉 Endpoint AJAX (ponle /sivigila/data para que no choque con resource)
+    // ðŸ‘‰ Endpoint AJAX (ponle /sivigila/data para que no choque con resource)
     Route::get('sivigila/data', [SivigilaController::class, 'data'])
          ->name('sivigila.data');
 
-    // 👉 Resource normal
+    // ðŸ‘‰ Resource normal
     Route::resource('sivigila', SivigilaController::class);
 });
 
@@ -287,7 +287,7 @@ Route::post('/excel-import/generate-excel', [TamizajeController::class, 'generat
 
 
      // Formulario para subir el ZIP
-// Primero la ruta “fija”
+// Primero la ruta â€œfijaâ€
 Route::get('/tamizajes/upload-zip', [TamizajePdfController::class, 'showUploadForm'])
     ->name('tamizajes.upload-zip.form')
     ->middleware('auth');
@@ -296,9 +296,9 @@ Route::post('/tamizajes/upload-zip', [TamizajePdfController::class, 'handleZipUp
     ->name('tamizajes.upload-zip')
     ->middleware('auth');
 
-// Después la ruta genérica
+// DespuÃ©s la ruta genÃ©rica
 Route::get('/tamizajes/{tamizaje}', [TamizajeController::class, 'show'])
-    ->where('tamizaje', '[0-9]+')   // opcionalmente le ponemos restricción numérica
+    ->where('tamizaje', '[0-9]+')   // opcionalmente le ponemos restricciÃ³n numÃ©rica
     ->name('tamizajes.show')
     ->middleware('auth');
 
@@ -313,32 +313,31 @@ Route::get('/descargar-formato1', [TamizajeController::class, 'downloadExcel1'])
 
 
 // RUTAS  GESTANTES
+Route::middleware('auth')->group(function () {
+    Route::get('gestantes/import', [GesTipo1Controller::class, 'showImportForm'])
+        ->name('ges_tipo1.import.form');
+    Route::post('gestantes/import', [GesTipo1Controller::class, 'import'])
+        ->name('ges_tipo1.import');
+    Route::post('gestantes/import/start', [GesTipo1Controller::class, 'startAsyncImport'])
+        ->name('ges_tipo1.import.start');
+    Route::get('gestantes/import/status/{token}', [GesTipo1Controller::class, 'asyncImportStatus'])
+        ->name('ges_tipo1.import.status');
 
+    Route::get('gestantes', [GesTipo1Controller::class, 'index'])
+        ->name('ges_tipo1.index');
+    Route::get('gestantes/{ges}', [GesTipo1Controller::class, 'show'])
+        ->name('ges_tipo1.show');
 
-Route::get('gestantes/import', [GesTipo1Controller::class, 'showImportForm'])
-     ->name('ges_tipo1.import.form');
+    // tipo 3
+    Route::get('gestantes/tipo3/import', [GesTipo3Controller::class, 'showImportForm'])
+        ->name('ges_tipo3.import.form');
+    Route::post('gestantes/tipo3/import', [GesTipo3Controller::class, 'import'])
+        ->name('ges_tipo3.import');
 
-Route::post('gestantes/import', [GesTipo1Controller::class, 'import'])
-     ->name('ges_tipo1.import');
-
-     Route::get('gestantes', [GesTipo1Controller::class, 'index'])
-     ->name('ges_tipo1.index');
-   Route::get('gestantes/{ges}', [GesTipo1Controller::class, 'show'])
-     ->name('ges_tipo1.show');
-
-
-     //tipo 3 
-
-     Route::get('gestantes/tipo3/import', [GesTipo3Controller::class,'showImportForm'])
-     ->name('ges_tipo3.import.form');
-
-Route::post('gestantes/tipo3/import', [GesTipo3Controller::class,'import'])
-     ->name('ges_tipo3.import');
-
-     //RUTAS REPORTE EN EXCEL
-Route::get('gestantes/export/tipo1', [GesTipo1Controller::class, 'exportTipo1'])->name('ges_tipo1.export');
-Route::get('gestantes/export/tipo3', [GesTipo3Controller::class, 'exportTipo3'])->name('ges_tipo3.export');
-
+    // RUTAS REPORTE EN EXCEL
+    Route::get('gestantes/export/tipo1', [GesTipo1Controller::class, 'exportTipo1'])->name('ges_tipo1.export');
+    Route::get('gestantes/export/tipo3', [GesTipo3Controller::class, 'exportTipo3'])->name('ges_tipo3.export');
+});
 
 //RUTAS PARA LA 549
 Route::get('/asignaciones-maestrosiv549/create', [AsignacionesMaestrosiv549Controller::class, 'create'])->name('asignaciones-maestrosiv549.create');
@@ -367,7 +366,7 @@ Route::prefix('seguimientos1ges')->name('seguimientos.')->group(function () {
     Route::get('/alertas/data', [SeguimientosHubController::class, 'dataAlertas'])->name('alertas.data');
 });
 
-// === CRUD de seguimientos anidado a la asignación (para crear/editar) ===
+// === CRUD de seguimientos anidado a la asignaciÃ³n (para crear/editar) ===
 Route::prefix('asignaciones/{asignacion}')
     ->name('asignaciones.')
     ->group(function () {
@@ -432,7 +431,7 @@ Route::get('/pi/bucal/placa/sem1/data', [CicloVidaController::class,'piplacaData
 //     Route::get('/pi/bucal/placa/sem2', [CicloVidaController::class,'piPlaceholder'])->name('pi.bucal.placa.sem2')->defaults('key','bucal_placa_sem2');
  // routes/web.php
 
-// Vista (ya la tienes, la dejo aquí por claridad)
+// Vista (ya la tienes, la dejo aquÃ­ por claridad)
 Route::get('/pi/bucal/sellantes', [\App\Http\Controllers\CicloVidaController::class,'pisellante'])
     ->name('pi.bucal.sellantes')
     ->defaults('key','bucal_sellantes');
@@ -441,7 +440,7 @@ Route::get('/pi/bucal/sellantes', [\App\Http\Controllers\CicloVidaController::cl
 Route::get('/pi/bucal/sellantes/data', [\App\Http\Controllers\CicloVidaController::class,'pisellanteData'])
     ->name('pi.bucal.sellantes.data');
 
-    // === Opciones Nutrición / Tamizaje ===
+    // === Opciones NutriciÃ³n / Tamizaje ===
   // Index (ya la tienes)
 Route::get('/pi/nutri/hemoglobina', [CicloVidaController::class,'piphemoglobina'])
     ->name('pi.nutri.hemoglobina')
@@ -476,9 +475,9 @@ Route::get('/pi/datos/data',  [CicloVidaController::class,'pidatogenerales'])
 
 // ===== HIERRO =====
 // routes/web.php
-// === HIERRO (0–5 años) ===
-// === HIERRO (0–5 años) ===
-// === HIERRO (0–5 años) ===
+// === HIERRO (0â€“5 aÃ±os) ===
+// === HIERRO (0â€“5 aÃ±os) ===
+// === HIERRO (0â€“5 aÃ±os) ===
 Route::get('/pi/nutri/hierro', [CicloVidaController::class,'PIhierro'])
     ->name('pi.nutri.hierro')
     ->defaults('key','nutri_hierro');
@@ -499,7 +498,7 @@ Route::get('/pi/nutri/resumen', [CicloVidaController::class,'piResumenGenerales'
 // RUTAS PARA LAS ALERTAS
 
 
-// Página
+// PÃ¡gina
 // ALERTAS PI
 // web.php
 Route::get('/pi/nutri/alerta', [CicloVidaController::class,'pialerta'])
@@ -555,24 +554,24 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/preconcepcional/importar/status/{token}', [PreconcepcionalController::class, 'asyncImportStatus'])
         ->name('preconcepcional.import.status');
 
-    // ✅ IMPORTANTÍSIMO: rutas "fijas" ANTES del {preconcepcional}
+    // âœ… IMPORTANTÃSIMO: rutas "fijas" ANTES del {preconcepcional}
     Route::get('/preconcepcional/data', [PreconcepcionalController::class, 'data'])
         ->name('preconcepcional.data');
 
     Route::get('/preconcepcional/export', [PreconcepcionalController::class, 'export'])
         ->name('preconcepcional.export');
 
-    // ✅ al final el wildcard
+    // âœ… al final el wildcard
     Route::get('/preconcepcional/{preconcepcional}', [PreconcepcionalController::class, 'show'])
         ->name('preconcepcional.show');
 
 
-          // ✅ LOTES
+          // âœ… LOTES
     Route::get('/preconcepcional/lotes', [PreconcepcionalController::class, 'batches'])->name('preconcepcional.batches');
     Route::get('/preconcepcional/lotes/{batch}', [PreconcepcionalController::class, 'batchShow'])->name('preconcepcional.batches.show');
     Route::delete('/preconcepcional/lotes/{batch}', [PreconcepcionalController::class, 'destroyBatch'])->name('preconcepcional.batches.destroy');
 
-    // ✅ SHOW al final + solo numérico
+    // âœ… SHOW al final + solo numÃ©rico
     Route::get('/preconcepcional/{preconcepcional}', [PreconcepcionalController::class, 'show'])
         ->whereNumber('preconcepcional')
         ->name('preconcepcional.show');
@@ -622,3 +621,4 @@ Route::get('/debug-php', function () {
 // routes/web.php
 Route::post('/import/start', [AfiliadoController::class, 'startImport'])->middleware('auth');
 Route::get('/import/status/{token}', [AfiliadoController::class, 'importStatus'])->middleware('auth');
+
