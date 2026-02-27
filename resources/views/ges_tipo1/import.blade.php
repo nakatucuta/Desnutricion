@@ -1,10 +1,10 @@
 @extends('adminlte::page')
 
-@section('title', 'Importar Gestantes Tipo')
+@section('title', 'Importar Gestante Tipo 2')
 
 @section('content_header')
     <h1 class="text-primary mb-0">
-        <i class="fas fa-upload mr-2"></i>Importar Excel Gestantes Tipo
+        <i class="fas fa-upload mr-2"></i>Importar Excel Gestante Tipo 2
     </h1>
 @stop
 

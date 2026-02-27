@@ -22,6 +22,8 @@ class GesTipo1Import implements OnEachRow, WithStartRow, WithChunkReading, Skips
     private array $carnetCache = [];
     private array $seenInFile = [];
     private array $errores = [];
+    private bool $rowHasErrors = false;
+    private bool $errorsCapNoticeAdded = false;
 
     private int $rowsTotal = 0;
     private int $rowsCreated = 0;
@@ -91,7 +93,14 @@ class GesTipo1Import implements OnEachRow, WithStartRow, WithChunkReading, Skips
 
     private function addError(int $excelRow, string $field, string $message, $value = null): void
     {
+        // La fila debe marcarse invalida aunque no se pueda anexar mas mensajes al arreglo.
+        $this->rowHasErrors = true;
+
         if (count($this->errores) >= 5000) {
+            if (!$this->errorsCapNoticeAdded) {
+                $this->errores[] = 'Se alcanzo el limite de 5000 errores mostrables. Corrige el archivo y vuelve a intentar.';
+                $this->errorsCapNoticeAdded = true;
+            }
             return;
         }
 
@@ -273,6 +282,7 @@ class GesTipo1Import implements OnEachRow, WithStartRow, WithChunkReading, Skips
     {
         $excelRow = (int) $row->getIndex();
         $this->rowsTotal++;
+        $this->rowHasErrors = false;
 
         $r = $row->toArray();
 
@@ -304,8 +314,6 @@ class GesTipo1Import implements OnEachRow, WithStartRow, WithChunkReading, Skips
                 }
             }
         }
-
-        $errorsBefore = count($this->errores);
 
         $tipoRegistro = $this->parseInteger($r[0] ?? null, $excelRow, 'Tipo de registro', true, 1, 9);
         if ($tipoRegistro !== null && $tipoRegistro !== 2) {
@@ -384,7 +392,7 @@ class GesTipo1Import implements OnEachRow, WithStartRow, WithChunkReading, Skips
             }
         }
 
-        if (count($this->errores) > $errorsBefore) {
+        if ($this->rowHasErrors) {
             $this->rowsInvalid++;
             return;
         }
