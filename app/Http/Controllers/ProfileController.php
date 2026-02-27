@@ -7,6 +7,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rules\Password;
 
 class ProfileController extends Controller
@@ -29,19 +30,30 @@ class ProfileController extends Controller
             'name' => 'required|string|max:120',
             'email' => 'required|email:rfc|max:150|unique:users,email,' . $user->id,
             'codigohabilitacion' => 'nullable|string|max:80',
+            'profile_photo' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:2048',
         ]);
 
         $old = [
             'name' => (string) $user->name,
             'email' => (string) $user->email,
             'codigohabilitacion' => (string) ($user->codigohabilitacion ?? ''),
+            'profile_photo_path' => (string) ($user->profile_photo_path ?? ''),
         ];
 
         $user->name = trim((string) $validated['name']);
         $user->email = mb_strtolower(trim((string) $validated['email']));
         $user->codigohabilitacion = trim((string) ($validated['codigohabilitacion'] ?? ''));
 
-        if (!$user->isDirty(['name', 'email', 'codigohabilitacion'])) {
+        if ($request->hasFile('profile_photo')) {
+            $previousPhoto = (string) ($user->profile_photo_path ?? '');
+            $user->profile_photo_path = $request->file('profile_photo')->store('profile-photos', 'public');
+
+            if ($previousPhoto !== '' && $previousPhoto !== $user->profile_photo_path) {
+                Storage::disk('public')->delete($previousPhoto);
+            }
+        }
+
+        if (!$user->isDirty(['name', 'email', 'codigohabilitacion', 'profile_photo_path'])) {
             return back()->with('status', 'No se detectaron cambios en tu perfil.');
         }
 
@@ -50,6 +62,7 @@ class ProfileController extends Controller
             'name' => (string) $user->name,
             'email' => (string) $user->email,
             'codigohabilitacion' => (string) ($user->codigohabilitacion ?? ''),
+            'profile_photo_path' => (string) ($user->profile_photo_path ?? ''),
         ];
 
         $user->save();

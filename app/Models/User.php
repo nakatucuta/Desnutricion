@@ -6,6 +6,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Facades\Storage;
 use Laravel\Sanctum\HasApiTokens;
 
 class User extends Authenticatable
@@ -36,6 +37,7 @@ class User extends Authenticatable
         'password',
         'usertype',
         'codigohabilitacion',
+        'profile_photo_path',
     ];
 
     /**
@@ -96,6 +98,20 @@ class User extends Authenticatable
     
         return $this->hasMany('App\Models\vacuna');
     
+    }
+
+    public function adminlte_image()
+    {
+        if (!empty($this->profile_photo_path)) {
+            return 'storage/' . ltrim((string) $this->profile_photo_path, '/');
+        }
+
+        return asset('img/logo.png');
+    }
+
+    public function adminlte_desc()
+    {
+        return (string) ($this->email ?? '');
     }
 
 

@@ -16,9 +16,16 @@
             <div class="card">
                 <div class="card-header"><h3 class="card-title">Datos del Perfil</h3></div>
                 <div class="card-body">
-                    <form method="POST" action="{{ route('profile.update') }}">
+                    <form method="POST" action="{{ route('profile.update') }}" enctype="multipart/form-data">
                         @csrf
                         @method('PUT')
+
+                        <div class="form-group text-center">
+                            <img
+                                src="{{ $user->adminlte_image() }}"
+                                alt="Foto de perfil"
+                                style="width:96px;height:96px;border-radius:50%;object-fit:cover;border:2px solid #2d7ff9;">
+                        </div>
 
                         <div class="form-group">
                             <label for="name">Nombre</label>
@@ -36,6 +43,13 @@
                             <label for="codigohabilitacion">Codigo de Habilitacion / Usuario</label>
                             <input id="codigohabilitacion" name="codigohabilitacion" type="text" class="form-control @error('codigohabilitacion') is-invalid @enderror" value="{{ old('codigohabilitacion', $user->codigohabilitacion) }}">
                             @error('codigohabilitacion') <span class="invalid-feedback d-block">{{ $message }}</span> @enderror
+                        </div>
+
+                        <div class="form-group">
+                            <label for="profile_photo">Foto de Perfil</label>
+                            <input id="profile_photo" name="profile_photo" type="file" class="form-control-file @error('profile_photo') is-invalid @enderror" accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp">
+                            <small class="text-muted">Formatos: JPG, PNG, WEBP. Maximo 2MB.</small>
+                            @error('profile_photo') <span class="invalid-feedback d-block">{{ $message }}</span> @enderror
                         </div>
 
                         <button class="btn btn-primary" type="submit">Guardar Cambios</button>

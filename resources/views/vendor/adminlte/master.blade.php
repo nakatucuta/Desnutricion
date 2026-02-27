@@ -137,6 +137,17 @@
             background:linear-gradient(120deg, rgba(255,211,111,.44), rgba(94,208,255,.28));
             box-shadow:inset 0 0 0 1px rgba(47,134,232,.28), 0 4px 10px rgba(47,134,232,.18);
         }
+        .main-header .user-menu > .nav-link > .user-image{
+            width:36px !important;
+            height:36px !important;
+            max-width:36px !important;
+            min-width:36px !important;
+            border-radius:50% !important;
+            object-fit:cover !important;
+            object-position:center !important;
+            border:2px solid rgba(63,139,226,.45);
+            box-shadow:0 0 0 2px rgba(255,255,255,.7), 0 4px 12px rgba(31,94,157,.22);
+        }
         .main-header .user-menu .dropdown-menu .user-header p{
             color:#103a60;
             font-weight:800;
@@ -156,6 +167,15 @@
             background:linear-gradient(135deg, rgba(63,139,226,.15), rgba(105,212,255,.16), rgba(255,211,111,.18)) !important;
             border-bottom:1px solid #d8e8f8;
             padding:1rem .9rem;
+        }
+        .main-header .user-menu .dropdown-menu .user-header img{
+            width:78px !important;
+            height:78px !important;
+            border-radius:50% !important;
+            object-fit:cover !important;
+            object-position:center !important;
+            border:3px solid rgba(255,255,255,.92);
+            box-shadow:0 0 0 2px rgba(63,139,226,.35), 0 8px 20px rgba(21,77,136,.22);
         }
         .main-header .user-menu .dropdown-menu .user-header small{
             color:#55789b !important;
