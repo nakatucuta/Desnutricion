@@ -550,6 +550,10 @@ Route::middleware(['auth'])->group(function () {
 
     Route::post('/preconcepcional/importar', [PreconcepcionalController::class, 'store'])
         ->name('preconcepcional.store');
+    Route::post('/preconcepcional/importar/start', [PreconcepcionalController::class, 'startAsyncImport'])
+        ->name('preconcepcional.import.start');
+    Route::get('/preconcepcional/importar/status/{token}', [PreconcepcionalController::class, 'asyncImportStatus'])
+        ->name('preconcepcional.import.status');
 
     // ✅ IMPORTANTÍSIMO: rutas "fijas" ANTES del {preconcepcional}
     Route::get('/preconcepcional/data', [PreconcepcionalController::class, 'data'])

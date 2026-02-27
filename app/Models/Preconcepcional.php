@@ -56,6 +56,8 @@ class Preconcepcional extends Model
         // ✅ NUEVO: para manejar lotes
         'created_batch_id',
         'last_batch_id',
+        'created_at',
+        'updated_at',
     ];
 
     protected $casts = [

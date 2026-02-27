@@ -105,7 +105,14 @@ class User extends Authenticatable
     public function adminlte_image()
     {
         if (!empty($this->profile_photo_path)) {
-            return 'storage/' . ltrim((string) $this->profile_photo_path, '/');
+            $relative = 'storage/' . ltrim((string) $this->profile_photo_path, '/');
+
+            if (app()->runningInConsole()) {
+                return '/' . $relative;
+            }
+
+            $base = request() ? rtrim((string) request()->getBaseUrl(), '/') : '';
+            return $base . '/' . $relative;
         }
 
         return asset('img/logo.png');
