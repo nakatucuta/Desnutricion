@@ -3,6 +3,8 @@
 namespace App\Exceptions;
 
 use Illuminate\Foundation\Exceptions\Handler as ExceptionHandler;
+use Illuminate\Http\Request;
+use Illuminate\Session\TokenMismatchException;
 use Throwable;
 
 class Handler extends ExceptionHandler
@@ -45,6 +47,20 @@ class Handler extends ExceptionHandler
     {
         $this->reportable(function (Throwable $e) {
             //
+        });
+
+        $this->renderable(function (TokenMismatchException $e, Request $request) {
+            $message = 'Tu sesion expiro por inactividad. Recarga la pagina e inicia sesion nuevamente.';
+
+            if ($request->expectsJson() || $request->ajax()) {
+                return response()->json([
+                    'error' => 'session_expired',
+                    'message' => $message,
+                ], 419);
+            }
+
+            return redirect()->guest(route('login'))
+                ->with('session_expired', $message);
         });
     }
 }

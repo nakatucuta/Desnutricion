@@ -100,6 +100,47 @@
         @include('adminlte::plugins', ['type' => 'js'])
 
         <script src="{{ asset('vendor/adminlte/dist/js/adminlte.min.js') }}"></script>
+        <script>
+            (function () {
+                let sessionAlertShown = false;
+                const expiredMessage = @json(session('session_expired'));
+
+                function notifyAndReload(message) {
+                    if (sessionAlertShown) return;
+                    sessionAlertShown = true;
+
+                    const text = message || 'Tu sesion expiro por inactividad. Recarga la pagina e inicia sesion nuevamente.';
+
+                    if (window.Swal && typeof window.Swal.fire === 'function') {
+                        window.Swal.fire({
+                            icon: 'warning',
+                            title: 'Sesion expirada',
+                            text: text,
+                            confirmButtonText: 'Recargar',
+                            allowOutsideClick: false,
+                            allowEscapeKey: false
+                        }).then(function () {
+                            window.location.reload();
+                        });
+                    } else {
+                        alert(text);
+                        window.location.reload();
+                    }
+                }
+
+                if (expiredMessage) {
+                    notifyAndReload(expiredMessage);
+                }
+
+                if (window.jQuery) {
+                    window.jQuery(document).ajaxError(function (_event, jqxhr) {
+                        if (jqxhr && jqxhr.status === 419) {
+                            notifyAndReload();
+                        }
+                    });
+                }
+            })();
+        </script>
     @else
         <script src="{{ mix(config('adminlte.laravel_mix_js_path', 'js/app.js')) }}"></script>
     @endif

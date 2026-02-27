@@ -4,7 +4,9 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>Ingreso | {{ config('app.name', 'Desnutricion') }}</title>
+    <title>Ingreso | Anaswayuu</title>
+    <link rel="icon" type="image/png" href="{{ asset('img/logo.png') }}">
+    <link rel="shortcut icon" href="{{ asset('img/logo.png') }}">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
@@ -183,6 +185,16 @@
             font-size:1.35rem;
         }
         .sub{margin:0 0 18px;color:var(--muted);font-size:.9rem}
+        .session-alert{
+            margin:0 0 14px;
+            padding:10px 12px;
+            border-radius:10px;
+            border:1px solid rgba(245,200,93,.55);
+            background:rgba(245,200,93,.15);
+            color:#ffe8ac;
+            font-size:.84rem;
+            font-weight:600;
+        }
         .login-modes{
             display:grid;
             grid-template-columns:1fr 1fr;
@@ -253,6 +265,16 @@
         }
         .btn:hover{transform:translateY(-1px);filter:brightness(1.04)}
         .footer{margin-top:14px;font-size:.78rem;color:#b4c8dd;text-align:center}
+        .security-note{
+            margin:0 0 12px;
+            padding:10px 12px;
+            border:1px solid rgba(245,200,93,.36);
+            background:rgba(245,200,93,.08);
+            border-radius:10px;
+            color:#f7dd9d;
+            font-size:.84rem;
+            line-height:1.4;
+        }
         @keyframes rise{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
         @media (max-width:920px){
             .panel{grid-template-columns:1fr}
@@ -294,6 +316,16 @@
             <section class="form-side">
                 <h2>Iniciar sesion</h2>
                 <p class="sub">Ingresa tus credenciales para acceder al modulo.</p>
+                <p class="security-note">
+                    Seguridad activa: si hay 5 intentos fallidos, el acceso se bloquea por 10 minutos.
+                    El metodo de ingreso sigue siendo el mismo (correo o usuario/codigo).
+                </p>
+                @if (session('status'))
+                    <div class="session-alert">{{ session('status') }}</div>
+                @endif
+                @if (session('session_expired'))
+                    <div class="session-alert">{{ session('session_expired') }}</div>
+                @endif
 
                 <div class="login-modes">
                     <button type="button" class="mode-btn {{ old('email') ? '' : 'is-active' }}" data-mode="codigo">Ingresar con codigo</button>
