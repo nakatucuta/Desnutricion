@@ -12,6 +12,7 @@
     @php( $profile_url = $profile_url ? url($profile_url) : '' )
     @php( $logout_url = $logout_url ? url($logout_url) : '' )
 @endif
+@php( $unread_novedades = \App\Models\Novedad::unreadCountForUser((int) Auth::id()) )
 
 <li class="nav-item dropdown user-menu">
 
@@ -21,6 +22,9 @@
             <img src="{{ Auth::user()->adminlte_image() }}"
                  class="user-image img-circle elevation-2"
                  alt="{{ Auth::user()->name }}">
+            @if($unread_novedades > 0)
+                <span class="novedades-badge">{{ $unread_novedades > 99 ? '99+' : $unread_novedades }}</span>
+            @endif
         @endif
         <span @if(config('adminlte.usermenu_image')) class="d-none d-md-inline" @endif>
             {{ Auth::user()->name }}
@@ -52,6 +56,16 @@
 
         {{-- Configured user menu links --}}
         @each('adminlte::partials.navbar.dropdown-item', $adminlte->menu("navbar-user"), 'item')
+
+        <li class="dropdown-divider"></li>
+        <li>
+            <a href="{{ route('novedades.index') }}" class="dropdown-item d-flex justify-content-between align-items-center">
+                <span><i class="fas fa-bell mr-2 text-info"></i>Novedades</span>
+                @if($unread_novedades > 0)
+                    <span class="badge badge-danger">{{ $unread_novedades > 99 ? '99+' : $unread_novedades }}</span>
+                @endif
+            </a>
+        </li>
 
         {{-- User menu body --}}
         @hasSection('usermenu_body')

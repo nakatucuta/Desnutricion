@@ -148,6 +148,29 @@
             border:2px solid rgba(63,139,226,.45);
             box-shadow:0 0 0 2px rgba(255,255,255,.7), 0 4px 12px rgba(31,94,157,.22);
         }
+        .main-header .user-menu > .nav-link{
+            position:relative;
+        }
+        .main-header .user-menu > .nav-link .novedades-badge{
+            position:absolute;
+            top:2px;
+            left:24px;
+            min-width:18px;
+            height:18px;
+            border-radius:999px;
+            padding:0 5px;
+            display:inline-flex;
+            align-items:center;
+            justify-content:center;
+            font-size:.66rem;
+            font-weight:800;
+            color:#fff;
+            background:linear-gradient(120deg, #ff5f6d, #ff2d55);
+            border:1px solid rgba(255,255,255,.9);
+            box-shadow:0 4px 10px rgba(208,44,69,.35);
+            line-height:1;
+            z-index:2;
+        }
         .main-header .user-menu .dropdown-menu .user-header p{
             color:#103a60;
             font-weight:800;

@@ -28,6 +28,7 @@ use App\Http\Controllers\FormatosController;
 use App\Http\Controllers\GestantesStatsController;
 use App\Http\Controllers\AlertasController;
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\NovedadController;
 
 /*
 |--------------------------------------------------------------------------
@@ -105,6 +106,14 @@ Route::middleware('auth')->group(function () {
     Route::put('/profile', [ProfileController::class, 'updateProfile'])->name('profile.update');
     Route::put('/profile/password', [ProfileController::class, 'updatePassword'])->name('profile.password.update');
     Route::get('/profile/audit', [ProfileController::class, 'auditIndex'])->name('profile.audit');
+    Route::get('/novedades', [NovedadController::class, 'index'])->name('novedades.index');
+    Route::post('/novedades', [NovedadController::class, 'store'])->name('novedades.store');
+    Route::post('/novedades/{novedad}/read', [NovedadController::class, 'markRead'])->name('novedades.read');
+    Route::post('/novedades/{novedad}/archive', [NovedadController::class, 'archive'])->name('novedades.archive');
+    Route::post('/novedades/{novedad}/unarchive', [NovedadController::class, 'unarchive'])->name('novedades.unarchive');
+    Route::post('/novedades/read-all', [NovedadController::class, 'markAllRead'])->name('novedades.readAll');
+    Route::get('/novedades/{novedad}/audit', [NovedadController::class, 'audit'])->name('novedades.audit');
+    Route::get('/novedades/{novedad}/audit/pdf', [NovedadController::class, 'auditPdf'])->name('novedades.audit.pdf');
 });
 
 Route::get('/home', [App\Http\Controllers\HomeController::class, 'index'])->name('home');
