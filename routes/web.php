@@ -333,6 +333,10 @@ Route::middleware('auth')->group(function () {
         ->name('ges_tipo3.import.form');
     Route::post('gestantes/tipo3/import', [GesTipo3Controller::class, 'import'])
         ->name('ges_tipo3.import');
+    Route::post('gestantes/tipo3/import/start', [GesTipo3Controller::class, 'startAsyncImport'])
+        ->name('ges_tipo3.import.start');
+    Route::get('gestantes/tipo3/import/status/{token}', [GesTipo3Controller::class, 'asyncImportStatus'])
+        ->name('ges_tipo3.import.status');
 
     // RUTAS REPORTE EN EXCEL
     Route::get('gestantes/export/tipo1', [GesTipo1Controller::class, 'exportTipo1'])->name('ges_tipo1.export');

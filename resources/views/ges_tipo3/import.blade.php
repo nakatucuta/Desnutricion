@@ -1,198 +1,264 @@
-{{-- resources/views/ges_tipo3/import.blade.php --}}
 @extends('adminlte::page')
 
-@section('title', 'Importar Tipo 3')
+@section('title', 'Importar Gestante Tipo 3')
 
 @section('content_header')
-<div class="header-container d-flex align-items-center justify-content-center mb-4">
-    <img src="{{ asset('vendor/adminlte/dist/img/logo.png') }}"
-         alt="Escudo"
-         class="header-logo mr-3">
-    <h1 class="executive-title mb-0">Importar Atencion monitoreo y seguimiento</h1>
-</div>
+    <h1 class="text-primary mb-0">
+        <i class="fas fa-upload mr-2"></i>Importar Excel Gestante Tipo 3
+    </h1>
 @stop
 
 @section('content')
-<div class="container position-relative">
-    {{-- Overlay de bienvenida --}}
-    <div id="welcomeOverlay">
-        <div class="welcome-content animate__animated animate__fadeInDown text-center">
-            <img src="{{ asset('vendor/adminlte/dist/img/logo.png') }}" alt="Escudo" class="welcome-logo mb-3">
-            <h2 class="mb-2">Bienvenido al proceso de cargue TIPO 3</h2>
-            <div class="spinner-border text-info" role="status">
-                <span class="sr-only">Cargando...</span>
+    <div class="card">
+        <div class="card-body">
+            <div class="alert alert-info">
+                <strong>Validacion de formato:</strong>
+                el archivo debe tener encabezados en la fila 1 y datos desde la fila 2.
+                Debe conservar las <strong>23 columnas</strong> en su posicion original.
+                <br>
+                <strong>Modo estricto:</strong> si se detecta cualquier inconsistencia en alguna columna,
+                el cargue se rechaza y se muestra consolidado de errores por fila/campo.
             </div>
-        </div>
-    </div>
 
-    {{-- Mensajes --}}
-    @include('ges_tipo1.mensajes')
-
-    {{-- Botones centrados --}}
-    <div class="row mb-4 justify-content-center">
-        <div class="col-md-6 text-center">
-            <a href="{{ route('ges_tipo1.index') }}" class="btn btn-gradient-info btn-lg mx-2">
-                <i class="fas fa-table mr-1"></i> Ver registros
-            </a>
-            <a href="{{ url()->previous() }}" class="btn btn-gradient-warning btn-lg mx-2">
-                <i class="fas fa-arrow-left mr-1"></i> Regresar
-            </a>
-        </div>
-    </div>
-
-    {{-- Card centrado --}}
-    <div class="row justify-content-center">
-        <div class="col-lg-6">
-            <div class="card shadow-sm border-info animate__animated animate__fadeInUp">
-                <div class="card-header bg-info text-white">
-                    <h4 class="card-title mb-0">
-                        <i class="fas fa-file-excel mr-2"></i> Subir archivo Excel - Tipo 3
-                    </h4>
+            <form id="ges-tipo3-import-form" enctype="multipart/form-data" novalidate>
+                @csrf
+                <div class="form-group">
+                    <label for="ges-tipo3-file"><strong>Archivo</strong></label>
+                    <input
+                        type="file"
+                        id="ges-tipo3-file"
+                        name="file"
+                        class="form-control"
+                        required
+                        accept=".xlsx,.xls,.csv">
+                    <small class="text-muted d-block mt-1">
+                        Formatos permitidos: XLSX, XLS, CSV. Maximo recomendado: 20MB.
+                    </small>
                 </div>
-                <div class="card-body">
-                    <form id="importForm" action="{{ route('ges_tipo3.import') }}" method="POST" enctype="multipart/form-data">
-                        @csrf
-                        <div class="custom-file mb-3">
-                            <input
-                                type="file"
-                                name="excel_file"
-                                id="excel_file"
-                                class="custom-file-input @error('excel_file') is-invalid @enderror"
-                                accept=".xlsx,.xls"
-                                required
-                            >
-                            <label class="custom-file-label" for="excel_file">Elige un archivo .xlsx o .xls</label>
-                            @error('excel_file')
-                                <div class="invalid-feedback">{{ $message }}</div>
-                            @enderror
-                        </div>
-                        <button id="btnSubmit" type="submit" class="btn btn-gradient-info btn-block">
-                            <i class="fas fa-upload mr-1"></i> Cargar datos
-                        </button>
-                    </form>
+
+                <div class="d-flex flex-wrap" style="gap:.5rem;">
+                    <button id="ges-tipo3-submit" type="submit" class="btn btn-success">
+                        <i class="fas fa-play mr-1"></i> Iniciar cargue en cola
+                    </button>
+                    <a href="{{ route('ges_tipo1.index') }}" class="btn btn-outline-primary">
+                        <i class="fas fa-table mr-1"></i> Ver gestantes
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="card" id="ges-tipo3-progress-card" style="display:none;">
+        <div class="card-header">
+            <h3 class="card-title mb-0"><i class="fas fa-tasks mr-1"></i>Estado del proceso</h3>
+        </div>
+        <div class="card-body">
+            <div class="mb-2">
+                <strong id="ges-tipo3-step">En cola...</strong>
+                <div class="text-muted" id="ges-tipo3-message">Preparando proceso...</div>
+            </div>
+            <div class="progress" style="height:20px;">
+                <div
+                    id="ges-tipo3-bar"
+                    class="progress-bar progress-bar-striped progress-bar-animated"
+                    role="progressbar"
+                    style="width:0%;">
+                    0%
                 </div>
             </div>
+            <div class="mt-3 text-muted small" id="ges-tipo3-meta"></div>
         </div>
     </div>
-</div>
 
-{{-- Overlay de carga --}}
-<div id="loadingOverlay">
-    <div class="spinner-border text-info" role="status">
-        <span class="sr-only">Cargando...</span>
+    <div class="card border-danger" id="ges-tipo3-errors-card" style="display:none;">
+        <div class="card-header bg-danger text-white">
+            <h3 class="card-title mb-0"><i class="fas fa-exclamation-triangle mr-1"></i>Errores de cargue</h3>
+        </div>
+        <div class="card-body">
+            <ul class="mb-0" id="ges-tipo3-errors-list"></ul>
+        </div>
     </div>
-    <div class="loading-text">Procesando, por favor espere...</div>
-</div>
 @stop
 
-@section('css')
-<link rel="stylesheet"
-      href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css"/>
-<style>
-    /* Header */
-    .header-container {
-        padding: 15px 0;
-        border-bottom: 2px solid #dee2e6;
-    }
-    .header-logo {
-        width: 60px;
-    }
-    .executive-title {
-        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-        font-size: 1.8rem;
-        font-weight: 700;
-        text-transform: uppercase;
-        letter-spacing: 1px;
-        color: #17a2b8;
-    }
+@section('adminlte_js')
+    @parent
+    <script>
+        (function () {
+            const START_URL = @json(route('ges_tipo3.import.start'));
+            const STATUS_BASE_URL = @json(route('ges_tipo3.import.status', ['token' => '__TOKEN__']));
 
-    /* Botones degradados */
-    .btn-gradient-info {
-        background: linear-gradient(45deg, #17a2b8, #117a8b);
-        border: none;
-        color: #fff;
-        transition: background 0.3s ease;
-    }
-    .btn-gradient-info:hover {
-        background: linear-gradient(45deg, #117a8b, #0e6272);
-    }
-    .btn-gradient-warning {
-        background: linear-gradient(45deg, #ffc107, #e0a800);
-        border: none;
-        color: #212529;
-        transition: background 0.3s ease;
-    }
-    .btn-gradient-warning:hover {
-        background: linear-gradient(45deg, #e0a800, #c69500);
-    }
+            const form = document.getElementById('ges-tipo3-import-form');
+            const fileInput = document.getElementById('ges-tipo3-file');
+            const submitBtn = document.getElementById('ges-tipo3-submit');
 
-    /* Welcome Overlay */
-    #welcomeOverlay {
-        position: fixed;
-        top: 0; left: 0;
-        width: 100%; height: 100%;
-        background: #ffffff;
-        z-index: 3000;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-    }
-    .welcome-logo {
-        width: 100px;
-    }
-    .welcome-content h2 {
-        color: #17a2b8;
-        margin-bottom: 1rem;
-    }
+            const progressCard = document.getElementById('ges-tipo3-progress-card');
+            const progressBar = document.getElementById('ges-tipo3-bar');
+            const stepText = document.getElementById('ges-tipo3-step');
+            const messageText = document.getElementById('ges-tipo3-message');
+            const metaText = document.getElementById('ges-tipo3-meta');
 
-    /* Loading Overlay */
-    #loadingOverlay {
-        display: none;
-        position: fixed;
-        top: 0; left: 0;
-        width: 100%; height: 100%;
-        background: rgba(255,255,255,0.85);
-        z-index: 2000;
-        text-align: center;
-        padding-top: 30vh;
-    }
-    #loadingOverlay .spinner-border {
-        width: 4rem;
-        height: 4rem;
-    }
-    #loadingOverlay .loading-text {
-        margin-top: 1rem;
-        font-size: 1.25rem;
-        color: #17a2b8;
-    }
+            const errorsCard = document.getElementById('ges-tipo3-errors-card');
+            const errorsList = document.getElementById('ges-tipo3-errors-list');
 
-    /* Card */
-    .card {
-        border-radius: .5rem;
-    }
-    .custom-file-label::after {
-        content: "Buscar";
-    }
-</style>
-@stop
+            let pollTimer = null;
+            let currentToken = null;
+            let isPolling = false;
 
-@section('js')
-<script>
-    $(document).ready(function(){
-        // Animación de bienvenida
-        $('#welcomeOverlay').delay(2000).fadeOut(600);
+            function setLoadingState(isLoading) {
+                submitBtn.disabled = isLoading;
+                submitBtn.innerHTML = isLoading
+                    ? '<i class="fas fa-spinner fa-spin mr-1"></i> Procesando...'
+                    : '<i class="fas fa-play mr-1"></i> Iniciar cargue en cola';
+            }
 
-        // Mostrar nombre de archivo al seleccionar
-        $('#excel_file').on('change', function() {
-            const fileName = $(this).val().split('\\').pop();
-            $(this).next('.custom-file-label').text(fileName);
-        });
+            function setProgress(percent, step, message, status) {
+                const pct = Math.max(0, Math.min(100, parseInt(percent || 0, 10)));
 
-        // Al enviar el formulario, mostrar overlay de carga
-        $('#importForm').on('submit', function(){
-            $('#btnSubmit').prop('disabled', true);
-            $('#loadingOverlay').fadeIn(200);
-        });
-    });
-</script>
+                progressBar.style.width = pct + '%';
+                progressBar.textContent = pct + '%';
+                stepText.textContent = step || 'Procesando...';
+                messageText.textContent = message || '';
+
+                progressBar.classList.remove('bg-danger', 'bg-success');
+                if (status === 'failed') progressBar.classList.add('bg-danger');
+                if (status === 'done') progressBar.classList.add('bg-success');
+            }
+
+            function showErrors(errors) {
+                errorsList.innerHTML = '';
+                (errors || []).forEach(function (error) {
+                    const li = document.createElement('li');
+                    li.textContent = error;
+                    errorsList.appendChild(li);
+                });
+                errorsCard.style.display = 'block';
+            }
+
+            function hideErrors() {
+                errorsCard.style.display = 'none';
+                errorsList.innerHTML = '';
+            }
+
+            function stopPolling() {
+                if (pollTimer) {
+                    clearInterval(pollTimer);
+                    pollTimer = null;
+                }
+                isPolling = false;
+            }
+
+            async function pollStatus() {
+                if (!currentToken || isPolling) return;
+                isPolling = true;
+
+                try {
+                    const url = STATUS_BASE_URL.replace('__TOKEN__', encodeURIComponent(currentToken)) + '?t=' + Date.now();
+                    const response = await fetch(url, {
+                        headers: {
+                            'Accept': 'application/json',
+                            'X-Requested-With': 'XMLHttpRequest',
+                        },
+                        cache: 'no-store',
+                    });
+
+                    if (!response.ok) {
+                        isPolling = false;
+                        return;
+                    }
+
+                    const data = await response.json();
+                    setProgress(data.percent, data.step, data.message, data.status);
+
+                    if (data.batch_id) {
+                        metaText.innerHTML = 'Lote generado: <strong>#' + data.batch_id + '</strong>';
+                    }
+
+                    const status = String(data.status || '').toLowerCase();
+                    if (status === 'failed') {
+                        stopPolling();
+                        setLoadingState(false);
+                        showErrors(data.errors || ['La importacion fallo. Revisa el archivo.']);
+                        if (data.errors_count) {
+                            metaText.innerHTML = 'Errores detectados: <strong>' + data.errors_count + '</strong>';
+                        }
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Importacion fallida',
+                            text: data.message || 'Se detectaron errores durante el proceso.',
+                        });
+                    } else if (status === 'done') {
+                        stopPolling();
+                        setLoadingState(false);
+                        hideErrors();
+                        Swal.fire({
+                            icon: 'success',
+                            title: 'Importacion completada',
+                            text: data.message || 'El cargue termino correctamente.',
+                        });
+                    }
+                } catch (error) {
+                    // mantener polling en errores transitorios
+                } finally {
+                    isPolling = false;
+                }
+            }
+
+            form.addEventListener('submit', async function (event) {
+                event.preventDefault();
+                hideErrors();
+
+                if (!fileInput.files || !fileInput.files[0]) {
+                    Swal.fire({
+                        icon: 'warning',
+                        title: 'Archivo requerido',
+                        text: 'Selecciona un archivo para iniciar el cargue.',
+                    });
+                    return;
+                }
+
+                setLoadingState(true);
+                progressCard.style.display = 'block';
+                setProgress(2, 'subida', 'Subiendo archivo al servidor...', 'running');
+                metaText.textContent = '';
+
+                stopPolling();
+                currentToken = null;
+
+                const formData = new FormData();
+                formData.append('file', fileInput.files[0]);
+
+                try {
+                    const csrf = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+                    const response = await fetch(START_URL, {
+                        method: 'POST',
+                        headers: {
+                            'X-CSRF-TOKEN': csrf,
+                            'Accept': 'application/json',
+                            'X-Requested-With': 'XMLHttpRequest',
+                        },
+                        body: formData,
+                    });
+
+                    const data = await response.json();
+
+                    if (!response.ok || !data || !data.ok || !data.token) {
+                        setLoadingState(false);
+                        showErrors([data.message || 'No se pudo iniciar la importacion.']);
+                        setProgress(0, 'error', data.message || 'Error al iniciar el proceso.', 'failed');
+                        return;
+                    }
+
+                    currentToken = data.token;
+                    setProgress(5, 'cola', 'Importacion en cola...', 'running');
+
+                    pollTimer = setInterval(pollStatus, 1400);
+                    await pollStatus();
+                } catch (error) {
+                    setLoadingState(false);
+                    showErrors(['Error de red al enviar archivo. Intenta nuevamente.']);
+                    setProgress(0, 'error', 'No fue posible iniciar el cargue.', 'failed');
+                }
+            });
+        })();
+    </script>
 @stop
