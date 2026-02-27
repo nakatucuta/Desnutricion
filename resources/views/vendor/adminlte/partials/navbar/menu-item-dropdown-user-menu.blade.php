@@ -13,6 +13,7 @@
     @php( $logout_url = $logout_url ? url($logout_url) : '' )
 @endif
 @php( $unread_novedades = \App\Models\Novedad::unreadCountForUser((int) Auth::id()) )
+@php( $iframe_mode_enabled = (bool) (Auth::user()->pref_iframe_mode ?? false) )
 
 <li class="nav-item dropdown user-menu">
 
@@ -65,6 +66,21 @@
                     <span class="badge badge-danger">{{ $unread_novedades > 99 ? '99+' : $unread_novedades }}</span>
                 @endif
             </a>
+        </li>
+        <li>
+            <form method="POST" action="{{ route('ui.iframe.toggle') }}">
+                @csrf
+                <input type="hidden" name="enabled" value="{{ $iframe_mode_enabled ? '0' : '1' }}">
+                <button type="submit" class="dropdown-item d-flex justify-content-between align-items-center">
+                    <span>
+                        <i class="fas fa-window-restore mr-2 text-primary"></i>
+                        {{ $iframe_mode_enabled ? 'Desactivar modo pestanas' : 'Activar modo pestanas' }}
+                    </span>
+                    <span class="badge {{ $iframe_mode_enabled ? 'badge-success' : 'badge-secondary' }}">
+                        {{ $iframe_mode_enabled ? 'ON' : 'OFF' }}
+                    </span>
+                </button>
+            </form>
         </li>
 
         {{-- User menu body --}}

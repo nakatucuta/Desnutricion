@@ -29,6 +29,7 @@ use App\Http\Controllers\GestantesStatsController;
 use App\Http\Controllers\AlertasController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\NovedadController;
+use App\Http\Controllers\HomeController;
 
 /*
 |--------------------------------------------------------------------------
@@ -102,6 +103,8 @@ Route::delete('/batch-verifications/bulk-delete', [AfiliadoController::class, 'd
 Auth::routes();
 
 Route::middleware('auth')->group(function () {
+    Route::post('/ui/mode-tabs', [HomeController::class, 'toggleIframeMode'])->name('ui.iframe.toggle');
+    Route::get('/workspace', [HomeController::class, 'workspace'])->name('workspace.index');
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::put('/profile', [ProfileController::class, 'updateProfile'])->name('profile.update');
     Route::put('/profile/password', [ProfileController::class, 'updatePassword'])->name('profile.password.update');
@@ -116,7 +119,8 @@ Route::middleware('auth')->group(function () {
     Route::get('/novedades/{novedad}/audit/pdf', [NovedadController::class, 'auditPdf'])->name('novedades.audit.pdf');
 });
 
-Route::get('/home', [App\Http\Controllers\HomeController::class, 'index'])->name('home');
+Route::get('/home', [HomeController::class, 'index'])->name('home');
+Route::get('/home/dashboard', [HomeController::class, 'dashboard'])->name('home.dashboard');
 
 Route::middleware(['auth', \App\Http\Middleware\IncreaseExecutionTime::class])->group(function(){
     // 👉 Endpoint AJAX (ponle /sivigila/data para que no choque con resource)

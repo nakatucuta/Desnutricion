@@ -38,6 +38,7 @@ class User extends Authenticatable
         'usertype',
         'codigohabilitacion',
         'profile_photo_path',
+        'pref_iframe_mode',
     ];
 
     /**
@@ -61,6 +62,7 @@ class User extends Authenticatable
         
         
         'email_verified_at' => 'datetime',
+        'pref_iframe_mode' => 'boolean',
     ];
 
     public function Ingreso ()
@@ -112,6 +114,11 @@ class User extends Authenticatable
     public function adminlte_desc()
     {
         return (string) ($this->email ?? '');
+    }
+
+    public function usesIframeMode(): bool
+    {
+        return (bool) ($this->pref_iframe_mode ?? false);
     }
 
 

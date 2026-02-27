@@ -320,8 +320,8 @@
             font-size:1rem;
         }
         .main-sidebar .brand-text b{
-            color:#ffe5a3;
-            text-shadow:0 0 10px rgba(255,211,111,.28);
+            color:#28c76f;
+            text-shadow:0 0 10px rgba(40,199,111,.30);
         }
         .main-sidebar .brand-link .brand-image,
         .main-sidebar .brand-link .tech-brand-logo{
