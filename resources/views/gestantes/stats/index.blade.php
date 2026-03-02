@@ -37,7 +37,12 @@
                     <label>Modulo</label>
                     <select class="form-control form-control-sm" name="module">
                         @foreach(($filterOptions['modules'] ?? []) as $opt)
-                            <option value="{{ $opt['value'] }}" {{ ($filters['module'] ?? 'todos') === $opt['value'] ? 'selected' : '' }}>{{ $opt['label'] }}</option>
+                            @php
+                                $optLabel = $opt['label'];
+                                if (($opt['value'] ?? '') === 'tipo1') $optLabel = 'Tipo 2';
+                                if (($opt['value'] ?? '') === 'tipo3') $optLabel = 'Atencion, Monitoreo y Seguimiento';
+                            @endphp
+                            <option value="{{ $opt['value'] }}" {{ ($filters['module'] ?? 'todos') === $opt['value'] ? 'selected' : '' }}>{{ $optLabel }}</option>
                         @endforeach
                     </select>
                 </div>
@@ -197,6 +202,13 @@
     const loadingOverlay = document.getElementById('loadingOverlay');
     const loadingText = document.getElementById('loadingText');
 
+    function viewLabel(txt){
+        const t = String(txt || '');
+        if (t === 'Tipo 1' || t === 'Gestantes Tipo 1') return 'Tipo 2';
+        if (t === 'Tipo 3' || t === 'Gestantes Tipo 3') return 'Atencion, Monitoreo y Seguimiento';
+        return t;
+    }
+
     function esc(v){ return (v===null||v===undefined)?'':String(v).replace(/[&<>'"]/g, m=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[m])); }
     function num(v){ return new Intl.NumberFormat('es-CO').format(Number(v||0)); }
     function badge(p){
@@ -239,10 +251,11 @@
         destroyCharts();
         const c = data.charts || {};
 
-        buildChart('chartModules','bar', c.modules?.labels || [], c.modules?.values || [], { plugins:{legend:{display:false}} });
+        const moduleLabels = (c.modules?.labels || []).map(viewLabel);
+        buildChart('chartModules','bar', moduleLabels, c.modules?.values || [], { plugins:{legend:{display:false}} });
 
         const monthlySets = (c.monthly_comparison?.datasets || []).map((d, i) => ({
-            label: d.label,
+            label: viewLabel(d.label),
             data: d.data || [],
             borderColor: chartColors[i % chartColors.length],
             backgroundColor: chartColors[i % chartColors.length],
@@ -265,8 +278,8 @@
         const m = data.modules || {};
         const html = [
             moduleCard('preconcepcional','Preconcepcional', m.preconcepcional?.summary?.total || 0, 'Riesgo y adherencia', 'bg-info', 'fas fa-seedling'),
-            moduleCard('tipo1','Gestantes Tipo 1', m.tipo1?.summary?.total || 0, 'Control por FPP', 'bg-success', 'fas fa-user-check'),
-            moduleCard('tipo3','Gestantes Tipo 3', m.tipo3?.summary?.total || 0, 'CUPS y riesgos', 'bg-warning', 'fas fa-file-medical'),
+            moduleCard('tipo1','Tipo 2', m.tipo1?.summary?.total || 0, 'Control por FPP', 'bg-success', 'fas fa-user-check'),
+            moduleCard('tipo3','Atencion, Monitoreo y Seguimiento', m.tipo3?.summary?.total || 0, 'CUPS y riesgos', 'bg-warning', 'fas fa-file-medical'),
             moduleCard('siv549','Maestro SIV549', m.siv549?.summary?.total || 0, 'Notificaciones y contacto', 'bg-danger', 'fas fa-clipboard-list')
         ];
         document.getElementById('moduleCards').innerHTML = html.join('');
@@ -317,7 +330,7 @@
             const data = await res.json();
             if (!data.ok) { alert(data.message || 'No se pudo cargar detalle'); return; }
 
-            document.getElementById('statsModalTitle').innerText = data.title || modulo;
+            document.getElementById('statsModalTitle').innerText = viewLabel(data.title || modulo);
             document.getElementById('statsSummary').innerHTML = renderSummary(data.summary || {});
             const blocksEl = document.getElementById('statsBlocks');
             blocksEl.innerHTML = '';

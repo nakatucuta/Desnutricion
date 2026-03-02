@@ -214,6 +214,97 @@ class GestantesStatsController extends Controller
         $p30 = (int) (clone $q)->whereBetween('fecha_probable_de_parto', [now()->toDateString(), now()->addDays(30)->toDateString()])->count();
         $sin = (int) (clone $q)->whereNull('fecha_probable_de_parto')->count();
 
+        $municipiosTable = [];
+        $latestTable = [];
+        try {
+            $baseJoin = DB::table('ges_tipo1 as A')
+                ->leftJoin(DB::raw('sga..municipios as M'), function ($join) {
+                    $join->on(
+                        DB::raw("RIGHT('00000' + CAST(A.municipio_de_residencia_habitual AS VARCHAR(5)), 5)"),
+                        '=',
+                        DB::raw("RIGHT('00' + CAST(M.codigoDepartamento AS VARCHAR(2)), 2) + RIGHT('000' + CAST(M.codigoMunicipio AS VARCHAR(3)), 3)")
+                    );
+                });
+
+            if (Auth::user() && (int) Auth::user()->usertype === 2) {
+                $baseJoin->where('A.user_id', Auth::id());
+            }
+            if (!empty($f['from'])) {
+                $baseJoin->whereDate('A.created_at', '>=', $f['from']);
+            }
+            if (!empty($f['to'])) {
+                $baseJoin->whereDate('A.created_at', '<=', $f['to']);
+            }
+            if ($f['identificacion'] !== '') {
+                $baseJoin->where('A.no_id_del_usuario', 'like', '%' . $f['identificacion'] . '%');
+            }
+            if ($f['municipio'] !== '') {
+                $baseJoin->where(function ($x) use ($f) {
+                    $x->whereRaw("CAST(A.municipio_de_residencia_habitual AS VARCHAR(40)) like ?", ['%' . $f['municipio'] . '%'])
+                        ->orWhere('M.descrip', 'like', '%' . $f['municipio'] . '%');
+                });
+            }
+            if ($f['fpp_estado'] === 'vencidas') {
+                $baseJoin->where('A.fecha_probable_de_parto', '<', now()->toDateString());
+            } elseif ($f['fpp_estado'] === 'proximas_7') {
+                $baseJoin->whereBetween('A.fecha_probable_de_parto', [now()->toDateString(), now()->addDays(7)->toDateString()]);
+            } elseif ($f['fpp_estado'] === 'proximas_30') {
+                $baseJoin->whereBetween('A.fecha_probable_de_parto', [now()->toDateString(), now()->addDays(30)->toDateString()]);
+            } elseif ($f['fpp_estado'] === 'vigentes') {
+                $baseJoin->where('A.fecha_probable_de_parto', '>=', now()->toDateString());
+            }
+
+            $municipiosTable = (clone $baseJoin)
+                ->selectRaw("
+                    COALESCE(M.descrip, CONCAT('SIN MAPEO (', A.municipio_de_residencia_habitual, ')')) as municipio,
+                    COUNT(*) as total
+                ")
+                ->groupByRaw("COALESCE(M.descrip, CONCAT('SIN MAPEO (', A.municipio_de_residencia_habitual, ')'))")
+                ->orderByDesc('total')
+                ->limit(20)
+                ->get()
+                ->map(fn($r) => ['municipio' => $r->municipio, 'total' => (int) $r->total])
+                ->all();
+
+            $latestTable = (clone $baseJoin)
+                ->selectRaw("
+                    A.id,
+                    A.no_id_del_usuario,
+                    A.primer_nombre,
+                    A.primer_apellido,
+                    A.municipio_de_residencia_habitual,
+                    A.fecha_probable_de_parto,
+                    A.created_at,
+                    COALESCE(M.descrip, CONCAT('SIN MAPEO (', A.municipio_de_residencia_habitual, ')')) as municipio_nombre
+                ")
+                ->orderByDesc('A.id')
+                ->limit(25)
+                ->get()
+                ->map(fn($r) => [
+                    'id' => (int) $r->id,
+                    'identificacion' => $r->no_id_del_usuario,
+                    'nombre' => trim(($r->primer_apellido ?? '') . ' ' . ($r->primer_nombre ?? '')),
+                    'municipio' => $r->municipio_nombre,
+                    'fpp' => $r->fecha_probable_de_parto ? Carbon::parse($r->fecha_probable_de_parto)->toDateString() : null,
+                    'fecha' => optional($r->created_at)->format('Y-m-d H:i'),
+                ])
+                ->all();
+        } catch (\Throwable $e) {
+            $municipiosTable = (clone $q)->selectRaw("CAST(municipio_de_residencia_habitual AS VARCHAR(40)) municipio, COUNT(*) total")
+                ->groupByRaw("CAST(municipio_de_residencia_habitual AS VARCHAR(40))")
+                ->orderByDesc('total')->limit(20)->get()->map(fn($r) => ['municipio' => $r->municipio, 'total' => (int) $r->total])->all();
+
+            $latestTable = (clone $q)->select('id', 'no_id_del_usuario', 'primer_nombre', 'primer_apellido', 'municipio_de_residencia_habitual', 'fecha_probable_de_parto', 'created_at')
+                ->orderByDesc('id')->limit(25)->get()->map(fn($r) => [
+                    'id' => (int) $r->id,
+                    'identificacion' => $r->no_id_del_usuario,
+                    'nombre' => trim(($r->primer_apellido ?? '') . ' ' . ($r->primer_nombre ?? '')),
+                    'municipio' => (string) $r->municipio_de_residencia_habitual,
+                    'fpp' => $r->fecha_probable_de_parto ? Carbon::parse($r->fecha_probable_de_parto)->toDateString() : null,
+                    'fecha' => optional($r->created_at)->format('Y-m-d H:i'),
+                ])->all();
+        }
+
         return [
             'label' => 'Gestantes Tipo 1',
             'summary' => [
@@ -227,18 +318,8 @@ class GestantesStatsController extends Controller
             'chart_monthly' => $this->monthly($q, 'created_at', $f['months']),
             'chart_main' => ['labels' => ['Vencidas', 'Proximas 7 dias', 'Proximas 30 dias', 'Sin FPP'], 'values' => [$venc, $p7, $p30, $sin]],
             'tables' => [
-                'a' => (clone $q)->selectRaw("CAST(municipio_de_residencia_habitual AS VARCHAR(40)) municipio, COUNT(*) total")
-                    ->groupByRaw("CAST(municipio_de_residencia_habitual AS VARCHAR(40))")
-                    ->orderByDesc('total')->limit(20)->get()->map(fn($r) => ['municipio' => $r->municipio, 'total' => (int) $r->total])->all(),
-                'b' => (clone $q)->select('id', 'no_id_del_usuario', 'primer_nombre', 'primer_apellido', 'municipio_de_residencia_habitual', 'fecha_probable_de_parto', 'created_at')
-                    ->orderByDesc('id')->limit(25)->get()->map(fn($r) => [
-                        'id' => (int) $r->id,
-                        'identificacion' => $r->no_id_del_usuario,
-                        'nombre' => trim(($r->primer_apellido ?? '') . ' ' . ($r->primer_nombre ?? '')),
-                        'municipio_codigo' => (string) $r->municipio_de_residencia_habitual,
-                        'fpp' => $r->fecha_probable_de_parto ? Carbon::parse($r->fecha_probable_de_parto)->toDateString() : null,
-                        'fecha' => optional($r->created_at)->format('Y-m-d H:i'),
-                    ])->all(),
+                'a' => $municipiosTable,
+                'b' => $latestTable,
             ],
         ];
     }
@@ -317,6 +398,100 @@ class GestantesStatsController extends Controller
             });
         }
 
+        $municipiosTable = [];
+        $latestTable = [];
+        try {
+            $baseJoin = DB::table('asignaciones_maestrosiv549 as A')
+                ->leftJoin(DB::raw('sga..municipios as M'), function ($join) {
+                    $join->on(
+                        DB::raw("RIGHT('00' + CAST(A.cod_dpto_o AS VARCHAR(2)), 2)"),
+                        '=',
+                        DB::raw("RIGHT('00' + CAST(M.codigoDepartamento AS VARCHAR(2)), 2)")
+                    )->on(
+                        DB::raw("RIGHT('000' + CAST(A.cod_mun_o AS VARCHAR(3)), 3)"),
+                        '=',
+                        DB::raw("RIGHT('000' + CAST(M.codigoMunicipio AS VARCHAR(3)), 3)")
+                    );
+                });
+
+            if (Auth::user() && (int) Auth::user()->usertype === 2) {
+                $baseJoin->where('A.user_id', Auth::id());
+            }
+            if (!empty($f['from'])) {
+                $baseJoin->whereDate("A.$dateCol", '>=', $f['from']);
+            }
+            if (!empty($f['to'])) {
+                $baseJoin->whereDate("A.$dateCol", '<=', $f['to']);
+            }
+            if ($f['identificacion'] !== '') {
+                $baseJoin->where('A.num_ide_', 'like', '%' . $f['identificacion'] . '%');
+            }
+            if ($f['semana'] !== '') {
+                $baseJoin->where('A.semana', $f['semana']);
+            }
+            if ($f['municipio'] !== '') {
+                $baseJoin->where(function ($x) use ($f) {
+                    $x->where('M.descrip', 'like', '%' . $f['municipio'] . '%')
+                        ->orWhere('A.nmun_resi', 'like', '%' . $f['municipio'] . '%')
+                        ->orWhere('A.cod_mun_o', 'like', '%' . $f['municipio'] . '%')
+                        ->orWhere('A.cod_dpto_o', 'like', '%' . $f['municipio'] . '%');
+                });
+            }
+
+            $municipiosTable = (clone $baseJoin)
+                ->selectRaw("COALESCE(M.descrip, COALESCE(NULLIF(A.nmun_resi,''), CONCAT('COD ', A.cod_dpto_o, '-', A.cod_mun_o))) as municipio, COUNT(*) as total")
+                ->groupByRaw("COALESCE(M.descrip, COALESCE(NULLIF(A.nmun_resi,''), CONCAT('COD ', A.cod_dpto_o, '-', A.cod_mun_o)))")
+                ->orderByDesc('total')
+                ->limit(20)
+                ->get()
+                ->map(fn($r) => ['municipio' => $r->municipio, 'total' => (int) $r->total])
+                ->all();
+
+            $latestTable = (clone $baseJoin)
+                ->selectRaw("
+                    A.id,
+                    A.num_ide_,
+                    A.pri_nom_,
+                    A.pri_ape_,
+                    A.semana,
+                    A.fec_not,
+                    A.telefono_,
+                    A.nmun_resi,
+                    A.created_at,
+                    COALESCE(M.descrip, COALESCE(NULLIF(A.nmun_resi,''), CONCAT('COD ', A.cod_dpto_o, '-', A.cod_mun_o))) as municipio_nombre
+                ")
+                ->orderByDesc('A.id')
+                ->limit(25)
+                ->get()
+                ->map(fn($r) => [
+                    'id' => (int) $r->id,
+                    'identificacion' => $r->num_ide_,
+                    'nombre' => trim(($r->pri_ape_ ?? '') . ' ' . ($r->pri_nom_ ?? '')),
+                    'semana' => $r->semana,
+                    'fec_not' => $r->fec_not ? Carbon::parse($r->fec_not)->toDateString() : null,
+                    'telefono' => $r->telefono_,
+                    'municipio' => $r->municipio_nombre,
+                    'fecha' => optional($r->created_at)->format('Y-m-d H:i'),
+                ])
+                ->all();
+        } catch (\Throwable $e) {
+            $municipiosTable = (clone $q)->selectRaw("COALESCE(NULLIF(nmun_resi,''), CONCAT('COD ', cod_dpto_o, '-', cod_mun_o)) municipio, COUNT(*) total")
+                ->groupByRaw("COALESCE(NULLIF(nmun_resi,''), CONCAT('COD ', cod_dpto_o, '-', cod_mun_o))")
+                ->orderByDesc('total')->limit(20)->get()->map(fn($r) => ['municipio' => $r->municipio, 'total' => (int) $r->total])->all();
+
+            $latestTable = (clone $q)->select('id', 'num_ide_', 'pri_nom_', 'pri_ape_', 'semana', 'fec_not', 'telefono_', 'nmun_resi', 'created_at')
+                ->orderByDesc('id')->limit(25)->get()->map(fn($r) => [
+                    'id' => (int) $r->id,
+                    'identificacion' => $r->num_ide_,
+                    'nombre' => trim(($r->pri_ape_ ?? '') . ' ' . ($r->pri_nom_ ?? '')),
+                    'semana' => $r->semana,
+                    'fec_not' => $r->fec_not ? Carbon::parse($r->fec_not)->toDateString() : null,
+                    'telefono' => $r->telefono_,
+                    'municipio' => $r->nmun_resi,
+                    'fecha' => optional($r->created_at)->format('Y-m-d H:i'),
+                ])->all();
+        }
+
         return [
             'label' => 'Maestro SIV549',
             'summary' => [
@@ -333,20 +508,8 @@ class GestantesStatsController extends Controller
                 'values' => (clone $q)->selectRaw("COALESCE(NULLIF(semana,''), 'SIN SEMANA') s, COUNT(*) t")->groupByRaw("COALESCE(NULLIF(semana,''), 'SIN SEMANA')")->orderBy('s')->limit(16)->pluck('t')->map(fn($x) => (int) $x)->values()->all(),
             ],
             'tables' => [
-                'a' => (clone $q)->selectRaw("COALESCE(NULLIF(nmun_resi,''), CONCAT('COD ', cod_dpto_o, '-', cod_mun_o)) municipio, COUNT(*) total")
-                    ->groupByRaw("COALESCE(NULLIF(nmun_resi,''), CONCAT('COD ', cod_dpto_o, '-', cod_mun_o))")
-                    ->orderByDesc('total')->limit(20)->get()->map(fn($r) => ['municipio' => $r->municipio, 'total' => (int) $r->total])->all(),
-                'b' => (clone $q)->select('id', 'num_ide_', 'pri_nom_', 'pri_ape_', 'semana', 'fec_not', 'telefono_', 'nmun_resi', 'created_at')
-                    ->orderByDesc('id')->limit(25)->get()->map(fn($r) => [
-                        'id' => (int) $r->id,
-                        'identificacion' => $r->num_ide_,
-                        'nombre' => trim(($r->pri_ape_ ?? '') . ' ' . ($r->pri_nom_ ?? '')),
-                        'semana' => $r->semana,
-                        'fec_not' => $r->fec_not ? Carbon::parse($r->fec_not)->toDateString() : null,
-                        'telefono' => $r->telefono_,
-                        'municipio' => $r->nmun_resi,
-                        'fecha' => optional($r->created_at)->format('Y-m-d H:i'),
-                    ])->all(),
+                'a' => $municipiosTable,
+                'b' => $latestTable,
             ],
         ];
     }
