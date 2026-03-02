@@ -198,6 +198,8 @@ Route::get('/seguimiento_412/view-pdf/{id}', 'App\Http\Controllers\Seguimiento41
 
 //ruta para las graficas
 Route::get('/grafica-barras', [SeguimientoController::class, 'graficaBarras'])->name('grafica.barras');
+Route::get('/grafica-barras/export/excel', [SeguimientoController::class, 'graficaBarrasExportExcel'])->name('grafica.barras.export.excel');
+Route::get('/grafica-barras/export/pdf', [SeguimientoController::class, 'graficaBarrasExportPdf'])->name('grafica.barras.export.pdf');
 
 Route::get('/grafica-torta-clasificacion', [SeguimientoController::class, 'graficaTortaClasificacion'])->name('grafica.torta.clasificacion');
 

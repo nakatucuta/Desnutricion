@@ -9,8 +9,10 @@ use Illuminate\Support\Facades\DB;
 use Session;
 use Maatwebsite\Excel\Facades\Excel;
 use App\Exports\SeguimientoExport;
+use App\Exports\DashboardSeguimientoExport;
 use App\Exports\GeneralExport;
 use Carbon\Carbon;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Redirect;
 use Symfony\Component\Mailer\Mailer;
@@ -67,7 +69,7 @@ class SeguimientoController extends Controller
                 'user_id',
             ]);
     
-        // ✅ FILTRADO DE ACCESO
+        // ÃƒÂ¢Ã…â€œÃ¢â‚¬Â¦ FILTRADO DE ACCESO
         if (!in_array($user->usertype, [1, 3])) {
             $query->where('user_id', $user->id);
         }
@@ -75,12 +77,12 @@ class SeguimientoController extends Controller
     
 
 
-        // — filtro por año (campo fec_creado)
+        // ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â filtro por aÃƒÆ’Ã‚Â±o (campo fec_creado)
         if ($request->filled('anio')) {
             $query->whereYear('creado', $request->anio);
         }
 
-        // — filtros de "estado" (abiertos/cerrados)
+        // ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â filtros de "estado" (abiertos/cerrados)
         if ($request->filled('estado')) {
             if ($request->estado === '1') {
                 $query->where('estado', 1);
@@ -89,7 +91,7 @@ class SeguimientoController extends Controller
             }
         }
     
-        // — filtro "próximos"
+        // ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â filtro "prÃƒÆ’Ã‚Â³ximos"
         if ($request->proximo === '1') {
             $query->whereNotNull('fecha_proximo_control')
                   ->whereDate('fecha_proximo_control', '>=', Carbon::today());
@@ -126,7 +128,7 @@ class SeguimientoController extends Controller
                                 <i class="far fa-file-pdf mr-2 text-danger"></i>Ver PDF</a>';
             
                 if ($user->usertype != 2) {
-                    $dropdown .= '<form method="POST" action="'.route('Seguimiento.destroy', $r->id).'" onsubmit="return confirm(\'¿Seguro que deseas eliminar?\')" style="display:inline;">
+                    $dropdown .= '<form method="POST" action="'.route('Seguimiento.destroy', $r->id).'" onsubmit="return confirm(\'Ãƒâ€šÃ‚Â¿Seguro que deseas eliminar?\')" style="display:inline;">
                                     '.csrf_field().method_field('DELETE').'
                                     <button class="dropdown-item text-danger" type="submit">
                                         <i class="fas fa-trash-alt mr-2"></i>Eliminar
@@ -162,7 +164,7 @@ class SeguimientoController extends Controller
                 ->whereYear('created_at', '>', 2023)
                 ->count();
 
-    // PRÓXIMOS
+    // PRÃƒÆ’Ã¢â‚¬Å“XIMOS
     $otro = DB::table('sivigilas')
         ->join('seguimientos', 'sivigilas.id', '=', 'seguimientos.sivigilas_id')
         ->select([
@@ -191,7 +193,7 @@ class SeguimientoController extends Controller
                 ->whereYear('created_at', '>', 2023)
                 ->count();
 
-    // Para mantener compatibilidad si la vista usa esta colección
+    // Para mantener compatibilidad si la vista usa esta colecciÃƒÆ’Ã‚Â³n
     $seguimientos = Seguimiento::where('estado', 1)
                       ->when(!$isAdmin, fn($q) => $q->where('user_id', $user->id))
                       ->get();
@@ -210,7 +212,7 @@ public function viewPDF($id)
     $seguimiento = Seguimiento::findOrFail($id);
     $nombreArchivo = $seguimiento->pdf;
 
-    // Ruta 1: raíz de /public
+    // Ruta 1: raÃƒÆ’Ã‚Â­z de /public
     $ruta1 = $nombreArchivo;
 
     // Ruta 2: subcarpeta /public/pdf
@@ -301,7 +303,7 @@ public function viewPDF($id)
      */
     public function store(Request $request)
     {
-        // 1) Validación
+        // 1) ValidaciÃƒÆ’Ã‚Â³n
         $request->validate([
             'fecha_consulta'                             => 'required|date',
             'peso_kilos'                                 => 'required|numeric',
@@ -324,8 +326,8 @@ public function viewPDF($id)
             'estado'                                     => 'required|in:0,1',
         ],[
             'required' => 'El campo :attribute es obligatorio.',
-            'numeric'  => 'El campo :attribute debe ser numérico.',
-            'date'     => 'El campo :attribute debe ser una fecha válida.',
+            'numeric'  => 'El campo :attribute debe ser numÃƒÆ’Ã‚Â©rico.',
+            'date'     => 'El campo :attribute debe ser una fecha vÃƒÆ’Ã‚Â¡lida.',
             'after_or_equal' => 'El campo :attribute debe ser igual o posterior a LA FECHA ACTUAL NO PUEDE COLOCAR UNA  FECHA DE PROXIMO SEGUIMIENTO MENOR A LA  ACTUAL.',
 
         ]);
@@ -340,7 +342,7 @@ public function viewPDF($id)
                 ->with('error1', 'No puedes hacer un seguimiento porque la fecha de control no se ha cumplido');
         }
 
-        // 3) Crear todo en transacción
+        // 3) Crear todo en transacciÃƒÆ’Ã‚Â³n
         DB::transaction(function() use ($request, &$seguimiento) {
             $data = $request->only([
                 'fecha_consulta','peso_kilos','talla_cm','puntajez',
@@ -381,12 +383,12 @@ public function viewPDF($id)
                     . "ID seguimiento: <strong>{$seguimiento->id}</strong><br>"
                     . "Paciente: <strong>{$sivigila->pri_nom_} {$sivigila->seg_nom_} "
                                 ."{$sivigila->pri_ape_} {$sivigila->seg_ape_}</strong><br>"
-                    . "Próximo control: <strong>{$seguimiento->fecha_proximo_control}</strong><br>";
+                    . "PrÃƒÆ’Ã‚Â³ximo control: <strong>{$seguimiento->fecha_proximo_control}</strong><br>";
 
                 $html = "Hola, se ha registrado un seguimiento para el paciente:<br>"
                       . $bodyText
                       . "Por favor gestiona lo antes posible en "
-                      . "<a href=\"".url('login')."\">la aplicación</a>.";
+                      . "<a href=\"".url('login')."\">la aplicaciÃƒÆ’Ã‚Â³n</a>.";
 
                 // SMTP SSL puerto 465
                 $transport = new EsmtpTransport(
@@ -414,7 +416,7 @@ public function viewPDF($id)
                     Log::warning("Error SMTP: {$e->getMessage()}");
                 }
             } else {
-                Log::warning("Usuario ID {$sivigila->user_id} sin email válido");
+                Log::warning("Usuario ID {$sivigila->user_id} sin email vÃƒÆ’Ã‚Â¡lido");
             }
         }
 
@@ -471,7 +473,7 @@ public function viewPDF($id)
      */
     public function update(Request $request, Seguimiento $seguimiento, $id)
     {
-        // 1) Validación
+        // 1) ValidaciÃƒÆ’Ã‚Â³n
         $request->validate([
             'fecha_consulta' => 'required|string|max:100',
             'peso_kilos'     => 'required',
@@ -533,7 +535,7 @@ public function viewPDF($id)
         if ((int)$request->estado === 1) {
             $sivigila = Sivigila::find($request->sivigilas_id);
             if ($sivigila && $user = User::find($sivigila->user_id)) {
-                // ── USAR SSL IMPLÍCITO EN PUERTO 465 ──
+                // ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ USAR SSL IMPLÃƒÆ’Ã‚ÂCITO EN PUERTO 465 ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬
                 $transport = new EsmtpTransport(
                     env('MAIL_HOST', 'smtp.gmail.com'),
                     465,
@@ -542,7 +544,7 @@ public function viewPDF($id)
                 $transport->setUsername(env('MAIL_USERNAME'));
                 $transport->setPassword(env('MAIL_PASSWORD'));
 
-                // Log de la configuración real:
+                // Log de la configuraciÃƒÆ’Ã‚Â³n real:
                 Log::info("SMTP configurado: host=" . env('MAIL_HOST') .
                           " port=465 encryption=ssl");
 
@@ -556,7 +558,7 @@ public function viewPDF($id)
                         'Hola, tu seguimiento acaba de ser actualizado por el administrador.' .
                         $bodyText .
                         ' Se solicita gestionarlo lo antes posible ingresando ' .
-                        '<a href="' . url('login') . '">aquí</a>.'
+                        '<a href="' . url('login') . '">aquÃƒÆ’Ã‚Â­</a>.'
                     );
 
                 try {
@@ -566,7 +568,7 @@ public function viewPDF($id)
                     Log::warning('Error SMTP al enviar correo: ' . $e->getMessage());
                 }
             } else {
-                Log::warning("No se envía correo: paciente o usuario no encontrado para Seguimiento ID {$id}");
+                Log::warning("No se envÃƒÆ’Ã‚Â­a correo: paciente o usuario no encontrado para Seguimiento ID {$id}");
             }
         }
 
@@ -691,7 +693,7 @@ public function reporte2()
 
 
 
-// Método para ver el PDF
+// MÃƒÆ’Ã‚Â©todo para ver el PDF
 
 // public function viewPDF($id)
 //     {
@@ -722,9 +724,10 @@ public function reporte2()
 //         );
 //     }
 
-public function detallePrestador($id)
+public function detallePrestador($id, Request $request)
 {
-    // Verifica si el ID está llegando al controlador
+    $anio = (int) ($request->input('anio', now()->year));
+    // Verifica si el ID estÃƒÆ’Ã‚Â¡ llegando al controlador
     \Log::info('ID recibido en el controlador: ' . $id);
 
     // Realiza la consulta para obtener los detalles del prestador
@@ -732,8 +735,8 @@ public function detallePrestador($id)
     ->join('DESNUTRICION.dbo.users as usr', 'usr.id', '=', 'cgr.user_id')
     ->leftJoin('DESNUTRICION.dbo.seguimiento_412s as seg', 'seg.cargue412_id', '=', 'cgr.id')
     ->where('cgr.user_id', $id)                             // solo registros asignados al usuario $id
-    ->whereNull('seg.id')                                   // que no tengan NINGÚN seguimiento en seguimiento_412s
-    ->whereRaw('YEAR(cgr.fecha_captacion) = YEAR(GETDATE())')// cuya fecha_captacion sea del año actual
+    ->whereNull('seg.id')                                   // que no tengan NINGÃƒÆ’Ã…Â¡N seguimiento en seguimiento_412s
+    ->whereYear('cgr.fecha_captacion', $anio)// cuya fecha_captacion sea del aÃƒÆ’Ã‚Â±o actual
     ->select([
         'cgr.primer_nombre',
         'cgr.segundo_nombre',
@@ -752,7 +755,7 @@ public function detallePrestador($id)
 
         
 
-    // Verificación en logs
+    // VerificaciÃƒÆ’Ã‚Â³n en logs
     if ($detalles->isEmpty()) {
         \Log::info('No se encontraron detalles para el ID: ' . $id);
     } else {
@@ -767,82 +770,266 @@ public function detallePrestador($id)
     
 public function graficaBarras()
 {
+    $data = $this->buildGraficaBarrasDashboardData(request());
 
-
-    
-    // Obtener los datos de la base de datos para la gráfica de barras
-    $estados = DB::table('seguimientos')
-        ->select('estado', DB::raw('count(*) as total'))
-        ->groupBy('estado')
-        ->whereYear('seguimientos.created_at', '>', 2023)
-        ->get();
-
-    // Preparar los datos para la gráfica de barras
-    $estados_labels = [];
-    $estados_data = [];
-
-    foreach ($estados as $estado) {
-        $estados_labels[] = $estado->estado == 1 ? 'Abierto' : 'Cerrado';
-        $estados_data[] = $estado->total;
-    }
-
-    // Obtener los datos de la base de datos para la gráfica de torta
-    $clasificaciones = DB::table('seguimientos')
-        ->select('clasificacion', DB::raw('count(*) as total'))
-        ->groupBy('clasificacion')
-        ->whereYear('seguimientos.created_at', '>', 2023)
-        ->get();
-
-    // Preparar los datos para la gráfica de torta
-    $clasificaciones_labels = [];
-    $clasificaciones_data = [];
-
-    foreach ($clasificaciones as $clasificacion) {
-        $clasificaciones_labels[] = $clasificacion->clasificacion;
-        $clasificaciones_data[] = $clasificacion->total;
-    }
-    $results = DB::table('DESNUTRICION.dbo.users as a')
-    ->select(
-        'a.id',
-        'a.name',
-        // cambiamos el alias aquí para que sea EXACTAMENTE igual al que usas en Blade
-        DB::raw("COUNT(CASE WHEN c.sivigilas_id IS NULL THEN 1 END) AS total_Sin_Seguimientos"),
-        DB::raw("COUNT(DISTINCT b.id) AS cant_casos_asignados")
-    )
-    ->join('DESNUTRICION.dbo.sivigilas as b', 'a.id', '=', 'b.user_id')
-    ->leftJoin('DESNUTRICION.dbo.seguimientos as c', 'b.id', '=', 'c.sivigilas_id')
-    // ->where('b.user_id', 6)
-    ->whereRaw('YEAR(b.fec_not) = YEAR(GETDATE())')
-    ->groupBy('a.id', 'a.name')
-    ->get();
-
-
-    $results_412 = DB::table('DESNUTRICION.dbo.users as a')
-    ->select(
-        'a.id',
-        'a.name',
-        // Cuenta los cargues sin ningún seguimiento
-        DB::raw("COUNT(CASE WHEN c.cargue412_id IS NULL THEN 1 ELSE NULL END) AS total_Sin_Seguimientos"),
-        // Cuenta el total de cargues asignados
-        DB::raw("COUNT(DISTINCT b.id) AS cant_casos_asignados")
-    )
-    ->join('DESNUTRICION.dbo.cargue412s as b', 'a.id', '=', 'b.user_id')
-    ->leftJoin('DESNUTRICION.dbo.seguimiento_412s as c', function($join) {
-        $join->on('c.cargue412_id', '=', 'b.id');
-    })
-    // Sólo registros de este año, con base en la fecha de captación
-    ->whereRaw('YEAR(b.fecha_captacion) = YEAR(GETDATE())')
-    ->groupBy('a.id', 'a.name')
-    ->orderBy('cant_casos_asignados', 'desc')
-    ->get();
-
-
-
-
-
-    return view('seguimiento.grafica-barras', compact('estados_labels', 'estados_data', 'clasificaciones_labels', 'clasificaciones_data','results','results_412'));
+    return view('seguimiento.grafica-barras', $data);
 }
 
+public function graficaTortaClasificacion()
+{
+    return redirect()->route('grafica.barras', request()->query());
+}
+
+public function graficaBarrasExportExcel(Request $request)
+{
+    $data = $this->buildGraficaBarrasDashboardData($request);
+    $fileName = 'dashboard_seguimiento_' . $data['filters']['anio'] . '_' . now()->format('Ymd_His') . '.xlsx';
+
+    return Excel::download(new DashboardSeguimientoExport($data), $fileName);
+}
+
+public function graficaBarrasExportPdf(Request $request)
+{
+    $data = $this->buildGraficaBarrasDashboardData($request);
+
+    $pdf = Pdf::loadView('seguimiento.grafica-barras-pdf', [
+        'filters' => $data['filters'],
+        'kpis' => $data['kpis'],
+        'rows' => $data['rows'],
+        'generatedAt' => now()->format('d/m/Y H:i:s'),
+    ])->setPaper('a4', 'landscape');
+
+    $fileName = 'dashboard_seguimiento_' . $data['filters']['anio'] . '_' . now()->format('Ymd_His') . '.pdf';
+
+    return $pdf->download($fileName);
+}
+
+private function buildGraficaBarrasDashboardData(Request $request): array
+{
+    $currentYear = (int) now()->year;
+
+    $validated = $request->validate([
+        'anio' => "nullable|integer|min:2020|max:{$currentYear}",
+        'prestador_id' => 'nullable|integer|exists:users,id',
+        'estado' => 'nullable|in:todos,con_sin,solo_sin,solo_con,alto_riesgo',
+        'orden' => 'nullable|in:sin_desc,cobertura_asc,cobertura_desc,nombre_asc,nombre_desc',
+        'q' => 'nullable|string|max:120',
+    ]);
+
+    $filters = [
+        'anio' => (int)($validated['anio'] ?? $currentYear),
+        'prestador_id' => isset($validated['prestador_id']) ? (int)$validated['prestador_id'] : null,
+        'evento' => '113_y_412',
+        'estado' => $validated['estado'] ?? 'con_sin',
+        'orden' => $validated['orden'] ?? 'sin_desc',
+        'q' => trim((string)($validated['q'] ?? '')),
+    ];
+
+    $prestadores = DB::table('users as u')
+        ->whereExists(function ($q) {
+            $q->select(DB::raw(1))
+                ->from('sivigilas as s')
+                ->whereColumn('s.user_id', 'u.id');
+        })
+        ->orWhereExists(function ($q) {
+            $q->select(DB::raw(1))
+                ->from('cargue412s as c')
+                ->whereColumn('c.user_id', 'u.id');
+        })
+        ->orderBy('u.name')
+        ->get(['u.id', 'u.name']);
+
+    $availableYears = DB::table('sivigilas')
+        ->selectRaw('YEAR(fec_not) as anio')
+        ->whereNotNull('fec_not')
+        ->union(
+            DB::table('cargue412s')
+                ->selectRaw('YEAR(fecha_captacion) as anio')
+                ->whereNotNull('fecha_captacion')
+        )
+        ->get()
+        ->pluck('anio')
+        ->filter()
+        ->unique()
+        ->sortDesc()
+        ->values();
+
+    if ($availableYears->isEmpty()) {
+        $availableYears = collect([$currentYear]);
+    }
+
+    $q = $filters['q'];
+
+    $results113 = DB::table('users as a')
+        ->join('sivigilas as b', 'a.id', '=', 'b.user_id')
+        ->leftJoin('seguimientos as c', 'b.id', '=', 'c.sivigilas_id')
+        ->whereYear('b.fec_not', $filters['anio'])
+        ->when($filters['prestador_id'], fn($query) => $query->where('a.id', $filters['prestador_id']))
+        ->when($q !== '', function ($query) use ($q) {
+            $query->where(function ($w) use ($q) {
+                $w->where('a.name', 'like', "%{$q}%")
+                    ->orWhere('b.num_ide_', 'like', "%{$q}%")
+                    ->orWhereRaw("CONCAT(COALESCE(b.pri_nom_, ''), ' ', COALESCE(b.seg_nom_, ''), ' ', COALESCE(b.pri_ape_, ''), ' ', COALESCE(b.seg_ape_, '')) like ?", ["%{$q}%"]);
+            });
+        })
+        ->groupBy('a.id', 'a.name')
+        ->select([
+            'a.id',
+            'a.name',
+            DB::raw("'113' as evento"),
+            DB::raw('COUNT(DISTINCT b.id) as cant_casos_asignados'),
+            DB::raw('COUNT(DISTINCT CASE WHEN c.id IS NULL THEN b.id END) as total_sin_seguimientos'),
+        ])
+        ->get()
+        ->map(function ($row) {
+            $asignados = (int)$row->cant_casos_asignados;
+            $sin = (int)$row->total_sin_seguimientos;
+            $con = max(0, $asignados - $sin);
+            $cobertura = $asignados > 0 ? round(($con / $asignados) * 100, 2) : 0;
+
+            $row->casos_con_seguimiento = $con;
+            $row->cobertura_pct = $cobertura;
+            $row->nivel_riesgo = $sin === 0 ? 'Bajo' : ($cobertura < 70 ? 'Alto' : 'Medio');
+            return $row;
+        });
+
+    $results412 = DB::table('users as a')
+        ->join('cargue412s as b', 'a.id', '=', 'b.user_id')
+        ->leftJoin('seguimiento_412s as c', 'b.id', '=', 'c.cargue412_id')
+        ->whereYear('b.fecha_captacion', $filters['anio'])
+        ->when($filters['prestador_id'], fn($query) => $query->where('a.id', $filters['prestador_id']))
+        ->when($q !== '', function ($query) use ($q) {
+            $query->where(function ($w) use ($q) {
+                $w->where('a.name', 'like', "%{$q}%")
+                    ->orWhere('b.numero_identificacion', 'like', "%{$q}%")
+                    ->orWhereRaw("CONCAT(COALESCE(b.primer_nombre, ''), ' ', COALESCE(b.segundo_nombre, ''), ' ', COALESCE(b.primer_apellido, ''), ' ', COALESCE(b.segundo_apellido, '')) like ?", ["%{$q}%"]);
+            });
+        })
+        ->groupBy('a.id', 'a.name')
+        ->select([
+            'a.id',
+            'a.name',
+            DB::raw("'412' as evento"),
+            DB::raw('COUNT(DISTINCT b.id) as cant_casos_asignados'),
+            DB::raw('COUNT(DISTINCT CASE WHEN c.id IS NULL THEN b.id END) as total_sin_seguimientos'),
+        ])
+        ->get()
+        ->map(function ($row) {
+            $asignados = (int)$row->cant_casos_asignados;
+            $sin = (int)$row->total_sin_seguimientos;
+            $con = max(0, $asignados - $sin);
+            $cobertura = $asignados > 0 ? round(($con / $asignados) * 100, 2) : 0;
+
+            $row->casos_con_seguimiento = $con;
+            $row->cobertura_pct = $cobertura;
+            $row->nivel_riesgo = $sin === 0 ? 'Bajo' : ($cobertura < 70 ? 'Alto' : 'Medio');
+            return $row;
+        });
+
+    $rows = $results113->concat($results412);
+
+    if ($filters['estado'] === 'solo_sin') {
+        $rows = $rows->where('total_sin_seguimientos', '>', 0)->values();
+    } elseif ($filters['estado'] === 'solo_con') {
+        $rows = $rows->where('total_sin_seguimientos', 0)->values();
+    } elseif ($filters['estado'] === 'alto_riesgo') {
+        $rows = $rows->where('cobertura_pct', '<', 70)->values();
+    }
+
+    $rows = match ($filters['orden']) {
+        'cobertura_asc' => $rows->sortBy('cobertura_pct')->values(),
+        'cobertura_desc' => $rows->sortByDesc('cobertura_pct')->values(),
+        'nombre_asc' => $rows->sortBy('name', SORT_NATURAL | SORT_FLAG_CASE)->values(),
+        'nombre_desc' => $rows->sortByDesc('name', SORT_NATURAL | SORT_FLAG_CASE)->values(),
+        default => $rows->sortByDesc('total_sin_seguimientos')->values(),
+    };
+
+    $totalAsignados = (int)$rows->sum('cant_casos_asignados');
+    $totalSin = (int)$rows->sum('total_sin_seguimientos');
+    $totalCon = (int)$rows->sum('casos_con_seguimiento');
+    $totalPrestadores = $rows->count();
+    $alertas = $rows->where('total_sin_seguimientos', '>', 0)->count();
+    $coberturaGlobal = $totalAsignados > 0 ? round(($totalCon / $totalAsignados) * 100, 2) : 0;
+
+    $kpis = [
+        'total_prestadores' => $totalPrestadores,
+        'total_asignados' => $totalAsignados,
+        'total_con_seguimiento' => $totalCon,
+        'total_sin_seguimiento' => $totalSin,
+        'prestadores_con_alerta' => $alertas,
+        'cobertura_global_pct' => $coberturaGlobal,
+    ];
+
+    $eventoChart = $rows
+        ->groupBy('evento')
+        ->map(function ($group) {
+            return [
+                'sin' => (int)$group->sum('total_sin_seguimientos'),
+                'con' => (int)$group->sum('casos_con_seguimiento'),
+            ];
+        });
+
+    $topSin = $rows
+        ->sortByDesc('total_sin_seguimientos')
+        ->take(10)
+        ->values();
+
+    $seguimientosBase = DB::table('seguimientos as s')
+        ->join('sivigilas as sv', 'sv.id', '=', 's.sivigilas_id')
+        ->whereYear('s.created_at', $filters['anio'])
+        ->when($filters['prestador_id'], fn($query) => $query->where('sv.user_id', $filters['prestador_id']));
+
+    $estadoSeguimientos = (clone $seguimientosBase)
+        ->select('s.estado', DB::raw('COUNT(*) as total'))
+        ->groupBy('s.estado')
+        ->get();
+
+    $clasificaciones = (clone $seguimientosBase)
+        ->select('s.clasificacion', DB::raw('COUNT(*) as total'))
+        ->groupBy('s.clasificacion')
+        ->get();
+
+    $estadosLabels = $estadoSeguimientos
+        ->map(fn($e) => (string)$e->estado === '1' ? 'Abierto' : 'Cerrado')
+        ->values();
+    $estadosData = $estadoSeguimientos->pluck('total')->map(fn($v) => (int)$v)->values();
+
+    $clasifLabels = $clasificaciones
+        ->map(fn($c) => $c->clasificacion ?: 'Sin clasificacion')
+        ->values();
+    $clasifData = $clasificaciones->pluck('total')->map(fn($v) => (int)$v)->values();
+
+    return [
+        'filters' => $filters,
+        'availableYears' => $availableYears,
+        'prestadores' => $prestadores,
+        'kpis' => $kpis,
+        'rows' => $rows,
+        'charts' => [
+            'seguimiento_vs_sin' => [
+                'labels' => ['Con seguimiento', 'Sin seguimiento'],
+                'data' => [$totalCon, $totalSin],
+            ],
+            'evento' => [
+                'labels' => $eventoChart->keys()->map(fn($k) => 'Evento ' . $k)->values(),
+                'sin' => $eventoChart->pluck('sin')->values(),
+                'con' => $eventoChart->pluck('con')->values(),
+            ],
+            'top_sin' => [
+                'labels' => $topSin->map(fn($r) => mb_strimwidth($r->name, 0, 24, '...') . " ({$r->evento})")->values(),
+                'data' => $topSin->pluck('total_sin_seguimientos')->values(),
+            ],
+            'estado_seguimientos' => [
+                'labels' => $estadosLabels,
+                'data' => $estadosData,
+            ],
+            'clasificaciones' => [
+                'labels' => $clasifLabels,
+                'data' => $clasifData,
+            ],
+        ],
+    ];
+}
 
 public function obtenerDatosEnJson()
 {
@@ -887,29 +1074,29 @@ public function obtenerDatosEnJson()
             ->select(
                 'a.id', // Seleccionamos el ID del usuario
                 'a.name', // Seleccionamos el nombre del usuario
-                DB::raw('COUNT(c.sivigilas_id) AS total_Seguimientos'), // Contamos el número total de seguimientos
-                DB::raw('COUNT(b.user_id) AS cant_casos_asignados') // Contamos el número total de casos asignados
+                DB::raw('COUNT(c.sivigilas_id) AS total_Seguimientos'), // Contamos el nÃƒÆ’Ã‚Âºmero total de seguimientos
+                DB::raw('COUNT(b.user_id) AS cant_casos_asignados') // Contamos el nÃƒÆ’Ã‚Âºmero total de casos asignados
             )
             // Unimos la tabla de sivigilas con la tabla de usuarios en base al ID del usuario
             ->join('DESNUTRICION.dbo.sivigilas AS b', 'a.id', '=', 'b.user_id')
             // Unimos la tabla de seguimientos con la tabla de sivigilas en base al ID de sivigilas
             ->leftJoin('DESNUTRICION.dbo.seguimientos AS c', 'b.id', '=', 'c.sivigilas_id')
-            // Aplicamos un filtro para seleccionar solo los registros creados en el año 2023 o posterior
+            // Aplicamos un filtro para seleccionar solo los registros creados en el aÃƒÆ’Ã‚Â±o 2023 o posterior
             ->whereRaw('YEAR(b.created_at) > ?', [2023])
             // Agrupamos los resultados por ID y nombre del usuario
             ->groupBy('a.id', 'a.name');
 
         // Usamos DataTables para manejar la consulta
         return DataTables::of($query)
-            // Aplicamos un filtro para la búsqueda
+            // Aplicamos un filtro para la bÃƒÆ’Ã‚Âºsqueda
             ->filter(function ($query) use ($request) {
-                // Verificamos si hay un valor de búsqueda
+                // Verificamos si hay un valor de bÃƒÆ’Ã‚Âºsqueda
                 if ($request->has('search.value')) {
-                    $search = $request->input('search.value'); // Obtenemos el valor de búsqueda
-                    // Aplicamos la búsqueda en los campos id y name de la tabla users
+                    $search = $request->input('search.value'); // Obtenemos el valor de bÃƒÆ’Ã‚Âºsqueda
+                    // Aplicamos la bÃƒÆ’Ã‚Âºsqueda en los campos id y name de la tabla users
                     $query->where(function($query) use ($search) {
-                        $query->where('a.name', 'like', "%{$search}%") // Búsqueda parcial por nombre
-                              ->orWhere('a.id', 'like', "%{$search}%"); // Búsqueda parcial por ID
+                        $query->where('a.name', 'like', "%{$search}%") // BÃƒÆ’Ã‚Âºsqueda parcial por nombre
+                              ->orWhere('a.id', 'like', "%{$search}%"); // BÃƒÆ’Ã‚Âºsqueda parcial por ID
                     });
                 }
             })
@@ -937,18 +1124,19 @@ public function obtenerDatosEnJson()
 // ->make(true);
 // }
 
-public function detallePrestador_113($id)
+public function detallePrestador_113($id, Request $request)
 {
-    // Verifica si el ID está llegando al controlador
+    $anio = (int) ($request->input('anio', now()->year));
+    // Verifica si el ID estÃƒÆ’Ã‚Â¡ llegando al controlador
     \Log::info('ID recibido en el controlador: ' . $id);
 
-    // Realiza la consulta para obtener los detalles del prestador según la consulta proporcionada
+    // Realiza la consulta para obtener los detalles del prestador segÃƒÆ’Ã‚Âºn la consulta proporcionada
     $detalles = DB::table('DESNUTRICION.dbo.sivigilas as siv')
     ->join('DESNUTRICION.dbo.users as usr', 'usr.id', '=', 'siv.user_id')
     ->leftJoin('DESNUTRICION.dbo.seguimientos as seg', 'seg.sivigilas_id', '=', 'siv.id')
     ->where('siv.user_id', $id)                            // solo pacientes asignados al prestador $id
-    ->whereNull('seg.id')                                 // que no tengan NINGÚN seguimiento
-    ->whereRaw('YEAR(siv.fec_not) = YEAR(GETDATE())')     // cuya fec_not es del año actual
+    ->whereNull('seg.id')                                 // que no tengan NINGÃƒÆ’Ã…Â¡N seguimiento
+    ->whereYear('siv.fec_not', $anio)     // cuya fec_not es del aÃƒÆ’Ã‚Â±o actual
     ->select([
         'siv.tip_ide_',
         'siv.num_ide_',
@@ -964,7 +1152,7 @@ public function detallePrestador_113($id)
     ->get();
 
 
-    // Verificación en logs
+    // VerificaciÃƒÆ’Ã‚Â³n en logs
     if ($detalles->isEmpty()) {
         \Log::info('No se encontraron detalles para el ID: ' . $id);
     } else {
@@ -1013,3 +1201,4 @@ public function buscarSeguimiento(Request $request)
 
     
         
+

@@ -716,11 +716,10 @@
         <script src="{{ asset('vendor/adminlte/dist/js/select2.min.js') }}"></script>
 
         <script>$(document).ready(function() {
-            $('.person').select2();
-        });
-    
-        $(document).ready(function() {
-    $('.person2').select2();
+            if ($.fn && typeof $.fn.select2 === 'function') {
+                $('.person').select2();
+                $('.person2').select2();
+            }
         });
         </script>
         {{-- Configured Scripts --}}
