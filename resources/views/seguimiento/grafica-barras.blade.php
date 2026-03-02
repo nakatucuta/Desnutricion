@@ -161,7 +161,6 @@
                         <table class="table table-striped table-bordered" id="dashboard-table-113">
                             <thead>
                                 <tr>
-                                    <th>ID</th>
                                     <th>Prestador</th>
                                     <th>Asignados</th>
                                     <th>Con seguimiento</th>
@@ -173,7 +172,6 @@
                             <tbody>
                                 @foreach($rows113 as $row)
                                     <tr class="{{ $row->total_sin_seguimientos > 0 ? 'sg-row-alert' : 'sg-row-ok' }}">
-                                        <td>{{ $row->id }}</td>
                                         <td>
                                             <a href="#" class="sg-prestador-link" data-id="{{ $row->id }}" data-evento="{{ $row->evento }}" data-anio="{{ $filters['anio'] }}">
                                                 {{ $row->name }}
@@ -201,7 +199,6 @@
                         <table class="table table-striped table-bordered" id="dashboard-table-412">
                             <thead>
                                 <tr>
-                                    <th>ID</th>
                                     <th>Prestador</th>
                                     <th>Asignados</th>
                                     <th>Con seguimiento</th>
@@ -213,7 +210,6 @@
                             <tbody>
                                 @foreach($rows412 as $row)
                                     <tr class="{{ $row->total_sin_seguimientos > 0 ? 'sg-row-alert' : 'sg-row-ok' }}">
-                                        <td>{{ $row->id }}</td>
                                         <td>
                                             <a href="#" class="sg-prestador-link" data-id="{{ $row->id }}" data-evento="{{ $row->evento }}" data-anio="{{ $filters['anio'] }}">
                                                 {{ $row->name }}
@@ -333,7 +329,7 @@
     $(function () {
         $('#dashboard-table-113, #dashboard-table-412').DataTable({
             pageLength: 10,
-            order: [[4, 'desc']],
+            order: [[3, 'desc']],
             language: {
                 search: 'Buscar:',
                 lengthMenu: 'Mostrar _MENU_',
