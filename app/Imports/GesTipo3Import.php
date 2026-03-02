@@ -87,6 +87,12 @@ class GesTipo3Import implements OnEachRow, WithStartRow, WithChunkReading, Skips
         }
 
         if (is_string($value)) {
+            // Limpia espacios no separables u ocultos frecuentes en Excel.
+            $value = str_replace(
+                ["\xC2\xA0", "\u{00A0}", "\u{2007}", "\u{202F}", "\u{200B}"],
+                ' ',
+                $value
+            );
             $value = trim($value);
             $upper = mb_strtoupper($value, 'UTF-8');
             if ($value === '' || $upper === 'N/A' || $upper === 'NA' || $upper === 'NULL' || $upper === 'NONE') {
@@ -171,7 +177,15 @@ class GesTipo3Import implements OnEachRow, WithStartRow, WithChunkReading, Skips
         return $dt->format('Y-m-d');
     }
 
-    private function parseInteger($value, int $excelRow, string $field, bool $required = false, ?int $min = null, ?int $max = null): ?int
+    private function parseInteger(
+        $value,
+        int $excelRow,
+        string $field,
+        bool $required = false,
+        ?int $min = null,
+        ?int $max = null,
+        bool $allowDecimal = false
+    ): ?int
     {
         $value = $this->clean($value);
         if ($value === null) {
@@ -182,12 +196,20 @@ class GesTipo3Import implements OnEachRow, WithStartRow, WithChunkReading, Skips
         }
 
         $normalized = str_replace([' ', ','], ['', '.'], (string) $value);
-        if (!preg_match('/^-?\d+(\.0+)?$/', $normalized)) {
+        if (!is_numeric($normalized)) {
             $this->addError($excelRow, $field, 'debe ser numero entero', $value);
             return null;
         }
 
-        $n = (int) round((float) $normalized);
+        $floatValue = (float) $normalized;
+        $rounded = (int) round($floatValue);
+
+        if (!$allowDecimal && abs($floatValue - $rounded) > 0.0000001) {
+            $this->addError($excelRow, $field, 'debe ser numero entero', $value);
+            return null;
+        }
+
+        $n = $rounded;
 
         if ($min !== null && $n < $min) {
             $this->addError($excelRow, $field, "debe ser >= {$min}", $value);
@@ -276,9 +298,13 @@ class GesTipo3Import implements OnEachRow, WithStartRow, WithChunkReading, Skips
             'N' => 0,
             'FALSE' => 0,
             '2' => 0,
+            '21' => 1,
         ];
 
         if (!array_key_exists($v, $map)) {
+            if (is_numeric($v)) {
+                return (((float) $v) > 0) ? 1 : 0;
+            }
             $this->addError($excelRow, $field, 'solo permite SI/NO o 1/0', $value);
             return null;
         }
@@ -400,8 +426,8 @@ class GesTipo3Import implements OnEachRow, WithStartRow, WithChunkReading, Skips
         $fechaTerminacion = $this->parseDate($r[16] ?? null, $excelRow, 'Fecha terminacion gestacion', false);
 
         $tipoTerminacion = $this->parseInteger($r[17] ?? null, $excelRow, 'Tipo terminacion gestacion', false, 0, 99);
-        $pas = $this->parseInteger($r[18] ?? null, $excelRow, 'Tension arterial sistolica PAS', false, 40, 300);
-        $pad = $this->parseInteger($r[19] ?? null, $excelRow, 'Tension arterial diastolica PAD', false, 20, 200);
+        $pas = $this->parseInteger($r[18] ?? null, $excelRow, 'Tension arterial sistolica PAS', false, 40, 300, true);
+        $pad = $this->parseInteger($r[19] ?? null, $excelRow, 'Tension arterial diastolica PAD', false, 20, 200, true);
 
         if ($pas !== null && $pad !== null && $pas <= $pad) {
             $this->addError($excelRow, 'Tension arterial', 'PAS debe ser mayor que PAD');
