@@ -197,11 +197,11 @@ Route::get('/Seguimiento/{id}/detail', 'App\Http\Controllers\SeguimientoControll
 Route::get('/seguimiento_412/view-pdf/{id}', 'App\Http\Controllers\Seguimiento412Controller@viewPDF')->name('seguimiento.view-pdf_412');
 
 //ruta para las graficas
-Route::get('/grafica-barras', [SeguimientoController::class, 'graficaBarras'])->name('grafica.barras');
-Route::get('/grafica-barras/export/excel', [SeguimientoController::class, 'graficaBarrasExportExcel'])->name('grafica.barras.export.excel');
-Route::get('/grafica-barras/export/pdf', [SeguimientoController::class, 'graficaBarrasExportPdf'])->name('grafica.barras.export.pdf');
+Route::get('/grafica-barras', [SeguimientoController::class, 'graficaBarras'])->middleware('auth')->name('grafica.barras');
+Route::get('/grafica-barras/export/excel', [SeguimientoController::class, 'graficaBarrasExportExcel'])->middleware('auth')->name('grafica.barras.export.excel');
+Route::get('/grafica-barras/export/pdf', [SeguimientoController::class, 'graficaBarrasExportPdf'])->middleware('auth')->name('grafica.barras.export.pdf');
 
-Route::get('/grafica-torta-clasificacion', [SeguimientoController::class, 'graficaTortaClasificacion'])->name('grafica.torta.clasificacion');
+Route::get('/grafica-torta-clasificacion', [SeguimientoController::class, 'graficaTortaClasificacion'])->middleware('auth')->name('grafica.torta.clasificacion');
 
 // Route::get('/import', 'App\Http\Controllers\SivigilaController@import');
 

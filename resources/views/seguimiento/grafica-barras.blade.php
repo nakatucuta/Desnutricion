@@ -125,7 +125,7 @@
     <section class="sg-table-card" style="margin-top:12px;">
         <div class="sg-table-head" style="margin-bottom:0;">
             <h3>Graficas del dashboard</h3>
-            <button type="button" id="toggleChartsBtn" class="btn sg-btn sg-btn--ghost">
+            <button type="button" id="toggleChartsBtn" class="btn sg-btn sg-btn--toggle">
                 <i class="fas fa-chart-area mr-1"></i> Mostrar graficas
             </button>
         </div>
@@ -283,6 +283,33 @@
     .sg-btn{border-radius:10px;font-weight:700;font-size:.82rem;}
     .sg-btn--primary{background:#0ea5e9;color:#fff;border:none;}
     .sg-btn--ghost{background:#fff;border:1px solid #cbd5e1;color:#334155;}
+    .sg-btn--toggle{
+        position:relative;
+        border:none;
+        color:#fff;
+        background:linear-gradient(135deg,#0ea5e9,#2563eb);
+        box-shadow:0 10px 24px rgba(37,99,235,.35);
+        padding:9px 14px;
+        letter-spacing:.2px;
+        overflow:hidden;
+    }
+    .sg-btn--toggle:hover{
+        color:#fff;
+        transform:translateY(-1px);
+        box-shadow:0 14px 28px rgba(37,99,235,.45);
+    }
+    .sg-btn--toggle:focus{color:#fff;outline:none;box-shadow:0 0 0 .2rem rgba(14,165,233,.25),0 10px 24px rgba(37,99,235,.35);}
+    .sg-btn--toggle::after{
+        content:'';
+        position:absolute;
+        top:-80%;
+        left:-30%;
+        width:40%;
+        height:260%;
+        background:linear-gradient(90deg,rgba(255,255,255,0),rgba(255,255,255,.35),rgba(255,255,255,0));
+        transform:rotate(22deg);
+        animation:sgShine 2.8s linear infinite;
+    }
     .sg-btn--excel{background:#16a34a;color:#fff;border:none;}
     .sg-btn--pdf{background:#dc2626;color:#fff;border:none;}
     .sg-kpis{display:grid;grid-template-columns:repeat(6,minmax(120px,1fr));gap:10px;margin-top:12px;}
@@ -314,6 +341,7 @@
     .sg-detail-drawer__head h5{margin:0;font-weight:800;color:#0f172a;}
     .sg-detail-drawer__meta{padding:10px 12px;border-bottom:1px solid #edf2f7;background:#f8fbff;}
     .sg-detail-drawer__body{padding:10px 12px;overflow:auto;}
+    @keyframes sgShine{0%{left:-45%;}100%{left:120%;}}
     @media (max-width:1200px){.sg-filters{grid-template-columns:repeat(3,minmax(160px,1fr));}.sg-field--wide{grid-column:span 3;}.sg-actions{grid-column:span 3;}.sg-kpis{grid-template-columns:repeat(3,minmax(130px,1fr));}}
     @media (max-width:768px){.sg-hero{flex-direction:column;align-items:flex-start;}.sg-filters{grid-template-columns:1fr;}.sg-field--wide,.sg-actions{grid-column:span 1;}.sg-kpis{grid-template-columns:repeat(2,minmax(120px,1fr));}.sg-charts{grid-template-columns:1fr;}.sg-card--wide{grid-column:span 1;}}
 </style>
