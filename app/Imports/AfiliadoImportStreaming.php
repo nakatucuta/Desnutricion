@@ -110,6 +110,25 @@ class AfiliadoImportStreaming implements ToModel, WithStartRow, WithChunkReading
     ];
 
     /**
+     * SQL Server puede inferir tipos numéricos en INSERT multi-row cuando mezcla
+     * valores numéricos y texto por columna. Estas columnas deben viajar SIEMPRE
+     * como string para evitar conversiones implícitas a bigint.
+     */
+    private array $forceStringCols = [
+        'tipo_identificacion',
+        'numero_identificacion',
+        'numero_carnet',
+        'telefono_fijo',
+        'celular',
+        'madre_identificacion',
+        'madre_telefono',
+        'madre_celular',
+        'cuidador_identificacion',
+        'cuidador_telefono',
+        'cuidador_celular',
+    ];
+
+    /**
      * ✅ IMPORTANTE:
      * - Incluye tipo_identificacion para que no se pierda en normalizeAfiliadoRow()
      * - (Si tu tabla afiliados NO tiene tipo_identificacion, elimínala aquí y del insert)
@@ -418,7 +437,17 @@ class AfiliadoImportStreaming implements ToModel, WithStartRow, WithChunkReading
     {
         $template = array_fill_keys($this->afiliadoColumns, null);
         $row = array_intersect_key($row, $template);
-        return array_replace($template, $row);
+        $row = array_replace($template, $row);
+
+        foreach ($this->forceStringCols as $col) {
+            if (!array_key_exists($col, $row)) continue;
+            if ($row[$col] === null) continue;
+
+            $v = is_string($row[$col]) ? trim($row[$col]) : trim((string)$row[$col]);
+            $row[$col] = ($v === '' || $this->isNullToken($v)) ? null : $v;
+        }
+
+        return $row;
     }
 
     private function toIntOrNull($v): ?int
@@ -1057,6 +1086,7 @@ class AfiliadoImportStreaming implements ToModel, WithStartRow, WithChunkReading
 
                 // 2) Insert afiliados nuevos
                 $insertAfiliados = [];
+                $insertAfiliadosExcelRows = [];
 
                 foreach ($buffer as $fila) {
                     $row = $fila['afiliadoData'] ?? null;
@@ -1076,13 +1106,28 @@ class AfiliadoImportStreaming implements ToModel, WithStartRow, WithChunkReading
                     $row = $this->normalizeAfiliadoRow($row);
 
                     $insertAfiliados[] = $row;
+                    $insertAfiliadosExcelRows[] = $excelRow;
                 }
 
                 if (!empty($insertAfiliados)) {
                     $this->hardValidateSameKeys($insertAfiliados);
 
-                    foreach (array_chunk($insertAfiliados, 20) as $afilChunk) {
-                        $db->table('afiliados')->insert($afilChunk);
+                    // SQL Server puede inferir tipos entre filas en INSERT multi-row
+                    // y provocar conversiones nvarchar->bigint. Insertar fila a fila
+                    // evita esa inferencia cruzada.
+                    foreach ($insertAfiliados as $i => $afilRow) {
+                        try {
+                            $db->table('afiliados')->insert($afilRow);
+                        } catch (\Throwable $e) {
+                            $excelRow = (int)($insertAfiliadosExcelRows[$i] ?? 0);
+                            Log::error('IMPORT AFILIADO INSERT ROW ERROR', [
+                                'excelRow' => $excelRow,
+                                'numero_identificacion' => $afilRow['numero_identificacion'] ?? null,
+                                'numero_carnet' => $afilRow['numero_carnet'] ?? null,
+                                'error' => $e->getMessage(),
+                            ]);
+                            throw $e;
+                        }
                     }
 
                     $this->newAfil += count($insertAfiliados);
