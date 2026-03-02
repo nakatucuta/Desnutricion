@@ -595,8 +595,14 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/estadisticas/gestantes', [GestantesStatsController::class, 'index'])
         ->name('gestantes.stats.index');
 
+    Route::get('/estadisticas/gestantes/data', [GestantesStatsController::class, 'data'])
+        ->name('gestantes.stats.data');
+
     Route::get('/estadisticas/gestantes/detalle/{modulo}', [GestantesStatsController::class, 'detail'])
         ->name('gestantes.stats.detail');
+
+    Route::post('/estadisticas/gestantes/pdf', [GestantesStatsController::class, 'exportPdf'])
+        ->name('gestantes.stats.pdf');
 });
 
 

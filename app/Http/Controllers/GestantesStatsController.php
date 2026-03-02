@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use Barryvdh\DomPDF\Facade\Pdf;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -14,449 +16,471 @@ class GestantesStatsController extends Controller
         $this->middleware('auth');
     }
 
-    private function applyUserFilter($query, string $userCol = 'user_id')
+    private function userScope($q, string $table)
     {
-        if (Auth::user() && (int) Auth::user()->usertype === 2) {
-            if (Schema::hasColumn($query->from, $userCol)) {
-                $query->where($userCol, Auth::id());
-            }
+        if (Auth::user() && (int) Auth::user()->usertype === 2 && Schema::hasTable($table) && Schema::hasColumn($table, 'user_id')) {
+            $q->where('user_id', Auth::id());
         }
-        return $query;
+        return $q;
     }
 
-    private function safeCount(string $table): int
+    private function dateVal(?string $v): ?string
     {
-        if (!Schema::hasTable($table)) return 0;
-
-        $q = DB::table($table);
-
-        if (Schema::hasColumn($table, 'user_id')) {
-            $q = $this->applyUserFilter($q, 'user_id');
+        if (!$v) {
+            return null;
         }
-
-        return (int) $q->count();
+        try {
+            return Carbon::parse($v)->toDateString();
+        } catch (\Throwable $e) {
+            return null;
+        }
     }
 
-    private function monthlyCounts(string $table, int $monthsBack = 6): array
+    private function filters(Request $r): array
     {
-        if (!Schema::hasTable($table) || !Schema::hasColumn($table, 'created_at')) {
-            return ['labels' => [], 'values' => []];
+        return [
+            'module' => (string) $r->input('module', 'todos'),
+            'from' => $this->dateVal($r->input('from')),
+            'to' => $this->dateVal($r->input('to')),
+            'months' => max(3, min(24, (int) $r->input('months', 12))),
+            'identificacion' => trim((string) $r->input('identificacion', '')),
+            'municipio' => trim((string) $r->input('municipio', '')),
+            'riesgo_precon' => trim((string) $r->input('riesgo_precon', '')),
+            'riesgo_gestacional' => trim((string) $r->input('riesgo_gestacional', '')),
+            'fpp_estado' => trim((string) $r->input('fpp_estado', 'todos')),
+            'semana' => trim((string) $r->input('semana', '')),
+        ];
+    }
+
+    private function applyDate($q, string $table, string $col, array $f)
+    {
+        if (!Schema::hasTable($table) || !Schema::hasColumn($table, $col)) {
+            return $q;
         }
-
-        $q = DB::table($table)
-            ->selectRaw('YEAR(created_at) as y, MONTH(created_at) as m, COUNT(*) as c')
-            ->groupByRaw('YEAR(created_at), MONTH(created_at)')
-            ->orderByRaw('YEAR(created_at), MONTH(created_at)');
-
-        if (Schema::hasColumn($table, 'user_id')) {
-            $q = $this->applyUserFilter($q, 'user_id');
+        if (!empty($f['from'])) {
+            $q->whereDate($col, '>=', $f['from']);
         }
+        if (!empty($f['to'])) {
+            $q->whereDate($col, '<=', $f['to']);
+        }
+        return $q;
+    }
 
-        $rows = $q->get();
-
+    private function months(int $n): array
+    {
         $labels = [];
-        $values = [];
+        $cur = now()->startOfMonth()->subMonths($n - 1);
+        for ($i = 0; $i < $n; $i++) {
+            $labels[] = $cur->format('Y-m');
+            $cur->addMonth();
+        }
+        return $labels;
+    }
+
+    private function monthly($q, string $col, int $months): array
+    {
+        $rows = (clone $q)
+            ->selectRaw("YEAR($col) y, MONTH($col) m, COUNT(*) c")
+            ->groupByRaw("YEAR($col), MONTH($col)")
+            ->orderByRaw("YEAR($col), MONTH($col)")
+            ->get();
+
+        $map = [];
         foreach ($rows as $r) {
-            $labels[] = sprintf('%04d-%02d', $r->y, $r->m);
-            $values[] = (int)$r->c;
+            $map[sprintf('%04d-%02d', $r->y, $r->m)] = (int) $r->c;
         }
 
-        if (count($labels) > $monthsBack) {
-            $labels = array_slice($labels, -$monthsBack);
-            $values = array_slice($values, -$monthsBack);
-        }
-
-        return compact('labels', 'values');
+        $labels = $this->months($months);
+        return [
+            'labels' => $labels,
+            'values' => array_map(fn($m) => $map[$m] ?? 0, $labels),
+        ];
     }
 
-    public function index()
+    private function options(): array
     {
-        $tables = [
-            'preconcepcional' => 'preconcepcionales',
-            'tipo1'           => 'ges_tipo1',
-            'tipo3'           => 'ges_tipo3',
-            'siv549'          => 'asignaciones_maestrosiv549',
-        ];
+        $distinct = function (string $table, string $col): array {
+            if (!Schema::hasTable($table) || !Schema::hasColumn($table, $col)) {
+                return [];
+            }
+            $q = DB::table($table)->select($col)->whereNotNull($col)->where($col, '<>','');
+            $q = $this->userScope($q, $table);
+            return $q->distinct()->orderBy($col)->limit(80)->pluck($col)->map(fn($v) => (string) $v)->values()->all();
+        };
 
-        $stats = [
-            'preconcepcional' => [
-                'table'  => $tables['preconcepcional'],
-                'exists' => Schema::hasTable($tables['preconcepcional']),
-                'count'  => $this->safeCount($tables['preconcepcional']),
+        return [
+            'riesgo_precon' => $distinct('preconcepcionales', 'riesgo_preconcepcional'),
+            'riesgo_gestacional' => $distinct('ges_tipo3', 'clasificacion_riesgo_gestacional'),
+            'semanas' => $distinct('asignaciones_maestrosiv549', 'semana'),
+            'fpp_estado' => [
+                ['value' => 'todos', 'label' => 'Todas'],
+                ['value' => 'vigentes', 'label' => 'FPP vigentes'],
+                ['value' => 'vencidas', 'label' => 'FPP vencidas'],
+                ['value' => 'proximas_7', 'label' => 'FPP proximas 7 dias'],
+                ['value' => 'proximas_30', 'label' => 'FPP proximas 30 dias'],
             ],
-            'tipo1' => [
-                'table'  => $tables['tipo1'],
-                'exists' => Schema::hasTable($tables['tipo1']),
-                'count'  => $this->safeCount($tables['tipo1']),
-            ],
-            'tipo3' => [
-                'table'  => $tables['tipo3'],
-                'exists' => Schema::hasTable($tables['tipo3']),
-                'count'  => $this->safeCount($tables['tipo3']),
-            ],
-            'siv549' => [
-                'table'  => $tables['siv549'],
-                'exists' => Schema::hasTable($tables['siv549']),
-                'count'  => $this->safeCount($tables['siv549']),
-            ],
-        ];
-
-        // Extra Tipo1 (FPP)
-        $tipo1Extra = ['proximas_4_semanas' => 0, 'vencidas' => 0];
-        if ($stats['tipo1']['exists']) {
-            $q = DB::table('ges_tipo1');
-            $q = $this->applyUserFilter($q, 'user_id');
-
-            $tipo1Extra['proximas_4_semanas'] = (int) (clone $q)
-                ->whereBetween('fecha_probable_de_parto', [now()->toDateString(), now()->addDays(28)->toDateString()])
-                ->count();
-
-            $tipo1Extra['vencidas'] = (int) (clone $q)
-                ->where('fecha_probable_de_parto', '<', now()->toDateString())
-                ->count();
-        }
-
-        // Extra Precon (riesgo)
-        $preconExtra = ['alto_riesgo' => 0, 'medio_riesgo' => 0, 'bajo_riesgo' => 0];
-        if ($stats['preconcepcional']['exists'] && Schema::hasColumn('preconcepcionales', 'riesgo_preconcepcional')) {
-            $q = DB::table('preconcepcionales');
-            $preconExtra['alto_riesgo']  = (int) (clone $q)->where('riesgo_preconcepcional', 'like', '%ALTO%')->count();
-            $preconExtra['medio_riesgo'] = (int) (clone $q)->where('riesgo_preconcepcional', 'like', '%MEDIO%')->count();
-            $preconExtra['bajo_riesgo']  = (int) (clone $q)->where('riesgo_preconcepcional', 'like', '%BAJO%')->count();
-        }
-
-        // Chart módulo
-        $chartModules = [
-            'labels' => ['Preconcepcional', 'Tipo 1', 'Tipo 3', 'SIV549'],
-            'values' => [
-                $stats['preconcepcional']['count'],
-                $stats['tipo1']['count'],
-                $stats['tipo3']['count'],
-                $stats['siv549']['count'],
+            'modules' => [
+                ['value' => 'todos', 'label' => 'Todos los modulos'],
+                ['value' => 'preconcepcional', 'label' => 'Preconcepcional'],
+                ['value' => 'tipo1', 'label' => 'Gestantes Tipo 1'],
+                ['value' => 'tipo3', 'label' => 'Gestantes Tipo 3'],
+                ['value' => 'siv549', 'label' => 'SIV549'],
             ],
         ];
-
-        // Charts mensuales
-        $chartTipo1Monthly  = $this->monthlyCounts('ges_tipo1', 6);
-        $chartTipo3Monthly  = $this->monthlyCounts('ges_tipo3', 6);
-        $chartPreconMonthly = $this->monthlyCounts('preconcepcionales', 6);
-        $chart549Monthly    = $this->monthlyCounts('asignaciones_maestrosiv549', 6);
-
-        // Chart riesgo
-        $chartPreconRiesgo = [
-            'labels' => ['ALTO', 'MEDIO', 'BAJO'],
-            'values' => [$preconExtra['alto_riesgo'], $preconExtra['medio_riesgo'], $preconExtra['bajo_riesgo']],
-        ];
-
-        return view('gestantes.stats.index', compact(
-            'stats',
-            'tipo1Extra',
-            'preconExtra',
-            'chartModules',
-            'chartTipo1Monthly',
-            'chartTipo3Monthly',
-            'chartPreconMonthly',
-            'chart549Monthly',
-            'chartPreconRiesgo'
-        ));
     }
 
-    public function detail(string $modulo)
+    private function precon(array $f): array
     {
-        if (!request()->ajax()) abort(404);
-
-        switch ($modulo) {
-
-            // ===========================
-            // PRECONCEPCIONAL
-            // ===========================
-            case 'preconcepcional':
-
-                if (!Schema::hasTable('preconcepcionales')) {
-                    return response()->json(['ok' => false, 'message' => 'Tabla preconcepcionales no encontrada.'], 404);
-                }
-
-                $base = DB::table('preconcepcionales');
-
-                $summary = [
-                    'Total' => (int)(clone $base)->count(),
-                    'Con teléfono' => Schema::hasColumn('preconcepcionales', 'telefono')
-                        ? (int)(clone $base)->whereNotNull('telefono')->where('telefono', '<>', '')->count()
-                        : 0,
-                    'Con IMC' => Schema::hasColumn('preconcepcionales', 'imc')
-                        ? (int)(clone $base)->whereNotNull('imc')->count()
-                        : 0,
-                    'Alto riesgo' => Schema::hasColumn('preconcepcionales', 'riesgo_preconcepcional')
-                        ? (int)(clone $base)->where('riesgo_preconcepcional', 'like', '%ALTO%')->count()
-                        : 0,
-                ];
-
-                // ✅ NO TOP: conteo por municipio (TODOS)
-                $municipios = Schema::hasColumn('preconcepcionales', 'municipio_residencia')
-                    ? DB::table('preconcepcionales')
-                        ->selectRaw("COALESCE(NULLIF(municipio_residencia,''), 'SIN MUNICIPIO') as municipio, COUNT(*) as total")
-                        ->groupByRaw("COALESCE(NULLIF(municipio_residencia,''), 'SIN MUNICIPIO')")
-                        ->orderByDesc('total')
-                        ->get()
-                    : collect();
-
-                $riesgo = Schema::hasColumn('preconcepcionales', 'riesgo_preconcepcional')
-                    ? DB::table('preconcepcionales')
-                        ->selectRaw("COALESCE(NULLIF(riesgo_preconcepcional,''), 'SIN RIESGO') as riesgo, COUNT(*) as total")
-                        ->groupByRaw("COALESCE(NULLIF(riesgo_preconcepcional,''), 'SIN RIESGO')")
-                        ->orderByDesc('total')
-                        ->get()
-                    : collect();
-
-                $latest = DB::table('preconcepcionales')
-                    ->select(
-                        'id',
-                        'tipo_documento',
-                        'numero_identificacion',
-                        'apellido_1',
-                        'apellido_2',
-                        'nombre_1',
-                        'nombre_2',
-                        'municipio_residencia',
-                        'telefono',
-                        'riesgo_preconcepcional',
-                        'created_at'
-                    )
-                    ->orderByDesc('id')
-                    ->limit(30)
-                    ->get();
-
-                $batches = Schema::hasTable('preconcepcional_import_batches')
-                    ? DB::table('preconcepcional_import_batches')
-                        ->select('id', 'original_name', 'rows_total', 'rows_created', 'rows_updated', 'rows_skipped', 'duration_seconds', 'created_at')
-                        ->orderByDesc('id')
-                        ->limit(15)
-                        ->get()
-                    : collect();
-
-                return response()->json([
-                    'ok' => true,
-                    'title' => 'Preconcepcional',
-                    'summary' => $summary,
-                    'blocks' => [
-                        [
-                            'name' => 'Municipios (conteo)',
-                            'type' => 'mini_table',
-                            'columns' => ['municipio', 'total'],
-                            'rows' => $municipios,
-                        ],
-                        [
-                            'name' => 'Riesgo (conteo)',
-                            'type' => 'mini_table',
-                            'columns' => ['riesgo', 'total'],
-                            'rows' => $riesgo,
-                        ],
-                        [
-                            'name' => 'Últimos registros',
-                            'type' => 'table',
-                            'rows' => $latest,
-                        ],
-                        [
-                            'name' => 'Últimos lotes importados',
-                            'type' => 'table',
-                            'rows' => $batches,
-                        ],
-                    ],
-                ]);
-
-            // ===========================
-            // TIPO 1
-            // ===========================
-            case 'tipo1':
-
-                if (!Schema::hasTable('ges_tipo1')) {
-                    return response()->json(['ok' => false, 'message' => 'Tabla ges_tipo1 no encontrada.'], 404);
-                }
-
-                $base = DB::table('ges_tipo1');
-                $base = $this->applyUserFilter($base, 'user_id');
-
-                $summary = [
-                    'Total' => (int)(clone $base)->count(),
-                    'FPP próximas 4 semanas' => (int)(clone $base)
-                        ->whereBetween('fecha_probable_de_parto', [now()->toDateString(), now()->addDays(28)->toDateString()])
-                        ->count(),
-                    'FPP vencidas' => (int)(clone $base)->where('fecha_probable_de_parto', '<', now()->toDateString())->count(),
-                    'Cargadas hoy' => Schema::hasColumn('ges_tipo1', 'created_at')
-                        ? (int)(clone $base)->whereDate('created_at', now()->toDateString())->count()
-                        : 0,
-                ];
-
-                // ✅ NO TOP: conteo por municipio con JOIN a sga..municipios
-                // tu campo: ges_tipo1.municipio_de_residencia_habitual = CONCAT(M.codigoDepartamento, M.codigoMunicipio)
-                $municipios = DB::table('ges_tipo1 as A')
-                    ->leftJoin(DB::raw('sga..municipios as M'), function ($join) {
-                        $join->on(
-                            DB::raw('A.municipio_de_residencia_habitual'),
-                            '=',
-                            DB::raw("CONCAT(M.codigoDepartamento, M.codigoMunicipio)")
-                        );
-                    })
-                    ->selectRaw("
-                        COALESCE(M.descrip, CONCAT('SIN MAPEO (', A.municipio_de_residencia_habitual, ')')) as municipio,
-                        COUNT(*) as total
-                    ")
-                    ->groupByRaw("COALESCE(M.descrip, CONCAT('SIN MAPEO (', A.municipio_de_residencia_habitual, ')'))")
-                    ->orderByDesc('total');
-
-                $municipios = $this->applyUserFilter($municipios, 'user_id')->get();
-
-                $latest = DB::table('ges_tipo1')
-                    ->select(
-                        'id','primer_nombre','segundo_nombre','primer_apellido','segundo_apellido',
-                        'tipo_de_identificacion_de_la_usuaria','no_id_del_usuario',
-                        'municipio_de_residencia_habitual','fecha_probable_de_parto','created_at'
-                    )
-                    ->orderByDesc('id');
-
-                $latest = $this->applyUserFilter($latest, 'user_id')->limit(30)->get();
-
-                return response()->json([
-                    'ok' => true,
-                    'title' => 'Gestantes Tipo 1',
-                    'summary' => $summary,
-                    'blocks' => [
-                        [
-                            'name' => 'Municipios (conteo)',
-                            'type' => 'mini_table',
-                            'columns' => ['municipio', 'total'],
-                            'rows' => $municipios,
-                        ],
-                        [
-                            'name' => 'Últimos registros',
-                            'type' => 'table',
-                            'rows' => $latest,
-                        ],
-                    ],
-                ]);
-
-            // ===========================
-            // TIPO 3
-            // ===========================
-            case 'tipo3':
-
-                if (!Schema::hasTable('ges_tipo3')) {
-                    return response()->json(['ok' => false, 'message' => 'Tabla ges_tipo3 no encontrada.'], 404);
-                }
-
-                $base = DB::table('ges_tipo3');
-                $base = $this->applyUserFilter($base, 'user_id');
-
-                $summary = [
-                    'Total' => (int)(clone $base)->count(),
-                    'Con CUPS' => (int)(clone $base)->whereNotNull('codigo_cups_de_la_tecnologia_en_salud')->count(),
-                    'Con riesgo gestacional' => (int)(clone $base)->whereNotNull('clasificacion_riesgo_gestacional')->count(),
-                    'Registros hoy' => Schema::hasColumn('ges_tipo3', 'created_at')
-                        ? (int)(clone $base)->whereDate('created_at', now()->toDateString())->count()
-                        : 0,
-                ];
-
-                $topCups = DB::table('ges_tipo3')
-                    ->select('codigo_cups_de_la_tecnologia_en_salud as cups', DB::raw('COUNT(*) as total'))
-                    ->whereNotNull('codigo_cups_de_la_tecnologia_en_salud')
-                    ->groupBy('codigo_cups_de_la_tecnologia_en_salud')
-                    ->orderByDesc('total');
-
-                $topCups = $this->applyUserFilter($topCups, 'user_id')->limit(10)->get();
-
-                $latest = DB::table('ges_tipo3')
-                    ->select(
-                        'id','ges_tipo1_id','tipo_identificacion_de_la_usuaria','no_id_del_usuario',
-                        'fecha_tecnologia_en_salud','codigo_cups_de_la_tecnologia_en_salud',
-                        'clasificacion_riesgo_gestacional','clasificacion_riesgo_preeclampsia','created_at'
-                    )
-                    ->orderByDesc('id');
-
-                $latest = $this->applyUserFilter($latest, 'user_id')->limit(30)->get();
-
-                return response()->json([
-                    'ok' => true,
-                    'title' => 'Gestantes Tipo 3',
-                    'summary' => $summary,
-                    'blocks' => [
-                        [
-                            'name' => 'Top CUPS',
-                            'type' => 'mini_table',
-                            'columns' => ['cups', 'total'],
-                            'rows' => $topCups,
-                        ],
-                        [
-                            'name' => 'Últimos registros',
-                            'type' => 'table',
-                            'rows' => $latest,
-                        ],
-                    ],
-                ]);
-
-            // ===========================
-            // SIV549
-            // ===========================
-            case 'siv549':
-
-                if (!Schema::hasTable('asignaciones_maestrosiv549')) {
-                    return response()->json(['ok' => false, 'message' => 'Tabla asignaciones_maestrosiv549 no encontrada.'], 404);
-                }
-
-                $base = DB::table('asignaciones_maestrosiv549');
-                $base = $this->applyUserFilter($base, 'user_id');
-
-                $summary = [
-                    'Total' => (int)(clone $base)->count(),
-                    'Notificados hoy' => Schema::hasColumn('asignaciones_maestrosiv549', 'fec_not')
-                        ? (int)(clone $base)->whereDate('fec_not', now()->toDateString())->count()
-                        : 0,
-                ];
-
-                // ✅ NO TOP: conteo por municipio con JOIN a sga..municipios
-                $municipios = DB::table('asignaciones_maestrosiv549 as A')
-                    ->leftJoin(DB::raw('sga..municipios as M'), function ($join) {
-                        $join->on('A.cod_dpto_o', '=', 'M.codigoDepartamento')
-                             ->on('A.cod_mun_o', '=', 'M.codigoMunicipio');
-                    })
-                    ->selectRaw("
-                        COALESCE(M.descrip, CONCAT('SIN MAPEO (', A.cod_dpto_o, '-', A.cod_mun_o, ')')) as municipio,
-                        COUNT(*) as total
-                    ")
-                    ->groupByRaw("COALESCE(M.descrip, CONCAT('SIN MAPEO (', A.cod_dpto_o, '-', A.cod_mun_o, ')'))")
-                    ->orderByDesc('total');
-
-                $municipios = $this->applyUserFilter($municipios, 'user_id')->get();
-
-                $latest = DB::table('asignaciones_maestrosiv549')
-                    ->select(
-                        'id','fec_not','semana','pri_nom_','seg_nom_','pri_ape_','seg_ape_',
-                        'tip_ide_','num_ide_','cod_dpto_o','cod_mun_o','telefono_','created_at'
-                    )
-                    ->orderByDesc('id');
-
-                $latest = $this->applyUserFilter($latest, 'user_id')->limit(30)->get();
-
-                return response()->json([
-                    'ok' => true,
-                    'title' => 'MaestroSIV549 (Asignaciones)',
-                    'summary' => $summary,
-                    'blocks' => [
-                        [
-                            'name' => 'Municipios (conteo)',
-                            'type' => 'mini_table',
-                            'columns' => ['municipio', 'total'],
-                            'rows' => $municipios,
-                        ],
-                        [
-                            'name' => 'Últimos registros',
-                            'type' => 'table',
-                            'rows' => $latest,
-                        ],
-                    ],
-                ]);
-
-            default:
-                return response()->json(['ok' => false, 'message' => 'Módulo inválido.'], 404);
+        if (!Schema::hasTable('preconcepcionales')) {
+            return ['label' => 'Preconcepcional', 'summary' => [], 'chart_monthly' => ['labels' => [], 'values' => []], 'chart_main' => ['labels' => [], 'values' => []], 'tables' => ['a' => [], 'b' => []]];
         }
+        $q = DB::table('preconcepcionales');
+        $q = $this->userScope($q, 'preconcepcionales');
+        $q = $this->applyDate($q, 'preconcepcionales', 'created_at', $f);
+        if ($f['identificacion'] !== '') {
+            $q->where('numero_identificacion', 'like', '%' . $f['identificacion'] . '%');
+        }
+        if ($f['municipio'] !== '') {
+            $q->where('municipio_residencia', 'like', '%' . $f['municipio'] . '%');
+        }
+        if ($f['riesgo_precon'] !== '') {
+            $q->where('riesgo_preconcepcional', 'like', '%' . $f['riesgo_precon'] . '%');
+        }
+
+        $total = (int) (clone $q)->count();
+        $alto = (int) (clone $q)->where('riesgo_preconcepcional', 'like', '%ALTO%')->count();
+        $medio = (int) (clone $q)->where('riesgo_preconcepcional', 'like', '%MEDIO%')->count();
+        $bajo = (int) (clone $q)->where('riesgo_preconcepcional', 'like', '%BAJO%')->count();
+
+        return [
+            'label' => 'Preconcepcional',
+            'summary' => [
+                'total' => $total,
+                'alto_riesgo' => $alto,
+                'medio_riesgo' => $medio,
+                'bajo_riesgo' => $bajo,
+                'sin_telefono' => (int) (clone $q)->where(function ($x) {
+                    $x->whereNull('telefono')->orWhere('telefono', '');
+                })->count(),
+                'sin_imc' => (int) (clone $q)->whereNull('imc')->count(),
+            ],
+            'chart_monthly' => $this->monthly($q, 'created_at', $f['months']),
+            'chart_main' => ['labels' => ['Alto', 'Medio', 'Bajo'], 'values' => [$alto, $medio, $bajo]],
+            'tables' => [
+                'a' => (clone $q)->selectRaw("COALESCE(NULLIF(municipio_residencia,''),'SIN MUNICIPIO') municipio, COUNT(*) total")
+                    ->groupByRaw("COALESCE(NULLIF(municipio_residencia,''),'SIN MUNICIPIO')")
+                    ->orderByDesc('total')->limit(20)->get()->map(fn($r) => ['municipio' => $r->municipio, 'total' => (int) $r->total])->all(),
+                'b' => (clone $q)->select('id', 'numero_identificacion', 'apellido_1', 'nombre_1', 'municipio_residencia', 'telefono', 'riesgo_preconcepcional', 'created_at')
+                    ->orderByDesc('id')->limit(25)->get()->map(fn($r) => [
+                        'id' => (int) $r->id,
+                        'identificacion' => $r->numero_identificacion,
+                        'nombre' => trim(($r->apellido_1 ?? '') . ' ' . ($r->nombre_1 ?? '')),
+                        'municipio' => $r->municipio_residencia,
+                        'telefono' => $r->telefono,
+                        'riesgo' => $r->riesgo_preconcepcional,
+                        'fecha' => optional($r->created_at)->format('Y-m-d H:i'),
+                    ])->all(),
+            ],
+        ];
+    }
+
+    private function tipo1(array $f): array
+    {
+        if (!Schema::hasTable('ges_tipo1')) {
+            return ['label' => 'Gestantes Tipo 1', 'summary' => [], 'chart_monthly' => ['labels' => [], 'values' => []], 'chart_main' => ['labels' => [], 'values' => []], 'tables' => ['a' => [], 'b' => []]];
+        }
+        $q = DB::table('ges_tipo1');
+        $q = $this->userScope($q, 'ges_tipo1');
+        $q = $this->applyDate($q, 'ges_tipo1', 'created_at', $f);
+        if ($f['identificacion'] !== '') {
+            $q->where('no_id_del_usuario', 'like', '%' . $f['identificacion'] . '%');
+        }
+        if ($f['municipio'] !== '') {
+            $q->whereRaw("CAST(municipio_de_residencia_habitual AS VARCHAR(40)) like ?", ['%' . $f['municipio'] . '%']);
+        }
+        if ($f['fpp_estado'] === 'vencidas') {
+            $q->where('fecha_probable_de_parto', '<', now()->toDateString());
+        } elseif ($f['fpp_estado'] === 'proximas_7') {
+            $q->whereBetween('fecha_probable_de_parto', [now()->toDateString(), now()->addDays(7)->toDateString()]);
+        } elseif ($f['fpp_estado'] === 'proximas_30') {
+            $q->whereBetween('fecha_probable_de_parto', [now()->toDateString(), now()->addDays(30)->toDateString()]);
+        } elseif ($f['fpp_estado'] === 'vigentes') {
+            $q->where('fecha_probable_de_parto', '>=', now()->toDateString());
+        }
+
+        $total = (int) (clone $q)->count();
+        $venc = (int) (clone $q)->where('fecha_probable_de_parto', '<', now()->toDateString())->count();
+        $p7 = (int) (clone $q)->whereBetween('fecha_probable_de_parto', [now()->toDateString(), now()->addDays(7)->toDateString()])->count();
+        $p30 = (int) (clone $q)->whereBetween('fecha_probable_de_parto', [now()->toDateString(), now()->addDays(30)->toDateString()])->count();
+        $sin = (int) (clone $q)->whereNull('fecha_probable_de_parto')->count();
+
+        return [
+            'label' => 'Gestantes Tipo 1',
+            'summary' => [
+                'total' => $total,
+                'fpp_vencidas' => $venc,
+                'fpp_proximas_7' => $p7,
+                'fpp_proximas_30' => $p30,
+                'sin_fpp' => $sin,
+                'registros_hoy' => (int) (clone $q)->whereDate('created_at', now()->toDateString())->count(),
+            ],
+            'chart_monthly' => $this->monthly($q, 'created_at', $f['months']),
+            'chart_main' => ['labels' => ['Vencidas', 'Proximas 7 dias', 'Proximas 30 dias', 'Sin FPP'], 'values' => [$venc, $p7, $p30, $sin]],
+            'tables' => [
+                'a' => (clone $q)->selectRaw("CAST(municipio_de_residencia_habitual AS VARCHAR(40)) municipio, COUNT(*) total")
+                    ->groupByRaw("CAST(municipio_de_residencia_habitual AS VARCHAR(40))")
+                    ->orderByDesc('total')->limit(20)->get()->map(fn($r) => ['municipio' => $r->municipio, 'total' => (int) $r->total])->all(),
+                'b' => (clone $q)->select('id', 'no_id_del_usuario', 'primer_nombre', 'primer_apellido', 'municipio_de_residencia_habitual', 'fecha_probable_de_parto', 'created_at')
+                    ->orderByDesc('id')->limit(25)->get()->map(fn($r) => [
+                        'id' => (int) $r->id,
+                        'identificacion' => $r->no_id_del_usuario,
+                        'nombre' => trim(($r->primer_apellido ?? '') . ' ' . ($r->primer_nombre ?? '')),
+                        'municipio_codigo' => (string) $r->municipio_de_residencia_habitual,
+                        'fpp' => $r->fecha_probable_de_parto ? Carbon::parse($r->fecha_probable_de_parto)->toDateString() : null,
+                        'fecha' => optional($r->created_at)->format('Y-m-d H:i'),
+                    ])->all(),
+            ],
+        ];
+    }
+
+    private function tipo3(array $f): array
+    {
+        if (!Schema::hasTable('ges_tipo3')) {
+            return ['label' => 'Gestantes Tipo 3', 'summary' => [], 'chart_monthly' => ['labels' => [], 'values' => []], 'chart_main' => ['labels' => [], 'values' => []], 'tables' => ['a' => [], 'b' => []]];
+        }
+        $q = DB::table('ges_tipo3');
+        $q = $this->userScope($q, 'ges_tipo3');
+        $q = $this->applyDate($q, 'ges_tipo3', 'created_at', $f);
+        if ($f['identificacion'] !== '') {
+            $q->where('no_id_del_usuario', 'like', '%' . $f['identificacion'] . '%');
+        }
+        if ($f['riesgo_gestacional'] !== '') {
+            $q->where('clasificacion_riesgo_gestacional', $f['riesgo_gestacional']);
+        }
+
+        $riskRows = (clone $q)
+            ->selectRaw("COALESCE(CAST(clasificacion_riesgo_gestacional AS VARCHAR(10)),'SIN DATO') r, COUNT(*) t")
+            ->groupByRaw("COALESCE(CAST(clasificacion_riesgo_gestacional AS VARCHAR(10)),'SIN DATO')")
+            ->orderByDesc('t')
+            ->get();
+
+        return [
+            'label' => 'Gestantes Tipo 3',
+            'summary' => [
+                'total' => (int) (clone $q)->count(),
+                'con_cups' => (int) (clone $q)->whereNotNull('codigo_cups_de_la_tecnologia_en_salud')->where('codigo_cups_de_la_tecnologia_en_salud', '<>', '')->count(),
+                'con_riesgo_gestacional' => (int) (clone $q)->whereNotNull('clasificacion_riesgo_gestacional')->count(),
+                'registros_hoy' => (int) (clone $q)->whereDate('created_at', now()->toDateString())->count(),
+            ],
+            'chart_monthly' => $this->monthly($q, 'created_at', $f['months']),
+            'chart_main' => [
+                'labels' => $riskRows->pluck('r')->values()->all(),
+                'values' => $riskRows->pluck('t')->map(fn($x) => (int) $x)->values()->all(),
+            ],
+            'tables' => [
+                'a' => (clone $q)->whereNotNull('codigo_cups_de_la_tecnologia_en_salud')->where('codigo_cups_de_la_tecnologia_en_salud', '<>', '')
+                    ->selectRaw("codigo_cups_de_la_tecnologia_en_salud cups, COUNT(*) total")
+                    ->groupBy('codigo_cups_de_la_tecnologia_en_salud')->orderByDesc('total')->limit(20)->get()->map(fn($r) => ['cups' => $r->cups, 'total' => (int) $r->total])->all(),
+                'b' => (clone $q)->select('id', 'no_id_del_usuario', 'codigo_cups_de_la_tecnologia_en_salud', 'clasificacion_riesgo_gestacional', 'fecha_tecnologia_en_salud', 'created_at')
+                    ->orderByDesc('id')->limit(25)->get()->map(fn($r) => [
+                        'id' => (int) $r->id,
+                        'identificacion' => $r->no_id_del_usuario,
+                        'cups' => $r->codigo_cups_de_la_tecnologia_en_salud,
+                        'riesgo' => $r->clasificacion_riesgo_gestacional,
+                        'fecha_tecnologia' => $r->fecha_tecnologia_en_salud ? Carbon::parse($r->fecha_tecnologia_en_salud)->toDateString() : null,
+                        'fecha' => optional($r->created_at)->format('Y-m-d H:i'),
+                    ])->all(),
+            ],
+        ];
+    }
+
+    private function siv549(array $f): array
+    {
+        if (!Schema::hasTable('asignaciones_maestrosiv549')) {
+            return ['label' => 'Maestro SIV549', 'summary' => [], 'chart_monthly' => ['labels' => [], 'values' => []], 'chart_main' => ['labels' => [], 'values' => []], 'tables' => ['a' => [], 'b' => []]];
+        }
+        $q = DB::table('asignaciones_maestrosiv549');
+        $q = $this->userScope($q, 'asignaciones_maestrosiv549');
+        $dateCol = Schema::hasColumn('asignaciones_maestrosiv549', 'fec_not') ? 'fec_not' : 'created_at';
+        $q = $this->applyDate($q, 'asignaciones_maestrosiv549', $dateCol, $f);
+        if ($f['identificacion'] !== '') {
+            $q->where('num_ide_', 'like', '%' . $f['identificacion'] . '%');
+        }
+        if ($f['semana'] !== '') {
+            $q->where('semana', $f['semana']);
+        }
+        if ($f['municipio'] !== '') {
+            $q->where(function ($x) use ($f) {
+                $x->where('nmun_resi', 'like', '%' . $f['municipio'] . '%')
+                    ->orWhere('cod_mun_o', 'like', '%' . $f['municipio'] . '%')
+                    ->orWhere('cod_dpto_o', 'like', '%' . $f['municipio'] . '%');
+            });
+        }
+
+        return [
+            'label' => 'Maestro SIV549',
+            'summary' => [
+                'total' => (int) (clone $q)->count(),
+                'notificados_hoy' => (int) (clone $q)->whereDate($dateCol, now()->toDateString())->count(),
+                'con_telefono' => (int) (clone $q)->whereNotNull('telefono_')->where('telefono_', '<>', '')->count(),
+                'sin_telefono' => (int) (clone $q)->where(function ($x) {
+                    $x->whereNull('telefono_')->orWhere('telefono_', '');
+                })->count(),
+            ],
+            'chart_monthly' => Schema::hasColumn('asignaciones_maestrosiv549', 'created_at') ? $this->monthly($q, 'created_at', $f['months']) : ['labels' => [], 'values' => []],
+            'chart_main' => [
+                'labels' => (clone $q)->selectRaw("COALESCE(NULLIF(semana,''), 'SIN SEMANA') s")->groupByRaw("COALESCE(NULLIF(semana,''), 'SIN SEMANA')")->orderBy('s')->limit(16)->pluck('s')->values()->all(),
+                'values' => (clone $q)->selectRaw("COALESCE(NULLIF(semana,''), 'SIN SEMANA') s, COUNT(*) t")->groupByRaw("COALESCE(NULLIF(semana,''), 'SIN SEMANA')")->orderBy('s')->limit(16)->pluck('t')->map(fn($x) => (int) $x)->values()->all(),
+            ],
+            'tables' => [
+                'a' => (clone $q)->selectRaw("COALESCE(NULLIF(nmun_resi,''), CONCAT('COD ', cod_dpto_o, '-', cod_mun_o)) municipio, COUNT(*) total")
+                    ->groupByRaw("COALESCE(NULLIF(nmun_resi,''), CONCAT('COD ', cod_dpto_o, '-', cod_mun_o))")
+                    ->orderByDesc('total')->limit(20)->get()->map(fn($r) => ['municipio' => $r->municipio, 'total' => (int) $r->total])->all(),
+                'b' => (clone $q)->select('id', 'num_ide_', 'pri_nom_', 'pri_ape_', 'semana', 'fec_not', 'telefono_', 'nmun_resi', 'created_at')
+                    ->orderByDesc('id')->limit(25)->get()->map(fn($r) => [
+                        'id' => (int) $r->id,
+                        'identificacion' => $r->num_ide_,
+                        'nombre' => trim(($r->pri_ape_ ?? '') . ' ' . ($r->pri_nom_ ?? '')),
+                        'semana' => $r->semana,
+                        'fec_not' => $r->fec_not ? Carbon::parse($r->fec_not)->toDateString() : null,
+                        'telefono' => $r->telefono_,
+                        'municipio' => $r->nmun_resi,
+                        'fecha' => optional($r->created_at)->format('Y-m-d H:i'),
+                    ])->all(),
+            ],
+        ];
+    }
+
+    private function dashboard(array $f): array
+    {
+        $modules = [
+            'preconcepcional' => $this->precon($f),
+            'tipo1' => $this->tipo1($f),
+            'tipo3' => $this->tipo3($f),
+            'siv549' => $this->siv549($f),
+        ];
+
+        $totals = [
+            'Preconcepcional' => $modules['preconcepcional']['summary']['total'] ?? 0,
+            'Tipo 1' => $modules['tipo1']['summary']['total'] ?? 0,
+            'Tipo 3' => $modules['tipo3']['summary']['total'] ?? 0,
+            'SIV549' => $modules['siv549']['summary']['total'] ?? 0,
+        ];
+
+        $insights = [];
+        $t1 = (int) ($modules['tipo1']['summary']['total'] ?? 0);
+        if ($t1 > 0) {
+            $v = (int) ($modules['tipo1']['summary']['fpp_vencidas'] ?? 0);
+            $p = round(($v / $t1) * 100, 1);
+            $insights[] = ['indicador' => 'FPP vencidas', 'valor' => "$v/$t1 ($p%)", 'prioridad' => $p >= 20 ? 'Alta' : ($p >= 10 ? 'Media' : 'Baja'), 'accion' => 'Priorizar seguimiento de vencidas'];
+        }
+        $pr = (int) ($modules['preconcepcional']['summary']['total'] ?? 0);
+        if ($pr > 0) {
+            $a = (int) ($modules['preconcepcional']['summary']['alto_riesgo'] ?? 0);
+            $p = round(($a / $pr) * 100, 1);
+            $insights[] = ['indicador' => 'Precon alto riesgo', 'valor' => "$a/$pr ($p%)", 'prioridad' => $p >= 25 ? 'Alta' : ($p >= 12 ? 'Media' : 'Baja'), 'accion' => 'Intervencion prioritaria'];
+        }
+
+        return [
+            'generated_at' => now()->format('Y-m-d H:i:s'),
+            'filters' => $f,
+            'kpis' => [
+                'total_general' => array_sum($totals),
+                'precon_total' => $totals['Preconcepcional'],
+                'tipo1_total' => $totals['Tipo 1'],
+                'tipo3_total' => $totals['Tipo 3'],
+                'siv549_total' => $totals['SIV549'],
+                'fpp_vencidas' => $modules['tipo1']['summary']['fpp_vencidas'] ?? 0,
+                'precon_alto_riesgo' => $modules['preconcepcional']['summary']['alto_riesgo'] ?? 0,
+                'tipo3_con_riesgo' => $modules['tipo3']['summary']['con_riesgo_gestacional'] ?? 0,
+                'siv_notificados_hoy' => $modules['siv549']['summary']['notificados_hoy'] ?? 0,
+            ],
+            'charts' => [
+                'modules' => ['labels' => array_keys($totals), 'values' => array_values($totals)],
+                'monthly_comparison' => [
+                    'labels' => $this->months($f['months']),
+                    'datasets' => [
+                        ['label' => 'Preconcepcional', 'data' => $modules['preconcepcional']['chart_monthly']['values'] ?? []],
+                        ['label' => 'Tipo 1', 'data' => $modules['tipo1']['chart_monthly']['values'] ?? []],
+                        ['label' => 'Tipo 3', 'data' => $modules['tipo3']['chart_monthly']['values'] ?? []],
+                        ['label' => 'SIV549', 'data' => $modules['siv549']['chart_monthly']['values'] ?? []],
+                    ],
+                ],
+                'precon_riesgo' => $modules['preconcepcional']['chart_main'] ?? ['labels' => [], 'values' => []],
+                'tipo1_fpp' => $modules['tipo1']['chart_main'] ?? ['labels' => [], 'values' => []],
+                'tipo3_riesgo' => $modules['tipo3']['chart_main'] ?? ['labels' => [], 'values' => []],
+                'siv_semana' => $modules['siv549']['chart_main'] ?? ['labels' => [], 'values' => []],
+            ],
+            'insights' => $insights,
+            'modules' => $modules,
+        ];
+    }
+
+    public function index(Request $request)
+    {
+        $f = $this->filters($request);
+        return view('gestantes.stats.index', [
+            'filters' => $f,
+            'filterOptions' => $this->options(),
+            'initialPayload' => $this->dashboard($f),
+        ]);
+    }
+
+    public function data(Request $request)
+    {
+        return response()->json(['ok' => true, 'data' => $this->dashboard($this->filters($request))]);
+    }
+
+    public function detail(Request $request, string $modulo)
+    {
+        if (!$request->ajax()) {
+            abort(404);
+        }
+
+        $payload = $this->dashboard($this->filters($request));
+        if (!isset($payload['modules'][$modulo])) {
+            return response()->json(['ok' => false, 'message' => 'Modulo invalido.'], 404);
+        }
+
+        $m = $payload['modules'][$modulo];
+        $name = $m['label'] ?? strtoupper($modulo);
+
+        $blocks = [];
+        if ($modulo === 'preconcepcional') {
+            $blocks[] = ['name' => 'Municipios', 'type' => 'mini_table', 'columns' => ['municipio', 'total'], 'rows' => $m['tables']['a'] ?? []];
+            $blocks[] = ['name' => 'Ultimos registros', 'type' => 'table', 'rows' => $m['tables']['b'] ?? []];
+        } elseif ($modulo === 'tipo1') {
+            $blocks[] = ['name' => 'Municipios', 'type' => 'mini_table', 'columns' => ['municipio', 'total'], 'rows' => $m['tables']['a'] ?? []];
+            $blocks[] = ['name' => 'Ultimos registros', 'type' => 'table', 'rows' => $m['tables']['b'] ?? []];
+        } elseif ($modulo === 'tipo3') {
+            $blocks[] = ['name' => 'Top CUPS', 'type' => 'mini_table', 'columns' => ['cups', 'total'], 'rows' => $m['tables']['a'] ?? []];
+            $blocks[] = ['name' => 'Ultimos registros', 'type' => 'table', 'rows' => $m['tables']['b'] ?? []];
+        } else {
+            $blocks[] = ['name' => 'Municipios', 'type' => 'mini_table', 'columns' => ['municipio', 'total'], 'rows' => $m['tables']['a'] ?? []];
+            $blocks[] = ['name' => 'Ultimos registros', 'type' => 'table', 'rows' => $m['tables']['b'] ?? []];
+        }
+
+        return response()->json(['ok' => true, 'title' => $name, 'summary' => $m['summary'] ?? [], 'blocks' => $blocks]);
+    }
+
+    public function exportPdf(Request $request)
+    {
+        $payload = json_decode((string) $request->input('payload', '{}'), true);
+        if (!is_array($payload) || empty($payload)) {
+            $payload = $this->dashboard($this->filters($request));
+        }
+
+        $chartImages = json_decode((string) $request->input('chart_images', '{}'), true);
+        if (!is_array($chartImages)) {
+            $chartImages = [];
+        }
+
+        $pdf = Pdf::loadView('gestantes.stats.pdf', [
+            'payload' => $payload,
+            'chartImages' => $chartImages,
+            'generatedAt' => now()->format('Y-m-d H:i:s'),
+        ])->setPaper('a4', 'landscape');
+
+        return $pdf->download('tablero_gestantes_' . now()->format('Ymd_His') . '.pdf');
     }
 }
