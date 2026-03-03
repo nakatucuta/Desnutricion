@@ -110,12 +110,8 @@ class AfiliadoImport implements ToModel, WithStartRow, WithChunkReading
         $fechaProbParto     = $excelDateToYmd($row[46]);
         $fechaAntecedente   = $excelDateToYmd($row[48]);
 
-        // Campos finales (compatibles con formato viejo y nuevo)
-        $n = count($row);
-        $responsable           = $clean($row[$n - 4] ?? null);
-        $fuen_ingresado_paiweb = $clean($row[$n - 3] ?? null);
-        $motivo_noingreso      = $clean($row[$n - 2] ?? null);
-        $observaciones         = $clean($row[$n - 1] ?? null);
+        // Campos finales (formato nuevo: 255..258, formato anterior: 251..254)
+        [$responsable, $fuen_ingresado_paiweb, $motivo_noingreso, $observaciones] = $this->resolveFinalColumns($row, $clean);
         $regimenVacuna         = $clean($row[20] ?? null);
 
         // ---------- Validación rápida ----------
@@ -343,10 +339,10 @@ class AfiliadoImport implements ToModel, WithStartRow, WithChunkReading
         $triggers = [
             1=>75,  2=>81,  3=>87,  4=>92,  5=>97,  6=>100, 7=>105, 8=>109, 9=>113, 10=>117,
             11=>121, 12=>124, 13=>128, 14=>133, 15=>138, 16=>143, 17=>147, 18=>152, 19=>156, 20=>160,
-            21=>165, 22=>169, 23=>175, 24=>177, 25=>182, 26=>186, 27=>190, 28=>195, 29=>197, 30=>199,
-            31=>201, 32=>203, 33=>205, 34=>207, 35=>209, 36=>211, 37=>213, 38=>215, 39=>217, 40=>219,
-            41=>221, 42=>223, 43=>225, 44=>227, 45=>229, 46=>231, 47=>233, 48=>236, 49=>238, 50=>241,
-            51=>243, 52=>245, 53=>247, 54=>249, 55=>251, 56=>253,
+            21=>165, 22=>169, 23=>175, 24=>177, 25=>182, 26=>186, 27=>190, 55=>195, 56=>197, 28=>199,
+            29=>201, 30=>203, 31=>205, 32=>207, 33=>209, 34=>211, 35=>213, 36=>215, 37=>217, 38=>219,
+            39=>221, 40=>223, 41=>225, 42=>227, 43=>229, 44=>231, 45=>233, 46=>235, 47=>237, 48=>240,
+            49=>242, 50=>245, 51=>247, 52=>249, 53=>251, 54=>253,
         ];
 
         $vacunas = [];
@@ -572,150 +568,150 @@ class AfiliadoImport implements ToModel, WithStartRow, WithChunkReading
                     break;
 
                 case 28:
-                    $docis = isset($row[195]) ? trim((string)$row[195]) : null;
-                    $lote = $row[196] ?? null;
-                    break;
-
-                case 29:
-                    $docis = isset($row[197]) ? trim((string)$row[197]) : null;
-                    $lote = $row[198] ?? null;
-                    break;
-
-                case 30:
                     $docis = isset($row[199]) ? trim((string)$row[199]) : null;
                     $lote = $row[200] ?? null;
                     break;
 
-                case 31:
+                case 29:
                     $docis = isset($row[201]) ? trim((string)$row[201]) : null;
                     $lote = $row[202] ?? null;
                     break;
 
-                case 32:
+                case 30:
                     $docis = isset($row[203]) ? trim((string)$row[203]) : null;
                     $lote = $row[204] ?? null;
                     break;
 
-                case 33:
+                case 31:
                     $docis = isset($row[205]) ? trim((string)$row[205]) : null;
                     $lote = $row[206] ?? null;
                     break;
 
-                case 34:
+                case 32:
                     $docis = isset($row[207]) ? trim((string)$row[207]) : null;
                     $lote = $row[208] ?? null;
                     break;
 
-                case 35:
+                case 33:
                     $docis = isset($row[209]) ? trim((string)$row[209]) : null;
                     $lote = $row[210] ?? null;
                     break;
 
-                case 36:
+                case 34:
                     $docis = isset($row[211]) ? trim((string)$row[211]) : null;
                     $lote = $row[212] ?? null;
                     break;
 
-                case 37:
+                case 35:
                     $docis = isset($row[213]) ? trim((string)$row[213]) : null;
                     $lote = $row[214] ?? null;
                     break;
 
-                case 38:
+                case 36:
                     $docis = isset($row[215]) ? trim((string)$row[215]) : null;
                     $lote = $row[216] ?? null;
                     break;
 
-                case 39:
+                case 37:
                     $docis = isset($row[217]) ? trim((string)$row[217]) : null;
                     $lote = $row[218] ?? null;
                     break;
 
-                case 40:
+                case 38:
                     $docis = isset($row[219]) ? trim((string)$row[219]) : null;
                     $lote = $row[220] ?? null;
                     break;
 
-                case 41:
+                case 39:
                     $docis = isset($row[221]) ? trim((string)$row[221]) : null;
                     $lote = $row[222] ?? null;
                     break;
 
-                case 42:
+                case 40:
                     $docis = isset($row[223]) ? trim((string)$row[223]) : null;
                     $lote = $row[224] ?? null;
                     break;
 
-                case 43:
+                case 41:
                     $docis = isset($row[225]) ? trim((string)$row[225]) : null;
                     $lote = $row[226] ?? null;
                     break;
 
-                case 44:
+                case 42:
                     $docis = isset($row[227]) ? trim((string)$row[227]) : null;
                     $lote = $row[228] ?? null;
                     break;
 
-                case 45:
+                case 43:
                     $docis = isset($row[229]) ? trim((string)$row[229]) : null;
                     $lote = $row[230] ?? null;
                     break;
 
-                case 46:
+                case 44:
                     $docis = isset($row[231]) ? trim((string)$row[231]) : null;
                     $lote = $row[232] ?? null;
                     break;
 
-                case 47:
+                case 45:
                     $docis = isset($row[233]) ? trim((string)$row[233]) : null;
                     $lote = $row[234] ?? null;
-                    $observacion = $row[235] ?? null;
+                    break;
+
+                case 46:
+                    $docis = isset($row[235]) ? trim((string)$row[235]) : null;
+                    $lote = $row[236] ?? null;
+                    break;
+
+                case 47:
+                    $docis = isset($row[237]) ? trim((string)$row[237]) : null;
+                    $lote = $row[238] ?? null;
+                    $observacion = $row[239] ?? null;
                     break;
 
                 case 48:
-                    $num_frascos_utilizados = $row[236] ?? null;
-                    $lote = $row[237] ?? null;
+                    $num_frascos_utilizados = $row[240] ?? null;
+                    $lote = $row[241] ?? null;
                     break;
 
                 case 49:
-                    $num_frascos_utilizados = $row[238] ?? null;
-                    $lote = $row[239] ?? null;
-                    $observacion = $row[240] ?? null;
+                    $num_frascos_utilizados = $row[242] ?? null;
+                    $lote = $row[243] ?? null;
+                    $observacion = $row[244] ?? null;
                     break;
 
                 case 50:
-                    $num_frascos_utilizados = $row[241] ?? null;
-                    $lote = $row[242] ?? null;
-                    break;
-
-                case 51:
-                    $num_frascos_utilizados = $row[243] ?? null;
-                    $lote = $row[244] ?? null;
-                    break;
-
-                case 52:
-                    $docis = isset($row[245]) ? trim((string)$row[245]) : null;
+                    $num_frascos_utilizados = $row[245] ?? null;
                     $lote = $row[246] ?? null;
                     break;
 
-                case 53:
-                    $docis = isset($row[247]) ? trim((string)$row[247]) : null;
+                case 51:
+                    $num_frascos_utilizados = $row[247] ?? null;
                     $lote = $row[248] ?? null;
                     break;
 
-                case 54:
+                case 52:
                     $docis = isset($row[249]) ? trim((string)$row[249]) : null;
                     $lote = $row[250] ?? null;
                     break;
 
-                case 55:
+                case 53:
                     $docis = isset($row[251]) ? trim((string)$row[251]) : null;
                     $lote = $row[252] ?? null;
                     break;
 
-                case 56:
+                case 54:
                     $docis = isset($row[253]) ? trim((string)$row[253]) : null;
                     $lote = $row[254] ?? null;
+                    break;
+
+                case 55:
+                    $docis = isset($row[195]) ? trim((string)$row[195]) : null;
+                    $lote = $row[196] ?? null;
+                    break;
+
+                case 56:
+                    $docis = isset($row[197]) ? trim((string)$row[197]) : null;
+                    $lote = $row[198] ?? null;
                     break;
             }
 
@@ -768,5 +764,40 @@ class AfiliadoImport implements ToModel, WithStartRow, WithChunkReading
     public function getBatchVerificationsID()
     {
         return $this->batch_verifications_id;
+    }
+
+    private function resolveFinalColumns(array $row, callable $clean): array
+    {
+        $hasValue = function ($v): bool {
+            if ($v === null) return false;
+            if (is_string($v)) {
+                $t = trim($v);
+                return $t !== '' && strtoupper($t) !== 'NONE';
+            }
+            return true;
+        };
+
+        $maps = [
+            [255, 256, 257, 258],
+            [251, 252, 253, 254],
+        ];
+
+        foreach ($maps as [$iResp, $iFue, $iMot, $iObs]) {
+            if (
+                $hasValue($row[$iResp] ?? null) ||
+                $hasValue($row[$iFue] ?? null) ||
+                $hasValue($row[$iMot] ?? null) ||
+                $hasValue($row[$iObs] ?? null)
+            ) {
+                return [
+                    $clean($row[$iResp] ?? null),
+                    $clean($row[$iFue] ?? null),
+                    $clean($row[$iMot] ?? null),
+                    $clean($row[$iObs] ?? null),
+                ];
+            }
+        }
+
+        return [null, null, null, null];
     }
 }

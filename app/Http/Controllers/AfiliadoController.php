@@ -1318,6 +1318,7 @@ public function importStatus(string $token)
     $noAfiliados = [];
     $vacunasOmitidas = [];
     $erroresJson = [];
+    $loadedDetails = [];
 
     $path = "imports/{$token}_resultado.json";
     if (Storage::exists($path)) {
@@ -1328,6 +1329,12 @@ public function importStatus(string $token)
             $vacunasOmitidas = $payload['vacunas_omitidas'] ?? [];
             $erroresJson = $payload['errores'] ?? [];
         }
+    }
+
+    // 2.5) ✅ Detalle de lo cargado (solo si terminó bien)
+    $status = strtolower((string)($job->status ?? ''));
+    if ($status === 'done' && empty($errors)) {
+        $loadedDetails = $this->buildLoadedDetailsForConsole((int)($job->batch_verifications_id ?? 0));
     }
 
     // 3) ✅ Unir errores del job + errores del json (sin duplicar)
@@ -1406,9 +1413,90 @@ public function importStatus(string $token)
         // ✅ Además los mando separados (por si luego quieres pestañas)
         'no_afiliados' => $noAfiliados,
         'vacunas_omitidas' => $vacunasOmitidas,
+        'loaded_details' => $loadedDetails,
 
         'batch_verifications_id' => $job->batch_verifications_id ?? null,
     ]);
+}
+
+private function buildLoadedDetailsForConsole(int $batchId, int $limitVacunas = 400): array
+{
+    if ($batchId <= 0) {
+        return [];
+    }
+
+    try {
+        $rows = DB::table('vacunas as v')
+            ->join('afiliados as a', 'a.id', '=', 'v.afiliado_id')
+            ->join('referencia_vacunas as rv', 'rv.id', '=', 'v.vacunas_id')
+            ->where('v.batch_verifications_id', $batchId)
+            ->select([
+                'a.tipo_identificacion',
+                'a.numero_identificacion',
+                'a.numero_carnet',
+                'a.primer_nombre',
+                'a.segundo_nombre',
+                'a.primer_apellido',
+                'a.segundo_apellido',
+                'rv.nombre as vacuna_nombre',
+                'v.docis',
+                'v.lote',
+                'v.regimen',
+            ])
+            ->orderBy('a.numero_identificacion')
+            ->orderBy('rv.id')
+            ->limit($limitVacunas)
+            ->get();
+
+        if ($rows->isEmpty()) {
+            return [];
+        }
+
+        $lines = [];
+        $lines[] = "==============================";
+        $lines[] = "DETALLE CARGADO (AFILIADOS Y VACUNAS)";
+        $lines[] = "==============================";
+
+        $lastAfiliadoKey = null;
+        foreach ($rows as $r) {
+            $afiliadoKey = trim(($r->tipo_identificacion ?? '') . '|' . ($r->numero_identificacion ?? ''));
+            if ($afiliadoKey !== $lastAfiliadoKey) {
+                $nombre = trim(implode(' ', array_filter([
+                    $r->primer_nombre ?? '',
+                    $r->segundo_nombre ?? '',
+                    $r->primer_apellido ?? '',
+                    $r->segundo_apellido ?? '',
+                ])));
+
+                $tipo = (string)($r->tipo_identificacion ?? '');
+                $num = (string)($r->numero_identificacion ?? '');
+                $carnet = (string)($r->numero_carnet ?? '');
+                $lines[] = "Afiliado: {$tipo} {$num} | Carnet: {$carnet} | Nombre: {$nombre}";
+                $lastAfiliadoKey = $afiliadoKey;
+            }
+
+            $vacuna = (string)($r->vacuna_nombre ?? 'Vacuna');
+            $dosis = (string)($r->docis ?? 'SIN DOSIS');
+            $lote = (string)($r->lote ?? 'SIN LOTE');
+            $regimen = (string)($r->regimen ?? 'SIN REGIMEN');
+            $lines[] = "  - {$vacuna} | Dosis: {$dosis} | Lote: {$lote} | Regimen: {$regimen}";
+        }
+
+        $totalVacunas = (int) DB::table('vacunas')->where('batch_verifications_id', $batchId)->count();
+        if ($totalVacunas > $limitVacunas) {
+            $faltantes = $totalVacunas - $limitVacunas;
+            $lines[] = "… (Se muestran {$limitVacunas} de {$totalVacunas} vacunas. Faltan {$faltantes} líneas)";
+        }
+
+        return $lines;
+    } catch (\Throwable $e) {
+        Log::warning('No se pudo construir detalle cargado para consola', [
+            'batch' => $batchId,
+            'error' => $e->getMessage(),
+        ]);
+
+        return [];
+    }
 }
 
 public function loadSummary(Request $request)

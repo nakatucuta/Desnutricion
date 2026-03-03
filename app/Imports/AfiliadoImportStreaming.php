@@ -814,12 +814,8 @@ class AfiliadoImportStreaming implements ToModel, WithStartRow, WithChunkReading
             return null;
         }
 
-        // Cola final
-        $n = count($row);
-        $responsable           = $this->cleanText($row[$n - 4] ?? null);
-        $fuen_ingresado_paiweb = $this->cleanText($row[$n - 3] ?? null);
-        $motivo_noingreso      = $this->cleanText($row[$n - 2] ?? null);
-        $observaciones         = $this->cleanText($row[$n - 1] ?? null);
+        // Cola final (formato nuevo: 255..258, formato anterior: 251..254)
+        [$responsable, $fuen_ingresado_paiweb, $motivo_noingreso, $observaciones] = $this->resolveFinalColumns($row);
         $regimenVacuna         = $this->cleanText($row[20] ?? null);
 
         // carnet externo con cache
@@ -1444,35 +1440,35 @@ class AfiliadoImportStreaming implements ToModel, WithStartRow, WithChunkReading
             [25, range(182,185),function() use ($val){ return ['num_frascos_utilizados'=>$val(182),'lote'=>$val(183),'jeringa'=>$val(184),'lote_jeringa'=>$val(185)]; }],
             [26, range(186,189),function() use ($val){ return ['num_frascos_utilizados'=>$val(186),'lote'=>$val(187),'jeringa'=>$val(188),'lote_jeringa'=>$val(189)]; }],
             [27, range(190,194),function() use ($doc,$val){ return ['docis'=>$doc(190),'lote'=>$val(191),'jeringa'=>$val(192),'lote_jeringa'=>$val(193),'lote_diluyente'=>$val(194)]; }],
-            [28, range(195,196),function() use ($doc,$val){ return ['docis'=>$doc(195),'lote'=>$val(196)]; }],
-            [29, range(197,198),function() use ($doc,$val){ return ['docis'=>$doc(197),'lote'=>$val(198)]; }],
-            [30, range(199,200),function() use ($doc,$val){ return ['docis'=>$doc(199),'lote'=>$val(200)]; }],
-            [31, range(201,202),function() use ($doc,$val){ return ['docis'=>$doc(201),'lote'=>$val(202)]; }],
-            [32, range(203,204),function() use ($doc,$val){ return ['docis'=>$doc(203),'lote'=>$val(204)]; }],
-            [33, range(205,206),function() use ($doc,$val){ return ['docis'=>$doc(205),'lote'=>$val(206)]; }],
-            [34, range(207,208),function() use ($doc,$val){ return ['docis'=>$doc(207),'lote'=>$val(208)]; }],
-            [35, range(209,210),function() use ($doc,$val){ return ['docis'=>$doc(209),'lote'=>$val(210)]; }],
-            [36, range(211,212),function() use ($doc,$val){ return ['docis'=>$doc(211),'lote'=>$val(212)]; }],
-            [37, range(213,214),function() use ($doc,$val){ return ['docis'=>$doc(213),'lote'=>$val(214)]; }],
-            [38, range(215,216),function() use ($doc,$val){ return ['docis'=>$doc(215),'lote'=>$val(216)]; }],
-            [39, range(217,218),function() use ($doc,$val){ return ['docis'=>$doc(217),'lote'=>$val(218)]; }],
-            [40, range(219,220),function() use ($doc,$val){ return ['docis'=>$doc(219),'lote'=>$val(220)]; }],
-            [41, range(221,222),function() use ($doc,$val){ return ['docis'=>$doc(221),'lote'=>$val(222)]; }],
-            [42, range(223,224),function() use ($doc,$val){ return ['docis'=>$doc(223),'lote'=>$val(224)]; }],
-            [43, range(225,226),function() use ($doc,$val){ return ['docis'=>$doc(225),'lote'=>$val(226)]; }],
-            [44, range(227,228),function() use ($doc,$val){ return ['docis'=>$doc(227),'lote'=>$val(228)]; }],
-            [45, range(229,230),function() use ($doc,$val){ return ['docis'=>$doc(229),'lote'=>$val(230)]; }],
-            [46, range(231,232),function() use ($doc,$val){ return ['docis'=>$doc(231),'lote'=>$val(232)]; }],
-            [47, range(233,235),function() use ($doc,$val){ return ['docis'=>$doc(233),'lote'=>$val(234),'observacion'=>$val(235)]; }],
-            [48, range(236,237),function() use ($val){ return ['num_frascos_utilizados'=>$val(236),'lote'=>$val(237)]; }],
-            [49, range(238,240),function() use ($val){ return ['num_frascos_utilizados'=>$val(238),'lote'=>$val(239),'observacion'=>$val(240)]; }],
-            [50, range(241,242),function() use ($val){ return ['num_frascos_utilizados'=>$val(241),'lote'=>$val(242)]; }],
-            [51, range(243,244),function() use ($val){ return ['num_frascos_utilizados'=>$val(243),'lote'=>$val(244)]; }],
-            [52, range(245,246),function() use ($doc,$val){ return ['docis'=>$doc(245),'lote'=>$val(246)]; }],
-            [53, range(247,248),function() use ($doc,$val){ return ['docis'=>$doc(247),'lote'=>$val(248)]; }],
-            [54, range(249,250),function() use ($doc,$val){ return ['docis'=>$doc(249),'lote'=>$val(250)]; }],
-            [55, range(251,252),function() use ($doc,$val){ return ['docis'=>$doc(251),'lote'=>$val(252)]; }],
-            [56, range(253,254),function() use ($doc,$val){ return ['docis'=>$doc(253),'lote'=>$val(254)]; }],
+            [55, range(195,196),function() use ($doc,$val){ return ['docis'=>$doc(195),'lote'=>$val(196)]; }],
+            [56, range(197,198),function() use ($doc,$val){ return ['docis'=>$doc(197),'lote'=>$val(198)]; }],
+            [28, range(199,200),function() use ($doc,$val){ return ['docis'=>$doc(199),'lote'=>$val(200)]; }],
+            [29, range(201,202),function() use ($doc,$val){ return ['docis'=>$doc(201),'lote'=>$val(202)]; }],
+            [30, range(203,204),function() use ($doc,$val){ return ['docis'=>$doc(203),'lote'=>$val(204)]; }],
+            [31, range(205,206),function() use ($doc,$val){ return ['docis'=>$doc(205),'lote'=>$val(206)]; }],
+            [32, range(207,208),function() use ($doc,$val){ return ['docis'=>$doc(207),'lote'=>$val(208)]; }],
+            [33, range(209,210),function() use ($doc,$val){ return ['docis'=>$doc(209),'lote'=>$val(210)]; }],
+            [34, range(211,212),function() use ($doc,$val){ return ['docis'=>$doc(211),'lote'=>$val(212)]; }],
+            [35, range(213,214),function() use ($doc,$val){ return ['docis'=>$doc(213),'lote'=>$val(214)]; }],
+            [36, range(215,216),function() use ($doc,$val){ return ['docis'=>$doc(215),'lote'=>$val(216)]; }],
+            [37, range(217,218),function() use ($doc,$val){ return ['docis'=>$doc(217),'lote'=>$val(218)]; }],
+            [38, range(219,220),function() use ($doc,$val){ return ['docis'=>$doc(219),'lote'=>$val(220)]; }],
+            [39, range(221,222),function() use ($doc,$val){ return ['docis'=>$doc(221),'lote'=>$val(222)]; }],
+            [40, range(223,224),function() use ($doc,$val){ return ['docis'=>$doc(223),'lote'=>$val(224)]; }],
+            [41, range(225,226),function() use ($doc,$val){ return ['docis'=>$doc(225),'lote'=>$val(226)]; }],
+            [42, range(227,228),function() use ($doc,$val){ return ['docis'=>$doc(227),'lote'=>$val(228)]; }],
+            [43, range(229,230),function() use ($doc,$val){ return ['docis'=>$doc(229),'lote'=>$val(230)]; }],
+            [44, range(231,232),function() use ($doc,$val){ return ['docis'=>$doc(231),'lote'=>$val(232)]; }],
+            [45, range(233,234),function() use ($doc,$val){ return ['docis'=>$doc(233),'lote'=>$val(234)]; }],
+            [46, range(235,236),function() use ($doc,$val){ return ['docis'=>$doc(235),'lote'=>$val(236)]; }],
+            [47, range(237,239),function() use ($doc,$val){ return ['docis'=>$doc(237),'lote'=>$val(238),'observacion'=>$val(239)]; }],
+            [48, range(240,241),function() use ($val){ return ['num_frascos_utilizados'=>$val(240),'lote'=>$val(241)]; }],
+            [49, range(242,244),function() use ($val){ return ['num_frascos_utilizados'=>$val(242),'lote'=>$val(243),'observacion'=>$val(244)]; }],
+            [50, range(245,246),function() use ($val){ return ['num_frascos_utilizados'=>$val(245),'lote'=>$val(246)]; }],
+            [51, range(247,248),function() use ($val){ return ['num_frascos_utilizados'=>$val(247),'lote'=>$val(248)]; }],
+            [52, range(249,250),function() use ($doc,$val){ return ['docis'=>$doc(249),'lote'=>$val(250)]; }],
+            [53, range(251,252),function() use ($doc,$val){ return ['docis'=>$doc(251),'lote'=>$val(252)]; }],
+            [54, range(253,254),function() use ($doc,$val){ return ['docis'=>$doc(253),'lote'=>$val(254)]; }],
         ];
 
         foreach ($blocks as [$vacunasId, $idxs, $build]) {
@@ -1500,5 +1496,41 @@ class AfiliadoImportStreaming implements ToModel, WithStartRow, WithChunkReading
         }
 
         return $vacunas;
+    }
+
+    private function resolveFinalColumns(array $row): array
+    {
+        $hasValue = function ($v): bool {
+            if ($v === null) return false;
+            if (is_string($v)) {
+                $t = trim($v);
+                return $t !== '' && strtoupper($t) !== 'NONE';
+            }
+            return true;
+        };
+
+        // Prioriza formato nuevo.
+        $maps = [
+            [255, 256, 257, 258],
+            [251, 252, 253, 254],
+        ];
+
+        foreach ($maps as [$iResp, $iFue, $iMot, $iObs]) {
+            if (
+                $hasValue($row[$iResp] ?? null) ||
+                $hasValue($row[$iFue] ?? null) ||
+                $hasValue($row[$iMot] ?? null) ||
+                $hasValue($row[$iObs] ?? null)
+            ) {
+                return [
+                    $this->cleanText($row[$iResp] ?? null),
+                    $this->cleanText($row[$iFue] ?? null),
+                    $this->cleanText($row[$iMot] ?? null),
+                    $this->cleanText($row[$iObs] ?? null),
+                ];
+            }
+        }
+
+        return [null, null, null, null];
     }
 }

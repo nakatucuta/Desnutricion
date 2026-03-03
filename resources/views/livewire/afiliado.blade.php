@@ -231,11 +231,11 @@
                                     {{-- Errores (mantengo IDs para tu JS) --}}
                                     <div id="import_errors_box" class="pai-console__errors" style="display:none;">
                                         <div class="pai-console__errorshead">
-                                            <div class="pai-console__errorstitle">
+                                            <div class="pai-console__errorstitle" id="import_errors_title">
                                                 <i class="fas fa-triangle-exclamation"></i>
                                                 Errores encontrados
                                             </div>
-                                            <div class="pai-console__errorstag">VALIDATION</div>
+                                            <div class="pai-console__errorstag" id="import_errors_tag">VALIDATION</div>
                                         </div>
 
                                         <div class="pai-console__errorsbody">
@@ -1061,6 +1061,8 @@ window.IMPORT_ENDPOINTS = {
 
   const errBox  = document.getElementById('import_errors_box');
   const errList = document.getElementById('import_errors_list');
+  const errTitle = document.getElementById('import_errors_title');
+  const errTag = document.getElementById('import_errors_tag');
   const btnClose = document.getElementById('btnCloseImport');
 
   // OK Habilita la X del header cuando termina
@@ -1142,6 +1144,9 @@ window.IMPORT_ENDPOINTS = {
   function showErrors(errors){
       if(!errBox || !errList) return;
 
+      if(errTitle) errTitle.innerHTML = '<i class="fas fa-triangle-exclamation"></i> Errores encontrados';
+      if(errTag) errTag.textContent = 'VALIDATION';
+
       errList.innerHTML = '';
       (errors || []).forEach((x)=> {
           const li = document.createElement('li');
@@ -1151,7 +1156,22 @@ window.IMPORT_ENDPOINTS = {
       errBox.style.display = 'block';
   }
 
-  function finishSuccess(message){
+  function showLoadedDetails(lines){
+      if(!errBox || !errList) return;
+
+      if(errTitle) errTitle.innerHTML = '<i class="fas fa-list-check"></i> Detalle cargado';
+      if(errTag) errTag.textContent = 'SUCCESS';
+
+      errList.innerHTML = '';
+      (lines || []).forEach((x)=> {
+          const li = document.createElement('li');
+          li.textContent = x;
+          errList.appendChild(li);
+      });
+      errBox.style.display = 'block';
+  }
+
+  function finishSuccess(message, details){
       if(alreadyFinished) return;
       alreadyFinished = true;
 
@@ -1163,6 +1183,10 @@ window.IMPORT_ENDPOINTS = {
       if(btnClose) btnClose.style.display = 'inline-block';
       if(btnCloseX) btnCloseX.style.display = 'inline-flex';
 
+      if(Array.isArray(details) && details.length > 0){
+          showLoadedDetails(details);
+      }
+
       Swal.fire({
           icon: 'success',
           title: 'Importacion finalizada',
@@ -1173,11 +1197,11 @@ window.IMPORT_ENDPOINTS = {
           showConfirmButton: false
       });
 
-      setTimeout(()=> {
-          forceCloseBootstrapModal('#loadingModal');
-          resetImportUI();
-          // location.reload();
-      }, 900);
+      // Mantener ventana para revisar el detalle cargado.
+      if(submitButton){
+          submitButton.disabled = false;
+          submitButton.innerHTML = '<i class="fas fa-play mr-2"></i> Iniciar importacion';
+      }
   }
 
   function finishFailed(message, errors){
@@ -1363,7 +1387,7 @@ window.IMPORT_ENDPOINTS = {
                   if(hasErrors){
                       finishFailed(s.message || 'Se encontraron errores.', s.errors || []);
                   }else{
-                      finishSuccess(s.message || 'Importacion finalizada.');
+                      finishSuccess(s.message || 'Importacion finalizada.', s.loaded_details || []);
                   }
                   isPolling = false;
                   return;
