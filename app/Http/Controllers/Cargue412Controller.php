@@ -430,16 +430,14 @@ class Cargue412Controller extends Controller
             $query->where('sexo', $sexo);
         }
 
+        // Procesado por ambiente:
+        // se considera procesado cuando el caso ya tiene asignado user_id en la BD del entorno actual.
         $procesado = trim((string) $request->get('procesado', ''));
         if ($procesado !== '') {
             if ($procesado === '1') {
-                $query->where(function ($q) {
-                    $q->where('procesado', 1)->orWhereNotNull('user_id');
-                });
+                $query->whereNotNull('user_id');
             } elseif ($procesado === '0') {
-                $query->where(function ($q) {
-                    $q->where('procesado', 0)->orWhereNull('user_id');
-                });
+                $query->whereNull('user_id');
             }
         }
 
