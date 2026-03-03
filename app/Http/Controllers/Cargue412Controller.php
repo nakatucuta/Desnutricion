@@ -218,7 +218,7 @@ class Cargue412Controller extends Controller
         $seg = Cargue412::where('id', $id)->update($datosEmpleado);
 
         if ($seg) {
-            DB::connection('sqlsrv_1')->table('DESNUTRICION.dbo.cargue412s')
+            DB::connection('sqlsrv')->table('dbo.cargue412s')
                 ->where('id', $id)
                 ->update(['estado' => 1]);
         }
@@ -337,8 +337,8 @@ class Cargue412Controller extends Controller
     public function showImportForm()
     {
         $years = Cache::remember('cargue412_years_optima', 900, function () {
-            return DB::connection('sqlsrv_1')
-                ->table('DESNUTRICION.dbo.vCargue412Optima')
+            return DB::connection('sqlsrv')
+                ->table('dbo.vCargue412Optima')
                 ->selectRaw('YEAR(fecha_captacion) as year')
                 ->whereNotNull('fecha_captacion')
                 ->distinct()
@@ -395,13 +395,13 @@ class Cargue412Controller extends Controller
      */
     private function build412Query(Request $request)
     {
-        $query = DB::connection('sqlsrv_1')->table('DESNUTRICION.dbo.vCargue412Optima');
+        $query = DB::connection('sqlsrv')->table('dbo.vCargue412Optima');
 
         $year = $request->get('year');
         if (empty($year)) {
             $year = Cache::remember('cargue412_default_year_optima', 900, function () {
-                return DB::connection('sqlsrv_1')
-                    ->table('DESNUTRICION.dbo.vCargue412Optima')
+                return DB::connection('sqlsrv')
+                    ->table('dbo.vCargue412Optima')
                     ->selectRaw('MAX(YEAR(fecha_captacion)) as y')
                     ->value('y');
             });
@@ -726,7 +726,7 @@ public function reporte1cargue412()
         ]);
 
         // 2) Leer y escribir en chunks
-        Cargue412::from('DESNUTRICION.dbo.cargue412s as a')
+        Cargue412::from('dbo.cargue412s as a')
             ->select(
                 'a.id',
                 'a.fecha_captacion',
@@ -842,6 +842,7 @@ public function reporte1cargue412()
 }
 
 }
+
 
 
 

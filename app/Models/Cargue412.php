@@ -9,14 +9,14 @@ class Cargue412 extends Model
 {
     use HasFactory;
 
-    protected $connection = 'sqlsrv_1';
+    protected $connection = 'sqlsrv';
 
     public function getDateFormat(){
         return 'Y-d-m h:m:s';
        }
 
 
-       protected $table = 'DESNUTRICION.dbo.cargue412s';
+       protected $table = 'dbo.cargue412s';
 
        protected $fillable = [
         'numero_orden',
