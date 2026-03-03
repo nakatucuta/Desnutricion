@@ -993,36 +993,34 @@ public function getVacunasPdf($id, $numeroCarnet = null)
     // Método para descargar el archivo Excel
     public function downloadExcel()
 {
-    // Rutas de los archivos que deseas incluir en el ZIP
-    $excelPath = 'public/Formato pai_.xlsx';
-    $pdfPath = 'public/Manual para el uso de registro diario pai.pdf';  // Cambia esta ruta al archivo PDF que deseas descargar
+    // ✅ Nuevo ZIP oficial del formato de vacunas
+    $sourceZipPath = 'C:\\Users\\jsuarez\\Documents\\FORMATO PAI\\nuevo formato\\formato_registro_diario.zip';
 
-    // Verificar si los archivos existen
-    if (!Storage::exists($excelPath) || !Storage::exists($pdfPath)) {
-        abort(404, 'Uno o ambos archivos no existen.');
+    if (is_file($sourceZipPath)) {
+        return response()->download($sourceZipPath, 'formato_registro_diario.zip');
     }
 
-    // Crear un archivo ZIP
+    // Fallback: comportamiento anterior (no se elimina por compatibilidad)
+    $excelPath = 'public/Formato pai_.xlsx';
+    $pdfPath = 'public/Manual para el uso de registro diario pai.pdf';
+
+    if (!Storage::exists($excelPath) || !Storage::exists($pdfPath)) {
+        abort(404, 'No se encontró el ZIP nuevo y tampoco el formato anterior.');
+    }
+
     $zipFileName = 'documentos.zip';
-    $zipFilePath = storage_path($zipFileName);  // Ubicación temporal del archivo ZIP
+    $zipFilePath = storage_path($zipFileName);
 
     $zip = new ZipArchive;
-
-    if ($zip->open($zipFilePath, ZipArchive::CREATE) === TRUE) {
-        // Agregar el archivo Excel
+    if ($zip->open($zipFilePath, ZipArchive::CREATE) === true) {
         $zip->addFile(Storage::path($excelPath), 'formato_registro_diario.xlsx');
-
-        // Agregar el archivo PDF
         $zip->addFile(Storage::path($pdfPath), 'manual.pdf');
-
-        // Cerrar el archivo ZIP
         $zip->close();
     } else {
         abort(500, 'No se pudo crear el archivo ZIP.');
     }
 
-    // Descargar el archivo ZIP
-    return response()->download($zipFilePath)->deleteFileAfterSend(true);  // Elimina el ZIP después de la descarga
+    return response()->download($zipFilePath)->deleteFileAfterSend(true);
 }
 
 
