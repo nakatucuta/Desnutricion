@@ -223,6 +223,12 @@ Route::get('/import-excel', [Cargue412Controller::class, 'showImportForm'])
 Route::get('/import-excel/data', [Cargue412Controller::class, 'getData'])
      ->name('import-excel-data')
      ->middleware('auth');
+Route::post('/import-excel/report-preview', [Cargue412Controller::class, 'reportPreview'])
+     ->name('import-excel.report.preview')
+     ->middleware('auth');
+Route::post('/import-excel/report-export', [Cargue412Controller::class, 'reportExport'])
+     ->name('import-excel.report.export')
+     ->middleware('auth');
 Route::post('/import-excel', [Cargue412Controller::class, 'importExcel'])->name('import-excel')->middleware('auth');
 
 //RUTA PARA DESCARGAR MANUAL

@@ -21,6 +21,7 @@ use App\Mail\RecordatorioControl;        // <-- Importa tu Mailable desde App\Ma
 use Yajra\DataTables\Facades\DataTables;
 use Illuminate\Support\Facades\Cache;
 use Maatwebsite\Excel\Excel as ExcelFormat;
+use App\Exports\Cargue412DesignerExport;
 
 class Cargue412Controller extends Controller
 {
@@ -272,35 +273,58 @@ class Cargue412Controller extends Controller
 
 
       // Muestra la vista (no hace queries pesadas)
-      public function showImportForm()
+    public function showImportForm()
     {
-        $years = DB::connection('sqlsrv_1')
-        ->table('DESNUTRICION.dbo.vCargue412Optima')
-        ->selectRaw('YEAR(fecha_captacion) as year')
-        ->distinct()
-        ->orderByDesc('year')
-        ->pluck('year');
-        return view('new_412.form', compact('years'));
+        $years = Cache::remember('cargue412_years_optima', 900, function () {
+            return DB::connection('sqlsrv_1')
+                ->table('DESNUTRICION.dbo.vCargue412Optima')
+                ->selectRaw('YEAR(fecha_captacion) as year')
+                ->whereNotNull('fecha_captacion')
+                ->distinct()
+                ->orderByDesc('year')
+                ->pluck('year');
+        });
+        $defaultYear = $years->first();
+        $reportColumns = $this->reportColumnCatalog();
+        $defaultReportColumns = [
+            'fecha_cargue',
+            'id',
+            'nombre_coperante',
+            'fecha_captacion',
+            'municipio',
+            'nombres_completos',
+            'tipo_identificacion',
+            'numero_identificacion',
+            'sexo',
+            'edad_meses',
+            'ips_primaria',
+        ];
+        return view('new_412.form', compact('years', 'defaultYear', 'reportColumns', 'defaultReportColumns'));
     }
 
     // Endpoint para DataTables
     public function getData(Request $request)
     {
-        $year = $request->get('year');
-    
-        // 1) Construimos el QueryBuilder sobre la vista optimizada
-        $query = DB::connection('sqlsrv_1')
-            ->table('DESNUTRICION.dbo.vCargue412Optima')
-            // Filtramos por año de fecha_captacion si se envía
-            ->when($year, function($q) use ($year) {
-                $q->whereYear('fecha_captacion', $year);
-            });
-    
-        // 2) Devolvemos directamente a DataTables, que manejará COUNT, ORDER, PAGINATE, ETC.
+        $query = $this->build412Query($request)->select([
+            'fecha_cargue',
+            'id',
+            'nombre_coperante',
+            'fecha_captacion',
+            'municipio',
+            'nombres_completos',
+            'tipo_identificacion',
+            'numero_identificacion',
+            'sexo',
+            'edad_meses',
+            'ips_primaria',
+            'user_id',
+        ]);
+
         return DataTables::of($query)
             ->addColumn('acciones', function($row) {
                 return $this->renderAcciones($row);
             })
+            ->skipTotalRecords()
             ->rawColumns(['acciones'])
             ->toJson();
     }
@@ -308,20 +332,231 @@ class Cargue412Controller extends Controller
     /**
      * Genera el HTML de las acciones según procesado y user_id.
      */
+    private function build412Query(Request $request)
+    {
+        $query = DB::connection('sqlsrv_1')->table('DESNUTRICION.dbo.vCargue412Optima');
+
+        $year = $request->get('year');
+        if (empty($year)) {
+            $year = Cache::remember('cargue412_default_year_optima', 900, function () {
+                return DB::connection('sqlsrv_1')
+                    ->table('DESNUTRICION.dbo.vCargue412Optima')
+                    ->selectRaw('MAX(YEAR(fecha_captacion)) as y')
+                    ->value('y');
+            });
+        }
+        if (!empty($year)) {
+            $query->whereYear('fecha_captacion', $year);
+        }
+
+        $captacionDesde = $request->get('captacion_desde');
+        if (!empty($captacionDesde)) {
+            $query->whereDate('fecha_captacion', '>=', $captacionDesde);
+        }
+
+        $captacionHasta = $request->get('captacion_hasta');
+        if (!empty($captacionHasta)) {
+            $query->whereDate('fecha_captacion', '<=', $captacionHasta);
+        }
+
+        $municipio = trim((string) $request->get('municipio', ''));
+        if ($municipio !== '') {
+            $query->where('municipio', 'like', '%' . $municipio . '%');
+        }
+
+        $sexo = trim((string) $request->get('sexo', ''));
+        if ($sexo !== '') {
+            $query->where('sexo', $sexo);
+        }
+
+        $procesado = trim((string) $request->get('procesado', ''));
+        if ($procesado !== '') {
+            if ($procesado === '1') {
+                $query->where(function ($q) {
+                    $q->where('procesado', 1)->orWhereNotNull('user_id');
+                });
+            } elseif ($procesado === '0') {
+                $query->where(function ($q) {
+                    $q->where('procesado', 0)->orWhereNull('user_id');
+                });
+            }
+        }
+
+        $ipsPrimaria = trim((string) $request->get('ips_primaria', ''));
+        if ($ipsPrimaria !== '') {
+            $query->where('ips_primaria', 'like', '%' . $ipsPrimaria . '%');
+        }
+
+        $busquedaRapida = trim((string) $request->get('q', ''));
+        if ($busquedaRapida !== '') {
+            $query->where(function ($q) use ($busquedaRapida) {
+                $q->where('numero_identificacion', 'like', '%' . $busquedaRapida . '%')
+                    ->orWhere('nombres_completos', 'like', '%' . $busquedaRapida . '%')
+                    ->orWhere('nombre_coperante', 'like', '%' . $busquedaRapida . '%')
+                    ->orWhere('municipio', 'like', '%' . $busquedaRapida . '%')
+                    ->orWhere('ips_primaria', 'like', '%' . $busquedaRapida . '%');
+            });
+        }
+
+        return $query;
+    }
+
+    private function reportColumnCatalog(): array
+    {
+        return [
+            'fecha_cargue' => ['label' => 'Fecha Cargue', 'db' => 'fecha_cargue'],
+            'id' => ['label' => 'ID', 'db' => 'id'],
+            'numero_orden' => ['label' => 'Numero Orden', 'db' => 'numero_orden'],
+            'nombre_coperante' => ['label' => 'Nombre Coperante', 'db' => 'nombre_coperante'],
+            'fecha_captacion' => ['label' => 'Fecha Captacion', 'db' => 'fecha_captacion'],
+            'municipio' => ['label' => 'Municipio', 'db' => 'municipio'],
+            'nombres_completos' => ['label' => 'Nombres Completos', 'db' => 'nombres_completos'],
+            'tipo_identificacion' => ['label' => 'Tipo Identificacion', 'db' => 'tipo_identificacion'],
+            'numero_identificacion' => ['label' => 'Numero Identificacion', 'db' => 'numero_identificacion'],
+            'sexo' => ['label' => 'Sexo', 'db' => 'sexo'],
+            'edad_meses' => ['label' => 'Edad Meses', 'db' => 'edad_meses'],
+            'ips_primaria' => ['label' => 'IPS Primaria', 'db' => 'ips_primaria'],
+            'nombre_rancheria' => ['label' => 'Rancheria', 'db' => 'nombre_rancheria'],
+            'ubicacion_casa' => ['label' => 'Ubicacion Casa', 'db' => 'ubicacion_casa'],
+            'nombre_cuidador' => ['label' => 'Nombre Cuidador', 'db' => 'nombre_cuidador'],
+            'identioficacion_cuidador' => ['label' => 'ID Cuidador', 'db' => 'identioficacion_cuidador'],
+            'telefono_cuidador' => ['label' => 'Telefono Cuidador', 'db' => 'telefono_cuidador'],
+            'regimen_afiliacion' => ['label' => 'Regimen Afiliacion', 'db' => 'regimen_afiliacion'],
+            'nombre_eapb_menor' => ['label' => 'EAPB Menor', 'db' => 'nombre_eapb_menor'],
+            'peso_kg' => ['label' => 'Peso (Kg)', 'db' => 'peso_kg'],
+            'logitud_talla_cm' => ['label' => 'Talla (cm)', 'db' => 'logitud_talla_cm'],
+            'perimetro_braqueal' => ['label' => 'Perimetro Braqueal', 'db' => 'perimetro_braqueal'],
+            'puntaje_z' => ['label' => 'Puntaje Z', 'db' => 'puntaje_z'],
+            'calsificacion_antropometrica' => ['label' => 'Clasificacion Antropometrica', 'db' => 'calsificacion_antropometrica'],
+            'procesado' => ['label' => 'Procesado', 'db' => 'procesado'],
+            'nombre_profesional' => ['label' => 'Profesional Asignado', 'db' => 'nombre_profesional'],
+            'user_id' => ['label' => 'ID Usuario', 'db' => 'user_id'],
+            'created_at' => ['label' => 'Creado En', 'db' => 'created_at'],
+            'updated_at' => ['label' => 'Actualizado En', 'db' => 'updated_at'],
+        ];
+    }
+
+    public function reportPreview(Request $request)
+    {
+        $catalog = $this->reportColumnCatalog();
+        $requestedColumns = $request->input('columns', []);
+        if (!is_array($requestedColumns)) {
+            $requestedColumns = [];
+        }
+
+        $columns = array_values(array_filter($requestedColumns, fn($c) => isset($catalog[$c])));
+        if (empty($columns)) {
+            $columns = ['fecha_cargue', 'id', 'nombre_coperante', 'fecha_captacion', 'municipio', 'nombres_completos', 'numero_identificacion'];
+        }
+
+        $selects = [];
+        foreach ($columns as $key) {
+            $db = $catalog[$key]['db'];
+            $selects[] = DB::raw("[$db] as [$key]");
+        }
+
+        $rows = $this->build412Query($request)
+            ->select($selects)
+            ->orderByDesc('fecha_captacion')
+            ->limit(40)
+            ->get()
+            ->map(function ($row) use ($columns) {
+                $arr = [];
+                foreach ($columns as $col) {
+                    $arr[$col] = $row->{$col} ?? null;
+                }
+                return $arr;
+            })
+            ->values();
+
+        $headings = [];
+        foreach ($columns as $key) {
+            $headings[$key] = $catalog[$key]['label'];
+        }
+
+        return response()->json([
+            'ok' => true,
+            'columns' => $columns,
+            'headings' => $headings,
+            'rows' => $rows,
+        ]);
+    }
+
+    public function reportExport(Request $request)
+    {
+        $catalog = $this->reportColumnCatalog();
+        $requestedColumns = $request->input('columns', []);
+        if (!is_array($requestedColumns)) {
+            $requestedColumns = [];
+        }
+
+        $columns = array_values(array_filter($requestedColumns, fn($c) => isset($catalog[$c])));
+        if (empty($columns)) {
+            $columns = ['fecha_cargue', 'id', 'nombre_coperante', 'fecha_captacion', 'municipio', 'nombres_completos', 'numero_identificacion'];
+        }
+
+        $format = strtolower((string) $request->input('format', 'csv'));
+        if (!in_array($format, ['csv', 'xlsx'])) {
+            $format = 'csv';
+        }
+
+        $selects = [];
+        foreach ($columns as $key) {
+            $db = $catalog[$key]['db'];
+            $selects[] = DB::raw("[$db] as [$key]");
+        }
+
+        $rows = $this->build412Query($request)
+            ->select($selects)
+            ->orderByDesc('fecha_captacion')
+            ->limit(100000)
+            ->get()
+            ->map(function ($row) use ($columns) {
+                $arr = [];
+                foreach ($columns as $col) {
+                    $arr[$col] = $row->{$col} ?? '';
+                }
+                return $arr;
+            })
+            ->values()
+            ->all();
+
+        $headings = array_map(fn($col) => $catalog[$col]['label'], $columns);
+        $fileBase = '412_reporte_disenado_' . now()->format('Ymd_His');
+
+        if ($format === 'xlsx') {
+            return Excel::download(
+                new Cargue412DesignerExport($rows, $headings, $columns),
+                $fileBase . '.xlsx',
+                ExcelFormat::XLSX
+            );
+        }
+
+        $headers = [
+            'Content-Type' => 'text/csv',
+            'Content-Disposition' => 'attachment; filename="' . $fileBase . '.csv"',
+        ];
+
+        $callback = function () use ($rows, $columns, $headings) {
+            $handle = fopen('php://output', 'w');
+            fputcsv($handle, $headings);
+            foreach ($rows as $row) {
+                $line = [];
+                foreach ($columns as $col) {
+                    $line[] = $row[$col] ?? '';
+                }
+                fputcsv($handle, $line);
+            }
+            fclose($handle);
+        };
+
+        return response()->stream($callback, 200, $headers);
+    }
+
     protected function renderAcciones($row)
     {
         $token = csrf_token();
-        // 1) Si ya procesado en evento 113
-        if ($row->procesado) {
-            return <<<HTML
-<div class="alert alert-warning text-center p-2" style="font-size:.8rem">
-  <i class="fas fa-exclamation-triangle mr-1"></i>
-  <strong>¡Atención!</strong><br> YA TIENE SEGUIMIENTO EN EVENTO 113
-</div>
-HTML;
-        }
-
-        // 2) URLs y formulario oculto
+        // URLs y formulario oculto
         $editUrl = url("/new412/{$row->id}/{$row->numero_identificacion}/edit");
         $delUrl  = route('new412.destroy', $row->id);
         $formId  = "del-{$row->id}";
@@ -336,12 +571,12 @@ HTML;
         // 3) Si no tiene user_id: permitir borrar y editar
         if (is_null($row->user_id)) {
             return <<<HTML
-<a href="{$delUrl}" class="btn btn-danger btn-sm"
+<a href="{$delUrl}" class="btn btn-sm aw-btn-delete"
    onclick="event.preventDefault(); if(confirm('¿Eliminar registro?')) document.getElementById('{$formId}').submit();">
   <i class="fas fa-trash"></i>
 </a>
 {$deleteForm}
-<a href="{$editUrl}" class="btn btn-success btn-sm">
+<a href="{$editUrl}" class="btn btn-sm aw-btn-edit">
   <i class="fas fa-edit"></i>
 </a>
 HTML;
@@ -349,24 +584,19 @@ HTML;
 
         // 4) Ya tiene user_id: mostrar procesado + permitir editar y borrar
         return <<<HTML
-<a class="btn btn-secondary btn-sm" title="Procesado">
+<a class="btn btn-sm aw-btn-processed" title="Procesado">
   <i class="fas fa-stop"></i> Procesado
 </a>
-<a href="{$editUrl}" class="btn btn-success btn-sm">
+<a href="{$editUrl}" class="btn btn-sm aw-btn-edit">
   <i class="fas fa-tools"></i>
 </a>
-<a href="{$delUrl}" class="btn btn-danger btn-sm"
+<a href="{$delUrl}" class="btn btn-sm aw-btn-delete"
    onclick="event.preventDefault(); if(confirm('¿Eliminar registro?')) document.getElementById('{$formId}').submit();">
   <i class="fas fa-trash"></i>
 </a>
 {$deleteForm}
 HTML;
     }
-    
-    
-    
-    
-
     public function importExcel(Request $request)
     {
         $this->validate($request, [
@@ -553,3 +783,9 @@ public function reporte1cargue412()
 }
 
 }
+
+
+
+
+
+
