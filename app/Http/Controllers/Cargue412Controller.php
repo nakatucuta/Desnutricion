@@ -131,8 +131,24 @@ class Cargue412Controller extends Controller
     /**
      * Show the form for editing the specified resource.
      */
-    public function edit(Cargue412 $cargue412, $id, $numero_identificacion)
+    public function edit($id, $numero_identificacion = null)
     {
+        $edit_cargue = Cargue412::find($id);
+        if (!$edit_cargue && !empty($numero_identificacion)) {
+            $edit_cargue = Cargue412::where('numero_identificacion', $numero_identificacion)
+                ->orderByDesc('id')
+                ->first();
+        }
+        if (!$edit_cargue) {
+            return redirect()
+                ->route('import-excel-form')
+                ->with('error', 'No se encontró el registro en este ambiente.');
+        }
+
+        if (empty($numero_identificacion)) {
+            $numero_identificacion = $edit_cargue->numero_identificacion;
+        }
+
         $incomeedit14 = DB::connection('sqlsrv_1')->table('maestroAfiliados as a')
             ->join('maestroips as b', 'a.numeroCarnet', '=', 'b.numeroCarnet')
             ->join('maestroIpsGru as c', 'b.idGrupoIps', '=', 'c.id')
@@ -164,7 +180,6 @@ class Cargue412Controller extends Controller
             ->whereNotIn('id', $idsEnIncome12) // Evitar duplicados
             ->get();
         
-        $edit_cargue = Cargue412::findOrFail($id); 
         return view('new_412.edit', compact('edit_cargue', 'incomeedit15', 'income12', 'incomeedit14'));
     }
     
@@ -203,7 +218,7 @@ class Cargue412Controller extends Controller
         $seg = Cargue412::where('id', $id)->update($datosEmpleado);
 
         if ($seg) {
-            DB::table('cargue412s')
+            DB::connection('sqlsrv_1')->table('DESNUTRICION.dbo.cargue412s')
                 ->where('id', $id)
                 ->update(['estado' => 1]);
         }
@@ -603,8 +618,8 @@ class Cargue412Controller extends Controller
     {
         $token = csrf_token();
         // URLs y formulario oculto
-        $editUrl = url("/new412/{$row->id}/{$row->numero_identificacion}/edit");
-        $delUrl  = route('new412.destroy', $row->id);
+        $editUrl = url("new412/{$row->id}/{$row->numero_identificacion}/edit");
+        $delUrl  = url("new412/{$row->id}");
         $formId  = "del-{$row->id}";
 
         $deleteForm = <<<HTML
@@ -713,7 +728,7 @@ public function reporte1cargue412()
         ]);
 
         // 2) Leer y escribir en chunks
-        Cargue412::from('cargue412s as a')
+        Cargue412::from('DESNUTRICION.dbo.cargue412s as a')
             ->select(
                 'a.id',
                 'a.fecha_captacion',
