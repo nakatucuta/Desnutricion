@@ -993,10 +993,10 @@ public function getVacunasPdf($id, $numeroCarnet = null)
     // Método para descargar el archivo Excel
     public function downloadExcel()
 {
-    // ✅ ZIP oficial del formato de vacunas (ruta producción)
-    $storageZip = storage_path('app/public/formato_registro_diario.zip');
-    if (is_file($storageZip)) {
-        return response()->download($storageZip, 'formato_registro_diario.zip');
+    // ✅ ZIP oficial del formato de vacunas (disco "public" => storage/app/public)
+    $zipName = 'formato_registro_diario.zip';
+    if (Storage::disk('public')->exists($zipName)) {
+        return Storage::disk('public')->download($zipName, $zipName);
     }
 
     // Fallback: comportamiento anterior (no se elimina por compatibilidad)
