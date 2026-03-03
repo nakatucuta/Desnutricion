@@ -152,6 +152,7 @@ class VacunaExport implements FromQuery, WithHeadings, ShouldAutoSize, WithEvent
                 'a.fuen_ingresado_paiweb',
                 'a.motivo_noingreso',
                 'a.observaciones',
+                'a.regimen as regimen_vacuna',
                 'a.created_at',
             ])
             ->when($this->startDate && $this->endDate, function($q) {
@@ -185,7 +186,7 @@ class VacunaExport implements FromQuery, WithHeadings, ShouldAutoSize, WithEvent
             'Nombre de la Vacuna', 'Dosis', 'Laboratorio', 'Lote', 'Jeringa', 'Lote de Jeringa', 'Diluyente',
             'Lote de Diluyente', 'Observación', 'Gotero', 'Tipo Neumococo', 'Número de Frascos Utilizados',
             'Fecha de Vacunación', 'Responsable', 'Fuente Ingresado en PAIWEB', 'Motivo No Ingreso',
-            'Observaciones', 'Fecha de Creación',
+            'Observaciones', 'Regimen de la Vacuna', 'Fecha de Creación',
         ];
     }
 
@@ -193,7 +194,7 @@ class VacunaExport implements FromQuery, WithHeadings, ShouldAutoSize, WithEvent
     {
         return [
             AfterSheet::class => function(AfterSheet $event) {
-                $cellRange = 'A1:CP1';
+                $cellRange = 'A1:CQ1';
                 $sheet     = $event->sheet->getDelegate();
 
                 // Estilo cabeceras
@@ -206,7 +207,7 @@ class VacunaExport implements FromQuery, WithHeadings, ShouldAutoSize, WithEvent
                 $sheet->setAutoFilter($cellRange);
 
                 // Alineación datos
-                $sheet->getStyle('B2:CP2000')->applyFromArray([
+                $sheet->getStyle('B2:CQ2000')->applyFromArray([
                     'alignment' => [
                         'horizontal' => \PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_LEFT,
                     ],

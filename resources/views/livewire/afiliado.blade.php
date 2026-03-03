@@ -1657,7 +1657,7 @@ window.IMPORT_ENDPOINTS = {
       url = url.replace(':carnet', encodeURIComponent(carnet));
 
       $('#vacunaList').html(
-          '<tr><td colspan="7">' +
+          '<tr><td colspan="8">' +
               '<div class="pai-skeleton-row"><div class="pai-skeleton pai-skeleton-line"></div><div class="pai-skeleton pai-skeleton-line"></div></div>' +
               '<div class="pai-skeleton-row"><div class="pai-skeleton pai-skeleton-line"></div><div class="pai-skeleton pai-skeleton-line"></div></div>' +
               '<div class="pai-skeleton-row"><div class="pai-skeleton pai-skeleton-line"></div><div class="pai-skeleton pai-skeleton-line"></div></div>' +
@@ -1673,7 +1673,7 @@ window.IMPORT_ENDPOINTS = {
               $('#vacunaList').empty();
 
               if(!data || data.length === 0){
-                  $('#vacunaList').append('<tr><td colspan="7"><div class="pai-empty-state"><i class="fas fa-syringe"></i>No se encontraron vacunas para este afiliado.</div></td></tr>');
+                  $('#vacunaList').append('<tr><td colspan="8"><div class="pai-empty-state"><i class="fas fa-syringe"></i>No se encontraron vacunas para este afiliado.</div></td></tr>');
                   $('#vacunaModal').modal('show');
                   return;
               }
@@ -1700,6 +1700,7 @@ window.IMPORT_ENDPOINTS = {
                           '<td>' + (v.total_meses ?? '') + '</td>' +
                           '<td>' + (v.nombre_usuario ?? '') + '</td>' +
                           '<td>' + (v.responsable ? v.responsable : '---') + '</td>' +
+                          '<td>' + (v.regimen_vacuna ? v.regimen_vacuna : '---') + '</td>' +
                       '</tr>'
                   );
               });

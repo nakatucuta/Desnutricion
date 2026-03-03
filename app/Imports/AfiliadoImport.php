@@ -110,11 +110,13 @@ class AfiliadoImport implements ToModel, WithStartRow, WithChunkReading
         $fechaProbParto     = $excelDateToYmd($row[46]);
         $fechaAntecedente   = $excelDateToYmd($row[48]);
 
-        // Campos finales
-        $responsable          = $clean($row[251]);
-        $fuen_ingresado_paiweb= $clean($row[252]);
-        $motivo_noingreso     = $clean($row[253]);
-        $observaciones        = $clean($row[254]);
+        // Campos finales (compatibles con formato viejo y nuevo)
+        $n = count($row);
+        $responsable           = $clean($row[$n - 4] ?? null);
+        $fuen_ingresado_paiweb = $clean($row[$n - 3] ?? null);
+        $motivo_noingreso      = $clean($row[$n - 2] ?? null);
+        $observaciones         = $clean($row[$n - 1] ?? null);
+        $regimenVacuna         = $clean($row[20] ?? null);
 
         // ---------- Validación rápida ----------
         $data = [
@@ -276,6 +278,7 @@ class AfiliadoImport implements ToModel, WithStartRow, WithChunkReading
                 $fuen_ingresado_paiweb,
                 $motivo_noingreso,
                 $observaciones,
+                $regimenVacuna,
                 $usuario_activo
             );
 
@@ -295,6 +298,7 @@ class AfiliadoImport implements ToModel, WithStartRow, WithChunkReading
                 $fuen_ingresado_paiweb,
                 $motivo_noingreso,
                 $observaciones,
+                $regimenVacuna,
                 $usuario_activo
             );
 
@@ -321,6 +325,7 @@ class AfiliadoImport implements ToModel, WithStartRow, WithChunkReading
         $fuen_ingresado_paiweb,
         $motivo_noingreso,
         $observaciones,
+        $regimenVacuna,
         $usuario_activo
     ): array {
 
@@ -341,7 +346,7 @@ class AfiliadoImport implements ToModel, WithStartRow, WithChunkReading
             21=>165, 22=>169, 23=>175, 24=>177, 25=>182, 26=>186, 27=>190, 28=>195, 29=>197, 30=>199,
             31=>201, 32=>203, 33=>205, 34=>207, 35=>209, 36=>211, 37=>213, 38=>215, 39=>217, 40=>219,
             41=>221, 42=>223, 43=>225, 44=>227, 45=>229, 46=>231, 47=>233, 48=>236, 49=>238, 50=>241,
-            51=>243, 52=>245, 53=>247, 54=>249,
+            51=>243, 52=>245, 53=>247, 54=>249, 55=>251, 56=>253,
         ];
 
         $vacunas = [];
@@ -702,6 +707,16 @@ class AfiliadoImport implements ToModel, WithStartRow, WithChunkReading
                     $docis = isset($row[249]) ? trim((string)$row[249]) : null;
                     $lote = $row[250] ?? null;
                     break;
+
+                case 55:
+                    $docis = isset($row[251]) ? trim((string)$row[251]) : null;
+                    $lote = $row[252] ?? null;
+                    break;
+
+                case 56:
+                    $docis = isset($row[253]) ? trim((string)$row[253]) : null;
+                    $lote = $row[254] ?? null;
+                    break;
             }
 
             $vacunas[] = [
@@ -722,6 +737,7 @@ class AfiliadoImport implements ToModel, WithStartRow, WithChunkReading
                 'fuen_ingresado_paiweb' => $fuen_ingresado_paiweb ?? null,
                 'motivo_noingreso' => $motivo_noingreso ?? null,
                 'observaciones' => $observaciones ?? null,
+                'regimen' => $regimenVacuna ?? null,
 
                 'vacunas_id' => $vacunaNombre,
                 'user_id' => $usuario_activo ?? null,

@@ -51,6 +51,7 @@
                                 <th>Edad meses</th>
                                 <th>IPS vacunadora</th>
                                 <th>Vacunador</th>
+                                <th>Regimen</th>
                             </tr>
                         </thead>
                         <tbody id="vacunaList">

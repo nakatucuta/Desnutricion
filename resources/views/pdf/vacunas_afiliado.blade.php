@@ -71,6 +71,7 @@
                     <th>Edad meses</th>
                     <th>IPS vacunadora</th>
                     <th>Vacunador</th>
+                    <th>Regimen</th>
                 </tr>
             </thead>
             <tbody>
@@ -83,6 +84,7 @@
                         <td>{{ $v->total_meses ?? '' }}</td>
                         <td>{{ $v->nombre_usuario ?? '' }}</td>
                         <td>{{ $v->responsable ?? '' }}</td>
+                        <td>{{ $v->regimen_vacuna ?? '' }}</td>
                     </tr>
                 @endforeach
             </tbody>

@@ -167,11 +167,11 @@ class Cargue412Controller extends Controller
                 ->where('codigohabilitacion', $incomeedit14->codigo_habilitacion)
                 ->get();
         } else {
-            $income12 = [];
+            $income12 = collect();
         }
     
         // Obtener los IDs de los usuarios que ya están en income12
-        $idsEnIncome12 = $income12->pluck('id')->toArray();
+        $idsEnIncome12 = collect($income12)->pluck('id')->toArray();
     
         // Filtrar incomeedit15 para que no incluya los IDs que ya están en income12
         $incomeedit15 = DB::table('users')
@@ -842,6 +842,7 @@ public function reporte1cargue412()
 }
 
 }
+
 
 
 

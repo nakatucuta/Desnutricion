@@ -820,6 +820,7 @@ class AfiliadoImportStreaming implements ToModel, WithStartRow, WithChunkReading
         $fuen_ingresado_paiweb = $this->cleanText($row[$n - 3] ?? null);
         $motivo_noingreso      = $this->cleanText($row[$n - 2] ?? null);
         $observaciones         = $this->cleanText($row[$n - 1] ?? null);
+        $regimenVacuna         = $this->cleanText($row[20] ?? null);
 
         // carnet externo con cache
         $cacheKey = $tipo_identifi . '|' . $numero_identifi;
@@ -983,7 +984,8 @@ class AfiliadoImportStreaming implements ToModel, WithStartRow, WithChunkReading
             $responsable,
             $fuen_ingresado_paiweb,
             $motivo_noingreso,
-            $observaciones
+            $observaciones,
+            $regimenVacuna
         );
 
         $this->bufferRows[] = [
@@ -1207,6 +1209,7 @@ class AfiliadoImportStreaming implements ToModel, WithStartRow, WithChunkReading
                     'fuen_ingresado_paiweb' => null,
                     'motivo_noingreso' => null,
                     'observaciones' => null,
+                    'regimen' => null,
                     'batch_verifications_id' => null,
                     'afiliado_id' => null,
                     'vacunas_id' => null,
@@ -1322,7 +1325,7 @@ class AfiliadoImportStreaming implements ToModel, WithStartRow, WithChunkReading
                         foreach ([
                             'docis','laboratorio','lote','jeringa','lote_jeringa','diluyente','lote_diluyente',
                             'observacion','gotero','tipo_neumococo','responsable','fuen_ingresado_paiweb',
-                            'motivo_noingreso','observaciones'
+                            'motivo_noingreso','observaciones','regimen'
                         ] as $k) {
                             if ($this->isNullToken($vacunaData[$k] ?? null)) {
                                 $vacunaData[$k] = null;
@@ -1369,7 +1372,8 @@ class AfiliadoImportStreaming implements ToModel, WithStartRow, WithChunkReading
         $responsable,
         $fuen_ingresado_paiweb,
         $motivo_noingreso,
-        $observaciones
+        $observaciones,
+        $regimenVacuna
     ): array {
         $vacunas = [];
         $nowTs = $this->nowSqlDateTime();
@@ -1467,6 +1471,8 @@ class AfiliadoImportStreaming implements ToModel, WithStartRow, WithChunkReading
             [52, range(245,246),function() use ($doc,$val){ return ['docis'=>$doc(245),'lote'=>$val(246)]; }],
             [53, range(247,248),function() use ($doc,$val){ return ['docis'=>$doc(247),'lote'=>$val(248)]; }],
             [54, range(249,250),function() use ($doc,$val){ return ['docis'=>$doc(249),'lote'=>$val(250)]; }],
+            [55, range(251,252),function() use ($doc,$val){ return ['docis'=>$doc(251),'lote'=>$val(252)]; }],
+            [56, range(253,254),function() use ($doc,$val){ return ['docis'=>$doc(253),'lote'=>$val(254)]; }],
         ];
 
         foreach ($blocks as [$vacunasId, $idxs, $build]) {
@@ -1484,6 +1490,7 @@ class AfiliadoImportStreaming implements ToModel, WithStartRow, WithChunkReading
                 'fuen_ingresado_paiweb' => $fuen_ingresado_paiweb ?? null,
                 'motivo_noingreso' => $motivo_noingreso ?? null,
                 'observaciones' => $observaciones ?? null,
+                'regimen' => $regimenVacuna ?? null,
                 'vacunas_id' => (int)$vacunasId,
                 'user_id' => (int)$this->userId,
                 'batch_verifications_id' => (int)$this->batch_verifications_id,

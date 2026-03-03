@@ -403,6 +403,7 @@ private function generarArchivoVacunasDesdeDB(int $batchId, string $filePath): v
             'v.lote',
             'v.fecha_vacuna',
             'v.responsable',
+            'v.regimen',
             'v.observaciones',
         ])
         ->where('v.batch_verifications_id', $batchId)
@@ -421,6 +422,7 @@ private function generarArchivoVacunasDesdeDB(int $batchId, string $filePath): v
                 $r->lote ?? '',
                 $r->fecha_vacuna ?? '',
                 $r->responsable ?? '',
+                $r->regimen ?? '',
                 $r->observaciones ?? '',
             ]);
             fwrite($handle, $line . PHP_EOL);
@@ -490,8 +492,9 @@ private function generarArchivoVacunasDesdeDB(int $batchId, string $filePath): v
     
                     $nombreVacuna = $referenciaVacuna ?? 'Vacuna desconocida';
                     $dosis = $vacuna['docis'] ?? 'Dosis desconocida';
-    
-                    $contenido .= "- Vacuna: {$nombreVacuna} | Dosis: {$dosis}\n";
+                    $regimenVacuna = $vacuna['regimen'] ?? 'Sin regimen';
+
+                    $contenido .= "- Vacuna: {$nombreVacuna} | Dosis: {$dosis} | Regimen: {$regimenVacuna}\n";
                 }
             } else {
                 $contenido .= "No se encontraron vacunas asociadas.\n";
@@ -610,7 +613,8 @@ private function generarArchivoVacunasDesdeDB(int $batchId, string $filePath): v
             'w.descrip as municipio',
             DB::raw('FLOOR((CAST(CONVERT(varchar(8), CONVERT(DATE, a.fecha_vacuna), 112) AS int) - CAST(CONVERT(varchar(8), CONVERT(DATE, b.fecha_nacimiento), 112) AS int)) / 10000) AS edad_anos'),
             DB::raw('DATEDIFF(MONTH, b.fecha_nacimiento, a.fecha_vacuna) AS total_meses'),
-            'a.responsable as responsable'
+            'a.responsable as responsable',
+            'a.regimen as regimen_vacuna'
         )
         ->where(function ($query) use ($id, $numeroCarnet) {
             $query->where('b.id', $id);
@@ -670,7 +674,8 @@ public function getVacunasPdf($id, $numeroCarnet = null)
             'z.descrip as ips',
             DB::raw('FLOOR((CAST(CONVERT(varchar(8), CONVERT(DATE, a.fecha_vacuna), 112) AS int) - CAST(CONVERT(varchar(8), CONVERT(DATE, b.fecha_nacimiento), 112) AS int)) / 10000) AS edad_anos'),
             DB::raw('DATEDIFF(MONTH, b.fecha_nacimiento, a.fecha_vacuna) AS total_meses'),
-            'a.responsable as responsable'
+            'a.responsable as responsable',
+            'a.regimen as regimen_vacuna'
         )
         ->where(function ($query) use ($id, $numeroCarnet) {
             $query->where('b.id', $id);
@@ -1068,7 +1073,7 @@ public function getVacunasPdf($id, $numeroCarnet = null)
             'Nombre de la Vacuna','Dosis','Laboratorio','Lote','Jeringa','Lote de Jeringa',
             'Diluyente','Lote de Diluyente','Observación','Gotero','Tipo Neumococo',
             'Número de Frascos Utilizados','Fecha de Vacunación','Responsable',
-            'Fuente Ingresado en PAIWEB','Motivo No Ingreso','Observaciones',
+            'Fuente Ingresado en PAIWEB','Motivo No Ingreso','Observaciones','Regimen de la Vacuna',
             'Fecha de Creación',
         ]);
 
@@ -1199,6 +1204,7 @@ public function getVacunasPdf($id, $numeroCarnet = null)
                 'a.fuen_ingresado_paiweb',
                 'a.motivo_noingreso',
                 'a.observaciones',
+                'a.regimen as regimen_vacuna',
                 'a.created_at',
             ])
             ->orderBy('a.created_at','desc')
