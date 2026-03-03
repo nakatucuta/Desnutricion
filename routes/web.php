@@ -31,6 +31,7 @@ use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\NovedadController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\Cargue412AuditController;
+use App\Http\Controllers\SivigilaAuditController;
 
 /*
 |--------------------------------------------------------------------------
@@ -127,8 +128,19 @@ Route::middleware(['auth', \App\Http\Middleware\IncreaseExecutionTime::class])->
     // ðŸ‘‰ Endpoint AJAX (ponle /sivigila/data para que no choque con resource)
     Route::get('sivigila/data', [SivigilaController::class, 'data'])
          ->name('sivigila.data');
+    Route::post('sivigila/report-preview', [SivigilaController::class, 'reportPreview'])
+         ->name('sivigila.report.preview');
+    Route::post('sivigila/report-export', [SivigilaController::class, 'reportExport'])
+         ->name('sivigila.report.export');
 
     // ðŸ‘‰ Resource normal
+    Route::get('sivigila/auditoria', [SivigilaAuditController::class, 'index'])
+         ->name('sivigila.audit.index');
+    Route::get('sivigila/auditoria/data', [SivigilaAuditController::class, 'data'])
+         ->name('sivigila.audit.data');
+    Route::get('sivigila/auditoria/export', [SivigilaAuditController::class, 'export'])
+         ->name('sivigila.audit.export');
+
     Route::resource('sivigila', SivigilaController::class);
 });
 
@@ -649,4 +661,6 @@ Route::get('/debug-php', function () {
 // routes/web.php
 Route::post('/import/start', [AfiliadoController::class, 'startImport'])->middleware('auth');
 Route::get('/import/status/{token}', [AfiliadoController::class, 'importStatus'])->middleware('auth');
+
+
 

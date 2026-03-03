@@ -23,6 +23,9 @@ use Illuminate\Support\Facades\Log;
 use Yajra\DataTables\Facades\DataTables;
 use Carbon\Carbon;
 use App\Models\ApiConsumptionState;
+use Maatwebsite\Excel\Excel as ExcelFormat;
+use App\Exports\SivigilaDesignerExport;
+use App\Models\SivigilaAssignmentAudit;
 
 
 
@@ -48,13 +51,14 @@ class SivigilaController extends Controller
      */
     public function index()
     {
-        // 1) Distintos años para filtro
+        // 1) Distintos años para filtro (vista optimizada)
         $years = DB::connection('sqlsrv_1')
-            ->table('maestroSiv113')
-            ->selectRaw('YEAR(fec_not) AS year')
+            ->table('DESNUTRICION.dbo.vSiv113CargaOptima')
+            ->selectRaw('YEAR(fec_noti) AS year')
             ->distinct()
             ->orderByDesc('year')
             ->pluck('year');
+        $defaultYear = $years->first();
 
         // tus contadores…
         // (reproduzco tu lógica resumida)
@@ -103,32 +107,39 @@ class SivigilaController extends Controller
         }
 
         // pase al view
+        $reportColumns = $this->reportColumnCatalog();
+        $defaultReportColumns = [
+            'fec_noti',
+            'semana',
+            'tip_ide_',
+            'num_ide_',
+            'nombres_completos',
+            'nom_upgd',
+            'procesado',
+        ];
+
         return view('sivigila.index', compact(
             'years','conteo','sivi2',
-            'count123','resultados'
+            'count123','resultados',
+            'defaultYear','reportColumns','defaultReportColumns'
         ));
     }
 
    
-    public function data(Request $request)
+public function data(Request $request)
 {
-    $year = $request->get('year');
-
-    $query = DB::connection('sqlsrv_1')
-        ->table('DESNUTRICION.dbo.vSiv113CargaOptima as v')
-        ->select([
-            'v.fec_noti',
-            'v.semana',
-            'v.tip_ide_',
-            'v.num_ide_',
-            'v.pri_nom_',
-            'v.seg_nom_',
-            'v.pri_ape_',
-            'v.seg_ape_',
-            'v.nom_upgd',
-            'v.procesado'
-        ])
-        ->when($year, fn($q) => $q->whereYear('v.fec_noti', $year));
+    $query = $this->buildSivigilaQuery($request)->select([
+        'v.fec_noti',
+        'v.semana',
+        'v.tip_ide_',
+        'v.num_ide_',
+        'v.pri_nom_',
+        'v.seg_nom_',
+        'v.pri_ape_',
+        'v.seg_ape_',
+        'v.nom_upgd',
+        'v.procesado'
+    ]);
 
     return DataTables::of($query)
         ->addColumn('acciones', function ($row) {
@@ -143,9 +154,191 @@ class SivigilaController extends Controller
                       <i class="fas fa-zoom-in"></i> Seguimiento
                     </a>';
         })
+        ->skipTotalRecords()
         ->rawColumns(['acciones'])
         ->make(true);
-}  
+}
+
+private function buildSivigilaQuery(Request $request)
+{
+    $query = DB::connection('sqlsrv_1')->table('DESNUTRICION.dbo.vSiv113CargaOptima as v');
+
+    $year = $request->get('year');
+    if (!empty($year)) {
+        $query->whereYear('v.fec_noti', $year);
+    }
+
+    $semana = trim((string) $request->get('semana', ''));
+    if ($semana !== '') {
+        $query->where('v.semana', $semana);
+    }
+
+    $tipo = trim((string) $request->get('tip_ide_', ''));
+    if ($tipo !== '') {
+        $query->where('v.tip_ide_', $tipo);
+    }
+
+    $procesado = trim((string) $request->get('procesado', ''));
+    if ($procesado !== '') {
+        $query->where('v.procesado', $procesado === '1' ? 1 : 0);
+    }
+
+    $upgd = trim((string) $request->get('nom_upgd', ''));
+    if ($upgd !== '') {
+        $query->where('v.nom_upgd', 'like', '%' . $upgd . '%');
+    }
+
+    $quick = trim((string) $request->get('q', ''));
+    if ($quick !== '') {
+        $query->where(function ($q) use ($quick) {
+            $q->where('v.num_ide_', 'like', '%' . $quick . '%')
+              ->orWhere('v.pri_nom_', 'like', '%' . $quick . '%')
+              ->orWhere('v.seg_nom_', 'like', '%' . $quick . '%')
+              ->orWhere('v.pri_ape_', 'like', '%' . $quick . '%')
+              ->orWhere('v.seg_ape_', 'like', '%' . $quick . '%')
+              ->orWhere('v.nom_upgd', 'like', '%' . $quick . '%');
+        });
+    }
+
+    return $query;
+}
+
+private function reportColumnCatalog(): array
+{
+    return [
+        'fec_noti' => ['label' => 'Fecha Notificacion', 'db' => 'fec_noti'],
+        'semana' => ['label' => 'Semana', 'db' => 'semana'],
+        'tip_ide_' => ['label' => 'Tipo ID', 'db' => 'tip_ide_'],
+        'num_ide_' => ['label' => 'Identificacion', 'db' => 'num_ide_'],
+        'pri_nom_' => ['label' => 'Primer Nombre', 'db' => 'pri_nom_'],
+        'seg_nom_' => ['label' => 'Segundo Nombre', 'db' => 'seg_nom_'],
+        'pri_ape_' => ['label' => 'Primer Apellido', 'db' => 'pri_ape_'],
+        'seg_ape_' => ['label' => 'Segundo Apellido', 'db' => 'seg_ape_'],
+        'nombres_completos' => ['label' => 'Nombres Completos', 'db' => null],
+        'nom_upgd' => ['label' => 'UPGD Notificadora', 'db' => 'nom_upgd'],
+        'procesado' => ['label' => 'Procesado', 'db' => 'procesado'],
+    ];
+}
+
+public function reportPreview(Request $request)
+{
+    $catalog = $this->reportColumnCatalog();
+    $requestedColumns = $request->input('columns', []);
+    if (!is_array($requestedColumns)) {
+        $requestedColumns = [];
+    }
+    $columns = array_values(array_filter($requestedColumns, fn($c) => isset($catalog[$c])));
+    if (empty($columns)) {
+        $columns = ['fec_noti', 'semana', 'tip_ide_', 'num_ide_', 'nombres_completos', 'nom_upgd', 'procesado'];
+    }
+
+    $dbColumns = [];
+    $selectedDbKeys = [];
+    foreach ($columns as $key) {
+        if (!empty($catalog[$key]['db'])) {
+            $dbColumns[] = DB::raw("[" . $catalog[$key]['db'] . "] as [" . $key . "]");
+            $selectedDbKeys[] = $catalog[$key]['db'];
+        }
+    }
+    foreach (['pri_nom_', 'seg_nom_', 'pri_ape_', 'seg_ape_'] as $namePart) {
+        if (!in_array($namePart, $selectedDbKeys, true)) {
+            $dbColumns[] = DB::raw("[$namePart] as [$namePart]");
+        }
+    }
+
+    $rows = $this->buildSivigilaQuery($request)
+        ->select($dbColumns)
+        ->orderByDesc('v.fec_noti')
+        ->limit(40)
+        ->get()
+        ->map(function ($row) use ($columns) {
+            $arr = [];
+            $fullName = trim(implode(' ', array_filter([
+                $row->pri_nom_ ?? '',
+                $row->seg_nom_ ?? '',
+                $row->pri_ape_ ?? '',
+                $row->seg_ape_ ?? '',
+            ])));
+            foreach ($columns as $col) {
+                $arr[$col] = $col === 'nombres_completos' ? $fullName : ($row->{$col} ?? '');
+            }
+            return $arr;
+        })
+        ->values();
+
+    $headings = [];
+    foreach ($columns as $key) {
+        $headings[$key] = $catalog[$key]['label'];
+    }
+
+    return response()->json([
+        'ok' => true,
+        'columns' => $columns,
+        'headings' => $headings,
+        'rows' => $rows,
+    ]);
+}
+
+public function reportExport(Request $request)
+{
+    $catalog = $this->reportColumnCatalog();
+    $requestedColumns = $request->input('columns', []);
+    if (!is_array($requestedColumns)) {
+        $requestedColumns = [];
+    }
+    $columns = array_values(array_filter($requestedColumns, fn($c) => isset($catalog[$c])));
+    if (empty($columns)) {
+        $columns = ['fec_noti', 'semana', 'tip_ide_', 'num_ide_', 'nombres_completos', 'nom_upgd', 'procesado'];
+    }
+
+    $format = strtolower((string) $request->input('format', 'xlsx'));
+    if (!in_array($format, ['csv', 'xlsx'])) {
+        $format = 'xlsx';
+    }
+
+    $dbColumns = [];
+    $selectedDbKeys = [];
+    foreach ($columns as $key) {
+        if (!empty($catalog[$key]['db'])) {
+            $dbColumns[] = DB::raw("[" . $catalog[$key]['db'] . "] as [" . $key . "]");
+            $selectedDbKeys[] = $catalog[$key]['db'];
+        }
+    }
+    foreach (['pri_nom_', 'seg_nom_', 'pri_ape_', 'seg_ape_'] as $namePart) {
+        if (!in_array($namePart, $selectedDbKeys, true)) {
+            $dbColumns[] = DB::raw("[$namePart] as [$namePart]");
+        }
+    }
+
+    $rows = $this->buildSivigilaQuery($request)
+        ->select($dbColumns)
+        ->orderByDesc('v.fec_noti')
+        ->limit(100000)
+        ->get()
+        ->map(function ($row) use ($columns) {
+            $arr = [];
+            $fullName = trim(implode(' ', array_filter([
+                $row->pri_nom_ ?? '',
+                $row->seg_nom_ ?? '',
+                $row->pri_ape_ ?? '',
+                $row->seg_ape_ ?? '',
+            ])));
+            foreach ($columns as $col) {
+                $arr[$col] = $col === 'nombres_completos' ? $fullName : ($row->{$col} ?? '');
+            }
+            return $arr;
+        })
+        ->values();
+
+    $headings = array_map(fn($col) => $catalog[$col]['label'], $columns);
+    $fileName = 'sivigila_reporte_disenado_' . now()->format('Ymd_His');
+    $export = new SivigilaDesignerExport($rows, $headings, $columns);
+
+    if ($format === 'csv') {
+        return Excel::download($export, $fileName . '.csv', ExcelFormat::CSV);
+    }
+    return Excel::download($export, $fileName . '.xlsx', ExcelFormat::XLSX);
+}
             
 
         
@@ -400,6 +593,56 @@ class SivigilaController extends Controller
         $data['estado'] = 1;
 
         $sivigila = Sivigila::create($data);
+
+        $previous = Sivigila::query()
+            ->where('num_ide_', $sivigila->num_ide_)
+            ->whereDate('fec_not', $sivigila->fec_not)
+            ->where('id', '<>', $sivigila->id)
+            ->orderByDesc('id')
+            ->first();
+
+        $oldUserId = $previous && $previous->user_id ? (int) $previous->user_id : null;
+        $newUserId = $sivigila->user_id ? (int) $sivigila->user_id : null;
+        $oldAssigned = $oldUserId ? User::find($oldUserId) : null;
+        $newAssigned = $newUserId ? User::find($newUserId) : null;
+
+        if ($newUserId !== null) {
+            $actionType = 'sin_cambio';
+            if ($oldUserId === null && $newUserId !== null) {
+                $actionType = 'asignacion';
+            } elseif ($oldUserId !== null && $oldUserId !== $newUserId) {
+                $actionType = 'reasignacion';
+            }
+
+            SivigilaAssignmentAudit::create([
+                'sivigila_id' => (int) $sivigila->id,
+                'performed_by_user_id' => Auth::id(),
+                'old_assigned_user_id' => $oldUserId,
+                'new_assigned_user_id' => $newUserId,
+                'action_type' => $actionType,
+                'num_ide_' => $sivigila->num_ide_,
+                'paciente_nombre' => trim(implode(' ', array_filter([
+                    $sivigila->pri_nom_,
+                    $sivigila->seg_nom_,
+                    $sivigila->pri_ape_,
+                    $sivigila->seg_ape_,
+                ]))),
+                'fec_not' => $sivigila->fec_not,
+                'nom_upgd' => (string) $request->input('nom_upgd', ''),
+                'old_assigned_name' => $oldAssigned?->name,
+                'new_assigned_name' => $newAssigned?->name,
+                'old_assigned_email' => $oldAssigned?->email,
+                'new_assigned_email' => $newAssigned?->email,
+                'old_assigned_code' => $oldAssigned?->codigohabilitacion,
+                'new_assigned_code' => $newAssigned?->codigohabilitacion,
+                'ip_address' => $request->ip(),
+                'user_agent' => (string) $request->userAgent(),
+                'changes' => [
+                    'old_user_id' => $oldUserId,
+                    'new_user_id' => $newUserId,
+                ],
+            ]);
+        }
 
         // 3) Construir el body del mail
         $bodyText = '<br>';
