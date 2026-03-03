@@ -30,6 +30,7 @@ use App\Http\Controllers\AlertasController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\NovedadController;
 use App\Http\Controllers\HomeController;
+use App\Http\Controllers\Cargue412AuditController;
 
 /*
 |--------------------------------------------------------------------------
@@ -230,6 +231,15 @@ Route::post('/import-excel/report-export', [Cargue412Controller::class, 'reportE
      ->name('import-excel.report.export')
      ->middleware('auth');
 Route::post('/import-excel', [Cargue412Controller::class, 'importExcel'])->name('import-excel')->middleware('auth');
+Route::get('/import-excel/auditoria', [Cargue412AuditController::class, 'index'])
+     ->name('import-excel.audit.index')
+     ->middleware('auth');
+Route::get('/import-excel/auditoria/data', [Cargue412AuditController::class, 'data'])
+     ->name('import-excel.audit.data')
+     ->middleware('auth');
+Route::get('/import-excel/auditoria/export', [Cargue412AuditController::class, 'export'])
+     ->name('import-excel.audit.export')
+     ->middleware('auth');
 
 //RUTA PARA DESCARGAR MANUAL
 

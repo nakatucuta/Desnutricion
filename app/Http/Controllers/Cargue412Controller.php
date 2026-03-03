@@ -22,6 +22,7 @@ use Yajra\DataTables\Facades\DataTables;
 use Illuminate\Support\Facades\Cache;
 use Maatwebsite\Excel\Excel as ExcelFormat;
 use App\Exports\Cargue412DesignerExport;
+use App\Models\Cargue412AssignmentAudit;
 
 class Cargue412Controller extends Controller
 {
@@ -188,6 +189,9 @@ class Cargue412Controller extends Controller
         'required' => 'El campo :attribute es obligatorio.',
     ]);
 
+    $before = Cargue412::findOrFail($id);
+    $oldAssigned = $before->user_id ? User::find($before->user_id) : null;
+
     // 2) Preparar datos para la actualización
     $datosEmpleado = $request->except(['_token', '_method']);
 
@@ -207,6 +211,48 @@ class Cargue412Controller extends Controller
         // Obtener el registro actualizado
         $registro = Cargue412::find($id);
     });
+
+    $newAssigned = $registro && $registro->user_id ? User::find($registro->user_id) : null;
+    $oldUserId = $before->user_id ? (int) $before->user_id : null;
+    $newUserId = $registro && $registro->user_id ? (int) $registro->user_id : null;
+
+    if ($newUserId !== null) {
+        $actionType = 'sin_cambio';
+        if ($oldUserId === null && $newUserId !== null) {
+            $actionType = 'asignacion';
+        } elseif ($oldUserId !== null && $oldUserId !== $newUserId) {
+            $actionType = 'reasignacion';
+        }
+
+        Cargue412AssignmentAudit::create([
+            'cargue412_id' => (int) $registro->id,
+            'performed_by_user_id' => Auth::id(),
+            'old_assigned_user_id' => $oldUserId,
+            'new_assigned_user_id' => $newUserId,
+            'action_type' => $actionType,
+            'numero_identificacion' => $registro->numero_identificacion,
+            'paciente_nombre' => trim(implode(' ', array_filter([
+                $registro->primer_nombre,
+                $registro->segundo_nombre,
+                $registro->primer_apellido,
+                $registro->segundo_apellido,
+            ]))),
+            'municipio' => $registro->municipio,
+            'fecha_captacion' => $registro->fecha_captacion,
+            'old_assigned_name' => $oldAssigned?->name,
+            'new_assigned_name' => $newAssigned?->name,
+            'old_assigned_email' => $oldAssigned?->email,
+            'new_assigned_email' => $newAssigned?->email,
+            'old_assigned_code' => $oldAssigned?->codigohabilitacion,
+            'new_assigned_code' => $newAssigned?->codigohabilitacion,
+            'ip_address' => $request->ip(),
+            'user_agent' => (string) $request->userAgent(),
+            'changes' => [
+                'old_user_id' => $oldUserId,
+                'new_user_id' => $newUserId,
+            ],
+        ]);
+    }
 
     // 4) Preparar datos para el correo
     $datosCorreo = [

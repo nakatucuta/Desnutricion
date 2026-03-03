@@ -12,6 +12,9 @@
         </div>
     </div>
     <div class="mb-2 d-flex">
+        <a href="{{ route('import-excel.audit.index') }}" class="btn btn-outline-dark btn-sm mr-2">
+            <i class="fas fa-clipboard-list mr-1"></i> Auditoria 412
+        </a>
         <button class="btn btn-outline-primary btn-sm mr-2" id="btnOpenReportDesigner" onclick="window.__openReportDesigner && window.__openReportDesigner(); return false;">
             <i class="fas fa-sliders-h mr-1"></i> Diseñar reporte
         </button>
