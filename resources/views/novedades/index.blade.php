@@ -58,6 +58,18 @@
                                 <textarea id="message" name="message" rows="4" maxlength="5000" class="form-control @error('message') is-invalid @enderror" required>{{ old('message') }}</textarea>
                                 @error('message') <span class="invalid-feedback d-block">{{ $message }}</span> @enderror
                             </div>
+                            <div class="form-group form-check">
+                                <input
+                                    id="is_mandatory"
+                                    name="is_mandatory"
+                                    type="checkbox"
+                                    value="1"
+                                    class="form-check-input"
+                                    {{ old('is_mandatory') ? 'checked' : '' }}>
+                                <label class="form-check-label" for="is_mandatory">
+                                    Novedad obligatoria (mostrar modal forzosa al iniciar sesion hasta marcar como leida)
+                                </label>
+                            </div>
                             <button type="submit" class="btn btn-primary">Publicar para Todos</button>
                         </form>
                     </div>

@@ -7,6 +7,9 @@
         <div class="card-header d-flex justify-content-between align-items-center">
             <h3 class="card-title mb-0">{{ $novedad->title }}</h3>
             <div class="d-flex align-items-center" style="gap:.45rem;">
+                @if(!empty($novedad->is_mandatory))
+                    <span class="badge badge-danger">Obligatoria</span>
+                @endif
                 <span class="badge {{ $isArchivedItem ? 'badge-secondary' : ($isReadItem ? 'badge-success' : 'badge-warning') }}">
                     {{ $isArchivedItem ? 'Archivada' : ($isReadItem ? 'Leida' : 'No leida') }}
                 </span>

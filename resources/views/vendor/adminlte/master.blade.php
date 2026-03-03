@@ -705,8 +705,59 @@
 
 <body class="@yield('classes_body')" @yield('body_data')>
 
+    @php
+        $mandatoryNovedad = null;
+        if (Auth::check()) {
+            $authUserId = (int) Auth::id();
+            $mandatoryNovedad = \App\Models\Novedad::query()
+                ->where('is_active', true)
+                ->where('is_mandatory', true)
+                ->whereDoesntHave('reads', function ($query) use ($authUserId) {
+                    $query->where('user_id', $authUserId);
+                })
+                ->orderByDesc('id')
+                ->first(['id', 'title', 'message', 'created_at']);
+        }
+    @endphp
+
     {{-- Body Content --}}
     @yield('body')
+
+    @if($mandatoryNovedad)
+        <div class="modal fade" id="mandatoryNovedadModal" tabindex="-1" role="dialog" aria-hidden="true" data-backdrop="static" data-keyboard="false">
+            <div class="modal-dialog modal-dialog-centered" role="document">
+                <div class="modal-content" style="border-radius:16px; overflow:hidden; border:1px solid #b9d7f5;">
+                    <div class="modal-header text-white" style="background:linear-gradient(135deg,#1f6fb7,#2f86e8,#5ed0ff);">
+                        <h5 class="modal-title mb-0">
+                            <i class="fas fa-bullhorn mr-2"></i>
+                            Mensaje obligatorio - EPSI ANAS WAYUU
+                        </h5>
+                    </div>
+                    <div class="modal-body">
+                        <h5 class="mb-2 font-weight-bold">{{ $mandatoryNovedad->title }}</h5>
+                        <p class="mb-2">{{ $mandatoryNovedad->message }}</p>
+                        <small class="text-muted d-block mb-3">
+                            Publicada: {{ optional($mandatoryNovedad->created_at)->format('Y-m-d H:i') }}
+                        </small>
+                        <div class="alert alert-warning mb-0">
+                            Debes marcar este mensaje como leido para continuar.
+                            <br>
+                            <strong>La EPSI ANAS WAYUU tendra registro de que leiste esta novedad.</strong>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button
+                            id="mandatoryNovedadReadBtn"
+                            type="button"
+                            class="btn btn-primary btn-block"
+                            data-read-url="{{ route('novedades.read', $mandatoryNovedad->id) }}">
+                            Marcar como leido y continuar
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    @endif
 
     {{-- Base Scripts --}}
     @if(!config('adminlte.enabled_laravel_mix'))
@@ -730,6 +781,7 @@
             (function () {
                 let sessionAlertShown = false;
                 const expiredMessage = @json(session('session_expired'));
+                const hasMandatoryNovedadModal = {{ $mandatoryNovedad ? 'true' : 'false' }};
 
                 function notifyAndReload(message) {
                     if (sessionAlertShown) return;
@@ -763,6 +815,55 @@
                         if (jqxhr && jqxhr.status === 419) {
                             notifyAndReload();
                         }
+                    });
+                }
+
+                if (hasMandatoryNovedadModal && window.jQuery) {
+                    const $modal = window.jQuery('#mandatoryNovedadModal');
+                    const $btn = window.jQuery('#mandatoryNovedadReadBtn');
+                    const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+
+                    $modal.modal({
+                        backdrop: 'static',
+                        keyboard: false,
+                        show: true,
+                    });
+
+                    $btn.on('click', function () {
+                        const url = $btn.data('read-url');
+                        if (!url) return;
+
+                        $btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin mr-1"></i> Guardando...');
+
+                        fetch(url, {
+                            method: 'POST',
+                            headers: {
+                                'X-CSRF-TOKEN': csrf,
+                                'Accept': 'application/json',
+                                'X-Requested-With': 'XMLHttpRequest',
+                            },
+                        })
+                        .then(function (response) {
+                            if (!response.ok) {
+                                throw new Error('No se pudo registrar la lectura.');
+                            }
+                            return response.json();
+                        })
+                        .then(function () {
+                            window.location.reload();
+                        })
+                        .catch(function () {
+                            $btn.prop('disabled', false).text('Marcar como leido y continuar');
+                            if (window.Swal && typeof window.Swal.fire === 'function') {
+                                window.Swal.fire({
+                                    icon: 'error',
+                                    title: 'No fue posible registrar lectura',
+                                    text: 'Intenta nuevamente.',
+                                });
+                            } else {
+                                alert('No fue posible registrar lectura. Intenta nuevamente.');
+                            }
+                        });
                     });
                 }
             })();

@@ -16,10 +16,12 @@ class Novedad extends Model
         'message',
         'created_by',
         'is_active',
+        'is_mandatory',
     ];
 
     protected $casts = [
         'is_active' => 'boolean',
+        'is_mandatory' => 'boolean',
     ];
 
     public function getDateFormat()

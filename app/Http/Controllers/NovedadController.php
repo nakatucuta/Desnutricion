@@ -85,6 +85,7 @@ class NovedadController extends Controller
         $validated = $request->validate([
             'title' => 'required|string|max:160',
             'message' => 'required|string|max:5000',
+            'is_mandatory' => 'nullable|boolean',
         ]);
 
         Novedad::create([
@@ -92,12 +93,13 @@ class NovedadController extends Controller
             'message' => trim((string) $validated['message']),
             'created_by' => (int) $user->id,
             'is_active' => true,
+            'is_mandatory' => (bool) ($validated['is_mandatory'] ?? false),
         ]);
 
         return back()->with('status', 'Novedad publicada para todos los usuarios.');
     }
 
-    public function markRead(Novedad $novedad)
+    public function markRead(Request $request, Novedad $novedad)
     {
         $userId = (int) Auth::id();
 
@@ -111,8 +113,14 @@ class NovedadController extends Controller
             ]
         );
 
-        return redirect()->route('novedades.index')
-            ->with('status', 'Novedad marcada como leida.');
+        if ($request->expectsJson() || $request->ajax()) {
+            return response()->json([
+                'ok' => true,
+                'message' => 'Novedad marcada como leida.',
+            ]);
+        }
+
+        return redirect()->route('novedades.index')->with('status', 'Novedad marcada como leida.');
     }
 
     public function markAllRead()
