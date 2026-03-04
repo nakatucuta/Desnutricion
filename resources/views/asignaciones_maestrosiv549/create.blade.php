@@ -1,4 +1,4 @@
-@extends('adminlte::page')
+﻿@extends('adminlte::page')
 
 @section('title', 'Asignar Caso MaestroSiv549')
 
@@ -19,7 +19,6 @@
         </h2>
       </div>
       <div class="card-body">
-        {{-- Mensajes de error --}}
         @if ($errors->any())
           <div class="alert alert-danger">
             <ul class="mb-0">
@@ -30,106 +29,101 @@
           </div>
         @endif
 
-        {{-- Mensaje de éxito --}}
         @if(session('success'))
           <div class="alert alert-success">{{ session('success') }}</div>
         @endif
 
         <form action="{{ route('asignaciones_maestrosiv549.store') }}" method="POST">
-    @csrf
+            @csrf
 
-    {{-- Select de usuario profesional y llamativo --}}
-    <div class="form-group mb-4 text-center position-relative" id="select-usuario-group">
-        <label for="user_ids" class="font-weight-bold text-danger" style="font-size: 1.4rem;">
-            <i class="fas fa-user-md"></i> Asignar Prestador Primario
-            @if($nombre_ips_primaria)
-                <span class="badge badge-info ml-2">IPS Primaria: {{ $nombre_ips_primaria }}</span>
-            @endif
-            <span class="badge badge-warning ml-2" id="badge-select">¡Selecciona aquí!</span>
-        </label>
+            <div class="form-group mb-4 text-center position-relative" id="select-usuario-group">
+                <label for="user_ids" class="font-weight-bold text-danger" style="font-size: 1.4rem;">
+                    <i class="fas fa-user-md"></i> Asignar Prestador Primario
+                    @if($nombre_ips_primaria)
+                        <span class="badge badge-info ml-2">IPS Primaria: {{ $nombre_ips_primaria }}</span>
+                    @endif
+                    <span class="badge badge-warning ml-2" id="badge-select">Selecciona aqui</span>
+                </label>
 
-      <select
-    name="user_ids[]"
-    id="user_ids"
-    class="form-control select2-user"
-    multiple
-    style="font-size:1.1rem;"
->
-    {{-- Opcional: separar con optgroup para que se vea PRO --}}
-    <optgroup label="★ Sugeridos (por IPS primaria)">
-        @foreach($usuarios as $user)
-            @if(in_array($user->id, $usuarios_prestador_primario ?? []))
-                <option
-                    value="{{ $user->id }}"
-                    selected
-                    style="font-weight:bold; color:#17a2b8;"
+                <select
+                    name="user_ids[]"
+                    id="user_ids"
+                    class="form-control select2-user"
+                    multiple
+                    style="font-size:1.1rem;"
                 >
-                    ★ {{ $user->name }} ({{ $user->email }}) - {{ $user->codigohabilitacion }}
-                </option>
-            @endif
-        @endforeach
-    </optgroup>
+                    @if(($usuariosSugeridos ?? collect())->isNotEmpty())
+                        <optgroup label="Sugeridos modulo gestante (por IPS primaria)">
+                            @foreach($usuariosSugeridos as $user)
+                                <option
+                                    value="{{ $user->id }}"
+                                    selected
+                                    style="font-weight:bold; color:#17a2b8;"
+                                >
+                                    {{ $user->name }} ({{ $user->email }}) - {{ $user->codigohabilitacion }}
+                                </option>
+                            @endforeach
+                        </optgroup>
+                    @endif
 
-    <optgroup label="Todos los usuarios">
-        @foreach($usuarios as $user)
-            @if(!in_array($user->id, $usuarios_prestador_primario ?? []))
-                <option value="{{ $user->id }}">
-                    {{ $user->name }} ({{ $user->email }}) - {{ $user->codigohabilitacion }}
-                </option>
-            @endif
-        @endforeach
-    </optgroup>
-</select>
+                    @if(($usuariosSugeridos ?? collect())->isEmpty())
+                        <optgroup label="Todos los usuarios (seleccion manual)">
+                            @foreach($usuarios as $user)
+                                <option value="{{ $user->id }}">
+                                    {{ $user->name }} ({{ $user->email }}) - {{ $user->codigohabilitacion }}
+                                </option>
+                            @endforeach
+                        </optgroup>
+                    @endif
+                </select>
 
-        {{-- Mensajes según si encontró usuarios por habilitación o mostró todos --}}
-        @if(!empty($mostrando_todos) && $mostrando_todos)
-            <div class="alert alert-warning mt-3 text-left">
-                <b>No se encontraron usuarios con el código de habilitación:</b>
-                <b>{{ $codigo_habilitacion ?? 'N/D' }}</b>.
-                <br>
-                <span>✅ Se está mostrando el listado completo de usuarios para que selecciones manualmente.</span>
+                @if(!empty($sin_usuario_gestante_por_codigo) && $sin_usuario_gestante_por_codigo)
+                    <div class="alert alert-warning mt-3 text-left">
+                        <b>No hay un usuario del modulo gestante con el codigo de habilitacion:</b>
+                        <b>{{ $codigo_habilitacion ?? 'N/D' }}</b>.
+                        <br>
+                        <span>Favor crear uno. Mientras tanto, puedes seleccionar manualmente de la lista de usuarios.</span>
+                    </div>
+                @else
+                    <small class="form-text text-info mt-2">
+                        Usuarios sugeridos del modulo gestante segun codigo de habilitacion.
+                    </small>
+                @endif
+
+                @error('user_ids')
+                    <div class="text-danger mt-2">{{ $message }}</div>
+                @enderror
             </div>
-        @else
-            <small class="form-text text-info mt-2">
-                ★ Usuarios sugeridos según código de habilitación.
-            </small>
-        @endif
 
-        @error('user_ids')
-            <div class="text-danger mt-2">{{ $message }}</div>
-        @enderror
-    </div>
+            <hr>
+            <h5 class="mb-3"><i class="fas fa-user-edit"></i> Datos del caso (editables)</h5>
 
-    <hr>
-    <h5 class="mb-3"><i class="fas fa-user-edit"></i> Datos del caso (editables)</h5>
-
-    <div class="row">
-        @foreach($datosCaso as $campo => $valor)
-            <div class="form-group col-sm-6 col-md-4 mb-3">
-                <label for="{{ $campo }}" class="font-weight-bold">{{ ucwords(str_replace('_', ' ', $campo)) }}</label>
-                <input
-                    type="text"
-                    class="form-control"
-                    name="{{ $campo }}"
-                    id="{{ $campo }}"
-                    value="{{ old($campo, $valor ?? '') }}">
+            <div class="row">
+                @foreach($datosCaso as $campo => $valor)
+                    <div class="form-group col-sm-6 col-md-4 mb-3">
+                        <label for="{{ $campo }}" class="font-weight-bold">{{ ucwords(str_replace('_', ' ', $campo)) }}</label>
+                        <input
+                            type="text"
+                            class="form-control"
+                            name="{{ $campo }}"
+                            id="{{ $campo }}"
+                            value="{{ old($campo, $valor ?? '') }}">
+                    </div>
+                @endforeach
             </div>
-        @endforeach
-    </div>
 
-    <div class="d-flex justify-content-end mt-4 position-relative">
-        <button type="submit" class="btn btn-gradient mr-2" id="btn-asignar-guardar">
-            <i class="fas fa-user-check"></i> Asignar y Guardar
-        </button>
-        <a href="{{ route('maestrosiv549.index') }}" class="btn btn-secondary">Cancelar</a>
-    </div>
-</form>
+            <div class="d-flex justify-content-end mt-4 position-relative">
+                <button type="submit" class="btn btn-gradient mr-2" id="btn-asignar-guardar">
+                    <i class="fas fa-user-check"></i> Asignar y Guardar
+                </button>
+                <a href="{{ route('maestrosiv549.index') }}" class="btn btn-secondary">Cancelar</a>
+            </div>
+        </form>
 
-        {{-- FLECHA FLOTANTE PARA IR AL BOTÓN --}}
-        <button type="button" 
-                class="floating-arrow" 
+        <button type="button"
+                class="floating-arrow"
                 id="goToGuardarBtn"
-                title="Ir al botón Asignar y Guardar">
+                title="Ir al boton Asignar y Guardar">
             <i class="fas fa-arrow-down"></i>
         </button>
       </div>
@@ -211,7 +205,6 @@
       70% { transform: translateY(-12px);}
   }
 
-  /* Select2 styles */
   .select2-container--default .select2-selection--single {
       border: 2.5px solid #17a2b8;
       border-radius: 1rem !important;
@@ -253,7 +246,6 @@
       100% { transform: scale(1);}
   }
 
-  /* FLECHA FLOTANTE */
   .floating-arrow {
       position: fixed;
       right: 34px;
@@ -293,31 +285,26 @@
 <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 <script>
 $(document).ready(function() {
-    // Inicializa Select2
     $('.select2-user').select2({
         placeholder: "-- Selecciona un usuario --",
         width: '100%',
         allowClear: true
     });
 
-    // Efecto de borde animado al enfocar
-    $('.select2-user').on('select2:open', function(e) {
+    $('.select2-user').on('select2:open', function() {
         $('#select-usuario-group').addClass('border-select-anim');
-    }).on('select2:close', function(e) {
+    }).on('select2:close', function() {
         $('#select-usuario-group').removeClass('border-select-anim');
     });
 
-    // Desaparece badge al seleccionar
-    $('#user_id').on('change', function() {
+    $('#user_ids').on('change', function() {
         $('#badge-select').fadeOut(250);
 
-        // Scroll hasta el botón de asignar y guardar
-        if (this.value) {
+        if ($(this).val() && $(this).val().length > 0) {
             setTimeout(function() {
                 $('html, body').animate({
                     scrollTop: $('#btn-asignar-guardar').offset().top - 80
                 }, 600);
-                // Agrega animación al botón
                 $('#btn-asignar-guardar').addClass('btn-pop');
                 setTimeout(function() {
                     $('#btn-asignar-guardar').removeClass('btn-pop');
@@ -326,7 +313,6 @@ $(document).ready(function() {
         }
     });
 
-    // FLECHA FLOTANTE scroll a botón
     $('#goToGuardarBtn').on('click', function() {
         $('html, body').animate({
             scrollTop: $('#btn-asignar-guardar').offset().top - 80
