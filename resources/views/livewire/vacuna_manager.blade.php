@@ -58,10 +58,13 @@
                 <div class="vm-toolbar">
                     <div class="vm-search">
                         <i class="fas fa-search"></i>
-                        <input type="text" id="vmSearch" placeholder="Buscar por nombre, identificacion, carnet o vacuna">
+                        <input type="text" id="vmSearch" placeholder="Buscar por nombre completo, identificacion, carnet o vacuna">
                     </div>
                     <div class="vm-actions">
                         <span class="vm-counter" id="vmCounter">0 seleccionadas</span>
+                        <button type="button" class="btn vm-btn vm-btn-audit" data-toggle="collapse" data-target="#vmAuditCollapse" aria-expanded="false" aria-controls="vmAuditCollapse">
+                            <i class="fas fa-clipboard-check mr-1"></i> Ver auditoria
+                        </button>
                         <button type="button" id="vmDeleteSelected" class="btn vm-btn vm-btn-danger" disabled>
                             <i class="fas fa-trash-alt mr-1"></i> Eliminar seleccionadas
                         </button>
@@ -97,7 +100,7 @@
         </div>
     </div>
 
-    <div class="row">
+    <div class="row collapse" id="vmAuditCollapse">
         <div class="col-12">
             <div class="vm-card">
                 <div class="vm-card__head d-flex align-items-center justify-content-between">
@@ -202,6 +205,8 @@
 .vm-btn:hover{transform:translateY(-1px)}
 .vm-btn-light{background:#f8fafc;border-color:#cbd5e1;color:#0f172a}
 .vm-btn-light:hover{background:#f1f5f9}
+.vm-btn-audit{background:#eaf2ff;border-color:#cfe0ff;color:#1e40af}
+.vm-btn-audit:hover{background:#dceafe}
 .vm-btn-danger{background:#fff1f2;border-color:#fecdd3;color:#9f1239}
 .vm-btn-danger:hover{background:#ffe4e6;box-shadow:0 10px 22px rgba(190,24,93,.15)}
 .vm-delete-one{min-width:112px;background:linear-gradient(180deg,#fff1f2,#ffe9ee)!important}

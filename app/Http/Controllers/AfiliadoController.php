@@ -202,6 +202,7 @@ class AfiliadoController extends Controller
         return DataTables::of($query)
             ->filter(function ($builder) use ($request) {
                 $search = trim((string) data_get($request->input('search'), 'value', ''));
+                $search = preg_replace('/\s+/', ' ', $search ?? '');
                 if ($search === '') {
                     return;
                 }
@@ -344,6 +345,16 @@ class AfiliadoController extends Controller
                         ->orWhere('a.segundo_nombre', 'LIKE', "%{$search}%")
                         ->orWhere('a.primer_apellido', 'LIKE', "%{$search}%")
                         ->orWhere('a.segundo_apellido', 'LIKE', "%{$search}%")
+                        ->orWhereRaw("
+                            REPLACE(REPLACE(REPLACE(
+                                LTRIM(RTRIM(CONCAT(
+                                    ISNULL(a.primer_nombre,''), ' ',
+                                    ISNULL(a.segundo_nombre,''), ' ',
+                                    ISNULL(a.primer_apellido,''), ' ',
+                                    ISNULL(a.segundo_apellido,'')
+                                ))),
+                            '  ',' '),'  ',' '),'  ',' ') LIKE ?
+                        ", ["%{$search}%"])
                         ->orWhere('rv.nombre', 'LIKE', "%{$search}%");
                 });
             })
