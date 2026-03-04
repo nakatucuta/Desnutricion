@@ -17,6 +17,7 @@ class MaestroSiv549Controller extends Controller
 
 public function data(Request $request)
 {
+    $canAssign = auth()->check() && (int) (auth()->user()->usertype ?? 0) === 1;
     $casos_asignados = \App\Models\AsignacionesMaestrosiv549::pluck('num_ide_')->toArray();
 
     $query = MaestroSiv549::select([
@@ -41,7 +42,7 @@ public function data(Request $request)
         ->addColumn('nombre_completo', function($row) {
             return trim("{$row->pri_nom_} {$row->seg_nom_} {$row->pri_ape_} {$row->seg_ape_}");
         })
-        ->addColumn('acciones', function($row) use ($casos_asignados) {
+        ->addColumn('acciones', function($row) use ($casos_asignados, $canAssign) {
             $asignado = in_array($row->num_ide_, $casos_asignados);
             $url = route('asignaciones-maestrosiv549.create', [
                 'tip_ide_' => $row->tip_ide_,
@@ -54,9 +55,11 @@ public function data(Request $request)
                 ? '<span class="icon-action badge-checklist mr-1" title=\'Asignado\'><i class="fas fa-check"></i></span>'
                 : '';
 
-            $btn = '<a href="'.$url.'" class="icon-action btn-asignar" title="Asignar o reasignar este caso">
+            $btn = $canAssign
+                ? '<a href="'.$url.'" class="icon-action btn-asignar" title="Asignar o reasignar este caso">
                         <i class="fas fa-user-plus"></i>
-                    </a>';
+                    </a>'
+                : '';
 
             return '<div class="acciones-flex">'.$check.$btn.'</div>';
         })

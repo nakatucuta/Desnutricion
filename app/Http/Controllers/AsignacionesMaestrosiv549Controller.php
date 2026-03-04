@@ -6,9 +6,16 @@ use Illuminate\Http\Request;
 
 class AsignacionesMaestrosiv549Controller extends Controller
 {
+    private function ensureAdmin(): void
+    {
+        abort_unless(auth()->check() && (int) (auth()->user()->usertype ?? 0) === 1, 403, 'Acceso solo para administradores.');
+    }
+
     // Mostrar el formulario para asignar
     public function create(Request $request)
     {
+        $this->ensureAdmin();
+
         $caso = \App\Models\MaestroSiv549::where('tip_ide_', $request->tip_ide_)
             ->where('num_ide_', $request->num_ide_)
             ->where('fec_not', $request->fec_not)
@@ -75,6 +82,8 @@ class AsignacionesMaestrosiv549Controller extends Controller
 
     public function store(Request $request)
     {
+        $this->ensureAdmin();
+
         $request->validate([
             'user_ids'   => 'required|array|min:1',
             'user_ids.*' => 'exists:users,id',
