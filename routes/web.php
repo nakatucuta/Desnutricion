@@ -107,6 +107,12 @@ Route::get('/vacunas/gestion/data', [AfiliadoController::class, 'vaccineManagerD
 Route::delete('/vacunas/gestion/delete', [AfiliadoController::class, 'vaccineManagerDelete'])
     ->name('vaccine.manager.delete')
     ->middleware('auth');
+Route::get('/vacunas/gestion/afiliado/{id}', [AfiliadoController::class, 'vaccineManagerGetAfiliado'])
+    ->name('vaccine.manager.afiliado.show')
+    ->middleware('auth');
+Route::put('/vacunas/gestion/afiliado/{id}', [AfiliadoController::class, 'vaccineManagerUpdateAfiliado'])
+    ->name('vaccine.manager.afiliado.update')
+    ->middleware('auth');
 
 
 //AQUI TERMINAN LAS  RUTAS  DE PAI

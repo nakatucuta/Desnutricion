@@ -318,6 +318,7 @@ class AfiliadoController extends Controller
             ->leftJoin('users as u', 'u.id', '=', 'v.user_id')
             ->select([
                 'v.id',
+                'a.id as afiliado_id',
                 'v.fecha_vacuna',
                 'v.docis',
                 'v.lote',
@@ -391,14 +392,98 @@ class AfiliadoController extends Controller
                     '</div>';
             })
             ->addColumn('acciones', function ($row) {
-                return '<button type="button" class="btn btn-sm vm-btn vm-btn-danger vm-delete-one" data-id="' . e($row->id) . '">' .
-                    '<i class="fas fa-trash-alt mr-1"></i> Eliminar</button>';
+                return '<div class="vm-actions-row">' .
+                    '<button type="button" class="btn btn-sm vm-btn vm-btn-edit vm-edit-afiliado" data-id="' . e($row->afiliado_id) . '">' .
+                    '<i class="fas fa-user-edit mr-1"></i> Editar afiliado</button>' .
+                    '<button type="button" class="btn btn-sm vm-btn vm-btn-danger vm-delete-one" data-id="' . e($row->id) . '">' .
+                    '<i class="fas fa-trash-alt mr-1"></i> Eliminar</button>' .
+                    '</div>';
             })
             ->editColumn('fecha_vacuna', function ($row) {
                 return $row->fecha_vacuna ? Carbon::parse($row->fecha_vacuna)->format('Y-m-d') : '---';
             })
             ->rawColumns(['select', 'afiliado', 'vacuna', 'detalle', 'cargado_por', 'acciones'])
             ->toJson();
+    }
+
+    public function vaccineManagerGetAfiliado(int $id)
+    {
+        $this->ensureAdmin();
+
+        $afiliado = DB::table('afiliados')
+            ->where('id', $id)
+            ->first([
+                'id',
+                'tipo_identificacion',
+                'numero_identificacion',
+                'numero_carnet',
+                'primer_nombre',
+                'segundo_nombre',
+                'primer_apellido',
+                'segundo_apellido',
+                'fecha_nacimiento',
+                'celular',
+                'email',
+            ]);
+
+        if (!$afiliado) {
+            return response()->json([
+                'ok' => false,
+                'message' => 'Afiliado no encontrado.',
+            ], 404);
+        }
+
+        return response()->json([
+            'ok' => true,
+            'afiliado' => $afiliado,
+        ]);
+    }
+
+    public function vaccineManagerUpdateAfiliado(Request $request, int $id)
+    {
+        $this->ensureAdmin();
+
+        $afiliado = DB::table('afiliados')->where('id', $id)->first();
+        if (!$afiliado) {
+            return response()->json([
+                'ok' => false,
+                'message' => 'Afiliado no encontrado.',
+            ], 404);
+        }
+
+        $data = $request->validate([
+            'tipo_identificacion' => ['nullable', 'string', 'max:20'],
+            'numero_identificacion' => ['nullable', 'string', 'max:50'],
+            'numero_carnet' => ['nullable', 'string', 'max:80'],
+            'primer_nombre' => ['nullable', 'string', 'max:80'],
+            'segundo_nombre' => ['nullable', 'string', 'max:80'],
+            'primer_apellido' => ['nullable', 'string', 'max:80'],
+            'segundo_apellido' => ['nullable', 'string', 'max:80'],
+            'fecha_nacimiento' => ['nullable', 'date'],
+            'celular' => ['nullable', 'string', 'max:30'],
+            'email' => ['nullable', 'email', 'max:150'],
+        ]);
+
+        $updates = [
+            'tipo_identificacion' => trim((string) ($data['tipo_identificacion'] ?? '')) ?: null,
+            'numero_identificacion' => trim((string) ($data['numero_identificacion'] ?? '')) ?: null,
+            'numero_carnet' => trim((string) ($data['numero_carnet'] ?? '')) ?: null,
+            'primer_nombre' => trim((string) ($data['primer_nombre'] ?? '')) ?: null,
+            'segundo_nombre' => trim((string) ($data['segundo_nombre'] ?? '')) ?: null,
+            'primer_apellido' => trim((string) ($data['primer_apellido'] ?? '')) ?: null,
+            'segundo_apellido' => trim((string) ($data['segundo_apellido'] ?? '')) ?: null,
+            'fecha_nacimiento' => $data['fecha_nacimiento'] ?? null,
+            'celular' => trim((string) ($data['celular'] ?? '')) ?: null,
+            'email' => trim((string) ($data['email'] ?? '')) ?: null,
+            'updated_at' => DB::raw('GETDATE()'),
+        ];
+
+        DB::table('afiliados')->where('id', $id)->update($updates);
+
+        return response()->json([
+            'ok' => true,
+            'message' => 'Datos del afiliado actualizados correctamente.',
+        ]);
     }
 
     public function vaccineManagerDelete(Request $request)

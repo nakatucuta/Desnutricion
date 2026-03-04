@@ -46,6 +46,10 @@
                         <span class="vm-guide__step">4</span>
                         <div>Siempre se pedira confirmacion antes de borrar.</div>
                     </div>
+                    <div class="vm-guide__item">
+                        <span class="vm-guide__step">5</span>
+                        <div>Para editar datos del afiliado, usa el boton <b>Editar afiliado</b> y guarda sin salir de la tabla.</div>
+                    </div>
                 </div>
                 <div class="vm-note">
                     <i class="fas fa-shield-alt mr-1"></i> Modo seguro admin activo
@@ -139,6 +143,72 @@
         </div>
     </div>
 </div>
+
+<div class="modal fade" id="vmEditAfiliadoModal" tabindex="-1" role="dialog" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered" role="document">
+        <div class="modal-content vm-modal">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="fas fa-user-edit mr-2"></i>Editar datos del afiliado</h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <form id="vmEditAfiliadoForm">
+                    <input type="hidden" id="vmAfiliadoId">
+                    <div class="row">
+                        <div class="col-md-4 mb-2">
+                            <label class="vm-label">Tipo ID</label>
+                            <input type="text" class="form-control vm-input" id="vmTipoId">
+                        </div>
+                        <div class="col-md-4 mb-2">
+                            <label class="vm-label">Numero ID</label>
+                            <input type="text" class="form-control vm-input" id="vmNumeroId">
+                        </div>
+                        <div class="col-md-4 mb-2">
+                            <label class="vm-label">Numero carnet</label>
+                            <input type="text" class="form-control vm-input" id="vmNumeroCarnet">
+                        </div>
+                        <div class="col-md-3 mb-2">
+                            <label class="vm-label">Primer nombre</label>
+                            <input type="text" class="form-control vm-input" id="vmPrimerNombre">
+                        </div>
+                        <div class="col-md-3 mb-2">
+                            <label class="vm-label">Segundo nombre</label>
+                            <input type="text" class="form-control vm-input" id="vmSegundoNombre">
+                        </div>
+                        <div class="col-md-3 mb-2">
+                            <label class="vm-label">Primer apellido</label>
+                            <input type="text" class="form-control vm-input" id="vmPrimerApellido">
+                        </div>
+                        <div class="col-md-3 mb-2">
+                            <label class="vm-label">Segundo apellido</label>
+                            <input type="text" class="form-control vm-input" id="vmSegundoApellido">
+                        </div>
+                        <div class="col-md-4 mb-2">
+                            <label class="vm-label">Fecha nacimiento</label>
+                            <input type="date" class="form-control vm-input" id="vmFechaNacimiento">
+                        </div>
+                        <div class="col-md-4 mb-2">
+                            <label class="vm-label">Celular</label>
+                            <input type="text" class="form-control vm-input" id="vmCelular">
+                        </div>
+                        <div class="col-md-4 mb-2">
+                            <label class="vm-label">Email</label>
+                            <input type="email" class="form-control vm-input" id="vmEmail">
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn vm-btn vm-btn-light" data-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn vm-btn vm-btn-audit" id="vmSaveAfiliadoBtn">
+                    <i class="fas fa-save mr-1"></i> Guardar cambios
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
 @stop
 
 @section('css')
@@ -207,9 +277,12 @@
 .vm-btn-light:hover{background:#f1f5f9}
 .vm-btn-audit{background:#eaf2ff;border-color:#cfe0ff;color:#1e40af}
 .vm-btn-audit:hover{background:#dceafe}
+.vm-btn-edit{background:#eef2ff;border-color:#c7d2fe;color:#3730a3}
+.vm-btn-edit:hover{background:#e0e7ff}
 .vm-btn-danger{background:#fff1f2;border-color:#fecdd3;color:#9f1239}
 .vm-btn-danger:hover{background:#ffe4e6;box-shadow:0 10px 22px rgba(190,24,93,.15)}
 .vm-delete-one{min-width:112px;background:linear-gradient(180deg,#fff1f2,#ffe9ee)!important}
+.vm-actions-row{display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap}
 
 .vm-table{margin:0!important;border-collapse:separate!important;border-spacing:0 10px!important}
 .vm-table thead th{
@@ -260,6 +333,12 @@
     background:#dbeafe!important;border-color:#bfdbfe!important;color:#1d4ed8!important;
 }
 .dataTables_wrapper .dataTables_info{font-weight:700;color:#475569}
+.vm-modal{border-radius:16px;border:1px solid #dbe7f7;box-shadow:0 24px 50px rgba(2,6,23,.18)}
+.vm-modal .modal-header{background:linear-gradient(180deg,#eef5ff,#fff);border-bottom:1px solid #dbe7f7}
+.vm-modal .modal-title{font-weight:900;color:#0f172a}
+.vm-label{font-size:.78rem;font-weight:800;color:#475569;margin-bottom:4px}
+.vm-input{border-radius:10px;border:1px solid #d2deee}
+.vm-input:focus{border-color:#93c5fd;box-shadow:0 0 0 3px rgba(147,197,253,.25)}
 .vm-audit-table thead th{
     background:linear-gradient(180deg,#f8fbff,#f2f8ff);
     color:#0f172a;
@@ -283,6 +362,7 @@
 <script>
 (function(){
     const deleteUrl = @json(route('vaccine.manager.delete'));
+    const showAfiliadoUrlBase = @json(url('/vacunas/gestion/afiliado'));
     const table = $('#vmTable').DataTable({
         processing: true,
         serverSide: true,
@@ -425,6 +505,97 @@
         const id = String($(this).data('id') || '');
         if (!id) return;
         requestDelete([id]);
+    });
+
+    function setAfiliadoForm(data){
+        $('#vmAfiliadoId').val(data.id || '');
+        $('#vmTipoId').val(data.tipo_identificacion || '');
+        $('#vmNumeroId').val(data.numero_identificacion || '');
+        $('#vmNumeroCarnet').val(data.numero_carnet || '');
+        $('#vmPrimerNombre').val(data.primer_nombre || '');
+        $('#vmSegundoNombre').val(data.segundo_nombre || '');
+        $('#vmPrimerApellido').val(data.primer_apellido || '');
+        $('#vmSegundoApellido').val(data.segundo_apellido || '');
+        $('#vmFechaNacimiento').val((data.fecha_nacimiento || '').substring(0,10));
+        $('#vmCelular').val(data.celular || '');
+        $('#vmEmail').val(data.email || '');
+    }
+
+    $('#vmTable').on('click', '.vm-edit-afiliado', function(){
+        const afiliadoId = String($(this).data('id') || '');
+        if (!afiliadoId) return;
+
+        $.ajax({
+            url: showAfiliadoUrlBase + '/' + encodeURIComponent(afiliadoId),
+            method: 'GET',
+            dataType: 'json',
+            success: function(resp){
+                if (!resp || !resp.ok || !resp.afiliado) {
+                    notify('error', 'Error', 'No se pudo cargar el afiliado.');
+                    return;
+                }
+                setAfiliadoForm(resp.afiliado);
+                $('#vmEditAfiliadoModal').modal('show');
+            },
+            error: function(xhr){
+                let msg = 'No se pudo cargar la informacion del afiliado.';
+                if (xhr.responseJSON && xhr.responseJSON.message) msg = xhr.responseJSON.message;
+                notify('error', 'Error', msg);
+            }
+        });
+    });
+
+    $('#vmSaveAfiliadoBtn').on('click', function(){
+        const id = ($('#vmAfiliadoId').val() || '').trim();
+        if (!id) {
+            notify('error', 'Error', 'No se detecto afiliado para actualizar.');
+            return;
+        }
+
+        const $btn = $(this);
+        const original = $btn.html();
+        $btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin mr-1"></i> Guardando...');
+
+        $.ajax({
+            url: showAfiliadoUrlBase + '/' + encodeURIComponent(id),
+            method: 'POST',
+            headers: {
+                'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content'),
+                'Accept': 'application/json'
+            },
+            data: {
+                _method: 'PUT',
+                tipo_identificacion: $('#vmTipoId').val(),
+                numero_identificacion: $('#vmNumeroId').val(),
+                numero_carnet: $('#vmNumeroCarnet').val(),
+                primer_nombre: $('#vmPrimerNombre').val(),
+                segundo_nombre: $('#vmSegundoNombre').val(),
+                primer_apellido: $('#vmPrimerApellido').val(),
+                segundo_apellido: $('#vmSegundoApellido').val(),
+                fecha_nacimiento: $('#vmFechaNacimiento').val(),
+                celular: $('#vmCelular').val(),
+                email: $('#vmEmail').val()
+            },
+            success: function(resp){
+                $('#vmEditAfiliadoModal').modal('hide');
+                table.ajax.reload(null, false);
+                notify('success', 'Actualizacion completada', resp && resp.message ? resp.message : 'Afiliado actualizado.');
+            },
+            error: function(xhr){
+                let msg = 'No se pudo actualizar el afiliado.';
+                if (xhr.responseJSON && xhr.responseJSON.message) msg = xhr.responseJSON.message;
+                if (xhr.responseJSON && xhr.responseJSON.errors) {
+                    const firstKey = Object.keys(xhr.responseJSON.errors)[0];
+                    if (firstKey && xhr.responseJSON.errors[firstKey][0]) {
+                        msg = xhr.responseJSON.errors[firstKey][0];
+                    }
+                }
+                notify('error', 'Error', msg);
+            },
+            complete: function(){
+                $btn.prop('disabled', false).html(original);
+            }
+        });
     });
 })();
 </script>
