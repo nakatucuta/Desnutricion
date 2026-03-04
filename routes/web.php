@@ -65,8 +65,10 @@ Route::post('/import-excel_2', [AfiliadoController::class, 'importExcel'])
 
 // Ruta para obtener vacunas
 Route::get('/vacunas/{id}/{numeroCarnet?}', [AfiliadoController::class, 'getVacunas'])
+    ->whereNumber('id')
     ->name('getVacunas');
 Route::get('/vacunas/{id}/{numeroCarnet?}/pdf', [AfiliadoController::class, 'getVacunasPdf'])
+    ->whereNumber('id')
     ->name('getVacunasPdf');
 
 
@@ -95,6 +97,15 @@ Route::get('/batch-verifications/manage', [AfiliadoController::class, 'batchClea
     ->middleware('auth');
 Route::delete('/batch-verifications/bulk-delete', [AfiliadoController::class, 'destroyMultipleBatches'])
     ->name('batch.cleanup.bulkDestroy')
+    ->middleware('auth');
+Route::get('/vacunas/gestion', [AfiliadoController::class, 'vaccineManagerIndex'])
+    ->name('vaccine.manager.index')
+    ->middleware('auth');
+Route::get('/vacunas/gestion/data', [AfiliadoController::class, 'vaccineManagerData'])
+    ->name('vaccine.manager.data')
+    ->middleware('auth');
+Route::delete('/vacunas/gestion/delete', [AfiliadoController::class, 'vaccineManagerDelete'])
+    ->name('vaccine.manager.delete')
     ->middleware('auth');
 
 

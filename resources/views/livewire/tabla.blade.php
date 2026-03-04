@@ -15,6 +15,9 @@
             <a href="{{ route('batch.cleanup.index') }}" class="btn btn-pai btn-pai-pastel-warning">
                 <i class="fas fa-layer-group mr-2"></i> Gestion de lotes
             </a>
+            <a href="{{ route('vaccine.manager.index') }}" class="btn btn-pai btn-pai-pastel-danger">
+                <i class="fas fa-vials mr-2"></i> Gestion de vacunas
+            </a>
             @endif
             {{-- ✅ Botón pastel (suave) --}}
             <a href="#"

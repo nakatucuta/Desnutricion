@@ -278,6 +278,220 @@ class AfiliadoController extends Controller
             ->rawColumns(['id_badge', 'documento', 'paciente', 'lote_carnet', 'acciones'])
             ->toJson();
     }
+
+    public function vaccineManagerIndex()
+    {
+        $this->ensureAdmin();
+
+        try {
+            $audits = DB::table('vaccine_deletion_audits as a')
+                ->leftJoin('users as u', 'u.id', '=', 'a.user_id')
+                ->select([
+                    'a.vacuna_id',
+                    'a.vacuna_nombre',
+                    'a.afiliado_documento',
+                    'a.afiliado_nombre',
+                    'a.deleted_at',
+                    'u.name as user_name',
+                ])
+                ->orderByDesc('a.id')
+                ->limit(60)
+                ->get();
+        } catch (\Throwable $e) {
+            $audits = collect([]);
+            Log::warning('No se pudo cargar auditoria de eliminacion de vacunas', [
+                'error' => $e->getMessage(),
+            ]);
+        }
+
+        return view('livewire.vacuna_manager', compact('audits'));
+    }
+
+    public function vaccineManagerData(Request $request)
+    {
+        $this->ensureAdmin();
+
+        $query = DB::table('vacunas as v')
+            ->join('afiliados as a', 'a.id', '=', 'v.afiliado_id')
+            ->leftJoin('referencia_vacunas as rv', 'rv.id', '=', 'v.vacunas_id')
+            ->leftJoin('users as u', 'u.id', '=', 'v.user_id')
+            ->select([
+                'v.id',
+                'v.fecha_vacuna',
+                'v.docis',
+                'v.lote',
+                'v.regimen',
+                'v.created_at',
+                'a.numero_identificacion',
+                'a.tipo_identificacion',
+                'a.numero_carnet',
+                DB::raw("LTRIM(RTRIM(CONCAT(ISNULL(a.primer_nombre,''), ' ', ISNULL(a.segundo_nombre,''), ' ', ISNULL(a.primer_apellido,''), ' ', ISNULL(a.segundo_apellido,'')))) as afiliado_nombre"),
+                DB::raw("COALESCE(rv.nombre, CONCAT('Vacuna #', CAST(v.vacunas_id as varchar(20)))) as vacuna_nombre"),
+                DB::raw("COALESCE(u.name, 'Sin usuario') as usuario_nombre"),
+            ]);
+
+        return DataTables::of($query)
+            ->filter(function ($builder) use ($request) {
+                $search = trim((string) data_get($request->input('search'), 'value', ''));
+                if ($search === '') {
+                    return;
+                }
+
+                $builder->where(function ($q) use ($search) {
+                    $q->where('a.numero_identificacion', 'LIKE', "%{$search}%")
+                        ->orWhere('a.numero_carnet', 'LIKE', "%{$search}%")
+                        ->orWhere('a.primer_nombre', 'LIKE', "%{$search}%")
+                        ->orWhere('a.segundo_nombre', 'LIKE', "%{$search}%")
+                        ->orWhere('a.primer_apellido', 'LIKE', "%{$search}%")
+                        ->orWhere('a.segundo_apellido', 'LIKE', "%{$search}%")
+                        ->orWhere('rv.nombre', 'LIKE', "%{$search}%");
+                });
+            })
+            ->addColumn('select', function ($row) {
+                return '<label class="vm-check-wrap"><input type="checkbox" class="vm-row-check" value="' . e($row->id) . '"><span></span></label>';
+            })
+            ->addColumn('afiliado', function ($row) {
+                $name = e(trim((string) ($row->afiliado_nombre ?? '')));
+                $doc = e((string) ($row->tipo_identificacion ?? '') . ' ' . ($row->numero_identificacion ?? ''));
+                return '<div class="vm-afiliado"><div class="vm-afiliado__name">' . $name . '</div><div class="vm-afiliado__doc">' . $doc . '</div></div>';
+            })
+            ->addColumn('vacuna', function ($row) {
+                $vacuna = e($row->vacuna_nombre ?? '---');
+                $dosis = e($row->docis ?? '---');
+                return '<div class="vm-stack">' .
+                    '<span class="vm-pill vm-pill-vacuna">' . $vacuna . '</span>' .
+                    '<span class="vm-pill vm-pill-dose">Dosis: ' . $dosis . '</span>' .
+                    '</div>';
+            })
+            ->addColumn('detalle', function ($row) {
+                $lote = e($row->lote ?? '---');
+                $regimen = e($row->regimen ?? '---');
+                return '<div class="vm-stack">' .
+                    '<span class="vm-chip vm-chip-lote">Lote: ' . $lote . '</span>' .
+                    '<span class="vm-chip vm-chip-regimen">Regimen: ' . $regimen . '</span>' .
+                    '</div>';
+            })
+            ->addColumn('cargado_por', function ($row) {
+                $usuario = e($row->usuario_nombre ?? 'Sin usuario');
+                $created = $row->created_at ? Carbon::parse($row->created_at)->format('Y-m-d H:i') : '---';
+                return '<div class="vm-user">' .
+                    '<span class="vm-user__name">' . $usuario . '</span>' .
+                    '<span class="vm-user__time">' . e($created) . '</span>' .
+                    '</div>';
+            })
+            ->addColumn('acciones', function ($row) {
+                return '<button type="button" class="btn btn-sm vm-btn vm-btn-danger vm-delete-one" data-id="' . e($row->id) . '">' .
+                    '<i class="fas fa-trash-alt mr-1"></i> Eliminar</button>';
+            })
+            ->editColumn('fecha_vacuna', function ($row) {
+                return $row->fecha_vacuna ? Carbon::parse($row->fecha_vacuna)->format('Y-m-d') : '---';
+            })
+            ->rawColumns(['select', 'afiliado', 'vacuna', 'detalle', 'cargado_por', 'acciones'])
+            ->toJson();
+    }
+
+    public function vaccineManagerDelete(Request $request)
+    {
+        $this->ensureAdmin();
+
+        $data = $request->validate([
+            'ids' => ['required', 'array', 'min:1'],
+            'ids.*' => ['integer', 'min:1'],
+        ], [
+            'ids.required' => 'Selecciona al menos una vacuna para eliminar.',
+            'ids.min' => 'Selecciona al menos una vacuna para eliminar.',
+        ]);
+
+        $ids = collect($data['ids'])
+            ->map(fn($id) => (int) $id)
+            ->unique()
+            ->values();
+
+        if ($ids->isEmpty()) {
+            return response()->json([
+                'ok' => false,
+                'message' => 'No se recibieron IDs validos para eliminar.',
+            ], 422);
+        }
+
+        $snapshot = DB::table('vacunas as v')
+            ->join('afiliados as a', 'a.id', '=', 'v.afiliado_id')
+            ->leftJoin('referencia_vacunas as rv', 'rv.id', '=', 'v.vacunas_id')
+            ->whereIn('v.id', $ids->all())
+            ->select([
+                'v.id as vacuna_id',
+                'v.afiliado_id',
+                DB::raw("COALESCE(rv.nombre, CONCAT('Vacuna #', CAST(v.vacunas_id as varchar(20)))) as vacuna_nombre"),
+                DB::raw("COALESCE(NULLIF(a.numero_identificacion, ''), CAST(a.id as varchar(50))) as afiliado_documento"),
+                DB::raw("LTRIM(RTRIM(CONCAT(ISNULL(a.primer_nombre,''), ' ', ISNULL(a.segundo_nombre,''), ' ', ISNULL(a.primer_apellido,''), ' ', ISNULL(a.segundo_apellido,'')))) as afiliado_nombre"),
+            ])
+            ->get();
+
+        if ($snapshot->isEmpty()) {
+            return response()->json([
+                'ok' => false,
+                'message' => 'No se encontraron vacunas para eliminar.',
+            ], 404);
+        }
+
+        $deleted = 0;
+        DB::transaction(function () use ($ids, &$deleted) {
+            $deleted = DB::table('vacunas')
+                ->whereIn('id', $ids->all())
+                ->delete();
+        });
+
+        if ($deleted <= 0) {
+            return response()->json([
+                'ok' => false,
+                'message' => 'No se eliminaron registros. Verifica que aun existan.',
+            ], 404);
+        }
+
+        $this->registerVaccineDeletionAudit($request, $snapshot);
+
+        return response()->json([
+            'ok' => true,
+            'deleted' => (int) $deleted,
+            'message' => $deleted === 1
+                ? 'Se elimino 1 vacuna correctamente.'
+                : "Se eliminaron {$deleted} vacunas correctamente.",
+        ]);
+    }
+
+    private function registerVaccineDeletionAudit(Request $request, $snapshotRows): void
+    {
+        try {
+            $now = now()->format('Y-m-d H:i:s');
+            $userId = Auth::id();
+            $ip = $request->ip();
+            $agent = substr((string) $request->userAgent(), 0, 255);
+
+            $rows = collect($snapshotRows)->map(function ($r) use ($userId, $ip, $agent, $now) {
+                return [
+                    'user_id' => $userId,
+                    'vacuna_id' => (int) ($r->vacuna_id ?? 0),
+                    'vacuna_nombre' => (string) ($r->vacuna_nombre ?? ''),
+                    'afiliado_id' => (int) ($r->afiliado_id ?? 0),
+                    'afiliado_documento' => (string) ($r->afiliado_documento ?? ''),
+                    'afiliado_nombre' => trim((string) ($r->afiliado_nombre ?? '')),
+                    'deleted_at' => $now,
+                    'ip_address' => $ip,
+                    'user_agent' => $agent,
+                    'created_at' => DB::raw('GETDATE()'),
+                    'updated_at' => DB::raw('GETDATE()'),
+                ];
+            })->values()->all();
+
+            foreach (array_chunk($rows, 200) as $chunk) {
+                DB::table('vaccine_deletion_audits')->insert($chunk);
+            }
+        } catch (\Throwable $e) {
+            Log::warning('No se pudo registrar auditoria de eliminacion de vacunas', [
+                'error' => $e->getMessage(),
+            ]);
+        }
+    }
     
     
 
