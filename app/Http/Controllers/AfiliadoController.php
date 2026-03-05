@@ -1826,7 +1826,8 @@ public function startImport(Request $request)
 
 public function importStatus(string $token)
 {
-    $job = ImportJob::where('token', $token)->latest('id')->first();
+    // token es unico en import_jobs; evita ORDER BY innecesario.
+    $job = ImportJob::where('token', $token)->first();
 
     if (!$job) {
         return response()->json([
