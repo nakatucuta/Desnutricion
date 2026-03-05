@@ -1532,7 +1532,19 @@ class AfiliadoImportStreaming implements ToModel, WithStartRow, WithChunkReading
             $chunkSize = 300;
         }
 
+        Log::info('IMPORT SQLSRV CHUNK PLAN vacunas', [
+            'batch' => (int) ($this->batch_verifications_id ?? 0),
+            'rows_total' => count($rows),
+            'bindable_cols' => (int) $bindableCols,
+            'chunk_size' => (int) $chunkSize,
+            'max_params' => (int) $maxParams,
+        ]);
+
         foreach (array_chunk($rows, $chunkSize) as $vacChunk) {
+            Log::debug('IMPORT SQLSRV CHUNK EXEC vacunas', [
+                'batch' => (int) ($this->batch_verifications_id ?? 0),
+                'chunk_rows' => count($vacChunk),
+            ]);
             $db->table('vacunas')->insert($vacChunk);
         }
     }
