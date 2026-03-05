@@ -1603,7 +1603,23 @@ window.IMPORT_ENDPOINTS = {
       lengthChange: false,
       ajax: {
           url: "{{ route('afiliado.data') }}",
-          type: 'GET'
+          type: 'GET',
+          timeout: 15000,
+          error: function (xhr, textStatus) {
+              if (textStatus === 'timeout' || (xhr && xhr.status === 503)) {
+                  Swal.fire({
+                      icon: 'warning',
+                      title: 'Sistema ocupado',
+                      text: 'Ingresa mas tarde hay muchos usuarios cargando'
+                  });
+                  return;
+              }
+              Swal.fire({
+                  icon: 'error',
+                  title: 'Error',
+                  text: 'No se pudo cargar la tabla de PAI en este momento.'
+              });
+          }
       },
       columns: [
           { data: 'id_badge', orderable: true, searchable: false },
@@ -1692,6 +1708,7 @@ window.IMPORT_ENDPOINTS = {
       $.ajax({
           url: url,
           method: 'GET',
+          timeout: 15000,
           success: function(data){
 
               $('#vacunaList').empty();
@@ -1731,7 +1748,15 @@ window.IMPORT_ENDPOINTS = {
 
               $('#vacunaModal').modal('show');
           },
-          error: function(xhr){
+          error: function(xhr, textStatus){
+              if (textStatus === 'timeout' || (xhr && xhr.status === 503)) {
+                  Swal.fire({
+                      title: 'Sistema ocupado',
+                      text: 'Ingresa mas tarde hay muchos usuarios cargando',
+                      icon: 'warning'
+                  });
+                  return;
+              }
               console.log("Error getVacunas:", xhr.responseText);
               Swal.fire({
                   title: 'Error',

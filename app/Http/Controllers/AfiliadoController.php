@@ -35,6 +35,26 @@ class AfiliadoController extends Controller
         abort_unless((int) (Auth::user()->usertype ?? 0) === 1, 403, 'Acceso solo para administradores.');
     }
 
+    private function applyReadOptimizations(): void
+    {
+        try {
+            DB::statement('SET LOCK_TIMEOUT 8000');
+            DB::statement('SET TRANSACTION ISOLATION LEVEL READ UNCOMMITTED');
+        } catch (\Throwable $e) {
+            // No interrumpir flujo si el driver no soporta estas opciones.
+        }
+    }
+
+    private function applyReadOptimizationsExternal(): void
+    {
+        try {
+            DB::connection('sqlsrv_1')->statement('SET LOCK_TIMEOUT 8000');
+            DB::connection('sqlsrv_1')->statement('SET TRANSACTION ISOLATION LEVEL READ UNCOMMITTED');
+        } catch (\Throwable $e) {
+            // No interrumpir flujo si el driver no soporta estas opciones.
+        }
+    }
+
     /**
      * Muestra la vista principal con los datos de los afiliados.
      *
@@ -42,12 +62,17 @@ class AfiliadoController extends Controller
      */
     public function index(Request $request)
     {
-        $kpiVacunas = DB::table('vacunas')
-            ->distinct()
-            ->count('afiliado_id');
+        $this->applyReadOptimizations();
 
-        $kpiAfiliados = DB::table('afiliados')
-            ->count('id');
+        $kpiVacunas = Cache::remember('pai:kpi:vacunas_afiliados_distinct', now()->addSeconds(60), function () {
+            return DB::table('vacunas')
+                ->distinct()
+                ->count('afiliado_id');
+        });
+
+        $kpiAfiliados = Cache::remember('pai:kpi:afiliados_total', now()->addSeconds(60), function () {
+            return DB::table('afiliados')->count('id');
+        });
 
         return view('livewire.afiliado', compact('kpiVacunas', 'kpiAfiliados'));
     }
@@ -156,12 +181,23 @@ class AfiliadoController extends Controller
 
     public function dataTable(Request $request)
     {
+        $this->applyReadOptimizations();
+
         $user = Auth::user();
         $isAdmin = (int) ($user->usertype ?? 0) === 1;
 
         if ($isAdmin) {
+            $vacunasAgg = DB::table('vacunas as c')
+                ->select([
+                    'c.afiliado_id',
+                    DB::raw('MAX(c.batch_verifications_id) AS batch_verifications_id'),
+                ])
+                ->groupBy('c.afiliado_id');
+
             $query = DB::table('afiliados as b')
-                ->join('vacunas as c', 'b.id', '=', 'c.afiliado_id')
+                ->joinSub($vacunasAgg, 'va', function ($join) {
+                    $join->on('b.id', '=', 'va.afiliado_id');
+                })
                 ->select([
                     'b.id',
                     'b.primer_nombre',
@@ -170,17 +206,8 @@ class AfiliadoController extends Controller
                     'b.segundo_apellido',
                     'b.numero_identificacion',
                     'b.numero_carnet',
-                    DB::raw('MAX(c.batch_verifications_id) AS batch_verifications_id'),
-                ])
-                ->groupBy(
-                    'b.id',
-                    'b.primer_nombre',
-                    'b.segundo_nombre',
-                    'b.primer_apellido',
-                    'b.segundo_apellido',
-                    'b.numero_identificacion',
-                    'b.numero_carnet'
-                );
+                    'va.batch_verifications_id',
+                ]);
         } else {
             $query = DB::table('afiliados as b')
                 ->leftJoin('correos_enviados as ce', function ($join) use ($user) {
@@ -199,7 +226,8 @@ class AfiliadoController extends Controller
                 ]);
         }
 
-        return DataTables::of($query)
+        try {
+            return DataTables::of($query)
             ->filter(function ($builder) use ($request) {
                 $search = trim((string) data_get($request->input('search'), 'value', ''));
                 $search = preg_replace('/\s+/', ' ', $search ?? '');
@@ -278,6 +306,15 @@ class AfiliadoController extends Controller
             })
             ->rawColumns(['id_badge', 'documento', 'paciente', 'lote_carnet', 'acciones'])
             ->toJson();
+        } catch (\Throwable $e) {
+            Log::warning('PAI dataTable saturado o con bloqueo', [
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'message' => 'Ingresa mas tarde hay muchos usuarios cargando',
+            ], 503);
+        }
     }
 
     public function vaccineManagerIndex()
@@ -664,7 +701,7 @@ public function importExcel(Request $request)
     $file   = $request->file('file');
     $userId = Auth::id();
     $user   = Auth::user()->name ?? 'SIN_NOMBRE';
-    $token  = $request->input('upload_token');
+    $token  = $request->input('upload_token') ?: (string) Str::uuid();
 
     // Guardar el archivo en storage/app/imports
     $storedPath = $file->storeAs(
@@ -683,8 +720,24 @@ public function importExcel(Request $request)
         ], now()->addMinutes(60));
     }
 
-    // ✅ Disparar el job (background)
-    \App\Jobs\ImportAfiliadosExcelJob::dispatch($storedPath, $userId, $user, $token);
+    $fullPath = storage_path('app/' . $storedPath);
+
+    $jobRow = \App\Models\ImportJob::create([
+        'user_id' => $userId,
+        'token' => $token,
+        'status' => 'queued',
+        'percent' => 0,
+        'step' => 'cola',
+        'message' => 'En cola...',
+        'errors' => null,
+        'errors_count' => 0,
+        'report_path' => null,
+        'batch_verifications_id' => null,
+    ]);
+
+    // ✅ Disparar el job (background) en cola dedicada PAI
+    \App\Jobs\ImportAfiliadosExcelJob::dispatch((int) $jobRow->id, $fullPath, $userId, $token)
+        ->onQueue((string) config('import_queues.pai', 'imports_pai'));
 
     // Responder rápido (NO se cae la página por procesamiento)
     return redirect()->route('afiliado')->with(
@@ -889,18 +942,19 @@ private function generarArchivoVacunasDesdeDB(int $batchId, string $filePath): v
   // Método que obtiene las vacunas asociadas a un afiliado por id y número de carnet
   public function getVacunas($id, $numeroCarnet = null)
 {
-    $vacunas = DB::table('vacunas as a')
+    $this->applyReadOptimizations();
+    $this->applyReadOptimizationsExternal();
+
+    $cacheKey = 'pai:getVacunas:' . (int) $id . ':' . (string) ($numeroCarnet ?? '');
+
+    try {
+        $payload = Cache::remember($cacheKey, now()->addSeconds(45), function () use ($id, $numeroCarnet) {
+        $vacunas = DB::table('vacunas as a')
         ->join('afiliados as b', 'a.afiliado_id', '=', 'b.id')
         ->join('users as c', 'a.user_id', '=', 'c.id')
         ->join('referencia_vacunas as d', 'a.vacunas_id', '=', 'd.id')
-        ->leftJoin(DB::connection('sqlsrv_1')->raw('[sga].[dbo].[maestroafiliados] as x'), 'b.numero_carnet', '=', 'x.numeroCarnet')
-        ->leftJoin(DB::connection('sqlsrv_1')->raw('[sga].[dbo].[maestroips] as y'), 'x.numeroCarnet', '=', 'y.numeroCarnet')
-        ->leftJoin(DB::connection('sqlsrv_1')->raw('[sga].[dbo].[maestroIpsGru] as z'), 'y.idGrupoIps', '=', 'z.id')
-        ->leftJoin(DB::connection('sqlsrv_1')->raw('[sga].[dbo].[municipios] as w'), function($join) {
-            $join->on('w.codigoDepartamento', '=', 'x.codigoDepartamento')
-                 ->on('w.codigoMunicipio', '=', 'x.codigoMunicipio');
-        })
         ->select(
+            'b.numero_carnet',
             'd.nombre as nombre_vacuna',
             DB::raw("
                 CASE
@@ -918,9 +972,6 @@ private function generarArchivoVacunasDesdeDB(int $batchId, string $filePath): v
             'b.segundo_apellido as seg_ape',
             'b.tipo_identificacion as tipo_id',
             'b.numero_identificacion as numero_id',
-            'x.genero as genero',
-            'z.descrip as ips',
-            'w.descrip as municipio',
             DB::raw('FLOOR((CAST(CONVERT(varchar(8), CONVERT(DATE, a.fecha_vacuna), 112) AS int) - CAST(CONVERT(varchar(8), CONVERT(DATE, b.fecha_nacimiento), 112) AS int)) / 10000) AS edad_anos'),
             DB::raw('DATEDIFF(MONTH, b.fecha_nacimiento, a.fecha_vacuna) AS total_meses'),
             'a.responsable as responsable',
@@ -938,19 +989,56 @@ private function generarArchivoVacunasDesdeDB(int $batchId, string $filePath): v
         ->orderBy('d.nombre', 'asc')
         ->get();
 
-    // ✅ IMPORTANTÍSIMO: si no hay vacunas, no uses $vacunas[0]
-    if ($vacunas->isEmpty()) {
-        return response()->json([]);
+        if ($vacunas->isEmpty()) {
+            return [];
+        }
+
+        $numeroCarnetBase = $numeroCarnet ?: ($vacunas->first()->numero_carnet ?? null);
+        $extra = null;
+        if (!empty($numeroCarnetBase)) {
+            $extra = DB::connection('sqlsrv_1')
+                ->table(DB::raw('[sga].[dbo].[maestroafiliados] as x'))
+                ->leftJoin(DB::raw('[sga].[dbo].[maestroips] as y'), 'x.numeroCarnet', '=', 'y.numeroCarnet')
+                ->leftJoin(DB::raw('[sga].[dbo].[maestroIpsGru] as z'), 'y.idGrupoIps', '=', 'z.id')
+                ->leftJoin(DB::raw('[sga].[dbo].[municipios] as w'), function ($join) {
+                    $join->on('w.codigoDepartamento', '=', 'x.codigoDepartamento')
+                        ->on('w.codigoMunicipio', '=', 'x.codigoMunicipio');
+                })
+                ->where('x.numeroCarnet', $numeroCarnetBase)
+                ->select([
+                    'x.genero as genero',
+                    'z.descrip as ips',
+                    'w.descrip as municipio',
+                ])
+                ->first();
+        }
+
+        foreach ($vacunas as $v) {
+            $v->genero = $extra->genero ?? null;
+            $v->ips = $extra->ips ?? null;
+            $v->municipio = $extra->municipio ?? null;
+        }
+
+        $hoy = Carbon::now();
+        $fechaNacimiento = Carbon::parse($vacunas[0]->fecha_nacimiento);
+        $edad = $hoy->diff($fechaNacimiento);
+        $vacunas[0]->age = $edad->y . 'a ' . $edad->m . 'm ' . $edad->d . 'd';
+
+        return $vacunas->toArray();
+    });
+    } catch (\Throwable $e) {
+        Log::warning('PAI getVacunas saturado o con bloqueo', [
+            'id' => $id,
+            'carnet' => $numeroCarnet,
+            'error' => $e->getMessage(),
+        ]);
+
+        return response()->json([
+            'message' => 'Ingresa mas tarde hay muchos usuarios cargando',
+        ], 503);
     }
 
-    // Calcular edad
-    $hoy = Carbon::now();
-    $fechaNacimiento = Carbon::parse($vacunas[0]->fecha_nacimiento);
-    $edad = $hoy->diff($fechaNacimiento);
-
-    $vacunas[0]->age = $edad->y . 'a ' . $edad->m . 'm ' . $edad->d . 'd';
-
-    return response()->json($vacunas);
+    return response()->json($payload);
 }
 
 public function getVacunasPdf($id, $numeroCarnet = null)
@@ -1576,7 +1664,7 @@ public function startImport(Request $request)
         ]);
 
         \App\Jobs\ImportAfiliadosExcelJob::dispatch($jobRow->id, $fullPath, $userId, $token)
-            ->onQueue('imports');
+            ->onQueue((string) config('import_queues.pai', 'imports_pai'));
 
         return response()->json(['ok' => true, 'token' => $token]);
 
@@ -1808,6 +1896,8 @@ private function buildLoadedDetailsForConsole(int $batchId, int $limitVacunas = 
 
 public function loadSummary(Request $request)
 {
+    $this->applyReadOptimizations();
+
     [$startDate, $endDate] = $this->validatedDateRange($request);
     $filters = $this->extractLoadSummaryFilters($request);
     $report = $this->buildLoadSummaryReport($startDate, $endDate, $filters);
@@ -1822,6 +1912,8 @@ public function loadSummary(Request $request)
 
 public function loadSummaryPdf(Request $request)
 {
+    $this->applyReadOptimizations();
+
     [$startDate, $endDate] = $this->validatedDateRange($request);
     $filters = $this->extractLoadSummaryFilters($request);
     $report = $this->buildLoadSummaryReport($startDate, $endDate, $filters);

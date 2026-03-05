@@ -103,7 +103,7 @@ class GesTipo3Controller extends Controller
                 $userId,
                 $token,
                 (string) $request->file('file')->getClientOriginalName()
-            )->onQueue('imports');
+            )->onQueue((string) config('import_queues.gestantes_tipo3', 'imports_gestantes_t3'));
 
             return response()->json(['ok' => true, 'token' => $token]);
         } catch (\Throwable $e) {

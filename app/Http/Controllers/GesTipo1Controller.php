@@ -114,7 +114,7 @@ class GesTipo1Controller extends Controller
                 $userId,
                 $token,
                 (string) $request->file('file')->getClientOriginalName()
-            )->onQueue('imports');
+            )->onQueue((string) config('import_queues.gestantes_tipo1', 'imports_gestantes_t1'));
 
             return response()->json(['ok' => true, 'token' => $token]);
         } catch (Throwable $e) {

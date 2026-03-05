@@ -136,7 +136,7 @@ class PreconcepcionalController extends Controller
                 $userId,
                 $token,
                 (string) $request->file('file')->getClientOriginalName()
-            )->onQueue('imports');
+            )->onQueue((string) config('import_queues.preconcepcional', 'imports_preconcepcional'));
 
             return response()->json(['ok' => true, 'token' => $token]);
         } catch (\Throwable $e) {

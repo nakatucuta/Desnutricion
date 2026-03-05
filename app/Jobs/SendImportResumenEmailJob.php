@@ -39,7 +39,7 @@ class SendImportResumenEmailJob implements ShouldQueue
                     ->cc(['jsuarez@epsianaswayuu.com','pai@epsianaswayuu.com']) // ✅ copias
                     ->queue(
                         (new VacunasCargadasResumen($batchId, $insertedAfil, $insertedVac, $oldAfil, $oldVacuna))
-                            ->onQueue('imports')  // ✅ para que lo procese tu worker actual
+                            ->onQueue((string) config('import_queues.pai', 'imports_pai'))
                     );
             } else {
                 Log::warning("IMPORT MAIL: usuario sin email, userId={$this->userId}");
