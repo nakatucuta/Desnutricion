@@ -26,10 +26,144 @@ use App\Jobs\ImportAfiliadosExcelJob;
 use ZipArchive;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Yajra\DataTables\Facades\DataTables;
+use PhpOffice\PhpSpreadsheet\IOFactory;
+use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
 
 
 class AfiliadoController extends Controller
 {
+    private function normalizeTemplateCell($value): string
+    {
+        $text = trim((string) $value);
+        if ($text === '') {
+            return '';
+        }
+
+        $text = mb_strtoupper($text, 'UTF-8');
+        $text = preg_replace('/\s+/u', ' ', $text);
+        return $text;
+    }
+
+    private function buildTemplateSignature(string $filePath, int $maxCols = 260): ?string
+    {
+        try {
+            $sheet = IOFactory::load($filePath)->getActiveSheet();
+            $highestCol = Coordinate::columnIndexFromString($sheet->getHighestColumn());
+            $limitCols = max(1, min($highestCol, $maxCols));
+
+            $rows = [];
+            foreach ([1, 2] as $row) {
+                $line = [];
+                for ($col = 1; $col <= $limitCols; $col++) {
+                    $line[] = $this->normalizeTemplateCell($sheet->getCellByColumnAndRow($col, $row)->getValue());
+                }
+                $rows[] = $line;
+            }
+
+            return hash('sha256', json_encode($rows, JSON_UNESCAPED_UNICODE));
+        } catch (\Throwable $e) {
+            Log::warning('No se pudo calcular firma de plantilla PAI', [
+                'file' => $filePath,
+                'error' => $e->getMessage(),
+            ]);
+            return null;
+        }
+    }
+
+    private function buildTemplateSignatureFromZip(string $zipPath, int $maxCols = 260): ?string
+    {
+        $zip = new ZipArchive();
+        if ($zip->open($zipPath) !== true) {
+            Log::warning('No se pudo abrir ZIP oficial PAI para firma', ['zip' => $zipPath]);
+            return null;
+        }
+
+        $xlsxEntry = null;
+        for ($i = 0; $i < $zip->numFiles; $i++) {
+            $name = (string) $zip->getNameIndex($i);
+            if (preg_match('/\.xlsx$/i', $name)) {
+                $xlsxEntry = $name;
+                break;
+            }
+        }
+
+        if (!$xlsxEntry) {
+            $zip->close();
+            Log::warning('ZIP oficial PAI no contiene .xlsx', ['zip' => $zipPath]);
+            return null;
+        }
+
+        $stream = $zip->getStream($xlsxEntry);
+        if (!$stream) {
+            $zip->close();
+            Log::warning('No se pudo abrir stream del .xlsx en ZIP oficial PAI', [
+                'zip' => $zipPath,
+                'entry' => $xlsxEntry,
+            ]);
+            return null;
+        }
+
+        $tmp = tempnam(sys_get_temp_dir(), 'pai_tpl_');
+        $out = fopen($tmp, 'wb');
+        stream_copy_to_stream($stream, $out);
+        fclose($out);
+        fclose($stream);
+        $zip->close();
+
+        try {
+            return $this->buildTemplateSignature($tmp, $maxCols);
+        } finally {
+            @unlink($tmp);
+        }
+    }
+
+    private function resolveOfficialPaiTemplateSource(): array
+    {
+        $zipPath = storage_path('app/public/formato_registro_diario.zip');
+        if (is_file($zipPath)) {
+            return ['type' => 'zip', 'path' => $zipPath];
+        }
+
+        $candidates = [
+            storage_path('app/public/formato_registro_diario.xlsx'),
+            storage_path('app/public/Formato pai_.xlsx'),
+        ];
+
+        foreach ($candidates as $path) {
+            if (is_file($path)) {
+                return ['type' => 'xlsx', 'path' => $path];
+            }
+        }
+
+        return ['type' => null, 'path' => null];
+    }
+
+    private function validateOfficialPaiTemplateOrFail(string $uploadedFilePath): ?string
+    {
+        $source = $this->resolveOfficialPaiTemplateSource();
+        if (empty($source['type']) || empty($source['path'])) {
+            // Si no existe plantilla local, no bloqueamos carga.
+            return null;
+        }
+
+        $officialSig = $source['type'] === 'zip'
+            ? $this->buildTemplateSignatureFromZip($source['path'])
+            : $this->buildTemplateSignature($source['path']);
+
+        $uploadedSig = $this->buildTemplateSignature($uploadedFilePath);
+
+        if (!$officialSig || !$uploadedSig) {
+            return null;
+        }
+
+        if (!hash_equals($officialSig, $uploadedSig)) {
+            return 'Formato inválido: el archivo no corresponde al formato oficial de la plataforma. '
+                .'Descarga nuevamente el formato desde "Descargar formato" e intenta de nuevo.';
+        }
+
+        return null;
+    }
+
     private function ensureAdmin(): void
     {
         abort_unless((int) (Auth::user()->usertype ?? 0) === 1, 403, 'Acceso solo para administradores.');
@@ -1643,6 +1777,15 @@ public function startImport(Request $request)
         $userId = Auth::id();
         if (!$userId) {
             return response()->json(['ok' => false, 'message' => 'No autenticado'], 401);
+        }
+
+        $uploadedPath = $request->file('file')->getRealPath();
+        $templateError = $this->validateOfficialPaiTemplateOrFail((string) $uploadedPath);
+        if ($templateError) {
+            return response()->json([
+                'ok' => false,
+                'message' => $templateError,
+            ], 422);
         }
 
         $path = $request->file('file')->store('imports');
