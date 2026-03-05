@@ -90,7 +90,6 @@ class AfiliadoImportStreaming implements ToModel, WithStartRow, WithChunkReading
         'id' => 'int',
         'afiliado_id' => 'int',
         'vacunas_id' => 'int',
-        'num_frascos_utilizados' => 'int',
         'user_id' => 'int',
         'batch_verifications_id' => 'int',
     ];
@@ -1321,17 +1320,19 @@ class AfiliadoImportStreaming implements ToModel, WithStartRow, WithChunkReading
                         foreach ([
                             'docis','laboratorio','lote','jeringa','lote_jeringa','diluyente','lote_diluyente',
                             'observacion','gotero','tipo_neumococo','responsable','fuen_ingresado_paiweb',
-                            'motivo_noingreso','observaciones','regimen'
+                            'motivo_noingreso','observaciones','regimen','num_frascos_utilizados'
                         ] as $k) {
                             if ($this->isNullToken($vacunaData[$k] ?? null)) {
                                 $vacunaData[$k] = null;
                                 continue;
                             }
-                            if (is_string($vacunaData[$k])) {
-                                $v = trim($vacunaData[$k]);
-                                if ($v === '') $v = null;
-                                $vacunaData[$k] = $v;
+                            if (($vacunaData[$k] ?? null) === null) {
+                                continue;
                             }
+                            // Fuerza SIEMPRE texto (incluso si Excel entregó int/float).
+                            // Evita que SQL Server infiera INT y falle con valores alfanuméricos (ej: 2423007A).
+                            $v = trim((string) $vacunaData[$k]);
+                            $vacunaData[$k] = ($v === '') ? null : $v;
                         }
 
                         $vacunaData = $this->sanitizeVacunaInsert($vacunaData, (int)($fila['excelRow'] ?? 0));
