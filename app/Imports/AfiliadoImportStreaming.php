@@ -1342,9 +1342,7 @@ class AfiliadoImportStreaming implements ToModel, WithStartRow, WithChunkReading
                 }
 
                 if (!empty($insertVacunas)) {
-                    foreach (array_chunk($insertVacunas, 1000) as $vacChunk) {
-                        $db->table('vacunas')->insert($vacChunk);
-                    }
+                    $this->insertVacunasSafeForSqlServer($db, $insertVacunas);
                 }
 
                 if ($startedHere) $db->commit();
@@ -1496,6 +1494,47 @@ class AfiliadoImportStreaming implements ToModel, WithStartRow, WithChunkReading
         }
 
         return $vacunas;
+    }
+
+    /**
+     * SQL Server solo soporta 2100 parámetros por statement.
+     * Calcula un tamaño de chunk seguro según columnas "bindables" por fila.
+     */
+    private function insertVacunasSafeForSqlServer($db, array $rows): void
+    {
+        if (empty($rows)) {
+            return;
+        }
+
+        $first = $rows[0] ?? [];
+        $bindableCols = 0;
+
+        foreach ($first as $value) {
+            if (!($value instanceof \Illuminate\Database\Query\Expression)) {
+                $bindableCols++;
+            }
+        }
+
+        // Si por alguna razón no detecta columnas, usa un chunk conservador.
+        if ($bindableCols <= 0) {
+            $bindableCols = 30;
+        }
+
+        // Dejamos margen de seguridad por debajo de 2100.
+        $maxParams = 1800;
+        $chunkSize = (int) floor($maxParams / $bindableCols);
+
+        // Límites prácticos.
+        if ($chunkSize < 1) {
+            $chunkSize = 1;
+        }
+        if ($chunkSize > 300) {
+            $chunkSize = 300;
+        }
+
+        foreach (array_chunk($rows, $chunkSize) as $vacChunk) {
+            $db->table('vacunas')->insert($vacChunk);
+        }
     }
 
     private function resolveFinalColumns(array $row): array
