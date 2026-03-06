@@ -211,6 +211,8 @@ class AfiliadoController extends Controller
 
         return Cache::remember($cacheKey, now()->addSeconds($ttlSeconds), function () use ($runningThreshold, $queueThreshold, $heavyMinutes, $runningFreshMinutes) {
             $queue = $this->paiQueueName();
+            $nowTs = now()->timestamp;
+            $freshSinceTs = $nowTs - ($runningFreshMinutes * 60);
 
             $running = (int) ImportJob::query()
                 ->where('status', 'running')
@@ -244,19 +246,52 @@ class AfiliadoController extends Controller
             }
 
             $queuePending = 0;
+            $queueRunningRecent = 0;
+            $queueRunning = 0;
+            $queueOldestRunningTs = null;
             try {
                 $queuePending = (int) DB::table('jobs')
                     ->where('queue', $queue)
+                    ->whereNull('reserved_at')
                     ->count();
+
+                $queueRunningRecent = (int) DB::table('jobs')
+                    ->where('queue', $queue)
+                    ->whereNotNull('reserved_at')
+                    ->where('reserved_at', '>=', $freshSinceTs)
+                    ->count();
+
+                $queueRunning = (int) DB::table('jobs')
+                    ->where('queue', $queue)
+                    ->whereNotNull('reserved_at')
+                    ->count();
+
+                $queueOldestRunningTs = DB::table('jobs')
+                    ->where('queue', $queue)
+                    ->whereNotNull('reserved_at')
+                    ->min('reserved_at');
             } catch (\Throwable $e) {
                 $queuePending = 0;
+                $queueRunningRecent = 0;
+                $queueRunning = 0;
+                $queueOldestRunningTs = null;
             }
 
-            // Evita falsos positivos por jobs antiguos marcados como "running".
+            $queueLongRunningMinutes = 0;
+            if (!empty($queueOldestRunningTs) && is_numeric($queueOldestRunningTs)) {
+                try {
+                    $queueLongRunningMinutes = max(0, (int) floor(($nowTs - (int) $queueOldestRunningTs) / 60));
+                } catch (\Throwable $e) {
+                    $queueLongRunningMinutes = 0;
+                }
+            }
+
+            // El estado de alta demanda se basa en la cola real de PAI (jobs.queue),
+            // evitando falsos positivos por import_jobs "running" pegados u otros módulos.
             $busy = (
-                $runningRecent >= $runningThreshold
-                || ($runningRecent > 0 && $queuePending >= $queueThreshold)
-                || ($runningRecent > 0 && $longRunningMinutes >= $heavyMinutes)
+                $queueRunningRecent >= $runningThreshold
+                || ($queueRunningRecent > 0 && $queuePending >= $queueThreshold)
+                || ($queueRunning > 0 && $queueLongRunningMinutes >= $heavyMinutes)
             );
 
             return [
@@ -269,6 +304,9 @@ class AfiliadoController extends Controller
                 'running_imports' => $running,
                 'queued_imports' => $queued,
                 'queue_jobs_pending' => $queuePending,
+                'queue_jobs_running_recent' => $queueRunningRecent,
+                'queue_jobs_running' => $queueRunning,
+                'queue_long_running_minutes' => $queueLongRunningMinutes,
                 'long_running_minutes' => $longRunningMinutes,
                 'checked_at' => now()->format('Y-m-d H:i:s'),
             ];
