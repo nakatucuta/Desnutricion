@@ -6,11 +6,10 @@ use App\Models\MaestroSiv549;
 use Maatwebsite\Excel\Concerns\FromQuery;
 use Maatwebsite\Excel\Concerns\WithHeadings;
 use Maatwebsite\Excel\Concerns\WithMapping;
-use Maatwebsite\Excel\Concerns\ShouldAutoSize;
 use Maatwebsite\Excel\Concerns\WithStyles;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 
-class MaestroSiv549Export implements FromQuery, WithHeadings, WithMapping, ShouldAutoSize, WithStyles
+class MaestroSiv549Export implements FromQuery, WithHeadings, WithMapping, WithStyles
 {
     protected array $filters;
 
@@ -21,7 +20,6 @@ class MaestroSiv549Export implements FromQuery, WithHeadings, WithMapping, Shoul
 
     public function query()
     {
-        // === Tu consulta base ===
         $q = MaestroSiv549::query()->select([
             'tip_ide_',
             'num_ide_',
@@ -37,24 +35,56 @@ class MaestroSiv549Export implements FromQuery, WithHeadings, WithMapping, Shoul
             'ocupacion_',
             'telefono_',
             'dir_res_',
-            'nom_eve'
+            'nom_eve',
         ]);
 
-        // (Opcional) pequeños filtros si los pasas por querystring
-        if (!empty($this->filters['tip_ide_'])) {
-            $q->where('tip_ide_', $this->filters['tip_ide_']);
+        foreach (['year', 'semana', 'tip_ide_', 'sexo_', 'nom_eve', 'area_', 'tip_cas_', 'tip_ss_', 'nom_grupo_', 'nmun_resi', 'nmun_notif', 'nom_upgd', 'cod_eve'] as $field) {
+            $value = trim((string) ($this->filters[$field] ?? ''));
+            if ($value !== '') {
+                $q->where($field, $value);
+            }
         }
-        if (!empty($this->filters['num_ide_'])) {
-            $q->where('num_ide_', trim($this->filters['num_ide_']));
-        }
-        if (!empty($this->filters['nom_eve'])) {
-            $q->where('nom_eve', 'like', '%'.$this->filters['nom_eve'].'%');
-        }
-        if (!empty($this->filters['fec_desde'])) {
+
+        if ($this->filled('fec_desde')) {
             $q->whereDate('fec_not', '>=', $this->filters['fec_desde']);
         }
-        if (!empty($this->filters['fec_hasta'])) {
+        if ($this->filled('fec_hasta')) {
             $q->whereDate('fec_not', '<=', $this->filters['fec_hasta']);
+        }
+        if ($this->filled('edad_desde')) {
+            $q->where('edad_', '>=', $this->filters['edad_desde']);
+        }
+        if ($this->filled('edad_hasta')) {
+            $q->where('edad_', '<=', $this->filters['edad_hasta']);
+        }
+        if ($this->filled('sem_ges_desde')) {
+            $q->where('sem_ges', '>=', $this->filters['sem_ges_desde']);
+        }
+        if ($this->filled('sem_ges_hasta')) {
+            $q->where('sem_ges', '<=', $this->filters['sem_ges_hasta']);
+        }
+
+        foreach (['num_ide_', 'telefono_', 'ocupacion_', 'dir_res_', 'pri_nom_', 'pri_ape_'] as $field) {
+            $value = trim((string) ($this->filters[$field] ?? ''));
+            if ($value !== '') {
+                $q->where($field, 'like', '%' . $value . '%');
+            }
+        }
+
+        $quick = trim((string) ($this->filters['q'] ?? ''));
+        if ($quick !== '') {
+            $q->where(function ($subQuery) use ($quick) {
+                $like = '%' . $quick . '%';
+                $subQuery->where('num_ide_', 'like', $like)
+                    ->orWhere('tip_ide_', 'like', $like)
+                    ->orWhere('pri_nom_', 'like', $like)
+                    ->orWhere('seg_nom_', 'like', $like)
+                    ->orWhere('pri_ape_', 'like', $like)
+                    ->orWhere('seg_ape_', 'like', $like)
+                    ->orWhere('telefono_', 'like', $like)
+                    ->orWhere('nom_eve', 'like', $like)
+                    ->orWhere('dir_res_', 'like', $like);
+            });
         }
 
         return $q;
@@ -64,26 +94,25 @@ class MaestroSiv549Export implements FromQuery, WithHeadings, WithMapping, Shoul
     {
         return [
             'Tipo ID',
-            'Número ID',
+            'Numero ID',
             'Primer nombre',
             'Segundo nombre',
             'Primer apellido',
             'Segundo apellido',
             'Edad',
             'Sexo',
-            'Fecha Notificación',
+            'Fecha Notificacion',
             'Semana',
-            'Año',
-            'Ocupación',
-            'Teléfono',
-            'Dirección',
+            'Anio',
+            'Ocupacion',
+            'Telefono',
+            'Direccion',
             'Evento',
         ];
     }
 
     public function map($row): array
     {
-        // Limpieza básica/trim; fecha como string segura
         return [
             trim((string) $row->tip_ide_),
             trim((string) $row->num_ide_),
@@ -105,9 +134,13 @@ class MaestroSiv549Export implements FromQuery, WithHeadings, WithMapping, Shoul
 
     public function styles(Worksheet $sheet)
     {
-        // Encabezado en negrita
         return [
             1 => ['font' => ['bold' => true]],
         ];
+    }
+
+    private function filled(string $field): bool
+    {
+        return isset($this->filters[$field]) && trim((string) $this->filters[$field]) !== '';
     }
 }

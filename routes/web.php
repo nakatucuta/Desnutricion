@@ -397,6 +397,13 @@ Route::get('/asignaciones-maestrosiv549/create', [AsignacionesMaestrosiv549Contr
 
 Route::get('/maestrosiv549', [MaestroSiv549Controller::class, 'index'])->name('maestrosiv549.index');
 Route::get('/maestrosiv549/data', [MaestroSiv549Controller::class, 'data'])->name('maestrosiv549.data');
+Route::get('/maestrosiv549/summary-data', [MaestroSiv549Controller::class, 'summaryData'])->name('maestrosiv549.summary.data');
+Route::post('/maestrosiv549/report-preview', [MaestroSiv549Controller::class, 'reportPreview'])
+    ->name('maestrosiv549.report.preview')
+    ->middleware(['auth', \App\Http\Middleware\IncreaseExecutionTime::class]);
+Route::post('/maestrosiv549/report-export', [MaestroSiv549Controller::class, 'reportExport'])
+    ->name('maestrosiv549.report.export')
+    ->middleware(['auth', \App\Http\Middleware\IncreaseExecutionTime::class]);
 
 //RUTAS PARA ASIGNAR DE LA  549  AMIS TABLAS
 // Route::get('/asignaciones-maestrosiv549/create', [\App\Http\Controllers\AsignacionesMaestrosiv549Controller::class, 'create'])->name('asignaciones-maestrosiv549.create');
@@ -408,7 +415,7 @@ Route::resource('asignaciones_maestrosiv549', AsignacionesMaestrosiv549Controlle
 //RUTAS PARA EL REPORTE EN EXCEL DE LA  549
 Route::get('/reportes/maestro-siv549/export', [MaestroSiv549Controller::class, 'export'])
     ->name('reportes.maestrosiv549.export')
-    ->middleware('auth');
+    ->middleware(['auth', \App\Http\Middleware\IncreaseExecutionTime::class]);
 
 // === HUB DE SEGUIMIENTOS ===
 Route::prefix('seguimientos1ges')->name('seguimientos.')->group(function () {
