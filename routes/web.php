@@ -53,6 +53,8 @@ Route::get('/afiliado', [AfiliadoController::class, 'index'])->name('afiliado')
 ->middleware('auth');
 Route::get('/afiliado/data', [AfiliadoController::class, 'dataTable'])->name('afiliado.data')
 ->middleware('auth');
+Route::get('/afiliado/load-state', [AfiliadoController::class, 'paiLoadState'])->name('afiliado.load-state')
+->middleware('auth');
 
 
 // Rutas para el cargue de la informaciÃ³n

@@ -189,6 +189,97 @@ class AfiliadoController extends Controller
         }
     }
 
+    private function paiQueueName(): string
+    {
+        return (string) config('import_queues.pai', 'imports_pai');
+    }
+
+    private function paiIsBusy(): bool
+    {
+        $state = $this->buildPaiLoadState();
+        return (bool) ($state['busy'] ?? false);
+    }
+
+    private function buildPaiLoadState(): array
+    {
+        $cacheKey = 'pai:load_state:v1';
+        $ttlSeconds = max((int) env('PAI_LOAD_STATE_CACHE_SECONDS', 8), 3);
+        $runningThreshold = max((int) env('PAI_BUSY_RUNNING_THRESHOLD', 2), 1);
+        $queueThreshold = max((int) env('PAI_BUSY_QUEUE_THRESHOLD', 3), 1);
+        $heavyMinutes = max((int) env('PAI_BUSY_LONG_RUNNING_MINUTES', 8), 1);
+        $runningFreshMinutes = max((int) env('PAI_BUSY_RUNNING_FRESH_MINUTES', 5), 1);
+
+        return Cache::remember($cacheKey, now()->addSeconds($ttlSeconds), function () use ($runningThreshold, $queueThreshold, $heavyMinutes, $runningFreshMinutes) {
+            $queue = $this->paiQueueName();
+
+            $running = (int) ImportJob::query()
+                ->where('status', 'running')
+                ->where('updated_at', '>=', now()->subHours(6))
+                ->count();
+
+            $runningRecent = (int) ImportJob::query()
+                ->where('status', 'running')
+                ->where('updated_at', '>=', now()->subMinutes($runningFreshMinutes))
+                ->count();
+
+            $queued = (int) ImportJob::query()
+                ->where('status', 'queued')
+                ->where('created_at', '>=', now()->subHours(6))
+                ->count();
+
+            $oldestRunning = ImportJob::query()
+                ->where('status', 'running')
+                ->whereNotNull('updated_at')
+                ->where('updated_at', '>=', now()->subHours(6))
+                ->orderBy('updated_at', 'asc')
+                ->value('updated_at');
+
+            $longRunningMinutes = 0;
+            if ($oldestRunning) {
+                try {
+                    $longRunningMinutes = Carbon::parse($oldestRunning)->diffInMinutes(now());
+                } catch (\Throwable $e) {
+                    $longRunningMinutes = 0;
+                }
+            }
+
+            $queuePending = 0;
+            try {
+                $queuePending = (int) DB::table('jobs')
+                    ->where('queue', $queue)
+                    ->count();
+            } catch (\Throwable $e) {
+                $queuePending = 0;
+            }
+
+            // Evita falsos positivos por jobs antiguos marcados como "running".
+            $busy = (
+                $runningRecent >= $runningThreshold
+                || ($runningRecent > 0 && $queuePending >= $queueThreshold)
+                || ($runningRecent > 0 && $longRunningMinutes >= $heavyMinutes)
+            );
+
+            return [
+                'busy' => $busy,
+                'message' => $busy
+                    ? 'Ingresa mas tarde hay muchos usuarios cargando'
+                    : 'Sistema disponible',
+                'queue' => $queue,
+                'running_imports_recent' => $runningRecent,
+                'running_imports' => $running,
+                'queued_imports' => $queued,
+                'queue_jobs_pending' => $queuePending,
+                'long_running_minutes' => $longRunningMinutes,
+                'checked_at' => now()->format('Y-m-d H:i:s'),
+            ];
+        });
+    }
+
+    public function paiLoadState()
+    {
+        return response()->json(array_merge(['ok' => true], $this->buildPaiLoadState()));
+    }
+
     /**
      * Muestra la vista principal con los datos de los afiliados.
      *
@@ -208,7 +299,9 @@ class AfiliadoController extends Controller
             return DB::table('afiliados')->count('id');
         });
 
-        return view('livewire.afiliado', compact('kpiVacunas', 'kpiAfiliados'));
+        $paiLoadState = $this->buildPaiLoadState();
+
+        return view('livewire.afiliado', compact('kpiVacunas', 'kpiAfiliados', 'paiLoadState'));
     }
 
 
@@ -319,6 +412,12 @@ class AfiliadoController extends Controller
 
         $user = Auth::user();
         $isAdmin = (int) ($user->usertype ?? 0) === 1;
+
+        if ($this->paiIsBusy()) {
+            return response()->json([
+                'message' => 'Ingresa mas tarde hay muchos usuarios cargando',
+            ], 503);
+        }
 
         if ($isAdmin) {
             $vacunasAgg = DB::table('vacunas as c')
@@ -823,6 +922,10 @@ class AfiliadoController extends Controller
      */
 public function importExcel(Request $request)
 {
+    if ($this->paiIsBusy()) {
+        return redirect()->route('afiliado')->with('error1', 'Ingresa mas tarde hay muchos usuarios cargando');
+    }
+
     $request->validate([
         'file' => 'required|mimes:xlsx,xls',
         'upload_token' => 'nullable|string',
@@ -1079,6 +1182,12 @@ private function generarArchivoVacunasDesdeDB(int $batchId, string $filePath): v
     $this->applyReadOptimizations();
     $this->applyReadOptimizationsExternal();
 
+    if ($this->paiIsBusy()) {
+        return response()->json([
+            'message' => 'Ingresa mas tarde hay muchos usuarios cargando',
+        ], 503);
+    }
+
     $cacheKey = 'pai:getVacunas:' . (int) $id . ':' . (string) ($numeroCarnet ?? '');
 
     try {
@@ -1177,6 +1286,10 @@ private function generarArchivoVacunasDesdeDB(int $batchId, string $filePath): v
 
 public function getVacunasPdf($id, $numeroCarnet = null)
 {
+    if ($this->paiIsBusy()) {
+        return redirect()->back()->with('error1', 'Ingresa mas tarde hay muchos usuarios cargando');
+    }
+
     $vacunas = DB::table('vacunas as a')
         ->join('afiliados as b', 'a.afiliado_id', '=', 'b.id')
         ->join('users as c', 'a.user_id', '=', 'c.id')
@@ -1770,6 +1883,14 @@ public function importProgress($token)
 public function startImport(Request $request)
 {
     try {
+        if ($this->paiIsBusy()) {
+            return response()->json([
+                'ok' => false,
+                'wait' => true,
+                'message' => 'Ingresa mas tarde hay muchos usuarios cargando',
+            ], 503);
+        }
+
         $request->validate([
             'file' => 'required|mimes:xlsx,xls|max:10240',
         ]);
@@ -2099,6 +2220,14 @@ private function extractLoadSummaryFilters(Request $request): array
 
 private function buildLoadSummaryReport(string $startDate, string $endDate, array $filters = []): array
 {
+    $cacheKey = 'pai:load_summary:v1:' . md5(json_encode([
+        'start' => $startDate,
+        'end' => $endDate,
+        'filters' => $filters,
+    ]));
+    $cacheSeconds = max((int) env('PAI_LOAD_SUMMARY_CACHE_SECONDS', 45), 10);
+
+    return Cache::remember($cacheKey, now()->addSeconds($cacheSeconds), function () use ($startDate, $endDate, $filters) {
     $summaryQuery = DB::table('users as u')
         ->leftJoin('vacunas as v', function ($join) use ($startDate, $endDate) {
             $join->on('u.id', '=', 'v.user_id')
@@ -2230,6 +2359,7 @@ private function buildLoadSummaryReport(string $startDate, string $endDate, arra
             'afiliados_total' => (int) $totalAfiliados,
         ],
     ];
+    });
 }
 
 

@@ -31,6 +31,17 @@
     <div id="mensajes-container" class="mb-3">
         @include('livewire.mensajes')
     </div>
+    
+    <div id="paiLoadGuard" class="alert alert-warning d-none mb-3" role="alert">
+        <div class="d-flex align-items-center justify-content-between flex-wrap">
+            <div>
+                <i class="fas fa-server mr-2"></i>
+                <strong>Alta demanda en PAI:</strong>
+                <span id="paiLoadGuardText">Ingresa mas tarde hay muchos usuarios cargando.</span>
+            </div>
+            <small class="text-muted" id="paiLoadGuardMeta"></small>
+        </div>
+    </div>
 
     <div class="row pai-kpi-row mb-3">
         <div class="col-md-4 mb-2 mb-md-0">
@@ -1007,6 +1018,8 @@ window.IMPORT_ENDPOINTS = {
   start: @json(url('/import/start')),
   statusBase: @json(url('/import/status')),
 };
+window.PAI_LOAD_STATE_URL = @json(route('afiliado.load-state'));
+window.PAI_INITIAL_LOAD_STATE = @json($paiLoadState ?? ['busy' => false]);
 </script>
 
 <script>
@@ -1135,6 +1148,7 @@ window.IMPORT_ENDPOINTS = {
       setRingState('normal');
 
       stopPolling();
+      stopWaitForSlot();
       currentToken = null;
 
       alreadyFinished = false;
@@ -1176,6 +1190,7 @@ window.IMPORT_ENDPOINTS = {
       alreadyFinished = true;
 
       stopPolling();
+      stopWaitForSlot();
 
       setRingState('success');
       setProgress(100, message || 'Importacion finalizada.', 'final');
@@ -1209,6 +1224,7 @@ window.IMPORT_ENDPOINTS = {
       alreadyFinished = true;
 
       stopPolling();
+      stopWaitForSlot();
 
       setRingState('error');
       setProgress(100, message || 'Se encontraron errores.', 'failed');
@@ -1305,6 +1321,7 @@ window.IMPORT_ENDPOINTS = {
   // =========================================================
   async function startPolling(token){
       stopPolling();
+      stopWaitForSlot();
       currentToken = token;
 
       alreadyFinished = false;
@@ -1470,10 +1487,23 @@ window.IMPORT_ENDPOINTS = {
                   setRingState('error');
                   setProgress(0, 'No se pudo iniciar la importacion.', 'error');
 
+                  const waitRequested = (resp.status === 503) || (data && data.wait === true);
+                  const msg = (data && data.message) ? data.message : 'No se pudo iniciar el proceso.';
+
+                  if (waitRequested) {
+                      Swal.fire({
+                          icon: 'info',
+                          title: 'Sistema ocupado',
+                          text: msg
+                      });
+                      startWaitForSlot();
+                      return;
+                  }
+
                   Swal.fire({
                       icon: 'error',
                       title: 'Error',
-                      text: (data && data.message) ? data.message : 'No se pudo iniciar el proceso.',
+                      text: msg,
                       confirmButtonText: 'Entendido'
                   });
                   return;
@@ -1507,6 +1537,7 @@ window.IMPORT_ENDPOINTS = {
   if(btnClose){
       btnClose.addEventListener('click', function(){
           stopPolling();
+      stopWaitForSlot();
           forceCloseBootstrapModal('#loadingModal');
           resetImportUI();
       });
@@ -1515,6 +1546,7 @@ window.IMPORT_ENDPOINTS = {
   // si se cierra por cualquier cosa, libera pantalla
   $('#loadingModal').on('hidden.bs.modal', function () {
       stopPolling();
+      stopWaitForSlot();
       resetImportUI();
       $('body').removeClass('modal-open');
       $('body').css('padding-right','');
@@ -1594,56 +1626,161 @@ window.IMPORT_ENDPOINTS = {
       $('.modal-backdrop').remove();
   });
 
-  const afiliadoTable = $('#sivigila').DataTable({
-      processing: true,
-      serverSide: true,
-      deferRender: true,
-      pageLength: 10,
-      searchDelay: 300,
-      lengthChange: false,
-      ajax: {
-          url: "{{ route('afiliado.data') }}",
-          type: 'GET',
-          timeout: 15000,
-          error: function (xhr, textStatus) {
-              if (textStatus === 'timeout' || (xhr && xhr.status === 503)) {
+  let afiliadoTable = null;
+  let paiLoadRetryTimer = null;
+
+  function setPaiGuard(state){
+      const busy = !!(state && state.busy);
+      const message = (state && state.message) ? state.message : 'Ingresa mas tarde hay muchos usuarios cargando';
+      const running = Number(state && state.running_imports ? state.running_imports : 0);
+      const queued = Number(state && state.queue_jobs_pending ? state.queue_jobs_pending : 0);
+
+      if (busy) {
+          $('#paiLoadGuardText').text(message);
+          $('#paiLoadGuardMeta').text('Imports activos: ' + running + ' | Cola PAI: ' + queued);
+          $('#paiLoadGuard').removeClass('d-none');
+      } else {
+          $('#paiLoadGuard').addClass('d-none');
+          $('#paiLoadGuardMeta').text('');
+      }
+  }
+
+  function createAfiliadoDataTable(){
+      if (afiliadoTable) return;
+
+      afiliadoTable = $('#sivigila').DataTable({
+          processing: true,
+          serverSide: true,
+          deferRender: true,
+          pageLength: 10,
+          searchDelay: 300,
+          lengthChange: false,
+          ajax: {
+              url: "{{ route('afiliado.data') }}",
+              type: 'GET',
+              timeout: 15000,
+              error: function (xhr, textStatus) {
+                  if (textStatus === 'timeout' || (xhr && xhr.status === 503)) {
+                      setPaiGuard({ busy: true, message: 'Ingresa mas tarde hay muchos usuarios cargando' });
+                      schedulePaiGuardRetry();
+                      return;
+                  }
                   Swal.fire({
-                      icon: 'warning',
-                      title: 'Sistema ocupado',
-                      text: 'Ingresa mas tarde hay muchos usuarios cargando'
+                      icon: 'error',
+                      title: 'Error',
+                      text: 'No se pudo cargar la tabla de PAI en este momento.'
                   });
+              }
+          },
+          columns: [
+              { data: 'id_badge', orderable: true, searchable: false },
+              { data: 'documento', orderable: false, searchable: false },
+              { data: 'paciente', orderable: false, searchable: false },
+              { data: 'lote_carnet', orderable: false, searchable: false },
+              { data: 'acciones', orderable: false, searchable: false, className: 'text-right' }
+          ],
+          order: [[0, 'desc']],
+          dom: "rt<'d-flex justify-content-between align-items-center px-3 py-2'ip>",
+          language: {
+              processing: '<span class="pai-dt-loader"><i class="fas fa-circle-notch fa-spin mr-2"></i>Cargando registros...</span>',
+              info: 'Mostrando _START_ a _END_ de _TOTAL_ registros',
+              infoEmpty: 'Mostrando 0 a 0 de 0 registros',
+              emptyTable: 'No hay registros disponibles',
+              zeroRecords: 'No se encontraron coincidencias',
+              paginate: {
+                  first: 'Primero',
+                  previous: 'Anterior',
+                  next: 'Siguiente',
+                  last: 'Último'
+              }
+          }
+      });
+  }
+
+  function schedulePaiGuardRetry(){
+      if (paiLoadRetryTimer) return;
+      paiLoadRetryTimer = setTimeout(function(){
+          paiLoadRetryTimer = null;
+          refreshPaiLoadState();
+      }, 12000);
+  }
+
+  function refreshPaiLoadState(){
+      $.ajax({
+          url: PAI_LOAD_STATE_URL,
+          method: 'GET',
+          dataType: 'json',
+          timeout: 7000,
+          success: function(resp){
+              setPaiGuard(resp || {});
+              if (resp && resp.busy) {
+                  schedulePaiGuardRetry();
                   return;
               }
-              Swal.fire({
-                  icon: 'error',
-                  title: 'Error',
-                  text: 'No se pudo cargar la tabla de PAI en este momento.'
-              });
+              createAfiliadoDataTable();
+          },
+          error: function(){
+              setPaiGuard({ busy: true, message: 'Ingresa mas tarde hay muchos usuarios cargando' });
+              schedulePaiGuardRetry();
           }
-      },
-      columns: [
-          { data: 'id_badge', orderable: true, searchable: false },
-          { data: 'documento', orderable: false, searchable: false },
-          { data: 'paciente', orderable: false, searchable: false },
-          { data: 'lote_carnet', orderable: false, searchable: false },
-          { data: 'acciones', orderable: false, searchable: false, className: 'text-right' }
-      ],
-      order: [[0, 'desc']],
-      dom: "rt<'d-flex justify-content-between align-items-center px-3 py-2'ip>",
-      language: {
-          processing: '<span class="pai-dt-loader"><i class="fas fa-circle-notch fa-spin mr-2"></i>Cargando registros...</span>',
-          info: 'Mostrando _START_ a _END_ de _TOTAL_ registros',
-          infoEmpty: 'Mostrando 0 a 0 de 0 registros',
-          emptyTable: 'No hay registros disponibles',
-          zeroRecords: 'No se encontraron coincidencias',
-          paginate: {
-              first: 'Primero',
-              previous: 'Anterior',
-              next: 'Siguiente',
-              last: 'Ãšltimo'
-          }
+      });
+  }
+
+  let waitForSlotTimer = null;
+
+  function stopWaitForSlot(){
+      if (waitForSlotTimer) {
+          clearInterval(waitForSlotTimer);
+          waitForSlotTimer = null;
       }
-  });
+  }
+
+  function startWaitForSlot(){
+      if (waitForSlotTimer) return;
+
+      if(submitButton){
+          submitButton.disabled = true;
+          submitButton.innerHTML = '<i class="fas fa-hourglass-half mr-2"></i> Esperando turno...';
+      }
+
+      setRingState('normal');
+      setProgress(0, 'Sistema ocupado por cargues en curso. Te avisaremos cuando puedas realizar tu cargue.', 'espera');
+      $('#loadingModal').modal('show');
+
+      waitForSlotTimer = setInterval(function(){
+          $.ajax({
+              url: PAI_LOAD_STATE_URL,
+              method: 'GET',
+              dataType: 'json',
+              timeout: 7000,
+              success: function(resp){
+                  if (resp && resp.busy) {
+                      return;
+                  }
+
+                  stopWaitForSlot();
+                  forceCloseBootstrapModal('#loadingModal');
+
+                  if(submitButton){
+                      submitButton.disabled = false;
+                      submitButton.innerHTML = '<i class="fas fa-play mr-2"></i> Iniciar importacion';
+                  }
+
+                  Swal.fire({
+                      icon: 'success',
+                      title: 'Ya puede realizar su cargue',
+                      text: 'El sistema ya tiene disponibilidad. Puedes iniciar el cargue ahora.'
+                  });
+              }
+          });
+      }, 10000);
+  }
+  setPaiGuard(window.PAI_INITIAL_LOAD_STATE || {});
+  if (window.PAI_INITIAL_LOAD_STATE && window.PAI_INITIAL_LOAD_STATE.busy) {
+      schedulePaiGuardRetry();
+  } else {
+      createAfiliadoDataTable();
+  }
 
   let searchTimer = null;
   $('#search-results').hide().empty();
@@ -1664,13 +1801,19 @@ window.IMPORT_ENDPOINTS = {
       clearTimeout(searchTimer);
 
       if(query.length < 2){
-          afiliadoTable.search('').draw();
+          if (afiliadoTable) {
+              afiliadoTable.search('').draw();
+          }
           setSearchStatus('Escribe al menos 2 caracteres para buscar.');
           return;
       }
 
       searchTimer = setTimeout(function(){
           setSearchStatus('Filtrando tabla...');
+          if (!afiliadoTable) {
+              setSearchStatus('Tabla en espera por alta demanda.');
+              return;
+          }
           afiliadoTable.search(query).draw();
           setSearchStatus('Filtro aplicado.');
       }, 250);
@@ -2146,3 +2289,5 @@ window.IMPORT_ENDPOINTS = {
 })();
 </script>
 @stop
+
+
