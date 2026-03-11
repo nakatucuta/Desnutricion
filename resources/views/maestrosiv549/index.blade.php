@@ -321,6 +321,10 @@
 
 <div class="card card-outline card-secondary msiv-card">
     <div class="card-body">
+        <div id="tableLoading549" class="msiv-table-loading d-none">
+            <span class="spinner-border spinner-border-sm text-info mr-2" role="status" aria-hidden="true"></span>
+            <span id="tableLoadingText549">Cargando registros...</span>
+        </div>
         <div class="table-responsive">
             <table id="maestrosiv549-table" class="table table-hover table-striped table-bordered w-100">
                 <thead>
@@ -412,6 +416,7 @@
 #selectedColumnsList549 .list-group-item{cursor:move}
 .msiv-overlay{position:fixed;inset:0;background:rgba(15,23,42,.32);z-index:2100;display:flex;align-items:center;justify-content:center}
 .msiv-overlay-card{background:#fff;padding:14px 18px;border-radius:12px;box-shadow:0 12px 24px rgba(0,0,0,.2)}
+.msiv-table-loading{display:flex;align-items:center;justify-content:flex-end;margin-bottom:10px;color:#6c757d;font-size:.92rem}
 .table-hover tbody tr:hover{background-color:rgba(23,162,184,0.08)}
 tr.row-asignado, tr.row-asignado td{background:#fff8db !important}
 .acciones-flex{display:flex;align-items:center;justify-content:center;gap:.45rem;min-width:70px}
@@ -440,26 +445,35 @@ $(function () {
     const overlay = $('#loadingOverlay549');
     const overlayText = $('#loadingOverlayText549');
     const overlayHint = $('#loadingOverlayHint549');
+    const tableLoading = $('#tableLoading549');
+    const tableLoadingText = $('#tableLoadingText549');
 
-    function setLoading(on, text) {
+    function setReportLoading(on, text) {
         if (text) {
             overlayText.text(text);
         }
         overlay.toggleClass('d-none', !on);
     }
 
+    function setTableLoading(on, text) {
+        if (text) {
+            tableLoadingText.text(text);
+        }
+        tableLoading.toggleClass('d-none', !on);
+    }
+
     function beginDownloadLoading(kind) {
         if (kind === 'csv') {
             overlayHint.text('CSV suele salir mas rapido. Espera unos segundos mientras se genera el archivo.');
-            setLoading(true, 'Preparando descarga CSV...');
+            setReportLoading(true, 'Preparando descarga CSV...');
         } else {
             overlayHint.text('Excel (.xlsx) tarda mas que CSV porque requiere mas procesamiento y armado del archivo.');
-            setLoading(true, 'Preparando descarga Excel, por favor espera...');
+            setReportLoading(true, 'Preparando descarga Excel, por favor espera...');
         }
 
         window.__downloadStarted549 = true;
         window.__downloadOverlaySafety549 = window.setTimeout(function () {
-            setLoading(false);
+            setReportLoading(false);
             window.__downloadStarted549 = false;
         }, 90000);
     }
@@ -580,14 +594,14 @@ $(function () {
 
     $('#filtersForm549').on('submit', function (e) {
         e.preventDefault();
-        setLoading(true, 'Aplicando filtros...');
+        setTableLoading(true, 'Aplicando filtros...');
         table.ajax.reload();
     });
 
     $('#btnResetFilters549').on('click', function () {
         $('#filtersForm549')[0].reset();
         $('#filtersForm549 select[name="year"]').val(defaultYear549);
-        setLoading(true, 'Recargando datos...');
+        setTableLoading(true, 'Recargando datos...');
         table.ajax.reload();
     });
 
@@ -607,11 +621,11 @@ $(function () {
     });
 
     $('#maestrosiv549-table').on('preXhr.dt', function () {
-        setLoading(true, 'Cargando registros...');
+        setTableLoading(true, 'Cargando registros...');
     });
 
     $('#maestrosiv549-table').on('xhr.dt error.dt', function () {
-        setLoading(false);
+        setTableLoading(false);
     });
 
     function renderColumnsChecklist() {
@@ -706,7 +720,7 @@ $(function () {
             return;
         }
 
-        setLoading(true, 'Construyendo vista previa...');
+        setReportLoading(true, 'Construyendo vista previa...');
         try {
             const res = await fetch('{{ route("maestrosiv549.report.preview") }}', {
                 method: 'POST',
@@ -724,7 +738,7 @@ $(function () {
         } catch (error) {
             Swal.fire({ icon: 'error', title: 'Error', text: error.message || 'Error en vista previa' });
         } finally {
-            setLoading(false);
+            setReportLoading(false);
         }
     });
 
@@ -753,7 +767,7 @@ $(function () {
     document.getElementById('downloadFrame549').addEventListener('load', function () {
         if (window.__downloadStarted549) {
             window.clearTimeout(window.__downloadOverlaySafety549);
-            setLoading(false);
+            setReportLoading(false);
             window.__downloadStarted549 = false;
         }
     });
@@ -761,14 +775,14 @@ $(function () {
     window.addEventListener('focus', function () {
         if (window.__downloadStarted549) {
             window.clearTimeout(window.__downloadOverlaySafety549);
-            setLoading(false);
+            setReportLoading(false);
             window.__downloadStarted549 = false;
         }
     });
 
     $('#btnCloseLoadingOverlay549').on('click', function () {
         window.clearTimeout(window.__downloadOverlaySafety549);
-        setLoading(false);
+        setReportLoading(false);
         window.__downloadStarted549 = false;
     });
 

@@ -324,6 +324,130 @@ class GestantesStatsController extends Controller
         ];
     }
 
+    private function tipo1AlertRows(array $f, ?callable $extra = null, int $limit = 200): array
+    {
+        $rows = [];
+        try {
+            $q = DB::table('ges_tipo1 as A')
+                ->leftJoin(DB::raw('sga..municipios as M'), function ($join) {
+                    $join->on(
+                        DB::raw("RIGHT('00000' + CAST(A.municipio_de_residencia_habitual AS VARCHAR(5)), 5)"),
+                        '=',
+                        DB::raw("RIGHT('00' + CAST(M.codigoDepartamento AS VARCHAR(2)), 2) + RIGHT('000' + CAST(M.codigoMunicipio AS VARCHAR(3)), 3)")
+                    );
+                });
+
+            if (Auth::user() && (int) Auth::user()->usertype === 2) {
+                $q->where('A.user_id', Auth::id());
+            }
+            if (!empty($f['from'])) {
+                $q->whereDate('A.created_at', '>=', $f['from']);
+            }
+            if (!empty($f['to'])) {
+                $q->whereDate('A.created_at', '<=', $f['to']);
+            }
+            if ($f['identificacion'] !== '') {
+                $q->where('A.no_id_del_usuario', 'like', '%' . $f['identificacion'] . '%');
+            }
+            if ($f['municipio'] !== '') {
+                $q->where(function ($x) use ($f) {
+                    $x->whereRaw("CAST(A.municipio_de_residencia_habitual AS VARCHAR(40)) like ?", ['%' . $f['municipio'] . '%'])
+                        ->orWhere('M.descrip', 'like', '%' . $f['municipio'] . '%');
+                });
+            }
+            if ($extra) {
+                $extra($q, 'A.');
+            }
+
+            $rows = $q->selectRaw("
+                    A.id,
+                    A.no_id_del_usuario,
+                    A.primer_nombre,
+                    A.primer_apellido,
+                    A.fecha_probable_de_parto,
+                    A.created_at,
+                    COALESCE(M.descrip, CONCAT('SIN MAPEO (', A.municipio_de_residencia_habitual, ')')) as municipio_nombre
+                ")
+                ->orderBy('A.fecha_probable_de_parto')
+                ->limit($limit)
+                ->get()
+                ->map(fn($r) => [
+                    'id' => (int) $r->id,
+                    'identificacion' => $r->no_id_del_usuario,
+                    'nombre' => trim(($r->primer_apellido ?? '') . ' ' . ($r->primer_nombre ?? '')),
+                    'municipio' => $r->municipio_nombre,
+                    'fpp' => $r->fecha_probable_de_parto ? Carbon::parse($r->fecha_probable_de_parto)->toDateString() : null,
+                    'dias_vencida' => $r->fecha_probable_de_parto ? Carbon::parse($r->fecha_probable_de_parto)->diffInDays(now(), false) : null,
+                    'fecha_registro' => optional($r->created_at)->format('Y-m-d H:i'),
+                ])
+                ->all();
+        } catch (\Throwable $e) {
+            $q = DB::table('ges_tipo1');
+            $q = $this->userScope($q, 'ges_tipo1');
+            $q = $this->applyDate($q, 'ges_tipo1', 'created_at', $f);
+            if ($f['identificacion'] !== '') {
+                $q->where('no_id_del_usuario', 'like', '%' . $f['identificacion'] . '%');
+            }
+            if ($f['municipio'] !== '') {
+                $q->whereRaw("CAST(municipio_de_residencia_habitual AS VARCHAR(40)) like ?", ['%' . $f['municipio'] . '%']);
+            }
+            if ($extra) {
+                $extra($q, '');
+            }
+
+            $rows = $q->select('id', 'no_id_del_usuario', 'primer_nombre', 'primer_apellido', 'municipio_de_residencia_habitual', 'fecha_probable_de_parto', 'created_at')
+                ->orderBy('fecha_probable_de_parto')
+                ->limit($limit)
+                ->get()
+                ->map(fn($r) => [
+                    'id' => (int) $r->id,
+                    'identificacion' => $r->no_id_del_usuario,
+                    'nombre' => trim(($r->primer_apellido ?? '') . ' ' . ($r->primer_nombre ?? '')),
+                    'municipio' => (string) $r->municipio_de_residencia_habitual,
+                    'fpp' => $r->fecha_probable_de_parto ? Carbon::parse($r->fecha_probable_de_parto)->toDateString() : null,
+                    'dias_vencida' => $r->fecha_probable_de_parto ? Carbon::parse($r->fecha_probable_de_parto)->diffInDays(now(), false) : null,
+                    'fecha_registro' => optional($r->created_at)->format('Y-m-d H:i'),
+                ])
+                ->all();
+        }
+
+        return $rows;
+    }
+
+    private function preconAlertRows(array $f, ?callable $extra = null, int $limit = 200): array
+    {
+        $q = DB::table('preconcepcionales');
+        $q = $this->userScope($q, 'preconcepcionales');
+        $q = $this->applyDate($q, 'preconcepcionales', 'created_at', $f);
+        if ($f['identificacion'] !== '') {
+            $q->where('numero_identificacion', 'like', '%' . $f['identificacion'] . '%');
+        }
+        if ($f['municipio'] !== '') {
+            $q->where('municipio_residencia', 'like', '%' . $f['municipio'] . '%');
+        }
+        if ($f['riesgo_precon'] !== '') {
+            $q->where('riesgo_preconcepcional', 'like', '%' . $f['riesgo_precon'] . '%');
+        }
+        if ($extra) {
+            $extra($q);
+        }
+
+        return $q->select('id', 'numero_identificacion', 'apellido_1', 'nombre_1', 'municipio_residencia', 'telefono', 'riesgo_preconcepcional', 'created_at')
+            ->orderByDesc('id')
+            ->limit($limit)
+            ->get()
+            ->map(fn($r) => [
+                'id' => (int) $r->id,
+                'identificacion' => $r->numero_identificacion,
+                'nombre' => trim(($r->apellido_1 ?? '') . ' ' . ($r->nombre_1 ?? '')),
+                'municipio' => $r->municipio_residencia,
+                'telefono' => $r->telefono,
+                'riesgo' => $r->riesgo_preconcepcional,
+                'fecha_registro' => optional($r->created_at)->format('Y-m-d H:i'),
+            ])
+            ->all();
+    }
+
     private function tipo3(array $f): array
     {
         if (!Schema::hasTable('ges_tipo3')) {
@@ -535,13 +659,13 @@ class GestantesStatsController extends Controller
         if ($t1 > 0) {
             $v = (int) ($modules['tipo1']['summary']['fpp_vencidas'] ?? 0);
             $p = round(($v / $t1) * 100, 1);
-            $insights[] = ['indicador' => 'FPP vencidas', 'valor' => "$v/$t1 ($p%)", 'prioridad' => $p >= 20 ? 'Alta' : ($p >= 10 ? 'Media' : 'Baja'), 'accion' => 'Priorizar seguimiento de vencidas'];
+            $insights[] = ['key' => 'fpp_vencidas', 'indicador' => 'FPP vencidas', 'valor' => "$v/$t1 ($p%)", 'prioridad' => $p >= 20 ? 'Alta' : ($p >= 10 ? 'Media' : 'Baja'), 'accion' => 'Priorizar seguimiento de vencidas'];
         }
         $pr = (int) ($modules['preconcepcional']['summary']['total'] ?? 0);
         if ($pr > 0) {
             $a = (int) ($modules['preconcepcional']['summary']['alto_riesgo'] ?? 0);
             $p = round(($a / $pr) * 100, 1);
-            $insights[] = ['indicador' => 'Precon alto riesgo', 'valor' => "$a/$pr ($p%)", 'prioridad' => $p >= 25 ? 'Alta' : ($p >= 12 ? 'Media' : 'Baja'), 'accion' => 'Intervencion prioritaria'];
+            $insights[] = ['key' => 'precon_alto_riesgo', 'indicador' => 'Precon alto riesgo', 'valor' => "$a/$pr ($p%)", 'prioridad' => $p >= 25 ? 'Alta' : ($p >= 12 ? 'Media' : 'Baja'), 'accion' => 'Intervencion prioritaria'];
         }
 
         return [
@@ -624,6 +748,65 @@ class GestantesStatsController extends Controller
         }
 
         return response()->json(['ok' => true, 'title' => $name, 'summary' => $m['summary'] ?? [], 'blocks' => $blocks]);
+    }
+
+    public function insight(Request $request, string $alerta)
+    {
+        if (!$request->ajax()) {
+            abort(404);
+        }
+
+        $f = $this->filters($request);
+
+        if ($alerta === 'fpp_vencidas') {
+            $rows = $this->tipo1AlertRows($f, function ($q, string $prefix) {
+                $q->whereNotNull($prefix . 'fecha_probable_de_parto')
+                    ->where($prefix . 'fecha_probable_de_parto', '<', now()->toDateString());
+            });
+
+            return response()->json([
+                'ok' => true,
+                'title' => 'FPP vencidas',
+                'summary' => [
+                    'registros_en_alerta' => count($rows),
+                    'fecha_corte' => now()->toDateString(),
+                    'modulo' => 'Tipo 2',
+                ],
+                'blocks' => [
+                    [
+                        'name' => 'Pacientes con FPP vencida',
+                        'type' => 'table',
+                        'columns' => ['id', 'identificacion', 'nombre', 'municipio', 'fpp', 'dias_vencida', 'fecha_registro'],
+                        'rows' => $rows,
+                    ],
+                ],
+            ]);
+        }
+
+        if ($alerta === 'precon_alto_riesgo') {
+            $rows = $this->preconAlertRows($f, function ($q) {
+                $q->where('riesgo_preconcepcional', 'like', '%ALTO%');
+            });
+
+            return response()->json([
+                'ok' => true,
+                'title' => 'Precon alto riesgo',
+                'summary' => [
+                    'registros_en_alerta' => count($rows),
+                    'modulo' => 'Preconcepcional',
+                ],
+                'blocks' => [
+                    [
+                        'name' => 'Pacientes con riesgo preconcepcional alto',
+                        'type' => 'table',
+                        'columns' => ['id', 'identificacion', 'nombre', 'municipio', 'telefono', 'riesgo', 'fecha_registro'],
+                        'rows' => $rows,
+                    ],
+                ],
+            ]);
+        }
+
+        return response()->json(['ok' => false, 'message' => 'Alerta invalida.'], 404);
     }
 
     public function exportPdf(Request $request)

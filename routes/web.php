@@ -390,6 +390,18 @@ Route::middleware('auth')->group(function () {
     // RUTAS REPORTE EN EXCEL
     Route::get('gestantes/export/tipo1', [GesTipo1Controller::class, 'exportTipo1'])->name('ges_tipo1.export');
     Route::get('gestantes/export/tipo3', [GesTipo3Controller::class, 'exportTipo3'])->name('ges_tipo3.export');
+    Route::post('gestantes/reportes/tipo1/preview', [GesTipo1Controller::class, 'reportPreview'])
+        ->name('ges_tipo1.report.preview')
+        ->middleware([\App\Http\Middleware\IncreaseExecutionTime::class]);
+    Route::post('gestantes/reportes/tipo1/export', [GesTipo1Controller::class, 'reportExport'])
+        ->name('ges_tipo1.report.export')
+        ->middleware([\App\Http\Middleware\IncreaseExecutionTime::class]);
+    Route::post('gestantes/reportes/tipo3/preview', [GesTipo3Controller::class, 'reportPreview'])
+        ->name('ges_tipo3.report.preview')
+        ->middleware([\App\Http\Middleware\IncreaseExecutionTime::class]);
+    Route::post('gestantes/reportes/tipo3/export', [GesTipo3Controller::class, 'reportExport'])
+        ->name('ges_tipo3.report.export')
+        ->middleware([\App\Http\Middleware\IncreaseExecutionTime::class]);
 });
 
 //RUTAS PARA LA 549
@@ -654,6 +666,9 @@ Route::middleware(['auth'])->group(function () {
 
     Route::get('/estadisticas/gestantes/detalle/{modulo}', [GestantesStatsController::class, 'detail'])
         ->name('gestantes.stats.detail');
+
+    Route::get('/estadisticas/gestantes/alerta/{alerta}', [GestantesStatsController::class, 'insight'])
+        ->name('gestantes.stats.insight');
 
     Route::post('/estadisticas/gestantes/pdf', [GestantesStatsController::class, 'exportPdf'])
         ->name('gestantes.stats.pdf');

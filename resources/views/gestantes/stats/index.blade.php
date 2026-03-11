@@ -185,6 +185,9 @@
 .kpi-card .small-box-footer{background:rgba(255,255,255,.2)!important}
 .module-click{cursor:pointer;transition:transform .15s ease,box-shadow .2s ease}
 .module-click:hover{transform:translateY(-2px);box-shadow:0 10px 20px rgba(16,24,40,.12)}
+.insight-row-click{cursor:pointer;transition:background-color .15s ease}
+.insight-row-click:hover{background:#fff8db}
+.insight-hint{font-size:11px;color:#6b7280}
 @media print{
     .main-header,.main-sidebar,.content-header, #filtersCard, #btnPdf, #btnPrint, .modal, .control-sidebar{display:none!important}
     .content-wrapper,.content{margin:0!important;padding:0!important}
@@ -233,8 +236,22 @@
     }
 
     function renderInsights(data){
-        const rows = (data.insights || []).map(r => `<tr><td>${esc(r.indicador)}</td><td>${esc(r.valor)}</td><td>${badge(r.prioridad)}</td><td>${esc(r.accion||r.accion_sugerida)}</td></tr>`).join('');
+        const rows = (data.insights || []).map(r => {
+            const clickable = !!r.key;
+            return `<tr class="${clickable ? 'insight-row-click' : ''}" ${clickable ? `data-alerta="${esc(r.key)}"` : ''}>
+                <td>
+                    ${esc(r.indicador)}
+                    ${clickable ? '<div class="insight-hint">Click para ver listado</div>' : ''}
+                </td>
+                <td>${esc(r.valor)}</td>
+                <td>${badge(r.prioridad)}</td>
+                <td>${esc(r.accion||r.accion_sugerida)}</td>
+            </tr>`;
+        }).join('');
         document.querySelector('#insightsTable tbody').innerHTML = rows || '<tr><td colspan="4" class="text-center">Sin hallazgos para los filtros actuales.</td></tr>';
+        document.querySelectorAll('#insightsTable tbody tr[data-alerta]').forEach(el => {
+            el.addEventListener('click', () => loadInsight(el.dataset.alerta));
+        });
     }
 
     function destroyCharts(){ Object.values(state.charts).forEach(ch=>ch&&ch.destroy&&ch.destroy()); state.charts={}; }
@@ -331,6 +348,26 @@
             if (!data.ok) { alert(data.message || 'No se pudo cargar detalle'); return; }
 
             document.getElementById('statsModalTitle').innerText = viewLabel(data.title || modulo);
+            document.getElementById('statsSummary').innerHTML = renderSummary(data.summary || {});
+            const blocksEl = document.getElementById('statsBlocks');
+            blocksEl.innerHTML = '';
+            (data.blocks || []).forEach(b => { blocksEl.innerHTML += renderTable(b.rows || [], b.name || 'Tabla', b.type === 'mini_table', b.columns || null); });
+            $('#statsModal').modal('show');
+        } finally {
+            setLoading(false);
+        }
+    }
+
+    async function loadInsight(alerta){
+        const params = new URLSearchParams(new FormData(document.getElementById('filtersForm')));
+        const url = `{{ url('/estadisticas/gestantes/alerta') }}/${alerta}?${params.toString()}`;
+        setLoading(true, 'Cargando listado de la alerta...');
+        try {
+            const res = await fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+            const data = await res.json();
+            if (!data.ok) { alert(data.message || 'No se pudo cargar la alerta'); return; }
+
+            document.getElementById('statsModalTitle').innerText = data.title || 'Detalle de alerta';
             document.getElementById('statsSummary').innerHTML = renderSummary(data.summary || {});
             const blocksEl = document.getElementById('statsBlocks');
             blocksEl.innerHTML = '';

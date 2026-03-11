@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Exports\GesTipo1Export;
+use App\Exports\GestantesDesignerExport;
 use App\Imports\GesTipo1Import;
 use App\Jobs\ImportGesTipo1ExcelJob;
 use App\Models\GesTipo1;
@@ -14,15 +15,254 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Route as RouteFacade;
 use Illuminate\Support\Str;
+use Maatwebsite\Excel\Excel as ExcelFormat;
 use Maatwebsite\Excel\Facades\Excel;
 use Throwable;
 use Yajra\DataTables\Facades\DataTables;
 
 class GesTipo1Controller extends Controller
 {
+    private const EXPORT_FORMATS = ['xlsx', 'csv', 'tsv', 'json'];
+
     private function isAdminUser(): bool
     {
         return (int) (Auth::user()->usertype ?? 0) === 1;
+    }
+
+    private function exportFormat(Request $request): string
+    {
+        $format = strtolower((string) $request->input('format', 'csv'));
+        return in_array($format, self::EXPORT_FORMATS, true) ? $format : 'csv';
+    }
+
+    private function exportBounds(Request $request): array
+    {
+        $from = Carbon::parse($request->input('from'))->startOfDay();
+        $to = Carbon::parse($request->input('to'))->endOfDay();
+
+        return [$from, $to];
+    }
+
+    private function tipo1ExportColumns(): array
+    {
+        return [
+            'id',
+            'user_id',
+            'tipo_de_registro',
+            'consecutivo',
+            'pais_de_la_nacionalidad',
+            'municipio_de_residencia_habitual',
+            'zona_territorial_de_residencia',
+            'codigo_de_habilitacion_ips_primaria_de_la_gestante',
+            'tipo_de_identificacion_de_la_usuaria',
+            'no_id_del_usuario',
+            'numero_carnet',
+            'primer_apellido',
+            'segundo_apellido',
+            'primer_nombre',
+            'segundo_nombre',
+            'fecha_de_nacimiento',
+            'codigo_pertenencia_etnica',
+            'codigo_de_ocupacion',
+            'codigo_nivel_educativo_de_la_gestante',
+            'fecha_probable_de_parto',
+            'direccion_de_residencia_de_la_gestante',
+            'antecedente_hipertension_cronica',
+            'antecedente_preeclampsia',
+            'antecedente_diabetes',
+            'antecedente_les_enfermedad_autoinmune',
+            'antecedente_sindrome_metabolico',
+            'antecedente_erc',
+            'antecedente_trombofilia_o_trombosis_venosa_profunda',
+            'antecedentes_anemia_celulas_falciformes',
+            'antecedente_sepsis_durante_gestaciones_previas',
+            'consumo_tabaco_durante_la_gestacion',
+            'periodo_intergenesico',
+            'embarazo_multiple',
+            'metodo_de_concepcion',
+            'created_at',
+            'updated_at',
+        ];
+    }
+
+    private function tipo1ExportHeadings(): array
+    {
+        return [
+            'ID','Usuario','Tipo Registro','Consec.','Pais','Municipio','Zona','IPS Primaria',
+            'Tipo ID','No ID','Carnet','1er Apellido','2do Apellido','1er Nombre','2do Nombre',
+            'F. Nac.','Cod Etnico','Cod Ocupacion','Nivel Educ.','FPP','Direccion',
+            'HTA','Preeclampsia','Diabetes','Autoinmune','S. Metabolico','ERC','Trombofilia',
+            'Anemia','Sepsis','Tabaco','Intergenesico','Multiple','Metodo Concepcion',
+            'Creado','Actualizado'
+        ];
+    }
+
+    private function tipo1ExportQuery(Carbon $from, Carbon $to)
+    {
+        $query = DB::table('ges_tipo1')
+            ->select($this->tipo1ExportColumns())
+            ->whereBetween('created_at', [$from, $to]);
+
+        if ((int) (Auth::user()->usertype ?? 0) === 2) {
+            $query->where('user_id', (int) Auth::id());
+        }
+
+        return $query->orderBy('id');
+    }
+
+    private function tipo1ReportColumns(): array
+    {
+        return [
+            'id' => ['label' => 'ID', 'db' => 'g.id'],
+            'user_id' => ['label' => 'Usuario', 'db' => 'g.user_id'],
+            'tipo_registro' => ['label' => 'Tipo registro', 'db' => 'g.tipo_de_registro'],
+            'consecutivo' => ['label' => 'Consecutivo', 'db' => 'g.consecutivo'],
+            'tipo_identificacion' => ['label' => 'Tipo ID', 'db' => 'g.tipo_de_identificacion_de_la_usuaria'],
+            'no_id_del_usuario' => ['label' => 'Numero identificacion', 'db' => 'g.no_id_del_usuario'],
+            'numero_carnet' => ['label' => 'Numero carnet', 'db' => 'g.numero_carnet'],
+            'nombre_completo' => ['label' => 'Nombre completo', 'db' => "LTRIM(RTRIM(CONCAT(COALESCE(g.primer_nombre,''), ' ', COALESCE(g.segundo_nombre,''), ' ', COALESCE(g.primer_apellido,''), ' ', COALESCE(g.segundo_apellido,''))))"],
+            'fecha_de_nacimiento' => ['label' => 'Fecha nacimiento', 'db' => 'g.fecha_de_nacimiento'],
+            'fecha_probable_de_parto' => ['label' => 'FPP', 'db' => 'g.fecha_probable_de_parto'],
+            'municipio' => ['label' => 'Municipio', 'db' => 'g.municipio_de_residencia_habitual'],
+            'zona' => ['label' => 'Zona', 'db' => 'g.zona_territorial_de_residencia'],
+            'ips_primaria' => ['label' => 'IPS primaria', 'db' => 'g.codigo_de_habilitacion_ips_primaria_de_la_gestante'],
+            'direccion' => ['label' => 'Direccion', 'db' => 'g.direccion_de_residencia_de_la_gestante'],
+            'hta' => ['label' => 'HTA', 'db' => 'g.antecedente_hipertension_cronica'],
+            'preeclampsia' => ['label' => 'Preeclampsia', 'db' => 'g.antecedente_preeclampsia'],
+            'diabetes' => ['label' => 'Diabetes', 'db' => 'g.antecedente_diabetes'],
+            'embarazo_multiple' => ['label' => 'Embarazo multiple', 'db' => 'g.embarazo_multiple'],
+            'metodo_de_concepcion' => ['label' => 'Metodo concepcion', 'db' => 'g.metodo_de_concepcion'],
+            'seguimiento_estado' => ['label' => 'Estado seguimiento', 'db' => "CASE WHEN EXISTS (SELECT 1 FROM ges_tipo1_seguimientos s WHERE s.ges_tipo1_id = g.id) THEN 'Con seguimiento' ELSE 'Sin seguimiento' END"],
+            'created_at' => ['label' => 'Creado', 'db' => 'g.created_at'],
+            'updated_at' => ['label' => 'Actualizado', 'db' => 'g.updated_at'],
+        ];
+    }
+
+    private function normalizeReportColumns($requested, array $allowed, array $defaults): array
+    {
+        if (!is_array($requested)) {
+            return $defaults;
+        }
+
+        $filtered = array_values(array_filter($requested, fn ($column) => in_array($column, $allowed, true)));
+        return !empty($filtered) ? $filtered : $defaults;
+    }
+
+    private function tipo1ReportBaseQuery(Request $request)
+    {
+        [$from, $to] = $this->exportBounds($request);
+
+        $query = DB::table('ges_tipo1 as g')
+            ->whereBetween('g.created_at', [$from, $to]);
+
+        if ((int) (Auth::user()->usertype ?? 0) === 2) {
+            $query->where('g.user_id', (int) Auth::id());
+        }
+
+        return $query;
+    }
+
+    private function buildReportSelects(array $columns, array $catalog): array
+    {
+        $selects = [];
+        foreach ($columns as $key) {
+            if (!empty($catalog[$key]['db'])) {
+                $selects[] = DB::raw($catalog[$key]['db'] . ' as [' . $key . ']');
+            }
+        }
+
+        return $selects;
+    }
+
+    private function streamReportSeparatedFile(string $filename, array $headings, array $columns, $query, string $delimiter)
+    {
+        return response()->streamDownload(function () use ($headings, $columns, $query, $delimiter) {
+            $out = fopen('php://output', 'w');
+            fwrite($out, chr(239) . chr(187) . chr(191));
+            fputcsv($out, $headings, $delimiter);
+
+            $query->chunk(1000, function ($rows) use ($out, $columns, $delimiter) {
+                foreach ($rows as $row) {
+                    $line = [];
+                    foreach ($columns as $column) {
+                        $line[] = $row->{$column} ?? '';
+                    }
+                    fputcsv($out, $line, $delimiter);
+                }
+            });
+
+            fclose($out);
+        }, $filename, [
+            'Content-Type' => $delimiter === "\t" ? 'text/tab-separated-values; charset=UTF-8' : 'text/csv; charset=UTF-8',
+        ]);
+    }
+
+    private function streamReportJsonFile(string $filename, array $columns, $query)
+    {
+        return response()->streamDownload(function () use ($columns, $query) {
+            echo '[';
+            $first = true;
+
+            $query->chunk(1000, function ($rows) use (&$first, $columns) {
+                foreach ($rows as $row) {
+                    $payload = [];
+                    foreach ($columns as $column) {
+                        $payload[$column] = $row->{$column} ?? '';
+                    }
+
+                    if (!$first) {
+                        echo ',';
+                    }
+                    echo json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+                    $first = false;
+                }
+            });
+
+            echo ']';
+        }, $filename, [
+            'Content-Type' => 'application/json; charset=UTF-8',
+        ]);
+    }
+
+    private function streamSeparatedFile(string $filename, array $headings, $query, string $delimiter)
+    {
+        return response()->streamDownload(function () use ($headings, $query, $delimiter) {
+            $out = fopen('php://output', 'w');
+            fwrite($out, chr(239) . chr(187) . chr(191));
+            fputcsv($out, $headings, $delimiter);
+
+            $query->chunk(1000, function ($rows) use ($out, $delimiter) {
+                foreach ($rows as $row) {
+                    fputcsv($out, array_map(fn($value) => $value, (array) $row), $delimiter);
+                }
+            });
+
+            fclose($out);
+        }, $filename, [
+            'Content-Type' => $delimiter === "\t" ? 'text/tab-separated-values; charset=UTF-8' : 'text/csv; charset=UTF-8',
+        ]);
+    }
+
+    private function streamJsonFile(string $filename, $query)
+    {
+        return response()->streamDownload(function () use ($query) {
+            echo '[';
+            $first = true;
+
+            $query->chunk(1000, function ($rows) use (&$first) {
+                foreach ($rows as $row) {
+                    if (!$first) {
+                        echo ',';
+                    }
+                    echo json_encode((array) $row, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+                    $first = false;
+                }
+            });
+
+            echo ']';
+        }, $filename, [
+            'Content-Type' => 'application/json; charset=UTF-8',
+        ]);
     }
 
     /**
@@ -210,6 +450,9 @@ class GesTipo1Controller extends Controller
                 })
                 ->addColumn('acciones', function ($row) {
                     $show = route('ges_tipo1.show', ['ges' => $row->id]);
+                    $statusBadge = !empty($row->last_seg_id)
+                        ? '<span class="badge badge-success gest-action-badge">Con seguimiento</span>'
+                        : '<span class="badge badge-secondary gest-action-badge">Sin seguimiento</span>';
 
                     if (RouteFacade::has('ges_tipo1.seguimientos.create')) {
                         $seguimientoCreate = route('ges_tipo1.seguimientos.create', ['ges' => $row->id]);
@@ -227,44 +470,168 @@ class GesTipo1Controller extends Controller
                             $editUrl = url("ges_tipo1/{$row->id}/seguimientos/{$row->last_seg_id}/edit");
                         }
 
-                        $seguimientoBtn = <<<HTML
-<button class="btn btn-sm btn-primary" title="Ya existe un seguimiento" disabled>
-  <i class="fas fa-notes-medical"></i> Seguimiento
+                        $seguimientoItem = <<<HTML
+<button class="dropdown-item text-muted" type="button" disabled>
+  <i class="fas fa-notes-medical mr-2"></i>Seguimiento ya registrado
 </button>
 HTML;
 
-                        $editBtn = <<<HTML
-<a href="{$editUrl}" class="btn btn-sm btn-warning ml-1" title="Editar ultimo seguimiento">
-  <i class="fas fa-edit"></i> Editar
+                        $editItem = <<<HTML
+<a href="{$editUrl}" class="dropdown-item" title="Editar ultimo seguimiento">
+  <i class="fas fa-edit mr-2 text-warning"></i>Editar seguimiento
 </a>
 HTML;
                     } else {
-                        $seguimientoBtn = <<<HTML
-<a href="{$seguimientoCreate}" class="btn btn-sm btn-primary" title="Nuevo seguimiento">
-  <i class="fas fa-notes-medical"></i> Seguimiento
+                        $seguimientoItem = <<<HTML
+<a href="{$seguimientoCreate}" class="dropdown-item" title="Nuevo seguimiento">
+  <i class="fas fa-notes-medical mr-2 text-primary"></i>Crear seguimiento
 </a>
 HTML;
 
-                        $editBtn = <<<HTML
-<button class="btn btn-sm btn-warning ml-1" title="Sin seguimientos" disabled>
-  <i class="fas fa-edit"></i> Editar
+                        $editItem = <<<HTML
+<button class="dropdown-item text-muted" type="button" disabled>
+  <i class="fas fa-edit mr-2"></i>Editar seguimiento
 </button>
 HTML;
                     }
 
                     return <<<HTML
-<a href="{$show}" class="btn btn-sm btn-gradient mr-1">
-  <i class="fas fa-eye mr-1"></i> Ver
-</a>
-{$seguimientoBtn}
-{$editBtn}
+<div class="gest-action-menu">
+  {$statusBadge}
+  <div class="dropdown">
+    <button class="btn btn-sm gest-dropdown-toggle dropdown-toggle" type="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+      <i class="fas fa-ellipsis-h mr-1"></i> Acciones
+    </button>
+    <div class="dropdown-menu dropdown-menu-right gest-dropdown-menu">
+      <a href="{$show}" class="dropdown-item">
+        <i class="fas fa-eye mr-2 text-info"></i>Ver detalle
+      </a>
+      {$seguimientoItem}
+      {$editItem}
+    </div>
+  </div>
+</div>
 HTML;
                 })
                 ->rawColumns(['acciones'])
                 ->make(true);
         }
 
-        return view('ges_tipo1.index');
+        $tipo1Columns = $this->tipo1ReportColumns();
+        $tipo3Columns = [
+                'id' => ['label' => 'ID'],
+                'user_id' => ['label' => 'Usuario'],
+                'ges_tipo1_id' => ['label' => 'Gestante'],
+                'nombre_completo' => ['label' => 'Nombre completo'],
+                'tipo_identificacion' => ['label' => 'Tipo ID'],
+                'no_id_del_usuario' => ['label' => 'Numero identificacion'],
+                'fecha_tecnologia_en_salud' => ['label' => 'Fecha tecnologia'],
+                'cups' => ['label' => 'CUPS'],
+                'finalidad' => ['label' => 'Finalidad'],
+                'riesgo_gestacional' => ['label' => 'Riesgo gestacional'],
+                'riesgo_preeclampsia' => ['label' => 'Riesgo preeclampsia'],
+                'asa' => ['label' => 'ASA'],
+                'acido_folico' => ['label' => 'Acido folico'],
+                'sulfato_ferroso' => ['label' => 'Sulfato ferroso'],
+                'calcio' => ['label' => 'Calcio'],
+                'pas' => ['label' => 'PAS'],
+                'pad' => ['label' => 'PAD'],
+                'imc' => ['label' => 'IMC'],
+                'hemoglobina' => ['label' => 'Hemoglobina'],
+                'ipau' => ['label' => 'IPAU'],
+                'created_at' => ['label' => 'Creado'],
+                'updated_at' => ['label' => 'Actualizado'],
+            ];
+
+        return view('ges_tipo1.index', [
+            'tipo1ReportColumns' => $tipo1Columns,
+            'tipo1DefaultReportColumns' => array_keys($tipo1Columns),
+            'tipo3ReportColumns' => $tipo3Columns,
+            'tipo3DefaultReportColumns' => array_keys($tipo3Columns),
+        ]);
+    }
+
+    public function reportPreview(Request $request)
+    {
+        abort_if(!auth()->check(), 401);
+
+        $request->validate([
+            'from' => 'required|date',
+            'to' => 'required|date|after_or_equal:from',
+        ]);
+
+        $catalog = $this->tipo1ReportColumns();
+        $defaults = array_keys($catalog);
+        $columns = $this->normalizeReportColumns($request->input('columns', []), array_keys($catalog), $defaults);
+
+        $rows = $this->tipo1ReportBaseQuery($request)
+            ->select($this->buildReportSelects($columns, $catalog))
+            ->orderByDesc('g.created_at')
+            ->limit(25)
+            ->get()
+            ->map(function ($row) use ($columns) {
+                $data = [];
+                foreach ($columns as $column) {
+                    $data[$column] = $row->{$column} ?? '';
+                }
+                return $data;
+            })
+            ->values();
+
+        $headings = [];
+        foreach ($columns as $column) {
+            $headings[$column] = $catalog[$column]['label'];
+        }
+
+        return response()->json([
+            'ok' => true,
+            'columns' => $columns,
+            'headings' => $headings,
+            'rows' => $rows,
+        ]);
+    }
+
+    public function reportExport(Request $request)
+    {
+        abort_if(!auth()->check(), 401);
+
+        $request->validate([
+            'from' => 'required|date',
+            'to' => 'required|date|after_or_equal:from',
+            'format' => 'nullable|in:xlsx,csv,tsv,json',
+        ]);
+
+        $catalog = $this->tipo1ReportColumns();
+        $defaults = array_keys($catalog);
+        $columns = $this->normalizeReportColumns($request->input('columns', []), array_keys($catalog), $defaults);
+        $headings = array_map(fn ($column) => $catalog[$column]['label'], $columns);
+        $format = $this->exportFormat($request);
+        [$from, $to] = $this->exportBounds($request);
+        $fileBase = 'gestantes_tipo2_reporte_disenado_' . $from->format('Ymd') . '_a_' . $to->format('Ymd');
+
+        $query = $this->tipo1ReportBaseQuery($request)
+            ->select($this->buildReportSelects($columns, $catalog))
+            ->orderByDesc('g.created_at');
+
+        if ($format === 'xlsx') {
+            return Excel::download(
+                new GestantesDesignerExport($query, $headings, $columns),
+                $fileBase . '.xlsx',
+                ExcelFormat::XLSX
+            );
+        }
+
+        if ($format === 'json') {
+            return $this->streamReportJsonFile($fileBase . '.json', $columns, $query);
+        }
+
+        return $this->streamReportSeparatedFile(
+            $fileBase . '.' . $format,
+            $headings,
+            $columns,
+            $query,
+            $format === 'tsv' ? "\t" : ','
+        );
     }
 
     /**
@@ -293,14 +660,33 @@ HTML;
         $request->validate([
             'from' => 'required|date',
             'to' => 'required|date|after_or_equal:from',
+            'format' => 'nullable|in:xlsx,csv,tsv,json',
         ]);
 
-        $from = Carbon::parse($request->query('from'))->format('Ymd');
-        $to = Carbon::parse($request->query('to'))->format('Ymd');
+        [$from, $to] = $this->exportBounds($request);
+        $format = $this->exportFormat($request);
+        $fromLabel = $from->format('Ymd');
+        $toLabel = $to->format('Ymd');
 
-        return Excel::download(
-            new GesTipo1Export($from, $to),
-            "gestantes_created_{$from}_to_{$to}.xlsx"
+        if ($format === 'xlsx') {
+            return Excel::download(
+                new GesTipo1Export($from->toDateString(), $to->toDateString()),
+                "gestantes_created_{$fromLabel}_to_{$toLabel}.xlsx"
+            );
+        }
+
+        $query = $this->tipo1ExportQuery($from, $to);
+
+        if ($format === 'json') {
+            return $this->streamJsonFile("gestantes_created_{$fromLabel}_to_{$toLabel}.json", $query);
+        }
+
+        $delimiter = $format === 'tsv' ? "\t" : ',';
+        return $this->streamSeparatedFile(
+            "gestantes_created_{$fromLabel}_to_{$toLabel}.{$format}",
+            $this->tipo1ExportHeadings(),
+            $query,
+            $delimiter
         );
     }
 }

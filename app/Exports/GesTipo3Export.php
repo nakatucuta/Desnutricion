@@ -23,16 +23,46 @@ class GesTipo3Export implements FromQuery, WithHeadings, WithMapping
     public function query()
     {
         $query = GesTipo3::query()
-            ->whereRaw(
-                "CONVERT(varchar(8), created_at, 112) BETWEEN ? AND ?",
-                [ $this->from, $this->to ]
-            );
+            ->select([
+                'id',
+                'user_id',
+                'ges_tipo1_id',
+                'tipo_de_registro',
+                'consecutivo_de_registro',
+                'tipo_identificacion_de_la_usuaria',
+                'no_id_del_usuario',
+                'fecha_tecnologia_en_salud',
+                'codigo_cups_de_la_tecnologia_en_salud',
+                'finalidad_de_la_tecnologia_en_salud',
+                'clasificacion_riesgo_gestacional',
+                'clasificacion_riesgo_preeclampsia',
+                'suministro_acido_acetilsalicilico_ASA',
+                'suministro_acido_folico_en_el_control_prenatal',
+                'suministro_sulfato_ferroso_en_el_control_prenatal',
+                'suministro_calcio_en_el_control_prenatal',
+                'fecha_suministro_de_anticonceptivo_post_evento_obstetrico',
+                'suministro_metodo_anticonceptivo_post_evento_obstetrico',
+                'fecha_de_salida_de_aborto_o_atencion_del_parto_o_cesarea',
+                'fecha_de_terminacion_de_la_gestacion',
+                'tipo_de_terminacion_de_la_gestacion',
+                'tension_arterial_sistolica_PAS_mmHg',
+                'tension_arterial_diastolica_PAD_mmHg',
+                'indice_de_masa_corporal',
+                'resultado_de_la_hemoglobina',
+                'indice_de_pulsatilidad_de_arterias_uterinas',
+                'created_at',
+                'updated_at',
+            ])
+            ->whereBetween('created_at', [
+                $this->from . ' 00:00:00',
+                $this->to . ' 23:59:59',
+            ]);
 
         if (Auth::user()->usertype === 2) {
             $query->where('user_id', Auth::id());
         }
 
-        return $query;
+        return $query->orderBy('id');
     }
 
     public function headings(): array
