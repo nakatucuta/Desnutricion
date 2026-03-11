@@ -2,7 +2,6 @@
 
 namespace App\Imports;
 
-use App\Models\GesTipo1;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Maatwebsite\Excel\Concerns\OnEachRow;
@@ -383,14 +382,6 @@ class GesTipo1Import implements OnEachRow, WithStartRow, WithChunkReading, Skips
                 $this->seenInFile[$key] = true;
             }
 
-            $exists = GesTipo1::where('tipo_de_identificacion_de_la_usuaria', $tipoIdent)
-                ->where('no_id_del_usuario', $noId)
-                ->exists();
-
-            if ($exists && $fechaProbableParto !== null && Carbon::today()->lte(Carbon::parse($fechaProbableParto))) {
-                $this->rowsDuplicated++;
-                $this->addError($excelRow, 'Identificacion', 'ya existe caso activo (FPP no vencida)', $noId);
-            }
         }
 
         $numeroCarnet = null;
