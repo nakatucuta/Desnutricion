@@ -83,14 +83,13 @@
     <table class="report">
         <thead>
             <tr>
-                <th style="width:18%;">Usuario</th>
-                <th style="width:24%;">Correo</th>
-                <th style="width:9%;">Vacunas</th>
-                <th style="width:9%;">Afiliados</th>
-                <th style="width:7%;">Lotes</th>
-                <th style="width:12%;">Ultimo Cargue</th>
+                <th style="width:22%;">Usuario</th>
+                <th style="width:28%;">Correo</th>
+                <th style="width:10%;">Vacunas</th>
+                <th style="width:10%;">Afiliados</th>
+                <th style="width:8%;">Lotes</th>
+                <th style="width:14%;">Ultimo Cargue</th>
                 <th style="width:8%;">Solicitudes</th>
-                <th>Afiliados Cargados</th>
             </tr>
         </thead>
         <tbody>
@@ -103,21 +102,10 @@
                     <td style="text-align:center;">{{ number_format($row['lotes_count'] ?? 0) }}</td>
                     <td>{{ !empty($row['last_load_at']) ? \Carbon\Carbon::parse($row['last_load_at'])->format('d/m/Y H:i') : 'Sin cargue' }}</td>
                     <td style="text-align:center;">{{ number_format($row['solicitudes_count'] ?? 0) }}</td>
-                    <td>
-                        @if(!empty($row['afiliados']))
-                            <ul>
-                                @foreach($row['afiliados'] as $af)
-                                    <li>{{ $af['documento'] ?? '' }} - {{ $af['nombre'] ?? '' }}</li>
-                                @endforeach
-                            </ul>
-                        @else
-                            <span class="muted">Sin cargues en el rango.</span>
-                        @endif
-                    </td>
                 </tr>
             @empty
                 <tr>
-                    <td colspan="8" style="text-align:center;" class="muted">No se encontraron registros para el rango indicado.</td>
+                    <td colspan="7" style="text-align:center;" class="muted">No se encontraron registros para el rango indicado.</td>
                 </tr>
             @endforelse
         </tbody>

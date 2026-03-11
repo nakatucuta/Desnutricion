@@ -239,6 +239,10 @@
     max-height:430px;
     overflow:auto;
 }
+.pai-load-table{
+    width:100%;
+    table-layout:fixed;
+}
 .pai-load-table thead th{
     position:sticky;top:0;z-index:2;
     background:linear-gradient(180deg,#eaf2ff,#e2ecfb);
@@ -249,11 +253,21 @@
     color:#0f172a;
     font-weight:900;
 }
+.pai-load-table thead th:nth-child(1){width:20%;}
+.pai-load-table thead th:nth-child(2){width:24%;}
+.pai-load-table thead th:nth-child(3){width:10%;}
+.pai-load-table thead th:nth-child(4){width:10%;}
+.pai-load-table thead th:nth-child(5){width:9%;}
+.pai-load-table thead th:nth-child(6){width:17%;}
+.pai-load-table thead th:nth-child(7){width:10%;}
 .pai-load-table tbody td{
     font-size:.86rem;
     color:#334155;
     vertical-align:top;
     border-top:1px solid #eef2f7;
+    white-space:normal;
+    word-break:break-word;
+    line-height:1.35;
 }
 .pai-load-user{font-weight:900;color:#0f172a;}
 .pai-load-badge{
@@ -408,6 +422,7 @@
     .pai-load-report-body{padding:10px;}
     .pai-load-table thead th{font-size:.67rem;}
     .pai-load-table tbody td{font-size:.78rem;}
+    .pai-load-table{table-layout:auto;}
 
     .pai-vac-head{padding:12px 12px 10px;}
     .pai-vac-logo{width:38px;height:38px;border-radius:9px;}

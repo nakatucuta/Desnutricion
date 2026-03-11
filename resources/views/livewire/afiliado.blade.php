@@ -1,4 +1,4 @@
-@extends('adminlte::page')
+﻿@extends('adminlte::page')
 
 @section('title', 'PAI')
 
@@ -1691,7 +1691,7 @@ window.PAI_INITIAL_LOAD_STATE = @json($paiLoadState ?? ['busy' => false]);
                   first: 'Primero',
                   previous: 'Anterior',
                   next: 'Siguiente',
-                  last: '�ltimo'
+                  last: 'Último'
               }
           }
       });
@@ -2085,25 +2085,13 @@ window.PAI_INITIAL_LOAD_STATE = @json($paiLoadState ?? ['busy' => false]);
       $tbody.empty();
 
       if (!rows.length) {
-          $tbody.append('<tr><td colspan="8" class="text-center text-muted py-3">No se encontraron datos con los filtros actuales.</td></tr>');
+          $tbody.append('<tr><td colspan="7" class="text-center text-muted py-3">No se encontraron datos con los filtros actuales.</td></tr>');
           return;
       }
 
       rows.forEach(function(row){
           const vacunasCount = Number(row.vacunas_count || 0);
           const badgeClass = vacunasCount > 0 ? 'pai-load-badge pai-load-badge--ok' : 'pai-load-badge pai-load-badge--zero';
-          const afiliadosPreview = Array.isArray(row.afiliados_preview) ? row.afiliados_preview : [];
-          const extraCount = Number(row.afiliados_extra_count || 0);
-
-          let afiliadosHtml = '<span class="text-muted">Sin afiliados cargados</span>';
-          if (afiliadosPreview.length) {
-              afiliadosHtml = '<ul class="pai-load-list">' + afiliadosPreview.map(function(item){
-                  return '<li>' + escapeHtml(item) + '</li>';
-              }).join('') + '</ul>';
-              if (extraCount > 0) {
-                  afiliadosHtml += '<div class="small text-muted mt-1">+' + formatNumber(extraCount) + ' afiliados mas</div>';
-              }
-          }
 
           const rowHtml = ''
               + '<tr>'
@@ -2114,7 +2102,6 @@ window.PAI_INITIAL_LOAD_STATE = @json($paiLoadState ?? ['busy' => false]);
               + '  <td class="text-center">' + formatNumber(row.lotes_count || 0) + '</td>'
               + '  <td>' + formatDateTime(row.last_load_at) + '</td>'
               + '  <td class="text-center">' + formatNumber(row.solicitudes_count || 0) + '</td>'
-              + '  <td>' + afiliadosHtml + '</td>'
               + '</tr>';
 
           $tbody.append(rowHtml);

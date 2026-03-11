@@ -122,12 +122,11 @@
                                 <th class="text-center">Lotes</th>
                                 <th>Ultimo Cargue</th>
                                 <th class="text-center">Solicitudes</th>
-                                <th>Afiliados Cargados (Muestra)</th>
                             </tr>
                         </thead>
                         <tbody id="loadReportBody">
                             <tr>
-                                <td colspan="8" class="text-center text-muted py-3">Sin datos para mostrar.</td>
+                                <td colspan="7" class="text-center text-muted py-3">Sin datos para mostrar.</td>
                             </tr>
                         </tbody>
                     </table>
