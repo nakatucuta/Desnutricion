@@ -989,6 +989,12 @@ class AfiliadoImportStreaming implements ToModel, WithStartRow, WithChunkReading
             'numero'      => (string)$numero_identifi,
             'carnet'      => $numero_carnet,
             'existe'      => ($afiliado_id_local !== 0),
+            'isGestante'  => $this->isGestanteRow(
+                $edad_gestacional,
+                $this->toIntOrNull($row[45] ?? null),
+                $fechaProbParto,
+                $this->toSqlDate($row[44] ?? null)
+            ),
             'afiliadoData'=> $afiliadoData,
             'vacunas'     => $vacunasData,
         ];
@@ -1034,6 +1040,19 @@ class AfiliadoImportStreaming implements ToModel, WithStartRow, WithChunkReading
             }
         }
         return $row;
+    }
+
+    private function isGestanteRow(
+        ?int $edadGestacional,
+        ?int $semanasGestacion,
+        ?string $fechaProbParto,
+        ?string $fechaUltimaMenstruacion
+    ): bool
+    {
+        return ($edadGestacional !== null && $edadGestacional > 0)
+            || ($semanasGestacion !== null && $semanasGestacion > 0)
+            || !empty($fechaProbParto)
+            || !empty($fechaUltimaMenstruacion);
     }
 
     private function flushBuffer(): void
@@ -1220,6 +1239,8 @@ class AfiliadoImportStreaming implements ToModel, WithStartRow, WithChunkReading
                     $afiliadoId = $afiliadoIdPorCarnet[$carnet] ?? null;
                     if (!$afiliadoId) continue;
 
+                    $isGestante = (bool) ($fila['isGestante'] ?? false);
+
                     $vacunas = $fila['vacunas'] ?? [];
                     if (empty($vacunas)) continue;
 
@@ -1261,8 +1282,8 @@ class AfiliadoImportStreaming implements ToModel, WithStartRow, WithChunkReading
 
                         $key = (int)$afiliadoId . '|' . $vacunasId . '|' . ($docisNorm ?? '');
 
-                        // ✅ YA EXISTE EN BD => no insertamos y lo reportamos
-                        if (isset($existingKeys[$key])) {
+                        // Para gestantes permitimos cargar varias veces la misma vacuna/dosis.
+                        if (!$isGestante && isset($existingKeys[$key])) {
                             $this->oldVacuna++;
                             $this->addVacunaOmitida(
                                 (int)($fila['excelRow'] ?? 0),
@@ -1279,8 +1300,8 @@ class AfiliadoImportStreaming implements ToModel, WithStartRow, WithChunkReading
                             continue;
                         }
 
-                        // ✅ REPETIDA EN EL MISMO EXCEL => no insertamos y lo reportamos
-                        if (isset($seenInChunk[$key])) {
+                        // Para gestantes tampoco bloqueamos duplicados dentro del mismo archivo.
+                        if (!$isGestante && isset($seenInChunk[$key])) {
                             $this->oldVacuna++;
                             $this->addVacunaOmitida(
                                 (int)($fila['excelRow'] ?? 0),
@@ -1297,7 +1318,9 @@ class AfiliadoImportStreaming implements ToModel, WithStartRow, WithChunkReading
                             continue;
                         }
 
-                        $seenInChunk[$key] = true;
+                        if (!$isGestante) {
+                            $seenInChunk[$key] = true;
+                        }
 
                         $vacunaData['afiliado_id'] = (int)$afiliadoId;
                         $vacunaData['user_id'] = (int)$this->userId;
