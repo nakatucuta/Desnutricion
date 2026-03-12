@@ -362,6 +362,9 @@ Route::get('/descargar-formato1', [TamizajeController::class, 'downloadExcel1'])
 
 
 // RUTAS  GESTANTES
+Route::get('pulsera/gestantes/{ges}/{token}', [GesTipo1Controller::class, 'bracelet'])
+    ->name('ges_tipo1.bracelet');
+
 Route::middleware('auth')->group(function () {
     Route::get('gestantes/import', [GesTipo1Controller::class, 'showImportForm'])
         ->name('ges_tipo1.import.form');

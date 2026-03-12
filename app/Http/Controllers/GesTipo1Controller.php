@@ -450,6 +450,10 @@ class GesTipo1Controller extends Controller
                 })
                 ->addColumn('acciones', function ($row) {
                     $show = route('ges_tipo1.show', ['ges' => $row->id]);
+                    $bracelet = route('ges_tipo1.bracelet', [
+                        'ges' => $row->id,
+                        'token' => $this->braceletToken($row),
+                    ]);
                     $statusBadge = !empty($row->last_seg_id)
                         ? '<span class="badge badge-success gest-action-badge">Con seguimiento</span>'
                         : '<span class="badge badge-secondary gest-action-badge">Sin seguimiento</span>';
@@ -505,6 +509,9 @@ HTML;
     <div class="dropdown-menu dropdown-menu-right gest-dropdown-menu">
       <a href="{$show}" class="dropdown-item">
         <i class="fas fa-eye mr-2 text-info"></i>Ver detalle
+      </a>
+      <a href="{$bracelet}" class="dropdown-item" target="_blank" rel="noopener">
+        <i class="fas fa-qrcode mr-2 text-danger"></i>Vista pulsera
       </a>
       {$seguimientoItem}
       {$editItem}
@@ -639,7 +646,7 @@ HTML;
      */
     public function show(\App\Models\GesTipo1 $ges)
     {
-        $ges->load(['seguimientos', 'tipo3']);
+        $expediente = $this->buildExpedienteData($ges);
         $segs = $ges->seguimientos->sortByDesc('id')->values();
         $ultimo = $segs->first();
 
@@ -649,7 +656,321 @@ HTML;
             'ultimo' => $ultimo,
             'tipo3' => $ges->tipo3 ?? collect(),
             'segsCount' => $segs->count(),
+            'expediente' => $expediente,
         ]);
+    }
+
+    public function bracelet(\App\Models\GesTipo1 $ges, string $token)
+    {
+        abort_unless(hash_equals($this->braceletToken($ges), $token), 403);
+
+        $expediente = $this->buildExpedienteData($ges);
+        $segs = $ges->seguimientos->sortByDesc('id')->values();
+        $tipo3 = $ges->tipo3->sortByDesc('id')->values();
+        $ultimoSeg = $segs->first();
+        $ultimoTipo3 = $tipo3->first();
+
+        return view('ges_tipo1.bracelet', [
+            'gestante' => $ges,
+            'expediente' => $expediente,
+            'ultimoSeg' => $ultimoSeg,
+            'ultimoTipo3' => $ultimoTipo3,
+            'alertas' => collect($expediente['alertas'] ?? [])->take(5),
+            'preconcepcional' => collect($expediente['preconcepcional'] ?? [])->first(),
+            'sivigila' => collect($expediente['sivigila'] ?? [])->take(3),
+            'maestro549' => collect($expediente['maestro549'] ?? [])->take(3),
+        ]);
+    }
+
+    private function buildExpedienteData(\App\Models\GesTipo1 $ges): array
+    {
+        $ges->loadMissing(['seguimientos', 'tipo3']);
+        $segs = $ges->seguimientos->sortByDesc('id')->values();
+        $documento = $this->normalizeIdentifier($ges->no_id_del_usuario);
+        $tipoDocumento = trim((string) ($ges->tipo_de_identificacion_de_la_usuaria ?? ''));
+
+        $preconcepcional = \App\Models\Preconcepcional::query()
+            ->when($tipoDocumento !== '', fn ($q) => $q->where('tipo_documento', $tipoDocumento))
+            ->where('numero_identificacion', $documento)
+            ->orderByDesc('id')
+            ->get();
+
+        $sivigila = \App\Models\Sivigila::query()
+            ->when($tipoDocumento !== '', fn ($q) => $q->where('tip_ide_', $tipoDocumento))
+            ->where('num_ide_', $documento)
+            ->orderByDesc('fec_not')
+            ->orderByDesc('id')
+            ->get();
+
+        $maestro549 = \App\Models\MaestroSiv549::query()
+            ->when($tipoDocumento !== '', fn ($q) => $q->where('tip_ide_', $tipoDocumento))
+            ->where('num_ide_', $documento)
+            ->orderByDesc('fec_not')
+            ->get();
+
+        $asignaciones549 = \App\Models\AsignacionesMaestrosiv549::query()
+            ->with(['seguimientosMaestrosiv549' => fn ($q) => $q->orderByDesc('id')])
+            ->when($tipoDocumento !== '', fn ($q) => $q->where('tip_ide_', $tipoDocumento))
+            ->where('num_ide_', $documento)
+            ->orderByDesc('id')
+            ->get();
+
+        $alertas = \App\Models\GestanteAlerta::query()
+            ->where('ges_tipo1_id', $ges->id)
+            ->orderByDesc('id')
+            ->get();
+
+        $otrosRegistrosTipo2 = \App\Models\GesTipo1::query()
+            ->where('no_id_del_usuario', $documento)
+            ->where('id', '<>', $ges->id)
+            ->orderByDesc('id')
+            ->get();
+
+        $qrTarget = route('ges_tipo1.bracelet', [
+            'ges' => $ges->id,
+            'token' => $this->braceletToken($ges),
+        ]);
+
+        return [
+            'paciente' => [
+                'nombre' => trim(implode(' ', array_filter([
+                    $ges->primer_nombre,
+                    $ges->segundo_nombre,
+                    $ges->primer_apellido,
+                    $ges->segundo_apellido,
+                ]))),
+                'tipo_documento' => $tipoDocumento ?: 'Sin dato',
+                'documento' => $documento ?: 'Sin dato',
+                'fpp' => $this->formatValue($ges->fecha_probable_de_parto),
+                'fecha_nacimiento' => $this->formatValue($ges->fecha_de_nacimiento),
+            ],
+            'resumen' => [
+                ['label' => 'Registros Tipo 2', 'value' => 1 + $otrosRegistrosTipo2->count()],
+                ['label' => 'Seguimientos Tipo 2', 'value' => $segs->count()],
+                ['label' => 'Registros Tipo 3', 'value' => $ges->tipo3->count()],
+                ['label' => 'Alertas', 'value' => $alertas->count()],
+                ['label' => 'Preconcepcional', 'value' => $preconcepcional->count()],
+                ['label' => 'Sivigila', 'value' => $sivigila->count()],
+                ['label' => 'SIV 549', 'value' => $maestro549->count()],
+                ['label' => 'Seguimientos SIV 549', 'value' => $asignaciones549->sum(fn ($row) => $row->seguimientosMaestrosiv549->count())],
+            ],
+            'gestanteFicha' => $this->buildSectionCards($ges, [
+                'Identificacion y residencia' => [
+                    'tipo_de_registro', 'consecutivo', 'tipo_de_identificacion_de_la_usuaria',
+                    'no_id_del_usuario', 'numero_carnet', 'primer_nombre', 'segundo_nombre',
+                    'primer_apellido', 'segundo_apellido', 'fecha_de_nacimiento',
+                    'pais_de_la_nacionalidad', 'municipio_de_residencia_habitual',
+                    'zona_territorial_de_residencia', 'direccion_de_residencia_de_la_gestante',
+                    'codigo_de_habilitacion_ips_primaria_de_la_gestante', 'fecha_probable_de_parto',
+                ],
+                'Antecedentes y factores de riesgo' => [
+                    'codigo_pertenencia_etnica', 'codigo_de_ocupacion',
+                    'codigo_nivel_educativo_de_la_gestante', 'antecedente_hipertension_cronica',
+                    'antecedente_preeclampsia', 'antecedente_diabetes',
+                    'antecedente_les_enfermedad_autoinmune', 'antecedente_sindrome_metabolico',
+                    'antecedente_erc', 'antecedente_trombofilia_o_trombosis_venosa_profunda',
+                    'antecedentes_anemia_celulas_falciformes',
+                    'antecedente_sepsis_durante_gestaciones_previas',
+                    'consumo_tabaco_durante_la_gestacion', 'periodo_intergenesico',
+                    'embarazo_multiple', 'metodo_de_concepcion', 'created_at', 'updated_at',
+                ],
+            ]),
+            'otrosTipo2' => $otrosRegistrosTipo2->map(fn ($row) => [
+                'title' => 'Registro Tipo 2 #' . $row->id,
+                'subtitle' => 'Creado: ' . $this->formatValue($row->created_at),
+                'values' => $this->presentRecord($row, ['id'], [
+                    'tipo_de_registro', 'consecutivo', 'fecha_probable_de_parto',
+                    'municipio_de_residencia_habitual', 'codigo_de_habilitacion_ips_primaria_de_la_gestante',
+                ]),
+            ])->values()->all(),
+            'seguimientos' => $segs->map(function ($seg, $index) {
+                return [
+                    'title' => 'Seguimiento #' . ($index + 1),
+                    'subtitle' => 'Fecha seguimiento: ' . $this->formatValue($seg->fecha_seguimiento),
+                    'values' => $this->presentRecord($seg, ['id', 'ges_tipo1_id', 'user_id', 'created_at', 'updated_at']),
+                ];
+            })->values()->all(),
+            'tipo3' => $ges->tipo3->sortByDesc('id')->values()->map(function ($row, $index) {
+                return [
+                    'title' => 'Registro Tipo 3 #' . ($index + 1),
+                    'subtitle' => 'Fecha tecnologia: ' . $this->formatValue($row->fecha_tecnologia_en_salud),
+                    'values' => $this->presentRecord($row, ['id', 'ges_tipo1_id', 'user_id', 'batch_verifications_id']),
+                ];
+            })->values()->all(),
+            'alertas' => $alertas->map(function ($row, $index) {
+                return [
+                    'title' => 'Alerta #' . ($index + 1),
+                    'subtitle' => 'Modulo: ' . ($row->modulo ?: 'Sin dato'),
+                    'values' => $this->presentRecord($row, ['id', 'user_id', 'ges_tipo1_id', 'seguimiento_id', 'hash']),
+                ];
+            })->values()->all(),
+            'preconcepcional' => $preconcepcional->map(function ($row, $index) {
+                return [
+                    'title' => 'Preconcepcional #' . ($index + 1),
+                    'subtitle' => 'Riesgo: ' . ($row->riesgo_preconcepcional ?: 'Sin dato'),
+                    'values' => $this->presentRecord($row, ['id', 'created_batch_id', 'last_batch_id']),
+                ];
+            })->values()->all(),
+            'sivigila' => $sivigila->map(function ($row, $index) {
+                return [
+                    'title' => 'Sivigila #' . ($index + 1),
+                    'subtitle' => 'Evento: ' . ($row->cod_eve ?: 'Sin dato'),
+                    'values' => $this->presentRecord($row, ['id', 'user_id']),
+                ];
+            })->values()->all(),
+            'maestro549' => $maestro549->map(function ($row, $index) {
+                return [
+                    'title' => 'Caso SIV 549 #' . ($index + 1),
+                    'subtitle' => 'Evento: ' . (($row->nom_eve ?? '') ?: 'Sin dato'),
+                    'values' => $this->presentRecord($row, ['nreg']),
+                ];
+            })->values()->all(),
+            'asignaciones549' => $asignaciones549->map(function ($row, $index) {
+                return [
+                    'title' => 'Asignacion SIV 549 #' . ($index + 1),
+                    'subtitle' => 'UPGD: ' . (($row->nom_upgd ?? '') ?: 'Sin dato'),
+                    'values' => $this->presentRecord($row, ['id', 'user_id']),
+                    'seguimientos' => $row->seguimientosMaestrosiv549->map(function ($seg, $segIndex) {
+                        return [
+                            'title' => 'Seguimiento SIV 549 #' . ($segIndex + 1),
+                            'subtitle' => 'Fecha hospitalizacion: ' . $this->formatValue($seg->fecha_hospitalizacion),
+                            'values' => $this->presentRecord($seg, ['id', 'asignacion_id', 'created_at', 'updated_at']),
+                        ];
+                    })->values()->all(),
+                ];
+            })->values()->all(),
+            'qr' => [
+                'target' => $qrTarget,
+                'caption' => 'Pulsera clinica segura',
+                'payload' => $qrTarget,
+            ],
+            'generado' => now()->format('d/m/Y H:i'),
+        ];
+    }
+
+    private function braceletToken(\App\Models\GesTipo1 $ges): string
+    {
+        $payload = implode('|', [
+            'gestante-bracelet',
+            (string) $ges->id,
+            $this->normalizeIdentifier($ges->no_id_del_usuario),
+            trim((string) ($ges->fecha_probable_de_parto ?? '')),
+        ]);
+
+        return hash_hmac('sha256', $payload, (string) config('app.key'));
+    }
+
+    private function normalizeIdentifier($value): string
+    {
+        return trim((string) $value);
+    }
+
+    private function buildSectionCards($record, array $sections): array
+    {
+        $cards = [];
+
+        foreach ($sections as $title => $fields) {
+            $cards[] = [
+                'title' => $title,
+                'values' => $this->presentRecord($record, [], $fields),
+            ];
+        }
+
+        return $cards;
+    }
+
+    private function presentRecord($record, array $exclude = [], array $priority = []): array
+    {
+        $array = is_array($record) ? $record : $record->toArray();
+        $exclude = array_flip($exclude);
+        $values = [];
+
+        foreach ($priority as $field) {
+            if (array_key_exists($field, $array) && !isset($exclude[$field]) && $this->hasDisplayValue($array[$field] ?? null)) {
+                $values[] = [
+                    'field' => $field,
+                    'label' => $this->humanLabel($field),
+                    'value' => $this->formatValue($array[$field]),
+                ];
+            }
+        }
+
+        foreach ($array as $field => $value) {
+            if (isset($exclude[$field]) || in_array($field, $priority, true) || !$this->hasDisplayValue($value)) {
+                continue;
+            }
+
+            $values[] = [
+                'field' => $field,
+                'label' => $this->humanLabel($field),
+                'value' => $this->formatValue($value),
+            ];
+        }
+
+        return $values;
+    }
+
+    private function hasDisplayValue($value): bool
+    {
+        if (is_null($value)) {
+            return false;
+        }
+
+        if (is_string($value)) {
+            return trim($value) !== '';
+        }
+
+        if (is_array($value) || is_object($value)) {
+            return false;
+        }
+
+        return true;
+    }
+
+    private function formatValue($value): string
+    {
+        if ($value instanceof \Carbon\CarbonInterface) {
+            return $value->format('d/m/Y H:i');
+        }
+
+        if (is_bool($value)) {
+            return $value ? 'Si' : 'No';
+        }
+
+        if (is_numeric($value) && in_array((string) $value, ['0', '1'], true)) {
+            return (string) $value === '1' ? 'Si' : 'No';
+        }
+
+        return trim((string) $value);
+    }
+
+    private function humanLabel(string $field): string
+    {
+        $custom = [
+            'no_id_del_usuario' => 'Numero de identificacion',
+            'tipo_de_identificacion_de_la_usuaria' => 'Tipo de identificacion',
+            'codigo_de_habilitacion_ips_primaria_de_la_gestante' => 'IPS primaria',
+            'fecha_probable_de_parto' => 'Fecha probable de parto',
+            'codigo_nivel_educativo_de_la_gestante' => 'Nivel educativo',
+            'direccion_de_residencia_de_la_gestante' => 'Direccion',
+            'fecha_tecnologia_en_salud' => 'Fecha de tecnologia en salud',
+            'codigo_cups_de_la_tecnologia_en_salud' => 'Codigo CUPS',
+            'clasificacion_riesgo_gestacional' => 'Clasificacion riesgo gestacional',
+            'clasificacion_riesgo_preeclampsia' => 'Clasificacion riesgo preeclampsia',
+            'numero_identificacion' => 'Numero de identificacion',
+            'tipo_documento' => 'Tipo de documento',
+            'num_ide_' => 'Numero de identificacion',
+            'tip_ide_' => 'Tipo de identificacion',
+            'fec_not' => 'Fecha de notificacion',
+            'fecha_nto_' => 'Fecha de nacimiento',
+            'telefono_' => 'Telefono',
+            'dir_res_' => 'Direccion de residencia',
+            'nom_eve' => 'Nombre del evento',
+            'nom_upgd' => 'UPGD',
+            'ttl_criter' => 'Total criterios',
+        ];
+
+        return $custom[$field] ?? Str::headline(str_replace('_', ' ', $field));
     }
 
     /**
