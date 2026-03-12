@@ -14,6 +14,9 @@
             <a href="{{ route('ges_tipo1.index') }}" class="btn btn-outline-secondary mr-2">
                 <i class="fas fa-arrow-left mr-1"></i> Volver
             </a>
+            <button type="button" class="btn btn-outline-danger mr-2" data-toggle="modal" data-target="#qrPrintModal">
+                <i class="fas fa-qrcode mr-1"></i> Imprimir QR
+            </button>
             <button type="button" class="btn btn-primary" onclick="window.print()">
                 <i class="fas fa-print mr-1"></i> Imprimir expediente
             </button>
@@ -549,6 +552,83 @@
         </section>
     @endif
 </div>
+
+<div class="modal fade no-print" id="qrPrintModal" tabindex="-1" role="dialog" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="fas fa-qrcode mr-2 text-danger"></i>Imprimir QR para pulsera</h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Cerrar">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="row">
+                    <div class="col-md-5">
+                        <div class="form-group">
+                            <label for="qrSizePreset"><strong>Tamano del QR</strong></label>
+                            <select id="qrSizePreset" class="form-control">
+                                <option value="25">25 mm - Pulsera pequena</option>
+                                <option value="30" selected>30 mm - Pulsera estandar</option>
+                                <option value="35">35 mm - Pulsera amplia</option>
+                                <option value="40">40 mm - Sticker grande</option>
+                                <option value="50">50 mm - Tarjeta o marbete</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="qrLabelMode"><strong>Texto inferior</strong></label>
+                            <select id="qrLabelMode" class="form-control">
+                                <option value="doc" selected>Documento</option>
+                                <option value="name">Nombre corto</option>
+                                <option value="both">Nombre y documento</option>
+                            </select>
+                        </div>
+                        <div class="form-group mb-0">
+                            <label for="qrCutGuide"><strong>Formato de impresion</strong></label>
+                            <select id="qrCutGuide" class="form-control">
+                                <option value="bracelet" selected>Etiqueta para pulsera</option>
+                                <option value="square">Solo QR cuadrado</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="col-md-7">
+                        <div class="qr-print-preview">
+                            <div class="qr-print-preview-head">Vista previa</div>
+                            <div id="qrPrintPreviewCard" class="qr-badge qr-badge-bracelet" style="--qr-size: 30mm;">
+                                <div class="qr-badge-brand">
+                                    <img src="{{ asset('img/logo.png') }}" alt="Logo">
+                                    <span>EPSI ANAS WAYUU</span>
+                                </div>
+                                <div id="qrPrintPreview" class="qr-badge-code"></div>
+                                <div id="qrPrintPreviewLabel" class="qr-badge-label">{{ $renderValue($paciente['documento'] ?? '') }}</div>
+                            </div>
+                            <small class="text-muted d-block mt-3">
+                                Usa esta opcion para imprimir solo el QR y adaptarlo fisicamente a la pulsera.
+                            </small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-dismiss="modal">Cerrar</button>
+                <button type="button" class="btn btn-danger" id="btnPrintQrOnly">
+                    <i class="fas fa-print mr-1"></i> Imprimir solo QR
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="qrPrintOnlyArea" class="qr-print-sheet">
+    <div id="qrPrintCard" class="qr-badge qr-badge-bracelet" style="--qr-size: 30mm;">
+        <div class="qr-badge-brand">
+            <img src="{{ asset('img/logo.png') }}" alt="Logo">
+            <span>EPSI ANAS WAYUU</span>
+        </div>
+        <div id="qrPrintOnlyCode" class="qr-badge-code"></div>
+        <div id="qrPrintOnlyLabel" class="qr-badge-label">{{ $renderValue($paciente['documento'] ?? '') }}</div>
+    </div>
+</div>
 @stop
 
 @section('css')
@@ -560,6 +640,24 @@
     .content-wrapper {
         background:
             linear-gradient(180deg, #f4f7fb 0%, #f8fafc 42%, #ffffff 100%);
+    }
+
+    body.print-qr-only .wrapper,
+    body.print-qr-only .main-header,
+    body.print-qr-only .main-sidebar,
+    body.print-qr-only .main-footer,
+    body.print-qr-only .content-header,
+    body.print-qr-only .content,
+    body.print-qr-only .content-wrapper > *:not(.content),
+    body.print-qr-only .expediente-shell {
+        display: none !important;
+    }
+
+    body.print-qr-only .content-wrapper,
+    body.print-qr-only .content {
+        margin: 0 !important;
+        padding: 0 !important;
+        background: #fff !important;
     }
 
     .expediente-shell {
@@ -694,6 +792,94 @@
         margin-top: 0.55rem;
         font-size: 0.8rem;
         color: #8b97a5;
+    }
+
+    .qr-print-preview {
+        background: #f8fafc;
+        border: 1px solid #e3ebf3;
+        border-radius: 22px;
+        padding: 1rem;
+        min-height: 100%;
+    }
+
+    .qr-print-preview-head {
+        text-transform: uppercase;
+        letter-spacing: 0.12em;
+        font-size: 0.72rem;
+        color: #7e8a96;
+        font-weight: 800;
+        margin-bottom: 0.9rem;
+    }
+
+    .qr-badge {
+        width: fit-content;
+        min-width: calc(var(--qr-size) + 22mm);
+        background: #fff;
+        border: 1px dashed #b9c6d2;
+        border-radius: 16px;
+        padding: 4mm;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 2.6mm;
+        box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
+        margin: 0 auto;
+    }
+
+    .qr-badge-bracelet {
+        min-width: calc(var(--qr-size) + 28mm);
+    }
+
+    .qr-badge-square {
+        min-width: calc(var(--qr-size) + 8mm);
+    }
+
+    .qr-badge-brand {
+        display: flex;
+        align-items: center;
+        gap: 2mm;
+        font-size: 2.8mm;
+        font-weight: 800;
+        color: #16324f;
+        letter-spacing: 0.06em;
+    }
+
+    .qr-badge-brand img {
+        width: 7mm;
+        height: 7mm;
+        object-fit: contain;
+    }
+
+    .qr-badge-code {
+        width: var(--qr-size);
+        height: var(--qr-size);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: #fff;
+    }
+
+    .qr-badge-label {
+        text-align: center;
+        font-size: 2.9mm;
+        font-weight: 700;
+        color: #354657;
+        line-height: 1.2;
+        max-width: calc(var(--qr-size) + 16mm);
+        word-break: break-word;
+    }
+
+    .qr-print-sheet {
+        display: none;
+    }
+
+    body.print-qr-only .qr-print-sheet {
+        min-height: 100vh;
+        display: flex !important;
+        align-items: center;
+        justify-content: center;
+        padding: 0;
+        background: #fff;
     }
 
     .expediente-nav {
@@ -974,6 +1160,16 @@
         body {
             background: #fff !important;
         }
+
+        body.print-qr-only .qr-print-sheet {
+            display: flex !important;
+        }
+
+        body.print-qr-only #qrPrintCard {
+            box-shadow: none !important;
+            border-style: solid;
+            border-color: #777;
+        }
     }
 </style>
 @stop
@@ -984,6 +1180,18 @@
         (function () {
             var target = @json($expediente['qr']['payload'] ?? '');
             var qrElement = document.getElementById('gestanteQrCode');
+            var previewElement = document.getElementById('qrPrintPreview');
+            var printElement = document.getElementById('qrPrintOnlyCode');
+            var sizePreset = document.getElementById('qrSizePreset');
+            var labelMode = document.getElementById('qrLabelMode');
+            var cutGuide = document.getElementById('qrCutGuide');
+            var previewCard = document.getElementById('qrPrintPreviewCard');
+            var printCard = document.getElementById('qrPrintCard');
+            var previewLabel = document.getElementById('qrPrintPreviewLabel');
+            var printLabel = document.getElementById('qrPrintOnlyLabel');
+            var printButton = document.getElementById('btnPrintQrOnly');
+            var patientName = @json($paciente['nombre'] ?? '');
+            var patientDoc = @json($paciente['documento'] ?? '');
 
             if (!qrElement || !target || typeof QRCode === 'undefined') {
                 if (qrElement && target) {
@@ -992,14 +1200,69 @@
                 return;
             }
 
-            qrElement.innerHTML = '';
-            new QRCode(qrElement, {
-                text: target,
-                width: 168,
-                height: 168,
-                colorDark: '#0f1720',
-                colorLight: '#ffffff',
-                correctLevel: QRCode.CorrectLevel.H
+            function buildQr(el, sizePx) {
+                if (!el) return;
+                el.innerHTML = '';
+                new QRCode(el, {
+                    text: target,
+                    width: sizePx,
+                    height: sizePx,
+                    colorDark: '#0f1720',
+                    colorLight: '#ffffff',
+                    correctLevel: QRCode.CorrectLevel.H
+                });
+            }
+
+            function buildLabel() {
+                var mode = labelMode ? labelMode.value : 'doc';
+                if (mode === 'name') return patientName || patientDoc;
+                if (mode === 'both') return (patientName ? patientName + ' - ' : '') + patientDoc;
+                return patientDoc || patientName;
+            }
+
+            function applyQrPrintSettings() {
+                var sizeMm = sizePreset ? sizePreset.value : '30';
+                var sizePx = Math.round(parseInt(sizeMm, 10) * 3.78);
+                var label = buildLabel();
+                var mode = cutGuide ? cutGuide.value : 'bracelet';
+
+                if (previewCard) {
+                    previewCard.style.setProperty('--qr-size', sizeMm + 'mm');
+                    previewCard.classList.toggle('qr-badge-bracelet', mode === 'bracelet');
+                    previewCard.classList.toggle('qr-badge-square', mode === 'square');
+                }
+
+                if (printCard) {
+                    printCard.style.setProperty('--qr-size', sizeMm + 'mm');
+                    printCard.classList.toggle('qr-badge-bracelet', mode === 'bracelet');
+                    printCard.classList.toggle('qr-badge-square', mode === 'square');
+                }
+
+                if (previewLabel) previewLabel.textContent = label;
+                if (printLabel) printLabel.textContent = label;
+
+                buildQr(previewElement, sizePx);
+                buildQr(printElement, sizePx);
+            }
+
+            buildQr(qrElement, 168);
+            applyQrPrintSettings();
+
+            [sizePreset, labelMode, cutGuide].forEach(function (control) {
+                if (!control) return;
+                control.addEventListener('change', applyQrPrintSettings);
+            });
+
+            if (printButton) {
+                printButton.addEventListener('click', function () {
+                    applyQrPrintSettings();
+                    document.body.classList.add('print-qr-only');
+                    window.print();
+                });
+            }
+
+            window.addEventListener('afterprint', function () {
+                document.body.classList.remove('print-qr-only');
             });
         })();
     </script>
