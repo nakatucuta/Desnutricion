@@ -125,7 +125,10 @@ class Cargue412Controller extends Controller
      */
     public function show(Cargue412 $cargue412)
     {
-        //
+        return redirect()->route('editvariables', [
+            'id' => $cargue412->id,
+            'numero_identificacion' => $cargue412->numero_identificacion,
+        ]);
     }
 
     /**
@@ -231,6 +234,12 @@ class Cargue412Controller extends Controller
     $oldUserId = $before->user_id ? (int) $before->user_id : null;
     $newUserId = $registro && $registro->user_id ? (int) $registro->user_id : null;
 
+    if (!$registro) {
+        return redirect()
+            ->route('import-excel-form')
+            ->with('error', 'No fue posible actualizar el registro 412.');
+    }
+
     if ($newUserId !== null) {
         $actionType = 'sin_cambio';
         if ($oldUserId === null && $newUserId !== null) {
@@ -239,34 +248,42 @@ class Cargue412Controller extends Controller
             $actionType = 'reasignacion';
         }
 
-        Cargue412AssignmentAudit::create([
-            'cargue412_id' => (int) $registro->id,
-            'performed_by_user_id' => Auth::id(),
-            'old_assigned_user_id' => $oldUserId,
-            'new_assigned_user_id' => $newUserId,
-            'action_type' => $actionType,
-            'numero_identificacion' => $registro->numero_identificacion,
-            'paciente_nombre' => trim(implode(' ', array_filter([
-                $registro->primer_nombre,
-                $registro->segundo_nombre,
-                $registro->primer_apellido,
-                $registro->segundo_apellido,
-            ]))),
-            'municipio' => $registro->municipio,
-            'fecha_captacion' => $registro->fecha_captacion,
-            'old_assigned_name' => $oldAssigned?->name,
-            'new_assigned_name' => $newAssigned?->name,
-            'old_assigned_email' => $oldAssigned?->email,
-            'new_assigned_email' => $newAssigned?->email,
-            'old_assigned_code' => $oldAssigned?->codigohabilitacion,
-            'new_assigned_code' => $newAssigned?->codigohabilitacion,
-            'ip_address' => $request->ip(),
-            'user_agent' => (string) $request->userAgent(),
-            'changes' => [
+        try {
+            Cargue412AssignmentAudit::create([
+                'cargue412_id' => (int) $registro->id,
+                'performed_by_user_id' => Auth::id(),
+                'old_assigned_user_id' => $oldUserId,
+                'new_assigned_user_id' => $newUserId,
+                'action_type' => $actionType,
+                'numero_identificacion' => $registro->numero_identificacion,
+                'paciente_nombre' => trim(implode(' ', array_filter([
+                    $registro->primer_nombre,
+                    $registro->segundo_nombre,
+                    $registro->primer_apellido,
+                    $registro->segundo_apellido,
+                ]))),
+                'municipio' => $registro->municipio,
+                'fecha_captacion' => $registro->fecha_captacion,
+                'old_assigned_name' => $oldAssigned?->name,
+                'new_assigned_name' => $newAssigned?->name,
+                'old_assigned_email' => $oldAssigned?->email,
+                'new_assigned_email' => $newAssigned?->email,
+                'old_assigned_code' => $oldAssigned?->codigohabilitacion,
+                'new_assigned_code' => $newAssigned?->codigohabilitacion,
+                'ip_address' => $request->ip(),
+                'user_agent' => (string) $request->userAgent(),
+                'changes' => [
+                    'old_user_id' => $oldUserId,
+                    'new_user_id' => $newUserId,
+                ],
+            ]);
+        } catch (\Throwable $e) {
+            Log::warning('No se pudo registrar la auditoria de asignacion 412: ' . $e->getMessage(), [
+                'cargue412_id' => $registro->id,
                 'old_user_id' => $oldUserId,
                 'new_user_id' => $newUserId,
-            ],
-        ]);
+            ]);
+        }
     }
 
     // 4) Preparar datos para el correo
@@ -314,7 +331,7 @@ class Cargue412Controller extends Controller
         : 'Registro actualizado, pero no se pudo enviar el correo.';
 
     return redirect()
-        ->route('import-excel')
+        ->route('import-excel-form')
         ->with($flashKey, $flashMsg);
 }
 
