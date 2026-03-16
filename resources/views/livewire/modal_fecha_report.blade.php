@@ -29,7 +29,7 @@
 
                     <div class="pai-export-help">
                         <i class="fas fa-info-circle mr-1"></i>
-                        El informe dinamico usa fecha de carga del registro (created_at) para trazabilidad por usuario.
+                        La exportacion y el informe dinamico usan la fecha de vacuna (fecha_vacuna).
                     </div>
 
                     <div class="pai-export-actions">
@@ -120,7 +120,7 @@
                                 <th class="text-center">Vacunas</th>
                                 <th class="text-center">Afiliados</th>
                                 <th class="text-center">Lotes</th>
-                                <th>Ultimo Cargue</th>
+                                <th>Ultima Fecha Vacuna</th>
                                 <th class="text-center">Solicitudes</th>
                             </tr>
                         </thead>
@@ -134,7 +134,7 @@
             </div>
 
             <div class="modal-footer pai-load-report-foot d-flex justify-content-between">
-                <span class="text-muted small">Informe dinamico para control de productividad y trazabilidad.</span>
+                <span class="text-muted small">Informe dinamico para control de productividad y trazabilidad por fecha de vacuna.</span>
                 <div class="d-flex align-items-center" style="gap:8px;">
                     <a href="#" class="btn btn-outline-danger" id="downloadLoadReportPdfButton" target="_blank" rel="noopener">
                         <i class="fas fa-file-pdf mr-1"></i> Descargar PDF

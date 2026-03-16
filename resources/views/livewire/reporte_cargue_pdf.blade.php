@@ -31,7 +31,7 @@
             </td>
             <td>
                 <p class="title">Informe Dinamico de Cargue PAI</p>
-                <div class="subtitle">Trazabilidad por usuario en rango de fechas (fecha de carga del registro)</div>
+                <div class="subtitle">Trazabilidad por usuario en rango de fechas de vacunacion</div>
             </td>
             <td style="text-align:right; font-size:10px;">
                 Generado: {{ $generatedAt ?? now()->format('d/m/Y H:i:s') }}
@@ -88,7 +88,7 @@
                 <th style="width:10%;">Vacunas</th>
                 <th style="width:10%;">Afiliados</th>
                 <th style="width:8%;">Lotes</th>
-                <th style="width:14%;">Ultimo Cargue</th>
+                <th style="width:14%;">Ultima Fecha Vacuna</th>
                 <th style="width:8%;">Solicitudes</th>
             </tr>
         </thead>
@@ -100,7 +100,7 @@
                     <td style="text-align:center;">{{ number_format($row['vacunas_count'] ?? 0) }}</td>
                     <td style="text-align:center;">{{ number_format($row['afiliados_count'] ?? 0) }}</td>
                     <td style="text-align:center;">{{ number_format($row['lotes_count'] ?? 0) }}</td>
-                    <td>{{ !empty($row['last_load_at']) ? \Carbon\Carbon::parse($row['last_load_at'])->format('d/m/Y H:i') : 'Sin cargue' }}</td>
+                    <td>{{ !empty($row['last_load_at']) ? \Carbon\Carbon::parse($row['last_load_at'])->format('d/m/Y') : 'Sin cargue' }}</td>
                     <td style="text-align:center;">{{ number_format($row['solicitudes_count'] ?? 0) }}</td>
                 </tr>
             @empty

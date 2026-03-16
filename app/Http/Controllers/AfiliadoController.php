@@ -1723,12 +1723,15 @@ public function getVacunasPdf($id, $numeroCarnet = null)
 
     $callback = function() use ($startDate, $endDate) {
         $out = fopen('php://output','w');
+        $headings = VacunaExport::headingsStatic();
+        $selects = VacunaExport::selectsStatic();
 
         // Escribimos el BOM para que Excel reconozca UTF-8
         fputs($out, "\xEF\xBB\xBF");
 
         // 1) Encabezados
-        fputcsv($out, [
+        fputcsv($out, $headings);
+/*
             'Prestador','IPS PRIMARIA','Fecha de Atención','Tipo de Identificación',
             'Número de Identificación','Primer Nombre','Segundo Nombre','Primer Apellido',
             'Segundo Apellido','Fecha de Nacimiento','Edad (Años)','Edad (Meses)',
@@ -1887,6 +1890,17 @@ public function getVacunasPdf($id, $numeroCarnet = null)
                 'a.regimen as regimen_vacuna',
                 'a.created_at',
             ])
+*/
+        DB::table('vacunas as a')
+            ->join('afiliados as b', 'b.id', '=', 'a.afiliado_id')
+            ->join('referencia_vacunas as d', 'd.id', '=', 'a.vacunas_id')
+            ->join('users as u', 'u.id', '=', 'a.user_id')
+            ->leftJoin('SGA.dbo.maestroIps as j', 'b.numero_Carnet', '=', 'j.numeroCarnet')
+            ->leftJoin('SGA.dbo.maestroIpsGru as k', 'j.idGrupoIps', '=', 'k.id')
+            ->when($startDate && $endDate, function($q) use ($startDate, $endDate) {
+                $q->whereBetween('a.fecha_vacuna', [$startDate, $endDate]);
+            })
+            ->select($selects)
             ->orderBy('a.created_at','desc')
             ->chunk(500, function($rows) use ($out) {
                 foreach ($rows as $r) {
@@ -1932,7 +1946,6 @@ public function startImport(Request $request)
         $request->validate([
             'file' => 'required|mimes:xlsx,xls|max:10240',
         ]);
-
         $userId = Auth::id();
         if (!$userId) {
             return response()->json(['ok' => false, 'message' => 'No autenticado'], 401);
@@ -2258,7 +2271,7 @@ private function extractLoadSummaryFilters(Request $request): array
 
 private function buildLoadSummaryReport(string $startDate, string $endDate, array $filters = []): array
 {
-    $cacheKey = 'pai:load_summary:v1:' . md5(json_encode([
+    $cacheKey = 'pai:load_summary:v2:' . md5(json_encode([
         'start' => $startDate,
         'end' => $endDate,
         'filters' => $filters,
@@ -2269,7 +2282,7 @@ private function buildLoadSummaryReport(string $startDate, string $endDate, arra
     $summaryQuery = DB::table('users as u')
         ->leftJoin('vacunas as v', function ($join) use ($startDate, $endDate) {
             $join->on('u.id', '=', 'v.user_id')
-                ->whereBetween(DB::raw('CAST(v.created_at AS DATE)'), [$startDate, $endDate]);
+                ->whereBetween('v.fecha_vacuna', [$startDate, $endDate]);
         })
         ->select([
             'u.id',
@@ -2278,7 +2291,7 @@ private function buildLoadSummaryReport(string $startDate, string $endDate, arra
             DB::raw('COUNT(v.id) as vacunas_count'),
             DB::raw('COUNT(DISTINCT v.afiliado_id) as afiliados_count'),
             DB::raw('COUNT(DISTINCT v.batch_verifications_id) as lotes_count'),
-            DB::raw('MAX(v.created_at) as last_load_at'),
+            DB::raw('MAX(v.fecha_vacuna) as last_load_at'),
         ])
         ->groupBy('u.id', 'u.name', 'u.email')
         ->orderByRaw('COUNT(v.id) DESC')
@@ -2292,7 +2305,7 @@ private function buildLoadSummaryReport(string $startDate, string $endDate, arra
 
     $afiliadoQuery = DB::table('vacunas as v')
         ->join('afiliados as a', 'a.id', '=', 'v.afiliado_id')
-        ->whereBetween(DB::raw('CAST(v.created_at AS DATE)'), [$startDate, $endDate])
+        ->whereBetween('v.fecha_vacuna', [$startDate, $endDate])
         ->select([
             'v.user_id',
             'a.id as afiliado_id',
@@ -2357,7 +2370,7 @@ private function buildLoadSummaryReport(string $startDate, string $endDate, arra
             'vacunas_count' => (int) $row->vacunas_count,
             'afiliados_count' => (int) $row->afiliados_count,
             'lotes_count' => (int) $row->lotes_count,
-            'last_load_at' => $row->last_load_at ? Carbon::parse($row->last_load_at)->format('Y-m-d H:i:s') : null,
+            'last_load_at' => $row->last_load_at ? Carbon::parse($row->last_load_at)->format('Y-m-d') : null,
             'solicitudes_count' => (int) ($solicitudesRows[$row->id]->solicitudes_count ?? 0),
             'afiliados' => $userAfiliados,
             'afiliados_preview' => $preview,
