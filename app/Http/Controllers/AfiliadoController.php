@@ -1726,11 +1726,12 @@ public function getVacunasPdf($id, $numeroCarnet = null)
         $headings = VacunaExport::headingsStatic();
         $selects = VacunaExport::selectsStatic();
 
-        // Escribimos el BOM para que Excel reconozca UTF-8
+        // BOM + pista de separador para que Excel abra el CSV sin correr columnas.
         fputs($out, "\xEF\xBB\xBF");
+        fwrite($out, "sep=;\r\n");
 
         // 1) Encabezados
-        fputcsv($out, $headings);
+        fputcsv($out, $headings, ';');
 /*
             'Prestador','IPS PRIMARIA','Fecha de Atención','Tipo de Identificación',
             'Número de Identificación','Primer Nombre','Segundo Nombre','Primer Apellido',
@@ -1904,7 +1905,15 @@ public function getVacunasPdf($id, $numeroCarnet = null)
             ->orderBy('a.created_at','desc')
             ->chunk(500, function($rows) use ($out) {
                 foreach ($rows as $r) {
-                    fputcsv($out, (array) $r);
+                    $sanitized = array_map(function ($value) {
+                        if ($value === null) {
+                            return '';
+                        }
+
+                        return preg_replace('/\s+/u', ' ', trim((string) $value));
+                    }, (array) $r);
+
+                    fputcsv($out, $sanitized, ';');
                 }
             });
 
