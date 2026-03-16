@@ -23,6 +23,7 @@ use Illuminate\Support\Facades\Cache;
 use Maatwebsite\Excel\Excel as ExcelFormat;
 use App\Exports\Cargue412DesignerExport;
 use App\Models\Cargue412AssignmentAudit;
+use Carbon\Carbon;
 
 class Cargue412Controller extends Controller
 {
@@ -249,6 +250,13 @@ class Cargue412Controller extends Controller
         }
 
         try {
+            $auditNow = now()->format('Y-m-d H:i:s');
+            $auditFechaCaptacion = null;
+
+            if (!empty($registro->fecha_captacion)) {
+                $auditFechaCaptacion = Carbon::parse($registro->fecha_captacion)->format('Y-m-d');
+            }
+
             Cargue412AssignmentAudit::create([
                 'cargue412_id' => (int) $registro->id,
                 'performed_by_user_id' => Auth::id(),
@@ -263,7 +271,7 @@ class Cargue412Controller extends Controller
                     $registro->segundo_apellido,
                 ]))),
                 'municipio' => $registro->municipio,
-                'fecha_captacion' => $registro->fecha_captacion,
+                'fecha_captacion' => $auditFechaCaptacion,
                 'old_assigned_name' => $oldAssigned?->name,
                 'new_assigned_name' => $newAssigned?->name,
                 'old_assigned_email' => $oldAssigned?->email,
@@ -276,6 +284,8 @@ class Cargue412Controller extends Controller
                     'old_user_id' => $oldUserId,
                     'new_user_id' => $newUserId,
                 ],
+                'created_at' => $auditNow,
+                'updated_at' => $auditNow,
             ]);
         } catch (\Throwable $e) {
             Log::warning('No se pudo registrar la auditoria de asignacion 412: ' . $e->getMessage(), [

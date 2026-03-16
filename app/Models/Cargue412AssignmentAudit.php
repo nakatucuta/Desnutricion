@@ -10,6 +10,7 @@ class Cargue412AssignmentAudit extends Model
     use HasFactory;
 
     protected $connection = 'sqlsrv';
+    protected $dateFormat = 'Y-m-d H:i:s';
 
     protected $table = 'dbo.cargue412_assignment_audits';
 

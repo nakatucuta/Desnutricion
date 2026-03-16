@@ -10,6 +10,7 @@ class SivigilaAssignmentAudit extends Model
     use HasFactory;
 
     protected $connection = 'sqlsrv';
+    protected $dateFormat = 'Y-m-d H:i:s';
 
     protected $table = 'dbo.sivigila_assignment_audits';
 
@@ -44,4 +45,3 @@ class SivigilaAssignmentAudit extends Model
         return $this->belongsTo(User::class, 'performed_by_user_id');
     }
 }
-
