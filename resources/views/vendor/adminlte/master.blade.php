@@ -782,38 +782,51 @@
                 let sessionAlertShown = false;
                 const expiredMessage = @json(session('session_expired'));
                 const hasMandatoryNovedadModal = {{ $mandatoryNovedad ? 'true' : 'false' }};
+                const loginUrl = @json(route('login'));
 
-                function notifyAndReload(message) {
+                function redirectToLogin() {
+                    window.location.href = loginUrl;
+                }
+
+                function notifyAndRedirect(message) {
                     if (sessionAlertShown) return;
                     sessionAlertShown = true;
 
-                    const text = message || 'Tu sesion expiro por inactividad. Recarga la pagina e inicia sesion nuevamente.';
+                    const text = message || 'Tu sesion expiro por inactividad. Inicia sesion nuevamente.';
 
                     if (window.Swal && typeof window.Swal.fire === 'function') {
                         window.Swal.fire({
                             icon: 'warning',
                             title: 'Sesion expirada',
                             text: text,
-                            confirmButtonText: 'Recargar',
+                            confirmButtonText: 'Ir al login',
                             allowOutsideClick: false,
                             allowEscapeKey: false
                         }).then(function () {
-                            window.location.reload();
+                            redirectToLogin();
                         });
                     } else {
                         alert(text);
-                        window.location.reload();
+                        redirectToLogin();
                     }
                 }
 
+                function getSessionExpiredMessage(jqxhr) {
+                    if (jqxhr && jqxhr.responseJSON && jqxhr.responseJSON.message) {
+                        return jqxhr.responseJSON.message;
+                    }
+
+                    return null;
+                }
+
                 if (expiredMessage) {
-                    notifyAndReload(expiredMessage);
+                    notifyAndRedirect(expiredMessage);
                 }
 
                 if (window.jQuery) {
                     window.jQuery(document).ajaxError(function (_event, jqxhr) {
-                        if (jqxhr && jqxhr.status === 419) {
-                            notifyAndReload();
+                        if (jqxhr && (jqxhr.status === 401 || jqxhr.status === 419)) {
+                            notifyAndRedirect(getSessionExpiredMessage(jqxhr));
                         }
                     });
                 }
@@ -844,6 +857,11 @@
                             },
                         })
                         .then(function (response) {
+                            if (response.status === 401 || response.status === 419) {
+                                notifyAndRedirect();
+                                return Promise.reject(new Error('session_expired'));
+                            }
+
                             if (!response.ok) {
                                 throw new Error('No se pudo registrar la lectura.');
                             }
@@ -852,7 +870,11 @@
                         .then(function () {
                             window.location.reload();
                         })
-                        .catch(function () {
+                        .catch(function (error) {
+                            if (error && error.message === 'session_expired') {
+                                return;
+                            }
+
                             $btn.prop('disabled', false).text('Marcar como leido y continuar');
                             if (window.Swal && typeof window.Swal.fire === 'function') {
                                 window.Swal.fire({
