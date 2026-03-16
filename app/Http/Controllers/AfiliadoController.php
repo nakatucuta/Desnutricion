@@ -1910,7 +1910,16 @@ public function getVacunasPdf($id, $numeroCarnet = null)
                             return '';
                         }
 
-                        return preg_replace('/\s+/u', ' ', trim((string) $value));
+                        $value = (string) $value;
+                        $value = str_replace(["\r\n", "\r", "\n", "\t", ';'], ' ', $value);
+                        $value = preg_replace('/\s+/u', ' ', trim($value));
+
+                        // Evita que Excel interprete contenido como formula y ayuda a mantener columnas estables.
+                        if ($value !== '' && preg_match('/^[=\-+@]/', $value)) {
+                            $value = "'" . $value;
+                        }
+
+                        return $value;
                     }, (array) $r);
 
                     fputcsv($out, $sanitized, ';');
