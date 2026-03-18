@@ -24,7 +24,7 @@ class AfiliadoImport implements ToModel, WithStartRow, WithChunkReading
     private $batch_verifications_id;
 
     // Cache en memoria para no consultar DB externa por cada fila repetida
-    // key: "TIPO|IDENTIFICACION" => numeroCarnet|string|null
+    // key: "TIPO|IDENTIFICACION" => ['numeroCarnet' => ?, 'estado' => ?] | null
     private array $carnetCache = [];
 
     // Cache afiliados locales por numero_carnet (evita queries repetidas)
@@ -145,17 +145,41 @@ class AfiliadoImport implements ToModel, WithStartRow, WithChunkReading
         $cacheKey = $tipo_identifi . '|' . $numero_identifi;
 
         if (!array_key_exists($cacheKey, $this->carnetCache)) {
-            $ext = DB::connection('sqlsrv_1')
-                ->table('maestroIdentificaciones')
-                ->select('numeroCarnet')
-                ->where('identificacion', $numero_identifi)
-                ->where('tipoIdentificacion', $tipo_identifi)
-                ->first();
+            try {
+                $ext = DB::connection('sqlsrv_1')
+                    ->table('sga..maestroIdentificaciones as A')
+                    ->join('sga..maestroafiliados as B', function ($join) {
+                        $join->on('A.tipoIdentificacion', '=', 'B.tipoIdentificacion')
+                            ->on('A.identificacion', '=', 'B.identificacion');
+                    })
+                    ->join('sga..refEstadoActual as C', 'B.estadoActual', '=', 'C.codigo')
+                    ->select(
+                        'A.tipoIdentificacion',
+                        'A.identificacion',
+                        'A.numeroCarnet',
+                        'C.estado'
+                    )
+                    ->where('A.identificacion', $numero_identifi)
+                    ->where('A.tipoIdentificacion', $tipo_identifi)
+                    ->where('C.estado', 'AC')
+                    ->first();
 
-            $this->carnetCache[$cacheKey] = $ext->numeroCarnet ?? null;
+                $this->carnetCache[$cacheKey] = $ext ? [
+                    'tipoIdentificacion' => $ext->tipoIdentificacion ?? null,
+                    'identificacion' => $ext->identificacion ?? null,
+                    'numeroCarnet' => $ext->numeroCarnet ?? null,
+                    'estado' => $ext->estado ?? null,
+                ] : null;
+            } catch (\Throwable $e) {
+                Log::error("IMPORT AFILIADO: error consultando DB externa | {$tipo_identifi} {$numero_identifi} | ".$e->getMessage());
+                $this->errores[] = "Error consultando DB externa para la identificación: $numero_identifi y tipo: $tipo_identifi";
+                $this->guardar = false;
+                return null;
+            }
         }
 
-        $numero_carnet = $this->carnetCache[$cacheKey];
+        $afiliadoExterno = $this->carnetCache[$cacheKey];
+        $numero_carnet = $afiliadoExterno['numeroCarnet'] ?? null;
 
         if (!$numero_carnet) {
             $this->errores[] = "No se encontró afiliado en DB externa con identificación: $numero_identifi y tipo: $tipo_identifi";
