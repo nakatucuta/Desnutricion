@@ -10,6 +10,7 @@ use Maatwebsite\Excel\Concerns\WithEvents;
 use Maatwebsite\Excel\Concerns\WithHeadings;
 use Maatwebsite\Excel\Events\AfterSheet;
 use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
+use Illuminate\Database\Query\Expression;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
 use PhpOffice\PhpSpreadsheet\Style\Fill;
 
@@ -86,6 +87,33 @@ class VacunaExport implements FromQuery, WithHeadings, ShouldAutoSize, WithEvent
     public static function selectsStatic(): array
     {
         return array_map(fn ($column) => $column['select'], self::columns());
+    }
+
+    public static function selectKeysStatic(): array
+    {
+        return array_map(fn ($column) => self::extractColumnKey($column['select']), self::columns());
+    }
+
+    private static function extractColumnKey($select): string
+    {
+        if ($select instanceof Expression) {
+            $select = $select->getValue(DB::connection()->getQueryGrammar());
+        }
+
+        $select = trim((string) $select);
+
+        if (preg_match('/\bas\s+([a-zA-Z0-9_]+)\s*$/i', $select, $matches)) {
+            return $matches[1];
+        }
+
+        $select = preg_replace('/[\[\]`"]/', '', $select);
+
+        if (strpos($select, '.') !== false) {
+            $parts = explode('.', $select);
+            return trim((string) end($parts));
+        }
+
+        return $select;
     }
 
     private static function columns(): array

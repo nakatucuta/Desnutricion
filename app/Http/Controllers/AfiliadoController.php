@@ -1715,10 +1715,10 @@ public function exportVacunas(Request $request)
         return redirect()->back()->withErrors(['msg' => 'Fechas no proporcionadas']);
     }
 
-    $delimiter = "\t";
-    $fileName = "vacunas_{$startDate}_{$endDate}.tsv";
+    $delimiter = ';';
+    $fileName = "vacunas_{$startDate}_{$endDate}.csv";
     $headers = [
-        'Content-Type'        => 'text/tab-separated-values; charset=UTF-8',
+        'Content-Type'        => 'text/csv; charset=UTF-8',
         'Content-Disposition' => "attachment; filename=\"$fileName\"",
     ];
 
@@ -1726,11 +1726,12 @@ public function exportVacunas(Request $request)
         $out = fopen('php://output','w');
         $headings = VacunaExport::headingsStatic();
         $selects = VacunaExport::selectsStatic();
+        $selectKeys = VacunaExport::selectKeysStatic();
         $expectedColumns = count($headings);
 
         // BOM + pista de separador para que Excel abra el archivo directamente.
         fputs($out, "\xEF\xBB\xBF");
-        fwrite($out, "sep=\t\r\n");
+        fwrite($out, "sep=;\r\n");
 
         // 1) Encabezados
         fputcsv($out, $headings, $delimiter);
@@ -1907,7 +1908,12 @@ public function exportVacunas(Request $request)
             ->orderBy('a.created_at','desc')
             ->chunk(500, function($rows) use ($out, $delimiter, $expectedColumns) {
                 foreach ($rows as $r) {
-                    $rowValues = array_values(get_object_vars($r));
+                    $rowAssoc = get_object_vars($r);
+                    $rowValues = [];
+
+                    foreach ($selectKeys as $key) {
+                        $rowValues[] = $rowAssoc[$key] ?? '';
+                    }
 
                     // Fuerza el mismo número de columnas del encabezado.
                     if (count($rowValues) < $expectedColumns) {
