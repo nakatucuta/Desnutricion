@@ -1708,6 +1708,17 @@ public function getVacunasPdf($id, $numeroCarnet = null)
 
 public function exportVacunas(Request $request)
 {
+    $validated = $request->validate([
+        'start_date' => 'required|date',
+        'end_date' => 'required|date|after_or_equal:start_date',
+    ]);
+
+    $startDate = $validated['start_date'];
+    $endDate = $validated['end_date'];
+    $fileName = "vacunas_{$startDate}_{$endDate}.xlsx";
+
+    return Excel::download(new VacunaExport($startDate, $endDate), $fileName);
+
     $startDate = $request->input('start_date');
     $endDate   = $request->input('end_date');
 
