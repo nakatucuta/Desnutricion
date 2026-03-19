@@ -17,6 +17,26 @@ use PhpOffice\PhpSpreadsheet\Shared\Date;
 
 class AfiliadoImport implements ToModel, WithStartRow, WithChunkReading
 {
+    private const ROW_PAD_SIZE = 272;
+
+    private const INTEGER_RULES = [
+        'edad_anos' => 'nullable|integer',
+        'edad_meses' => 'nullable|integer',
+        'edad_dias' => 'nullable|integer',
+        'total_meses' => 'nullable|integer',
+        'edad_gestacional' => 'nullable|integer',
+        'embarazos_previos' => 'nullable|integer',
+    ];
+
+    private const VACUNA_TRIGGERS = [
+        1=>75,  2=>81,  3=>87,  4=>92,  5=>97,  6=>100, 7=>105, 8=>109, 9=>113, 10=>117,
+        11=>121, 12=>124, 13=>128, 14=>133, 15=>138, 16=>143, 17=>147, 18=>152, 19=>156, 20=>160,
+        21=>165, 22=>169, 23=>175, 24=>177, 25=>182, 26=>186, 27=>190, 55=>195, 56=>197, 28=>199,
+        29=>201, 30=>203, 31=>205, 32=>207, 33=>209, 34=>211, 35=>213, 36=>215, 37=>217, 38=>219,
+        39=>221, 40=>223, 41=>225, 42=>227, 43=>229, 44=>231, 45=>233, 46=>235, 47=>237, 48=>240,
+        49=>242, 50=>245, 51=>247, 52=>249, 53=>251, 54=>253,
+    ];
+
     protected $errores = [];
     protected $guardar = true;
     protected $filasParaGuardar = [];
@@ -58,9 +78,12 @@ class AfiliadoImport implements ToModel, WithStartRow, WithChunkReading
     public function model(array $row)
     {
         // Evita Notice/Undefined offset cuando la fila viene corta
-        $row = array_replace(array_fill(0, 272, null), $row);
+        if (count($row) < self::ROW_PAD_SIZE) {
+            $row = array_pad($row, self::ROW_PAD_SIZE, null);
+        }
 
         $usuario_activo = Auth::id();
+        $now = Carbon::now()->format('Y-m-d H:i:s');
 
         // ---------- Helpers rápidos ----------
         $clean = function ($v) {
@@ -124,16 +147,7 @@ class AfiliadoImport implements ToModel, WithStartRow, WithChunkReading
             'embarazos_previos' => $row[47],
         ];
 
-        $rules = [
-            'edad_anos' => 'nullable|integer',
-            'edad_meses' => 'nullable|integer',
-            'edad_dias' => 'nullable|integer',
-            'total_meses' => 'nullable|integer',
-            'edad_gestacional' => 'nullable|integer',
-            'embarazos_previos' => 'nullable|integer',
-        ];
-
-        $validator = Validator::make($data, $rules);
+        $validator = Validator::make($data, self::INTEGER_RULES);
         if ($validator->fails()) {
             foreach ($validator->errors()->all() as $error) {
                 Log::error("VALIDATION IMPORT: ".$error." | ".$tipo_identifi." ".$numero_identifi);
@@ -189,7 +203,7 @@ class AfiliadoImport implements ToModel, WithStartRow, WithChunkReading
 
         // ---------- Resolver afiliado local por CACHE ----------
         if (!isset($this->afiliadoIdCache[$numero_carnet])) {
-            $local = Afiliado::select('id', 'numero_carnet')
+            $local = Afiliado::select('id')
                 ->where('numero_carnet', $numero_carnet)
                 ->first();
 
@@ -197,6 +211,18 @@ class AfiliadoImport implements ToModel, WithStartRow, WithChunkReading
         }
 
         $afiliado_id_local = $this->afiliadoIdCache[$numero_carnet];
+
+        $vacunasData = $this->extraerVacunas(
+            $row,
+            $fechaatencion,
+            $responsable,
+            $fuen_ingresado_paiweb,
+            $motivo_noingreso,
+            $observaciones,
+            $regimenVacuna,
+            $usuario_activo,
+            $now
+        );
 
         // ---------- Armar datos afiliado (solo si no existe) ----------
         if ($afiliado_id_local === 0) {
@@ -287,20 +313,9 @@ class AfiliadoImport implements ToModel, WithStartRow, WithChunkReading
                 'user_id' => $usuario_activo,
                 'batch_verifications_id' => $this->batch_verifications_id,
 
-                'created_at' => Carbon::now()->format('Y-m-d H:i:s'),
-                'updated_at' => Carbon::now()->format('Y-m-d H:i:s'),
+                'created_at' => $now,
+                'updated_at' => $now,
             ];
-
-            $vacunasData = $this->extraerVacunas(
-                $row,
-                $fechaatencion,
-                $responsable,
-                $fuen_ingresado_paiweb,
-                $motivo_noingreso,
-                $observaciones,
-                $regimenVacuna,
-                $usuario_activo
-            );
 
             $this->filasParaGuardar[] = [
                 'afiliado' => $afiliadoData,
@@ -311,17 +326,6 @@ class AfiliadoImport implements ToModel, WithStartRow, WithChunkReading
         } else {
 
             // Afiliado existe, solo vacunas
-            $vacunasData = $this->extraerVacunas(
-                $row,
-                $fechaatencion,
-                $responsable,
-                $fuen_ingresado_paiweb,
-                $motivo_noingreso,
-                $observaciones,
-                $regimenVacuna,
-                $usuario_activo
-            );
-
             $this->filasParaGuardar[] = [
                 'afiliado' => ['numero_carnet' => $numero_carnet],
                 'vacunas' => $vacunasData,
@@ -346,7 +350,8 @@ class AfiliadoImport implements ToModel, WithStartRow, WithChunkReading
         $motivo_noingreso,
         $observaciones,
         $regimenVacuna,
-        $usuario_activo
+        $usuario_activo,
+        string $now
     ): array {
 
         $cellHasValue = function ($v) {
@@ -360,18 +365,9 @@ class AfiliadoImport implements ToModel, WithStartRow, WithChunkReading
 
         // Cada vacuna: [vacunas_id, triggerIndex]
         // triggerIndex = columna que determina si ese bloque se considera diligenciado.
-        $triggers = [
-            1=>75,  2=>81,  3=>87,  4=>92,  5=>97,  6=>100, 7=>105, 8=>109, 9=>113, 10=>117,
-            11=>121, 12=>124, 13=>128, 14=>133, 15=>138, 16=>143, 17=>147, 18=>152, 19=>156, 20=>160,
-            21=>165, 22=>169, 23=>175, 24=>177, 25=>182, 26=>186, 27=>190, 55=>195, 56=>197, 28=>199,
-            29=>201, 30=>203, 31=>205, 32=>207, 33=>209, 34=>211, 35=>213, 36=>215, 37=>217, 38=>219,
-            39=>221, 40=>223, 41=>225, 42=>227, 43=>229, 44=>231, 45=>233, 46=>235, 47=>237, 48=>240,
-            49=>242, 50=>245, 51=>247, 52=>249, 53=>251, 54=>253,
-        ];
-
         $vacunas = [];
 
-        foreach ($triggers as $vacunaNombre => $trigger) {
+        foreach (self::VACUNA_TRIGGERS as $vacunaNombre => $trigger) {
 
             // Caso especial vacuna 12: puede venir el tipo_neumococo (123) aunque docis (124) venga vacío
             if ($vacunaNombre === 12) {
@@ -762,8 +758,8 @@ class AfiliadoImport implements ToModel, WithStartRow, WithChunkReading
                 'vacunas_id' => $vacunaNombre,
                 'user_id' => $usuario_activo ?? null,
                 'batch_verifications_id' => $this->batch_verifications_id,
-                'created_at' => Carbon::now()->format('Y-m-d H:i:s'),
-                'updated_at' => Carbon::now()->format('Y-m-d H:i:s'),
+                'created_at' => $now,
+                'updated_at' => $now,
             ];
         }
 
