@@ -1726,12 +1726,12 @@ public function getVacunasPdf($id, $numeroCarnet = null)
         $headings = VacunaExport::headingsStatic();
         $selects = VacunaExport::selectsStatic();
 
-        // BOM + pista de separador para que Excel abra el CSV sin correr columnas.
+        // BOM + pista de separador para que Excel abra el CSV con pipeline.
         fputs($out, "\xEF\xBB\xBF");
-        fwrite($out, "sep=;\r\n");
+        fwrite($out, "sep=|\r\n");
 
         // 1) Encabezados
-        fputcsv($out, $headings, ';');
+        fputcsv($out, $headings, '|');
 /*
             'Prestador','IPS PRIMARIA','Fecha de Atención','Tipo de Identificación',
             'Número de Identificación','Primer Nombre','Segundo Nombre','Primer Apellido',
@@ -1911,7 +1911,7 @@ public function getVacunasPdf($id, $numeroCarnet = null)
                         }
 
                         $value = (string) $value;
-                        $value = str_replace(["\r\n", "\r", "\n", "\t", ';'], ' ', $value);
+                        $value = str_replace(["\r\n", "\r", "\n", "\t", '|'], ' ', $value);
                         $value = preg_replace('/\s+/u', ' ', trim($value));
 
                         // Evita que Excel interprete contenido como formula y ayuda a mantener columnas estables.
@@ -1922,7 +1922,7 @@ public function getVacunasPdf($id, $numeroCarnet = null)
                         return $value;
                     }, (array) $r);
 
-                    fputcsv($out, $sanitized, ';');
+                    fputcsv($out, $sanitized, '|');
                 }
             });
 
