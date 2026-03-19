@@ -1906,7 +1906,7 @@ public function exportVacunas(Request $request)
             })
             ->select($selects)
             ->orderBy('a.created_at','desc')
-            ->chunk(500, function($rows) use ($out, $delimiter, $expectedColumns) {
+            ->chunk(500, function($rows) use ($out, $delimiter, $expectedColumns, $selectKeys) {
                 foreach ($rows as $r) {
                     $rowAssoc = get_object_vars($r);
                     $rowValues = [];
