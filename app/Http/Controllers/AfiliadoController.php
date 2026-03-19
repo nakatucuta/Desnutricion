@@ -1706,7 +1706,7 @@ public function getVacunasPdf($id, $numeroCarnet = null)
 }
 
 
-      public function exportVacunas(Request $request)
+public function exportVacunas(Request $request)
 {
     $startDate = $request->input('start_date');
     $endDate   = $request->input('end_date');
@@ -1715,23 +1715,25 @@ public function getVacunasPdf($id, $numeroCarnet = null)
         return redirect()->back()->withErrors(['msg' => 'Fechas no proporcionadas']);
     }
 
-    $fileName = "vacunas_{$startDate}_{$endDate}.csv";
+    $delimiter = "\t";
+    $fileName = "vacunas_{$startDate}_{$endDate}.tsv";
     $headers = [
-        'Content-Type'        => 'text/csv; charset=UTF-8',
+        'Content-Type'        => 'text/tab-separated-values; charset=UTF-8',
         'Content-Disposition' => "attachment; filename=\"$fileName\"",
     ];
 
-    $callback = function() use ($startDate, $endDate) {
+    $callback = function() use ($startDate, $endDate, $delimiter) {
         $out = fopen('php://output','w');
         $headings = VacunaExport::headingsStatic();
         $selects = VacunaExport::selectsStatic();
+        $expectedColumns = count($headings);
 
-        // BOM + pista de separador para que Excel abra el CSV con pipeline.
+        // BOM + pista de separador para que Excel abra el archivo directamente.
         fputs($out, "\xEF\xBB\xBF");
-        fwrite($out, "sep=|\r\n");
+        fwrite($out, "sep=\t\r\n");
 
         // 1) Encabezados
-        fputcsv($out, $headings, '|');
+        fputcsv($out, $headings, $delimiter);
 /*
             'Prestador','IPS PRIMARIA','Fecha de Atención','Tipo de Identificación',
             'Número de Identificación','Primer Nombre','Segundo Nombre','Primer Apellido',
@@ -1903,15 +1905,25 @@ public function getVacunasPdf($id, $numeroCarnet = null)
             })
             ->select($selects)
             ->orderBy('a.created_at','desc')
-            ->chunk(500, function($rows) use ($out) {
+            ->chunk(500, function($rows) use ($out, $delimiter, $expectedColumns) {
                 foreach ($rows as $r) {
+                    $rowValues = array_values(get_object_vars($r));
+
+                    // Fuerza el mismo número de columnas del encabezado.
+                    if (count($rowValues) < $expectedColumns) {
+                        $rowValues = array_pad($rowValues, $expectedColumns, '');
+                    } elseif (count($rowValues) > $expectedColumns) {
+                        $rowValues = array_slice($rowValues, 0, $expectedColumns);
+                    }
+
                     $sanitized = array_map(function ($value) {
                         if ($value === null) {
                             return '';
                         }
 
                         $value = (string) $value;
-                        $value = str_replace(["\r\n", "\r", "\n", "\t", '|'], ' ', $value);
+                        $value = str_replace(["\r\n", "\r", "\n", "\t"], ' ', $value);
+                        $value = preg_replace('/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/u', ' ', $value);
                         $value = preg_replace('/\s+/u', ' ', trim($value));
 
                         // Evita que Excel interprete contenido como formula y ayuda a mantener columnas estables.
@@ -1920,9 +1932,9 @@ public function getVacunasPdf($id, $numeroCarnet = null)
                         }
 
                         return $value;
-                    }, (array) $r);
+                    }, $rowValues);
 
-                    fputcsv($out, $sanitized, '|');
+                    fputcsv($out, $sanitized, $delimiter);
                 }
             });
 
