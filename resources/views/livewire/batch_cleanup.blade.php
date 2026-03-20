@@ -42,7 +42,7 @@
     <div class="card bc-card">
         <div class="card-body">
             <form method="GET" class="form-inline mb-3">
-                <input type="text" name="search" value="{{ $search ?? '' }}" class="form-control mr-2 mb-2 mb-md-0" placeholder="Buscar por ID o fecha">
+                <input type="text" name="search" value="{{ $search ?? '' }}" class="form-control mr-2 mb-2 mb-md-0" placeholder="Buscar por ID, fecha o usuario">
                 <button class="btn btn-primary mr-2" type="submit"><i class="fas fa-search mr-1"></i> Buscar</button>
                 <a href="{{ route('batch.cleanup.index') }}" class="btn btn-light">Limpiar</a>
             </form>
@@ -69,6 +69,7 @@
                                 <th style="width:42px;"><input type="checkbox" id="checkAll"></th>
                                 <th style="width:90px;">Lote</th>
                                 <th style="width:190px;">Fecha cargue</th>
+                                <th style="width:220px;">Usuario cargue</th>
                                 <th style="width:140px;">Afiliados</th>
                                 <th style="width:140px;">Vacunas</th>
                                 <th class="text-right" style="width:180px;">Accion</th>
@@ -80,6 +81,7 @@
                                 <td><input type="checkbox" class="row-check" name="batch_ids[]" value="{{ $lote->id }}"></td>
                                 <td><span class="badge badge-light">#{{ $lote->id }}</span></td>
                                 <td>{{ $lote->fecha_cargue ?? '---' }}</td>
+                                <td>{{ $lote->user_name ?? 'Sin usuario' }}</td>
                                 <td>{{ number_format($lote->afiliados_count ?? 0) }}</td>
                                 <td>{{ number_format($lote->vacunas_count ?? 0) }}</td>
                                 <td class="text-right">
@@ -92,7 +94,7 @@
                                 </td>
                             </tr>
                             @empty
-                            <tr><td colspan="6" class="text-center text-muted py-4">No hay lotes para mostrar.</td></tr>
+                            <tr><td colspan="7" class="text-center text-muted py-4">No hay lotes para mostrar.</td></tr>
                             @endforelse
                         </tbody>
                     </table>

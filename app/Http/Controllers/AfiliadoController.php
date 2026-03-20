@@ -1424,31 +1424,49 @@ public function getVacunasPdf($id, $numeroCarnet = null)
             ->select('batch_verifications_id', DB::raw('COUNT(*) as vacunas_count'))
             ->groupBy('batch_verifications_id');
 
-        $lotes = DB::table('batch_verifications as b')
+        $latestImportJobSub = DB::table('import_jobs as ij')
+            ->select('ij.batch_verifications_id', DB::raw('MAX(ij.id) as latest_import_job_id'))
+            ->whereNotNull('ij.batch_verifications_id')
+            ->groupBy('ij.batch_verifications_id');
+
+        $lotesQuery = DB::table('batch_verifications as b')
             ->leftJoinSub($afiliadosSub, 'a', function ($join) {
                 $join->on('a.batch_verifications_id', '=', 'b.id');
             })
             ->leftJoinSub($vacunasSub, 'v', function ($join) {
                 $join->on('v.batch_verifications_id', '=', 'b.id');
             })
+            ->leftJoinSub($latestImportJobSub, 'lij', function ($join) {
+                $join->on('lij.batch_verifications_id', '=', 'b.id');
+            })
+            ->leftJoin('import_jobs as ij', 'ij.id', '=', 'lij.latest_import_job_id')
+            ->leftJoin('users as u', 'u.id', '=', 'ij.user_id')
+            ->where(function ($q) {
+                $q->whereRaw('COALESCE(a.afiliados_count, 0) > 0')
+                    ->orWhereRaw('COALESCE(v.vacunas_count, 0) > 0');
+            })
             ->select([
                 'b.id',
                 'b.fecha_cargue',
+                'u.name as user_name',
                 DB::raw('COALESCE(a.afiliados_count, 0) as afiliados_count'),
                 DB::raw('COALESCE(v.vacunas_count, 0) as vacunas_count'),
             ])
             ->when($search !== '', function ($q) use ($search) {
                 $q->where(function ($w) use ($search) {
                     $w->where('b.id', 'LIKE', "%{$search}%")
-                        ->orWhere('b.fecha_cargue', 'LIKE', "%{$search}%");
+                        ->orWhere('b.fecha_cargue', 'LIKE', "%{$search}%")
+                        ->orWhere('u.name', 'LIKE', "%{$search}%");
                 });
             })
-            ->orderByDesc('b.id')
+            ->orderByDesc('b.id');
+
+        $lotes = (clone $lotesQuery)
             ->paginate(18)
             ->withQueryString();
 
         $stats = [
-            'total_lotes' => DB::table('batch_verifications')->count(),
+            'total_lotes' => (clone $lotesQuery)->count(),
             'total_afiliados' => DB::table('afiliados')->count(),
             'total_vacunas' => DB::table('vacunas')->count(),
         ];
