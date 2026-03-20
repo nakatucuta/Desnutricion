@@ -40,6 +40,11 @@ class GesTipo3Controller extends Controller
         return [$from, $to];
     }
 
+    private function sqlServerDateTime(Carbon $value): string
+    {
+        return $value->format('Ymd H:i:s.v');
+    }
+
     private function tipo3ExportColumns(): array
     {
         return [
@@ -87,7 +92,10 @@ class GesTipo3Controller extends Controller
     {
         $query = DB::table('ges_tipo3')
             ->select($this->tipo3ExportColumns())
-            ->whereBetween('created_at', [$from, $to]);
+            ->whereBetween('created_at', [
+                $this->sqlServerDateTime($from),
+                $this->sqlServerDateTime($to),
+            ]);
 
         if ((int) (Auth::user()->usertype ?? 0) === 2) {
             $query->where('user_id', (int) Auth::id());
@@ -99,10 +107,8 @@ class GesTipo3Controller extends Controller
     private function tipo3ReportColumns(): array
     {
         return [
-            'id' => ['label' => 'ID', 'db' => 't3.id'],
-            'user_id' => ['label' => 'Usuario', 'db' => 't3.user_id'],
-            'ges_tipo1_id' => ['label' => 'Gestante', 'db' => 't3.ges_tipo1_id'],
-            'nombre_completo' => ['label' => 'Nombre completo', 'db' => "LTRIM(RTRIM(CONCAT(COALESCE(t1.primer_nombre,''), ' ', COALESCE(t1.segundo_nombre,''), ' ', COALESCE(t1.primer_apellido,''), ' ', COALESCE(t1.segundo_apellido,''))))"],
+            'tipo_registro' => ['label' => 'Tipo registro', 'db' => 't3.tipo_de_registro'],
+            'consecutivo' => ['label' => 'Consecutivo', 'db' => 't3.consecutivo_de_registro'],
             'tipo_identificacion' => ['label' => 'Tipo ID', 'db' => 't3.tipo_identificacion_de_la_usuaria'],
             'no_id_del_usuario' => ['label' => 'Numero identificacion', 'db' => 't3.no_id_del_usuario'],
             'fecha_tecnologia_en_salud' => ['label' => 'Fecha tecnologia', 'db' => 't3.fecha_tecnologia_en_salud'],
@@ -114,11 +120,20 @@ class GesTipo3Controller extends Controller
             'acido_folico' => ['label' => 'Acido folico', 'db' => 't3.suministro_acido_folico_en_el_control_prenatal'],
             'sulfato_ferroso' => ['label' => 'Sulfato ferroso', 'db' => 't3.suministro_sulfato_ferroso_en_el_control_prenatal'],
             'calcio' => ['label' => 'Calcio', 'db' => 't3.suministro_calcio_en_el_control_prenatal'],
+            'fecha_anticonceptivo_post_evento' => ['label' => 'Fecha anticonceptivo post evento', 'db' => 't3.fecha_suministro_de_anticonceptivo_post_evento_obstetrico'],
+            'metodo_anticonceptivo_post_evento' => ['label' => 'Metodo anticonceptivo post evento', 'db' => 't3.suministro_metodo_anticonceptivo_post_evento_obstetrico'],
+            'fecha_salida' => ['label' => 'Fecha salida', 'db' => 't3.fecha_de_salida_de_aborto_o_atencion_del_parto_o_cesarea'],
+            'fecha_terminacion' => ['label' => 'Fecha terminacion', 'db' => 't3.fecha_de_terminacion_de_la_gestacion'],
+            'tipo_terminacion' => ['label' => 'Tipo terminacion', 'db' => 't3.tipo_de_terminacion_de_la_gestacion'],
             'pas' => ['label' => 'PAS', 'db' => 't3.tension_arterial_sistolica_PAS_mmHg'],
             'pad' => ['label' => 'PAD', 'db' => 't3.tension_arterial_diastolica_PAD_mmHg'],
             'imc' => ['label' => 'IMC', 'db' => 't3.indice_de_masa_corporal'],
             'hemoglobina' => ['label' => 'Hemoglobina', 'db' => 't3.resultado_de_la_hemoglobina'],
             'ipau' => ['label' => 'IPAU', 'db' => 't3.indice_de_pulsatilidad_de_arterias_uterinas'],
+            'nombre_completo' => ['label' => 'Nombre completo', 'db' => "LTRIM(RTRIM(CONCAT(COALESCE(t1.primer_nombre,''), ' ', COALESCE(t1.segundo_nombre,''), ' ', COALESCE(t1.primer_apellido,''), ' ', COALESCE(t1.segundo_apellido,''))))"],
+            'ges_tipo1_id' => ['label' => 'Gestante', 'db' => 't3.ges_tipo1_id'],
+            'id' => ['label' => 'ID', 'db' => 't3.id'],
+            'user_id' => ['label' => 'Usuario', 'db' => 't3.user_id'],
             'created_at' => ['label' => 'Creado', 'db' => 't3.created_at'],
             'updated_at' => ['label' => 'Actualizado', 'db' => 't3.updated_at'],
         ];
@@ -140,7 +155,10 @@ class GesTipo3Controller extends Controller
 
         $query = DB::table('ges_tipo3 as t3')
             ->leftJoin('ges_tipo1 as t1', 't1.id', '=', 't3.ges_tipo1_id')
-            ->whereBetween('t3.created_at', [$from, $to]);
+            ->whereBetween('t3.created_at', [
+                $this->sqlServerDateTime($from),
+                $this->sqlServerDateTime($to),
+            ]);
 
         if ((int) (Auth::user()->usertype ?? 0) === 2) {
             $query->where('t3.user_id', (int) Auth::id());

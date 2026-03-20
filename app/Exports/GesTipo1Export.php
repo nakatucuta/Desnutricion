@@ -62,8 +62,8 @@ class GesTipo1Export implements FromQuery, WithHeadings, WithMapping
                 'updated_at',
             ])
             ->whereBetween('created_at', [
-                $this->from . ' 00:00:00',
-                $this->to . ' 23:59:59',
+                str_replace('-', '', $this->from) . ' 00:00:00.000',
+                str_replace('-', '', $this->to) . ' 23:59:59.999',
             ]);
 
         if (Auth::user()->usertype === 2) {

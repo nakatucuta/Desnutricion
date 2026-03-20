@@ -43,6 +43,11 @@ class GesTipo1Controller extends Controller
         return [$from, $to];
     }
 
+    private function sqlServerDateTime(Carbon $value): string
+    {
+        return $value->format('Ymd H:i:s.v');
+    }
+
     private function tipo1ExportColumns(): array
     {
         return [
@@ -101,7 +106,10 @@ class GesTipo1Controller extends Controller
     {
         $query = DB::table('ges_tipo1')
             ->select($this->tipo1ExportColumns())
-            ->whereBetween('created_at', [$from, $to]);
+            ->whereBetween('created_at', [
+                $this->sqlServerDateTime($from),
+                $this->sqlServerDateTime($to),
+            ]);
 
         if ((int) (Auth::user()->usertype ?? 0) === 2) {
             $query->where('user_id', (int) Auth::id());
@@ -113,26 +121,26 @@ class GesTipo1Controller extends Controller
     private function tipo1ReportColumns(): array
     {
         return [
-            'id' => ['label' => 'ID', 'db' => 'g.id'],
-            'user_id' => ['label' => 'Usuario', 'db' => 'g.user_id'],
             'tipo_registro' => ['label' => 'Tipo registro', 'db' => 'g.tipo_de_registro'],
             'consecutivo' => ['label' => 'Consecutivo', 'db' => 'g.consecutivo'],
-            'tipo_identificacion' => ['label' => 'Tipo ID', 'db' => 'g.tipo_de_identificacion_de_la_usuaria'],
-            'no_id_del_usuario' => ['label' => 'Numero identificacion', 'db' => 'g.no_id_del_usuario'],
-            'numero_carnet' => ['label' => 'Numero carnet', 'db' => 'g.numero_carnet'],
-            'nombre_completo' => ['label' => 'Nombre completo', 'db' => "LTRIM(RTRIM(CONCAT(COALESCE(g.primer_nombre,''), ' ', COALESCE(g.segundo_nombre,''), ' ', COALESCE(g.primer_apellido,''), ' ', COALESCE(g.segundo_apellido,''))))"],
-            'fecha_de_nacimiento' => ['label' => 'Fecha nacimiento', 'db' => 'g.fecha_de_nacimiento'],
-            'fecha_probable_de_parto' => ['label' => 'FPP', 'db' => 'g.fecha_probable_de_parto'],
             'municipio' => ['label' => 'Municipio', 'db' => 'g.municipio_de_residencia_habitual'],
             'zona' => ['label' => 'Zona', 'db' => 'g.zona_territorial_de_residencia'],
             'ips_primaria' => ['label' => 'IPS primaria', 'db' => 'g.codigo_de_habilitacion_ips_primaria_de_la_gestante'],
+            'tipo_identificacion' => ['label' => 'Tipo ID', 'db' => 'g.tipo_de_identificacion_de_la_usuaria'],
+            'no_id_del_usuario' => ['label' => 'Numero identificacion', 'db' => 'g.no_id_del_usuario'],
+            'nombre_completo' => ['label' => 'Nombre completo', 'db' => "LTRIM(RTRIM(CONCAT(COALESCE(g.primer_nombre,''), ' ', COALESCE(g.segundo_nombre,''), ' ', COALESCE(g.primer_apellido,''), ' ', COALESCE(g.segundo_apellido,''))))"],
+            'fecha_de_nacimiento' => ['label' => 'Fecha nacimiento', 'db' => 'g.fecha_de_nacimiento'],
+            'fecha_probable_de_parto' => ['label' => 'FPP', 'db' => 'g.fecha_probable_de_parto'],
             'direccion' => ['label' => 'Direccion', 'db' => 'g.direccion_de_residencia_de_la_gestante'],
             'hta' => ['label' => 'HTA', 'db' => 'g.antecedente_hipertension_cronica'],
             'preeclampsia' => ['label' => 'Preeclampsia', 'db' => 'g.antecedente_preeclampsia'],
             'diabetes' => ['label' => 'Diabetes', 'db' => 'g.antecedente_diabetes'],
             'embarazo_multiple' => ['label' => 'Embarazo multiple', 'db' => 'g.embarazo_multiple'],
             'metodo_de_concepcion' => ['label' => 'Metodo concepcion', 'db' => 'g.metodo_de_concepcion'],
+            'numero_carnet' => ['label' => 'Numero carnet', 'db' => 'g.numero_carnet'],
             'seguimiento_estado' => ['label' => 'Estado seguimiento', 'db' => "CASE WHEN EXISTS (SELECT 1 FROM ges_tipo1_seguimientos s WHERE s.ges_tipo1_id = g.id) THEN 'Con seguimiento' ELSE 'Sin seguimiento' END"],
+            'id' => ['label' => 'ID', 'db' => 'g.id'],
+            'user_id' => ['label' => 'Usuario', 'db' => 'g.user_id'],
             'created_at' => ['label' => 'Creado', 'db' => 'g.created_at'],
             'updated_at' => ['label' => 'Actualizado', 'db' => 'g.updated_at'],
         ];
@@ -153,7 +161,10 @@ class GesTipo1Controller extends Controller
         [$from, $to] = $this->exportBounds($request);
 
         $query = DB::table('ges_tipo1 as g')
-            ->whereBetween('g.created_at', [$from, $to]);
+            ->whereBetween('g.created_at', [
+                $this->sqlServerDateTime($from),
+                $this->sqlServerDateTime($to),
+            ]);
 
         if ((int) (Auth::user()->usertype ?? 0) === 2) {
             $query->where('g.user_id', (int) Auth::id());
