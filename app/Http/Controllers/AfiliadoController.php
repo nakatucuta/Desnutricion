@@ -1715,22 +1715,35 @@ public function exportVacunas(Request $request)
 
     $startDate = $validated['start_date'];
     $endDate = $validated['end_date'];
-    $fileName = "vacunas_{$startDate}_{$endDate}.xlsx";
 
-    return Excel::download(new VacunaExport($startDate, $endDate), $fileName);
+    $plan = $this->evaluateVacunasExportVolume($startDate, $endDate);
 
-    $startDate = $request->input('start_date');
-    $endDate   = $request->input('end_date');
-
-    if (! $startDate || ! $endDate) {
-        return redirect()->back()->withErrors(['msg' => 'Fechas no proporcionadas']);
+    if (! $plan['has_data']) {
+        return $this->buildVacunasExportLimitResponse($request, $plan);
     }
 
+    $package = $this->createVacunasExportPackage($startDate, $endDate, $plan);
+    $headers = [
+        'X-Export-Summary' => $this->encodeVacunasExportSummaryHeader($package['summary']),
+    ];
+
+    return response()
+        ->download($package['path'], $package['download_name'], $headers)
+        ->deleteFileAfterSend(true);
+
+    $guard = $this->evaluateVacunasExportVolume($startDate, $endDate);
+
+    if (! $guard['allowed']) {
+        return $this->buildVacunasExportLimitResponse($request, $guard);
+    }
+
+    $summary = $this->analyzeVacunasExportSanitization($startDate, $endDate);
     $delimiter = ';';
     $fileName = "vacunas_{$startDate}_{$endDate}.csv";
     $headers = [
         'Content-Type'        => 'text/csv; charset=UTF-8',
         'Content-Disposition' => "attachment; filename=\"$fileName\"",
+        'X-Export-Summary'    => $this->encodeVacunasExportSummaryHeader($summary),
     ];
 
     $callback = function() use ($startDate, $endDate, $delimiter) {
@@ -1906,16 +1919,7 @@ public function exportVacunas(Request $request)
                 'a.created_at',
             ])
 */
-        DB::table('vacunas as a')
-            ->join('afiliados as b', 'b.id', '=', 'a.afiliado_id')
-            ->join('referencia_vacunas as d', 'd.id', '=', 'a.vacunas_id')
-            ->join('users as u', 'u.id', '=', 'a.user_id')
-            ->leftJoin('SGA.dbo.maestroIps as j', 'b.numero_Carnet', '=', 'j.numeroCarnet')
-            ->leftJoin('SGA.dbo.maestroIpsGru as k', 'j.idGrupoIps', '=', 'k.id')
-            ->when($startDate && $endDate, function($q) use ($startDate, $endDate) {
-                $q->whereBetween('a.fecha_vacuna', [$startDate, $endDate]);
-            })
-            ->select($selects)
+        $this->buildVacunasExportQuery($startDate, $endDate, $selects)
             ->orderBy('a.created_at','desc')
             ->chunk(500, function($rows) use ($out, $delimiter, $expectedColumns, $selectKeys) {
                 foreach ($rows as $r) {
@@ -1933,23 +1937,7 @@ public function exportVacunas(Request $request)
                         $rowValues = array_slice($rowValues, 0, $expectedColumns);
                     }
 
-                    $sanitized = array_map(function ($value) {
-                        if ($value === null) {
-                            return '';
-                        }
-
-                        $value = (string) $value;
-                        $value = str_replace(["\r\n", "\r", "\n", "\t"], ' ', $value);
-                        $value = preg_replace('/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/u', ' ', $value);
-                        $value = preg_replace('/\s+/u', ' ', trim($value));
-
-                        // Evita que Excel interprete contenido como formula y ayuda a mantener columnas estables.
-                        if ($value !== '' && preg_match('/^[=\-+@]/', $value)) {
-                            $value = "'" . $value;
-                        }
-
-                        return $value;
-                    }, $rowValues);
+                    $sanitized = array_map(fn ($value) => $this->sanitizeVacunasExportValue($value), $rowValues);
 
                     fputcsv($out, $sanitized, $delimiter);
                 }
@@ -1959,6 +1947,543 @@ public function exportVacunas(Request $request)
     };
 
     return response()->stream($callback, 200, $headers);
+}
+
+private function buildVacunasExportQuery(string $startDate, string $endDate, array $selects)
+{
+    return DB::table('vacunas as a')
+        ->join('afiliados as b', 'b.id', '=', 'a.afiliado_id')
+        ->join('referencia_vacunas as d', 'd.id', '=', 'a.vacunas_id')
+        ->join('users as u', 'u.id', '=', 'a.user_id')
+        ->leftJoin('SGA.dbo.maestroIps as j', 'b.numero_Carnet', '=', 'j.numeroCarnet')
+        ->leftJoin('SGA.dbo.maestroIpsGru as k', 'j.idGrupoIps', '=', 'k.id')
+        ->when($startDate && $endDate, function($q) use ($startDate, $endDate) {
+            $q->whereBetween('a.fecha_vacuna', [$startDate, $endDate]);
+        })
+        ->select($selects);
+}
+
+private function createVacunasExportPackage(string $startDate, string $endDate, array $plan): array
+{
+    ini_set('max_execution_time', '600');
+    ini_set('memory_limit', '1024M');
+
+    $baseTempDir = storage_path('app/temp_exports');
+    if (!is_dir($baseTempDir) && !mkdir($baseTempDir, 0777, true) && !is_dir($baseTempDir)) {
+        throw new \RuntimeException('No se pudo crear el directorio temporal de exportaciones.');
+    }
+
+    $token = (string) Str::uuid();
+    $baseName = "vacunas_{$startDate}_{$endDate}";
+    $workDir = $baseTempDir . DIRECTORY_SEPARATOR . $token;
+
+    if (!mkdir($workDir, 0777, true) && !is_dir($workDir)) {
+        throw new \RuntimeException('No se pudo preparar el directorio de trabajo para la exportacion.');
+    }
+
+    $delimiter = ';';
+    $headings = VacunaExport::headingsStatic();
+    $selects = VacunaExport::selectsStatic();
+    $selectKeys = VacunaExport::selectKeysStatic();
+    $expectedColumns = count($headings);
+    $rowsPerFile = max((int) ($plan['rows_per_file'] ?? 0), 1);
+
+    $summary = [
+        'mode' => (($plan['parts_count'] ?? 0) > 1) ? 'zip' : 'csv',
+        'row_count' => (int) ($plan['row_count'] ?? 0),
+        'written_rows' => 0,
+        'parts_count' => 0,
+        'rows_per_file' => $rowsPerFile,
+        'sanitized_fields' => 0,
+        'risk_fields' => 0,
+        'delimiter_fields' => 0,
+        'quote_fields' => 0,
+        'line_break_fields' => 0,
+        'tab_fields' => 0,
+        'control_char_fields' => 0,
+        'normalized_whitespace_fields' => 0,
+        'formula_prefixed_fields' => 0,
+        'inspected_fields' => 0,
+    ];
+
+    $files = [];
+    $currentHandle = null;
+    $currentRows = 0;
+    $currentIndex = -1;
+
+    $openPart = function () use (
+        &$currentHandle,
+        &$currentRows,
+        &$currentIndex,
+        &$files,
+        $workDir,
+        $baseName,
+        $plan,
+        $delimiter,
+        $headings
+    ) {
+        $currentIndex++;
+        $suffix = (($plan['parts_count'] ?? 0) > 1) ? '_parte_' . ($currentIndex + 1) : '';
+        $fileName = $baseName . $suffix . '.csv';
+        $path = $workDir . DIRECTORY_SEPARATOR . $fileName;
+
+        $handle = fopen($path, 'wb');
+        if ($handle === false) {
+            throw new \RuntimeException('No se pudo crear el archivo CSV temporal.');
+        }
+
+        $this->writeVacunasCsvHeader($handle, $delimiter, $headings);
+        $currentHandle = $handle;
+        $currentRows = 0;
+        $files[] = [
+            'name' => $fileName,
+            'path' => $path,
+            'rows' => 0,
+        ];
+    };
+
+    $closePart = function () use (&$currentHandle) {
+        if (is_resource($currentHandle)) {
+            fclose($currentHandle);
+        }
+
+        $currentHandle = null;
+    };
+
+    try {
+        $openPart();
+
+        $this->buildVacunasExportQuery($startDate, $endDate, $selects)
+            ->orderBy('a.created_at', 'desc')
+            ->chunk(500, function ($rows) use (
+                &$currentHandle,
+                &$currentRows,
+                &$currentIndex,
+                &$files,
+                &$summary,
+                $rowsPerFile,
+                $expectedColumns,
+                $selectKeys,
+                $delimiter,
+                $openPart,
+                $closePart
+            ) {
+                foreach ($rows as $row) {
+                    if ($currentRows >= $rowsPerFile) {
+                        $closePart();
+                        $openPart();
+                    }
+
+                    $rowAssoc = get_object_vars($row);
+                    $rowValues = [];
+
+                    foreach ($selectKeys as $key) {
+                        $rowValues[] = $rowAssoc[$key] ?? '';
+                    }
+
+                    if (count($rowValues) < $expectedColumns) {
+                        $rowValues = array_pad($rowValues, $expectedColumns, '');
+                    } elseif (count($rowValues) > $expectedColumns) {
+                        $rowValues = array_slice($rowValues, 0, $expectedColumns);
+                    }
+
+                    $sanitized = [];
+                    foreach ($rowValues as $value) {
+                        $sanitized[] = $this->sanitizeVacunasExportValue($value, $summary);
+                    }
+
+                    fputcsv($currentHandle, $sanitized, $delimiter);
+
+                    $currentRows++;
+                    $summary['written_rows']++;
+                    $files[$currentIndex]['rows']++;
+                }
+            });
+
+        $closePart();
+
+        $summary['parts_count'] = count($files);
+        $summary['mode'] = $summary['parts_count'] > 1 ? 'zip' : 'csv';
+
+        if ($summary['parts_count'] <= 1) {
+            $finalPath = $baseTempDir . DIRECTORY_SEPARATOR . $token . '.csv';
+            if (file_exists($finalPath)) {
+                @unlink($finalPath);
+            }
+
+            if (!rename($files[0]['path'], $finalPath)) {
+                throw new \RuntimeException('No se pudo mover el archivo CSV final.');
+            }
+
+            $this->deleteVacunasExportDirectory($workDir);
+
+            return [
+                'path' => $finalPath,
+                'download_name' => $files[0]['name'],
+                'summary' => $summary,
+            ];
+        }
+
+        $this->writeVacunasExportManifestCsv($workDir, $files, $summary, $startDate, $endDate, $delimiter);
+        $this->writeVacunasExportSummaryTxt($workDir, $files, $summary, $startDate, $endDate);
+
+        $zipPath = $baseTempDir . DIRECTORY_SEPARATOR . $token . '.zip';
+        $zip = new ZipArchive();
+
+        if ($zip->open($zipPath, ZipArchive::CREATE | ZipArchive::OVERWRITE) !== true) {
+            throw new \RuntimeException('No se pudo crear el archivo ZIP del reporte.');
+        }
+
+        foreach ($files as $file) {
+            $zip->addFile($file['path'], $file['name']);
+        }
+
+        $zip->addFile($workDir . DIRECTORY_SEPARATOR . 'manifest.csv', 'manifest.csv');
+        $zip->addFile($workDir . DIRECTORY_SEPARATOR . 'resumen.txt', 'resumen.txt');
+        $zip->close();
+
+        $this->deleteVacunasExportDirectory($workDir);
+
+        return [
+            'path' => $zipPath,
+            'download_name' => $baseName . '.zip',
+            'summary' => $summary,
+        ];
+    } catch (\Throwable $e) {
+        $closePart();
+
+        if (isset($zipPath) && file_exists($zipPath)) {
+            @unlink($zipPath);
+        }
+
+        $this->deleteVacunasExportDirectory($workDir);
+
+        throw $e;
+    }
+}
+
+private function writeVacunasCsvHeader($handle, string $delimiter, array $headings): void
+{
+    fputs($handle, "\xEF\xBB\xBF");
+    fwrite($handle, "sep=;\r\n");
+    fputcsv($handle, $headings, $delimiter);
+}
+
+private function writeVacunasExportManifestCsv(
+    string $workDir,
+    array $files,
+    array $summary,
+    string $startDate,
+    string $endDate,
+    string $delimiter
+): void {
+    $manifestPath = $workDir . DIRECTORY_SEPARATOR . 'manifest.csv';
+    $handle = fopen($manifestPath, 'wb');
+
+    if ($handle === false) {
+        throw new \RuntimeException('No se pudo crear el manifest del reporte.');
+    }
+
+    fputs($handle, "\xEF\xBB\xBF");
+    fwrite($handle, "sep=;\r\n");
+    fputcsv($handle, ['tipo', 'valor'], $delimiter);
+    fputcsv($handle, ['fecha_inicio', $startDate], $delimiter);
+    fputcsv($handle, ['fecha_fin', $endDate], $delimiter);
+    fputcsv($handle, ['registros_totales', (string) ($summary['written_rows'] ?? 0)], $delimiter);
+    fputcsv($handle, ['cantidad_archivos', (string) count($files)], $delimiter);
+    fputcsv($handle, ['filas_por_archivo', (string) ($summary['rows_per_file'] ?? 0)], $delimiter);
+    fputcsv($handle, ['campos_corregidos', (string) ($summary['sanitized_fields'] ?? 0)], $delimiter);
+    fputcsv($handle, [], $delimiter);
+    fputcsv($handle, ['archivo', 'registros'], $delimiter);
+
+    foreach ($files as $file) {
+        fputcsv($handle, [$file['name'], (string) ($file['rows'] ?? 0)], $delimiter);
+    }
+
+    fclose($handle);
+}
+
+private function writeVacunasExportSummaryTxt(
+    string $workDir,
+    array $files,
+    array $summary,
+    string $startDate,
+    string $endDate
+): void {
+    $lines = [
+        'Reporte PAI exportado en partes estables',
+        'Rango: ' . $startDate . ' a ' . $endDate,
+        'Registros totales: ' . ($summary['written_rows'] ?? 0),
+        'Cantidad de archivos CSV: ' . count($files),
+        'Filas maximas por archivo: ' . ($summary['rows_per_file'] ?? 0),
+        'Campos corregidos automaticamente: ' . ($summary['sanitized_fields'] ?? 0),
+        '',
+        'Detalle por archivo:',
+    ];
+
+    foreach ($files as $file) {
+        $lines[] = '- ' . $file['name'] . ': ' . ($file['rows'] ?? 0) . ' registros';
+    }
+
+    file_put_contents($workDir . DIRECTORY_SEPARATOR . 'resumen.txt', implode(PHP_EOL, $lines));
+}
+
+private function deleteVacunasExportDirectory(string $dir): void
+{
+    if (!is_dir($dir)) {
+        return;
+    }
+
+    $items = scandir($dir);
+    if ($items === false) {
+        return;
+    }
+
+    foreach ($items as $item) {
+        if ($item === '.' || $item === '..') {
+            continue;
+        }
+
+        $path = $dir . DIRECTORY_SEPARATOR . $item;
+
+        if (is_dir($path)) {
+            $this->deleteVacunasExportDirectory($path);
+            continue;
+        }
+
+        @unlink($path);
+    }
+
+    @rmdir($dir);
+}
+
+private function sanitizeVacunasExportValue($value, ?array &$stats = null): string
+{
+    if ($value === null) {
+        return '';
+    }
+
+    $value = (string) $value;
+    $fieldHadRisk = false;
+    $fieldChanged = false;
+
+    if (strpos($value, ';') !== false) {
+        $fieldHadRisk = true;
+        if (is_array($stats)) {
+            $stats['delimiter_fields']++;
+        }
+    }
+
+    if (strpos($value, '"') !== false) {
+        $fieldHadRisk = true;
+        if (is_array($stats)) {
+            $stats['quote_fields']++;
+        }
+    }
+
+    if (preg_match("/\r\n|\r|\n/", $value)) {
+        $fieldHadRisk = true;
+        if (is_array($stats)) {
+            $stats['line_break_fields']++;
+        }
+    }
+
+    if (strpos($value, "\t") !== false) {
+        $fieldHadRisk = true;
+        if (is_array($stats)) {
+            $stats['tab_fields']++;
+        }
+    }
+
+    if (preg_match('/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/u', $value)) {
+        $fieldHadRisk = true;
+        if (is_array($stats)) {
+            $stats['control_char_fields']++;
+        }
+    }
+
+    $sanitized = str_replace(["\r\n", "\r", "\n", "\t"], ' ', $value);
+    $sanitized = preg_replace('/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/u', ' ', $sanitized);
+    $sanitized = preg_replace('/\s+/u', ' ', trim($sanitized));
+
+    if ($sanitized !== $value) {
+        $fieldChanged = true;
+        if (is_array($stats)) {
+            $stats['normalized_whitespace_fields']++;
+        }
+    }
+
+    if ($sanitized !== '' && preg_match('/^[=\-+@]/', $sanitized)) {
+        $fieldHadRisk = true;
+        $fieldChanged = true;
+        $sanitized = "'" . $sanitized;
+
+        if (is_array($stats)) {
+            $stats['formula_prefixed_fields']++;
+        }
+    }
+
+    if (is_array($stats)) {
+        $stats['inspected_fields']++;
+
+        if ($fieldHadRisk) {
+            $stats['risk_fields']++;
+        }
+
+        if ($fieldChanged) {
+            $stats['sanitized_fields']++;
+        }
+    }
+
+    return $sanitized;
+}
+
+private function analyzeVacunasExportSanitization(string $startDate, string $endDate): array
+{
+    $stats = [
+        'inspected_rows' => 0,
+        'inspected_fields' => 0,
+        'risk_fields' => 0,
+        'sanitized_fields' => 0,
+        'delimiter_fields' => 0,
+        'quote_fields' => 0,
+        'line_break_fields' => 0,
+        'tab_fields' => 0,
+        'control_char_fields' => 0,
+        'normalized_whitespace_fields' => 0,
+        'formula_prefixed_fields' => 0,
+    ];
+
+    $selects = VacunaExport::selectsStatic();
+    $selectKeys = VacunaExport::selectKeysStatic();
+    $expectedColumns = count($selectKeys);
+
+    $this->buildVacunasExportQuery($startDate, $endDate, $selects)
+        ->orderBy('a.created_at', 'desc')
+        ->chunk(500, function ($rows) use (&$stats, $selectKeys, $expectedColumns) {
+            foreach ($rows as $row) {
+                $stats['inspected_rows']++;
+                $rowAssoc = get_object_vars($row);
+
+                foreach ($selectKeys as $key) {
+                    $this->sanitizeVacunasExportValue($rowAssoc[$key] ?? '', $stats);
+                }
+
+                $missingColumns = max($expectedColumns - count($rowAssoc), 0);
+                if ($missingColumns > 0) {
+                    $stats['inspected_fields'] += $missingColumns;
+                }
+            }
+        });
+
+    return $stats;
+}
+
+private function encodeVacunasExportSummaryHeader(array $summary): string
+{
+    $headerSummary = [
+        'mode' => $summary['mode'] ?? 'csv',
+        'row_count' => (int) ($summary['row_count'] ?? 0),
+        'written_rows' => (int) ($summary['written_rows'] ?? 0),
+        'parts_count' => (int) ($summary['parts_count'] ?? 0),
+        'rows_per_file' => (int) ($summary['rows_per_file'] ?? 0),
+        'sanitized_fields' => (int) ($summary['sanitized_fields'] ?? 0),
+        'risk_fields' => (int) ($summary['risk_fields'] ?? 0),
+        'delimiter_fields' => (int) ($summary['delimiter_fields'] ?? 0),
+        'quote_fields' => (int) ($summary['quote_fields'] ?? 0),
+        'line_break_fields' => (int) ($summary['line_break_fields'] ?? 0),
+        'tab_fields' => (int) ($summary['tab_fields'] ?? 0),
+        'control_char_fields' => (int) ($summary['control_char_fields'] ?? 0),
+        'normalized_whitespace_fields' => (int) ($summary['normalized_whitespace_fields'] ?? 0),
+        'formula_prefixed_fields' => (int) ($summary['formula_prefixed_fields'] ?? 0),
+    ];
+
+    return base64_encode(json_encode($headerSummary, JSON_UNESCAPED_UNICODE));
+}
+
+public function exportVacunasCheck(Request $request)
+{
+    $validated = $request->validate([
+        'start_date' => 'required|date',
+        'end_date' => 'required|date|after_or_equal:start_date',
+    ]);
+
+    $guard = $this->evaluateVacunasExportVolume(
+        $validated['start_date'],
+        $validated['end_date']
+    );
+
+    return response()->json(array_merge([
+        'ok' => true,
+        'start_date' => $validated['start_date'],
+        'end_date' => $validated['end_date'],
+    ], $guard));
+}
+
+private function evaluateVacunasExportVolume(string $startDate, string $endDate): array
+{
+    $columnsCount = count(VacunaExport::headingsStatic());
+    $rowCount = (int) DB::table('vacunas as a')
+        ->whereBetween('a.fecha_vacuna', [$startDate, $endDate])
+        ->count();
+
+    $maxRows = max((int) env('PAI_EXPORT_CSV_MAX_ROWS', 12000), 1000);
+    $maxCells = max((int) env('PAI_EXPORT_CSV_MAX_CELLS', 1200000), $columnsCount * 1000);
+    $estimatedCells = $rowCount * $columnsCount;
+    $hasData = $rowCount > 0;
+    $rowsPerFile = max(1, min($maxRows, (int) floor($maxCells / max($columnsCount, 1))));
+    $partsCount = $hasData ? (int) ceil($rowCount / $rowsPerFile) : 0;
+    $splitRequired = $partsCount > 1;
+
+    $message = $hasData
+        ? 'Rango apto para exportacion CSV.'
+        : 'No hay registros para el rango seleccionado.';
+
+    if ($splitRequired) {
+        $message = 'El rango es amplio. Se generara un ZIP con varios CSV estables para evitar columnas corridas.';
+    }
+
+    return [
+        'allowed' => $hasData,
+        'has_data' => $hasData,
+        'message' => $message,
+        'row_count' => $rowCount,
+        'columns_count' => $columnsCount,
+        'estimated_cells' => $estimatedCells,
+        'max_rows' => $maxRows,
+        'max_cells' => $maxCells,
+        'rows_per_file' => $rowsPerFile,
+        'parts_count' => $partsCount,
+        'split_required' => $splitRequired,
+        'mode' => !$hasData ? 'empty' : ($splitRequired ? 'zip' : 'csv'),
+        'suggested_days' => null,
+    ];
+}
+
+private function buildVacunasExportLimitResponse(Request $request, array $guard)
+{
+    $payload = [
+        'ok' => false,
+        'type' => 'empty',
+        'message' => $guard['message'],
+        'meta' => [
+            'row_count' => $guard['row_count'],
+            'columns_count' => $guard['columns_count'],
+            'estimated_cells' => $guard['estimated_cells'],
+            'max_rows' => $guard['max_rows'],
+            'max_cells' => $guard['max_cells'],
+            'rows_per_file' => $guard['rows_per_file'] ?? null,
+            'parts_count' => $guard['parts_count'] ?? 0,
+        ],
+    ];
+
+    if ($request->ajax() || $request->expectsJson()) {
+        return response()->json($payload, 422);
+    }
+
+    return redirect()->back()->withErrors([
+        'msg' => $guard['message'],
+    ]);
 }
 
 public function importProgress($token)

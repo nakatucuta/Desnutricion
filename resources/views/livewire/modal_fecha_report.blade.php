@@ -6,7 +6,7 @@
                     <img src="{{ asset('img/logo.png') }}" alt="Escudo EPS IANAS WAYUU" class="pai-export-logo">
                     <div>
                     <h5 class="modal-title pai-export-title" id="exportModalLabel">Reportes PAI por Rango</h5>
-                    <div class="pai-export-sub">Elige un rango de fechas y decide si exportas Excel o visualizas informe dinamico.</div>
+                    <div class="pai-export-sub">Elige un rango de fechas y decide si exportas CSV o, si el volumen es alto, un ZIP con varios CSV estables.</div>
                     </div>
                 </div>
                 <button type="button" class="close" data-dismiss="modal" aria-label="Close">
@@ -29,14 +29,14 @@
 
                     <div class="pai-export-help">
                         <i class="fas fa-info-circle mr-1"></i>
-                        La exportacion y el informe dinamico usan la fecha de vacuna (fecha_vacuna).
+                        La exportacion usa la fecha de vacuna (fecha_vacuna). Si el rango es grande, el sistema armara un ZIP con varios CSV optimos y un manifiesto de resumen.
                     </div>
 
                     <div class="pai-export-actions">
                         <button id="exportButton" class="btn btn-success pai-export-btn" type="button">
-                            <span id="button-text"><i class="fas fa-file-export mr-2"></i>EXPORTAR EXCEL</span>
+                            <span id="button-text"><i class="fas fa-file-export mr-2"></i>EXPORTAR CSV / ZIP</span>
                             <span id="loading-icon" class="spinner-border spinner-border-sm" role="status" aria-hidden="true" style="display: none;"></span>
-                            <span id="sending-text" style="display: none;"> Generando archivo...</span>
+                            <span id="sending-text" style="display: none;"> Analizando reporte...</span>
                         </button>
 
                         <button id="viewLoadReportButton" class="btn btn-outline-primary pai-export-btn pai-export-btn-alt" type="button">

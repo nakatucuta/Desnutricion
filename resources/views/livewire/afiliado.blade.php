@@ -1093,6 +1093,8 @@ window.PAI_INITIAL_LOAD_STATE = @json($paiLoadState ?? ['busy' => false]);
       return url;
   };
   const SEND_EMAIL_URL = "{{ route('send.email') }}";
+  const EXPORT_VACUNAS_URL = "{{ route('exportVacunas') }}";
+  const EXPORT_VACUNAS_CHECK_URL = "{{ route('exportVacunas.check') }}";
   const LOAD_REPORT_URL = "{{ route('afiliado.load.summary') }}";
   const LOAD_REPORT_PDF_URL = "{{ route('afiliado.load.summary.pdf') }}";
 
@@ -2142,6 +2144,162 @@ window.PAI_INITIAL_LOAD_STATE = @json($paiLoadState ?? ['busy' => false]);
       renderLoadReportByFilters();
   }
 
+  function formatExportMetric(value){
+      return new Intl.NumberFormat('es-CO').format(Number(value || 0));
+  }
+
+  function setExportProgress(message){
+      $('#sending-text').text(' ' + message);
+  }
+
+  function readExportSummaryHeader(xhr){
+      const encoded = xhr ? (xhr.getResponseHeader('X-Export-Summary') || '') : '';
+      if (!encoded) return null;
+
+      try {
+          return JSON.parse(atob(encoded));
+      } catch (e) {
+          return null;
+      }
+  }
+
+  function notifyExportPlan(plan){
+      if (!plan || !plan.has_data) return;
+
+      if (plan.split_required) {
+          Swal.fire({
+              toast: true,
+              position: 'top-end',
+              icon: 'info',
+              title: 'Se generara un ZIP con ' + formatExportMetric(plan.parts_count) + ' CSV estables',
+              html:
+                  '<div class="text-left">' +
+                      '<div>Registros estimados: <strong>' + formatExportMetric(plan.row_count) + '</strong></div>' +
+                      '<div>Archivos previstos: <strong>' + formatExportMetric(plan.parts_count) + '</strong></div>' +
+                      '<div>Filas maximas por CSV: <strong>' + formatExportMetric(plan.rows_per_file) + '</strong></div>' +
+                  '</div>',
+              showConfirmButton: false,
+              timer: 4500,
+              timerProgressBar: true
+          });
+      }
+  }
+
+  function notifyExportSummary(summary){
+      if (!summary) return;
+
+      const mode = String(summary.mode || 'csv');
+      const partsCount = Number(summary.parts_count || 0);
+      const writtenRows = Number(summary.written_rows || summary.row_count || 0);
+      const sanitizedFields = Number(summary.sanitized_fields || 0);
+      const riskFields = Number(summary.risk_fields || 0);
+      const delimiterFields = Number(summary.delimiter_fields || 0);
+      const quoteFields = Number(summary.quote_fields || 0);
+      const formulaFields = Number(summary.formula_prefixed_fields || 0);
+      const headerTitle = mode === 'zip'
+          ? 'ZIP generado con CSV optimos'
+          : 'CSV generado';
+
+      if (sanitizedFields <= 0 && riskFields <= 0) {
+          Swal.fire({
+              toast: true,
+              position: 'top-end',
+              icon: 'success',
+              title: headerTitle + ' sin incidencias detectadas',
+              html:
+                  '<div class="text-left">' +
+                      '<div>Registros exportados: <strong>' + formatExportMetric(writtenRows) + '</strong></div>' +
+                      (mode === 'zip'
+                          ? '<div>CSV incluidos en el ZIP: <strong>' + formatExportMetric(partsCount) + '</strong></div><div>Incluye <strong>manifest.csv</strong> y <strong>resumen.txt</strong></div>'
+                          : '') +
+                  '</div>',
+              showConfirmButton: false,
+              timer: 4500,
+              timerProgressBar: true
+          });
+          return;
+      }
+
+      Swal.fire({
+          toast: true,
+          position: 'top-end',
+          icon: 'info',
+          title: headerTitle + ' con correcciones automáticas',
+          html:
+              '<div class="text-left">' +
+                  '<div>Registros exportados: <strong>' + formatExportMetric(writtenRows) + '</strong></div>' +
+                  (mode === 'zip'
+                      ? '<div>CSV incluidos en el ZIP: <strong>' + formatExportMetric(partsCount) + '</strong></div><div>Incluye <strong>manifest.csv</strong> y <strong>resumen.txt</strong></div>'
+                      : '') +
+                  '<div>Campos corregidos: <strong>' + formatExportMetric(sanitizedFields) + '</strong></div>' +
+                  '<div>Campos riesgosos detectados: <strong>' + formatExportMetric(riskFields) + '</strong></div>' +
+                  '<div>Con separadores protegidos: <strong>' + formatExportMetric(delimiterFields) + '</strong></div>' +
+                  '<div>Con comillas protegidas: <strong>' + formatExportMetric(quoteFields) + '</strong></div>' +
+                  '<div>Protegidos como fórmula: <strong>' + formatExportMetric(formulaFields) + '</strong></div>' +
+              '</div>',
+          showConfirmButton: false,
+          timer: 7000,
+          timerProgressBar: true
+      });
+  }
+
+  function showExportLimitAlert(resp, start, end){
+      const meta = resp && resp.meta ? resp.meta : resp;
+      const suggestedDays = Number(meta && meta.suggested_days ? meta.suggested_days : 0);
+      const suggestion = resp && resp.type === 'empty'
+          ? 'Prueba otro rango de fechas con informacion cargada.'
+          : suggestedDays > 0
+          ? 'Prueba con un rango cercano a ' + suggestedDays + ' dia(s) dentro del periodo seleccionado.'
+          : 'Reduce el rango de fechas y vuelve a intentar.';
+
+      Swal.fire({
+          icon: resp && resp.type === 'empty' ? 'info' : 'warning',
+          title: resp && resp.type === 'empty' ? 'Sin datos para exportar' : 'No fue posible generar el reporte',
+          html:
+              '<div class="text-left">' +
+                  '<p class="mb-2">' + (resp && resp.message ? resp.message : 'El rango seleccionado supera el volumen recomendado.') + '</p>' +
+                  '<p class="mb-1"><strong>Registros:</strong> ' + formatExportMetric(meta && meta.row_count) + '</p>' +
+                  '<p class="mb-1"><strong>Columnas:</strong> ' + formatExportMetric(meta && meta.columns_count) + '</p>' +
+                  '<p class="mb-1"><strong>Celdas estimadas:</strong> ' + formatExportMetric(meta && meta.estimated_cells) + '</p>' +
+                  '<p class="mb-1"><strong>Tope recomendado:</strong> ' + formatExportMetric(meta && meta.max_rows) + ' registros</p>' +
+                  '<p class="mb-0"><strong>Sugerencia:</strong> ' + suggestion + '</p>' +
+              '</div>',
+          confirmButtonText: 'Entendido'
+      });
+  }
+
+  function handleExportAjaxError(xhr, start, end, url, resetExportUI){
+      if (xhr && xhr.responseJSON && xhr.responseJSON.ok === false) {
+          showExportLimitAlert(xhr.responseJSON, start, end);
+          return;
+      }
+
+      const blob = xhr && xhr.response;
+
+      if (blob && typeof blob.text === 'function') {
+          blob.text().then(function(text){
+              try {
+                  const payload = JSON.parse(text);
+                  if (payload && payload.ok === false) {
+                      showExportLimitAlert(payload, start, end);
+                      return;
+                  }
+              } catch (e) {}
+
+              const fallback = url + '?start_date=' + encodeURIComponent(start) + '&end_date=' + encodeURIComponent(end);
+              window.location.href = fallback;
+          }).catch(function(){
+              const fallback = url + '?start_date=' + encodeURIComponent(start) + '&end_date=' + encodeURIComponent(end);
+              window.location.href = fallback;
+          });
+
+          return;
+      }
+
+      const fallback = url + '?start_date=' + encodeURIComponent(start) + '&end_date=' + encodeURIComponent(end);
+      window.location.href = fallback;
+  }
+
   $('#exportButton').on('click', function (e) {
       e.preventDefault();
 
@@ -2159,52 +2317,72 @@ window.PAI_INITIAL_LOAD_STATE = @json($paiLoadState ?? ['busy' => false]);
 
       $('#button-text').hide();
       $('#loading-icon').show();
+      setExportProgress('Analizando rango...');
       $('#sending-text').show();
       $('#exportButton').prop('disabled', true);
-
-      const url = "{{ route('exportVacunas') }}";
 
       function resetExportUI(){
           $('#button-text').show();
           $('#loading-icon').hide();
           $('#sending-text').hide();
+          setExportProgress('Generando archivo...');
           $('#exportButton').prop('disabled', false);
       }
 
       $.ajax({
-          url: url,
+          url: EXPORT_VACUNAS_CHECK_URL,
           type: 'GET',
+          dataType: 'json',
           data: { start_date: start, end_date: end },
-          xhrFields: { responseType: 'blob' },
+          success: function (checkResp) {
+              if (!checkResp || !checkResp.has_data) {
+                  resetExportUI();
+                  showExportLimitAlert(checkResp || { type: 'empty', message: 'No hay datos para exportar.' }, start, end);
+                  return;
+              }
 
-          success: function (blob, status, xhr) {
+              notifyExportPlan(checkResp);
+              setExportProgress(
+                  checkResp.split_required
+                      ? 'Rango amplio. Generando ZIP con ' + formatExportMetric(checkResp.parts_count) + ' CSV estables...'
+                      : 'Rango validado. Analizando contenido y preparando CSV...'
+              );
 
-              const disposition = xhr.getResponseHeader('Content-Disposition') || '';
-              let filename = 'reporte.xlsx';
-              const match = disposition.match(/filename="?([^"]+)"?/);
-              if (match && match[1]) filename = match[1];
+              $.ajax({
+                  url: EXPORT_VACUNAS_URL,
+                  type: 'GET',
+                  data: { start_date: start, end_date: end },
+                  xhrFields: { responseType: 'blob' },
+                  success: function (blob, status, xhr) {
+                      const disposition = xhr.getResponseHeader('Content-Disposition') || '';
+                      const exportSummary = readExportSummaryHeader(xhr);
+                      let filename = exportSummary && exportSummary.mode === 'zip' ? 'reporte.zip' : 'reporte.csv';
+                      const match = disposition.match(/filename=\"?([^\\\"]+)\"?/);
+                      if (match && match[1]) filename = match[1];
 
-              const downloadUrl = window.URL.createObjectURL(blob);
-              const a = document.createElement('a');
-              a.href = downloadUrl;
-              a.download = filename;
-              document.body.appendChild(a);
-              a.click();
-              a.remove();
-              window.URL.revokeObjectURL(downloadUrl);
+                      const downloadUrl = window.URL.createObjectURL(blob);
+                      const a = document.createElement('a');
+                      a.href = downloadUrl;
+                      a.download = filename;
+                      document.body.appendChild(a);
+                      a.click();
+                      a.remove();
+                      window.URL.revokeObjectURL(downloadUrl);
 
-              forceCloseBootstrapModal('#exportModal');
-              resetExportUI();
+                      forceCloseBootstrapModal('#exportModal');
+                      resetExportUI();
+                      notifyExportSummary(exportSummary);
+                  },
+                  error: function (xhr) {
+                      console.log("Export error:", xhr);
+                      resetExportUI();
+                      handleExportAjaxError(xhr, start, end, EXPORT_VACUNAS_URL, resetExportUI);
+                  }
+              });
           },
-
           error: function (xhr) {
-              console.log("Export error:", xhr);
-
-              forceCloseBootstrapModal('#exportModal');
               resetExportUI();
-
-              const fallback = url + '?start_date=' + encodeURIComponent(start) + '&end_date=' + encodeURIComponent(end);
-              window.location.href = fallback;
+              handleExportAjaxError(xhr, start, end, EXPORT_VACUNAS_URL, resetExportUI);
           }
       });
   });
