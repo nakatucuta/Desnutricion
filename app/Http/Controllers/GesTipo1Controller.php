@@ -8,6 +8,7 @@ use App\Imports\GesTipo1Import;
 use App\Jobs\ImportGesTipo1ExcelJob;
 use App\Models\GesTipo1;
 use App\Models\ImportJob;
+use App\Support\GestantesReportCatalog;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -120,47 +121,7 @@ class GesTipo1Controller extends Controller
 
     private function tipo1ReportColumns(): array
     {
-        return [
-            'tipo_registro' => ['label' => 'Tipo registro', 'db' => 'g.tipo_de_registro'],
-            'consecutivo' => ['label' => 'Consecutivo', 'db' => 'g.consecutivo'],
-            'pais_nacionalidad' => ['label' => 'Pais de la nacionalidad', 'db' => 'g.pais_de_la_nacionalidad'],
-            'municipio' => ['label' => 'Municipio de residencia habitual', 'db' => 'g.municipio_de_residencia_habitual'],
-            'zona' => ['label' => 'Zona territorial de residencia', 'db' => 'g.zona_territorial_de_residencia'],
-            'ips_primaria' => ['label' => 'Codigo de habilitacion IPS primaria de la gestante', 'db' => 'g.codigo_de_habilitacion_ips_primaria_de_la_gestante'],
-            'tipo_identificacion' => ['label' => 'Tipo de identificacion de la usuaria', 'db' => 'g.tipo_de_identificacion_de_la_usuaria'],
-            'no_id_del_usuario' => ['label' => 'Numero de identificacion de la usuaria', 'db' => 'g.no_id_del_usuario'],
-            'primer_apellido' => ['label' => 'Primer apellido', 'db' => 'g.primer_apellido'],
-            'segundo_apellido' => ['label' => 'Segundo apellido', 'db' => 'g.segundo_apellido'],
-            'primer_nombre' => ['label' => 'Primer nombre', 'db' => 'g.primer_nombre'],
-            'segundo_nombre' => ['label' => 'Segundo nombre', 'db' => 'g.segundo_nombre'],
-            'fecha_de_nacimiento' => ['label' => 'Fecha de nacimiento', 'db' => 'g.fecha_de_nacimiento'],
-            'codigo_pertenencia_etnica' => ['label' => 'Codigo pertenencia etnica', 'db' => 'g.codigo_pertenencia_etnica'],
-            'codigo_ocupacion' => ['label' => 'Codigo de ocupacion', 'db' => 'g.codigo_de_ocupacion'],
-            'codigo_nivel_educativo' => ['label' => 'Codigo nivel educativo de la gestante', 'db' => 'g.codigo_nivel_educativo_de_la_gestante'],
-            'fecha_probable_de_parto' => ['label' => 'Fecha probable de parto', 'db' => 'g.fecha_probable_de_parto'],
-            'direccion' => ['label' => 'Direccion de residencia de la gestante', 'db' => 'g.direccion_de_residencia_de_la_gestante'],
-            'hta' => ['label' => 'Antecedente hipertension cronica', 'db' => 'g.antecedente_hipertension_cronica'],
-            'preeclampsia' => ['label' => 'Antecedente preeclampsia', 'db' => 'g.antecedente_preeclampsia'],
-            'diabetes' => ['label' => 'Antecedente diabetes', 'db' => 'g.antecedente_diabetes'],
-            'autoinmune' => ['label' => 'Antecedente LES o enfermedad autoinmune', 'db' => 'g.antecedente_les_enfermedad_autoinmune'],
-            'sindrome_metabolico' => ['label' => 'Antecedente sindrome metabolico', 'db' => 'g.antecedente_sindrome_metabolico'],
-            'erc' => ['label' => 'Antecedente ERC', 'db' => 'g.antecedente_erc'],
-            'trombofilia' => ['label' => 'Antecedente trombofilia o trombosis venosa profunda', 'db' => 'g.antecedente_trombofilia_o_trombosis_venosa_profunda'],
-            'anemia_celulas_falciformes' => ['label' => 'Antecedente anemia de celulas falciformes', 'db' => 'g.antecedentes_anemia_celulas_falciformes'],
-            'sepsis_previa' => ['label' => 'Antecedente sepsis durante gestaciones previas', 'db' => 'g.antecedente_sepsis_durante_gestaciones_previas'],
-            'consumo_tabaco' => ['label' => 'Consumo tabaco durante la gestacion', 'db' => 'g.consumo_tabaco_durante_la_gestacion'],
-            'periodo_intergenesico' => ['label' => 'Periodo intergenesico', 'db' => 'g.periodo_intergenesico'],
-            'embarazo_multiple' => ['label' => 'Embarazo multiple', 'db' => 'g.embarazo_multiple'],
-            'metodo_de_concepcion' => ['label' => 'Metodo de concepcion', 'db' => 'g.metodo_de_concepcion'],
-            'nombre_completo' => ['label' => 'Nombre completo', 'db' => "LTRIM(RTRIM(CONCAT(COALESCE(g.primer_nombre,''), ' ', COALESCE(g.segundo_nombre,''), ' ', COALESCE(g.primer_apellido,''), ' ', COALESCE(g.segundo_apellido,''))))"],
-            'numero_carnet' => ['label' => 'Numero carnet', 'db' => 'g.numero_carnet'],
-            'seguimiento_estado' => ['label' => 'Estado seguimiento', 'db' => "CASE WHEN EXISTS (SELECT 1 FROM ges_tipo1_seguimientos s WHERE s.ges_tipo1_id = g.id) THEN 'Con seguimiento' ELSE 'Sin seguimiento' END"],
-            'batch_verifications_id' => ['label' => 'Cod unico de cargue', 'db' => 'g.batch_verifications_id'],
-            'id' => ['label' => 'ID', 'db' => 'g.id'],
-            'user_id' => ['label' => 'Usuario', 'db' => 'g.user_id'],
-            'created_at' => ['label' => 'Creado', 'db' => 'g.created_at'],
-            'updated_at' => ['label' => 'Actualizado', 'db' => 'g.updated_at'],
-        ];
+        return GestantesReportCatalog::tipo1();
     }
 
     private function normalizeReportColumns($requested, array $allowed, array $defaults): array
@@ -553,38 +514,10 @@ HTML;
         }
 
         $tipo1Columns = $this->tipo1ReportColumns();
-        $tipo3Columns = [
-            'tipo_registro' => ['label' => 'Tipo registro'],
-            'consecutivo' => ['label' => 'Consecutivo de registro'],
-            'tipo_identificacion' => ['label' => 'Tipo de identificacion de la usuaria'],
-            'no_id_del_usuario' => ['label' => 'Numero de identificacion de la usuaria'],
-            'fecha_tecnologia_en_salud' => ['label' => 'Fecha de la tecnologia en salud'],
-            'cups' => ['label' => 'Codigo CUPS de la tecnologia en salud'],
-            'finalidad' => ['label' => 'Finalidad de la tecnologia en salud'],
-            'riesgo_gestacional' => ['label' => 'Clasificacion del riesgo gestacional'],
-            'riesgo_preeclampsia' => ['label' => 'Clasificacion del riesgo preeclampsia'],
-            'asa' => ['label' => 'Suministro de acido acetilsalicilico - ASA'],
-            'acido_folico' => ['label' => 'Suministro de acido folico en el control prenatal'],
-            'sulfato_ferroso' => ['label' => 'Suministro de sulfato ferroso en el control prenatal'],
-            'calcio' => ['label' => 'Suministro de calcio en el control prenatal'],
-            'fecha_anticonceptivo_post_evento' => ['label' => 'Fecha de suministro de anticonceptivo post evento obstetrico'],
-            'metodo_anticonceptivo_post_evento' => ['label' => 'Suministro de metodo anticonceptivo post evento obstetrico'],
-            'fecha_salida' => ['label' => 'Fecha de salida de aborto o atencion del parto o cesarea'],
-            'fecha_terminacion' => ['label' => 'Fecha de terminacion de la gestacion'],
-            'tipo_terminacion' => ['label' => 'Tipo de terminacion de la gestacion'],
-            'pas' => ['label' => 'Tension arterial sistolica (PAS) mmHg'],
-            'pad' => ['label' => 'Tension arterial diastolica (PAD) mmHg'],
-            'imc' => ['label' => 'Indice de masa corporal'],
-            'hemoglobina' => ['label' => 'Resultado de la hemoglobina'],
-            'ipau' => ['label' => 'Indice de pulsatilidad de arterias uterinas'],
-            'nombre_completo' => ['label' => 'Nombre completo'],
-            'ges_tipo1_id' => ['label' => 'Gestante'],
-            'batch_verifications_id' => ['label' => 'Cod unico de cargue'],
-            'id' => ['label' => 'ID'],
-            'user_id' => ['label' => 'Usuario'],
-            'created_at' => ['label' => 'Creado'],
-            'updated_at' => ['label' => 'Actualizado'],
-        ];
+        $tipo3Columns = array_map(
+            fn ($config) => ['label' => $config['label']],
+            GestantesReportCatalog::tipo3()
+        );
 
         return view('ges_tipo1.index', [
             'tipo1ReportColumns' => $tipo1Columns,
