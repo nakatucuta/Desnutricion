@@ -122,7 +122,17 @@
                         </div>
 
                         <div class="designer-panel mt-3">
-                            <h6 class="designer-panel-title">Variables disponibles</h6>
+                            <div class="d-flex justify-content-between align-items-center mb-2 flex-wrap">
+                                <h6 class="designer-panel-title mb-0">Variables disponibles</h6>
+                                <div class="mt-2 mt-md-0">
+                                    <button type="button" class="btn btn-outline-secondary btn-sm mr-2" id="btnSelectAllDesignerCols">
+                                        <i class="fas fa-check-square mr-1"></i> Seleccionar todas
+                                    </button>
+                                    <button type="button" class="btn btn-outline-secondary btn-sm" id="btnClearAllDesignerCols">
+                                        <i class="fas fa-square mr-1"></i> Quitar todas
+                                    </button>
+                                </div>
+                            </div>
                             <div id="designerColumnsChecklist" class="designer-checklist"></div>
                         </div>
                     </div>
@@ -527,6 +537,10 @@ $(function() {
         return reportModules[activeModule];
     }
 
+    function allCurrentColumns() {
+        return Object.keys(currentConfig().columns);
+    }
+
     function renderChecklist() {
         const config = currentConfig();
         const wrap = $('#designerColumnsChecklist');
@@ -583,7 +597,7 @@ $(function() {
 
     function openDesigner(moduleKey) {
         activeModule = moduleKey;
-        selectedColumns = [...currentConfig().defaults];
+        selectedColumns = [...allCurrentColumns()];
         syncDesignerMeta();
         renderChecklist();
         renderSelectedColumns();
@@ -622,6 +636,19 @@ $(function() {
         selectedColumns = selectedColumns.filter(item => item !== key);
         $('#designer_col_' + key).prop('checked', false);
         renderSelectedColumns();
+    });
+
+    $('#btnSelectAllDesignerCols').on('click', function () {
+        selectedColumns = [...allCurrentColumns()];
+        renderChecklist();
+        renderSelectedColumns();
+    });
+
+    $('#btnClearAllDesignerCols').on('click', function () {
+        selectedColumns = [];
+        renderChecklist();
+        renderSelectedColumns();
+        renderPreview({}, [], []);
     });
 
     if (typeof Sortable !== 'undefined') {

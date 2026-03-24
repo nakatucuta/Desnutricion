@@ -132,6 +132,7 @@ class GesTipo3Controller extends Controller
             'ipau' => ['label' => 'IPAU', 'db' => 't3.indice_de_pulsatilidad_de_arterias_uterinas'],
             'nombre_completo' => ['label' => 'Nombre completo', 'db' => "LTRIM(RTRIM(CONCAT(COALESCE(t1.primer_nombre,''), ' ', COALESCE(t1.segundo_nombre,''), ' ', COALESCE(t1.primer_apellido,''), ' ', COALESCE(t1.segundo_apellido,''))))"],
             'ges_tipo1_id' => ['label' => 'Gestante', 'db' => 't3.ges_tipo1_id'],
+            'batch_verifications_id' => ['label' => 'Batch verification', 'db' => 't3.batch_verifications_id'],
             'id' => ['label' => 'ID', 'db' => 't3.id'],
             'user_id' => ['label' => 'Usuario', 'db' => 't3.user_id'],
             'created_at' => ['label' => 'Creado', 'db' => 't3.created_at'],
