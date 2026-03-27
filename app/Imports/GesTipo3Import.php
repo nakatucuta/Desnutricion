@@ -28,6 +28,7 @@ class GesTipo3Import implements OnEachRow, WithStartRow, WithChunkReading, Skips
     private array $seenInFile = [];
     private array $cupsSet = [];
     private array $parentCache = [];
+    private array $afiliadoActivoCache = [];
 
     private int $rowsTotal = 0;
     private int $rowsCreated = 0;
@@ -349,6 +350,36 @@ class GesTipo3Import implements OnEachRow, WithStartRow, WithChunkReading, Skips
         return $this->parentCache[$key];
     }
 
+    private function hasActiveAffiliate(string $tipoIdent, string $noId): bool
+    {
+        $key = $tipoIdent . '|' . $noId;
+        if (array_key_exists($key, $this->afiliadoActivoCache)) {
+            return $this->afiliadoActivoCache[$key];
+        }
+
+        try {
+            $afiliado = DB::connection('sqlsrv_1')
+                ->table('sga..maestroIdentificaciones as A')
+                ->join('sga..maestroafiliados as B', function ($join) {
+                    $join->on('A.tipoIdentificacion', '=', 'B.tipoIdentificacion')
+                        ->on('A.identificacion', '=', 'B.identificacion');
+                })
+                ->join('sga..refEstadoActual as C', 'B.estadoActual', '=', 'C.codigo')
+                ->where('A.identificacion', $noId)
+                ->where('A.tipoIdentificacion', $tipoIdent)
+                ->where('C.estado', 'AC')
+                ->select('A.numeroCarnet')
+                ->first();
+        } catch (\Throwable $e) {
+            $this->afiliadoActivoCache[$key] = false;
+            return false;
+        }
+
+        $this->afiliadoActivoCache[$key] = $afiliado && !empty($afiliado->numeroCarnet);
+
+        return $this->afiliadoActivoCache[$key];
+    }
+
     public function onRow(Row $row)
     {
         $excelRow = (int) $row->getIndex();
@@ -439,6 +470,10 @@ class GesTipo3Import implements OnEachRow, WithStartRow, WithChunkReading, Skips
 
         $gesTipo1Id = null;
         if ($tipoIdent !== null && $noId !== null) {
+            if (!$this->hasActiveAffiliate($tipoIdent, $noId)) {
+                $this->addError($excelRow, 'Afiliado', 'no se encontro afiliado activo en DB externa con esa identificacion');
+            }
+
             $gesTipo1Id = $this->getParentGestanteId($tipoIdent, $noId);
             if ($gesTipo1Id === null) {
                 $this->addError($excelRow, 'Relacion ges_tipo2', 'no existe registro padre para tipo/no identificacion');

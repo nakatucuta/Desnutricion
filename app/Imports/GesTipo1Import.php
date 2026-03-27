@@ -275,13 +275,27 @@ class GesTipo1Import implements OnEachRow, WithStartRow, WithChunkReading, Skips
             return $this->carnetCache[$key];
         }
 
-        $carnet = DB::connection('sqlsrv_1')
-            ->table('maestroIdentificaciones')
-            ->where('identificacion', $noId)
-            ->where('tipoIdentificacion', $tipoIdent)
-            ->value('numeroCarnet');
+        try {
+            $afiliado = DB::connection('sqlsrv_1')
+                ->table('sga..maestroIdentificaciones as A')
+                ->join('sga..maestroafiliados as B', function ($join) {
+                    $join->on('A.tipoIdentificacion', '=', 'B.tipoIdentificacion')
+                        ->on('A.identificacion', '=', 'B.identificacion');
+                })
+                ->join('sga..refEstadoActual as C', 'B.estadoActual', '=', 'C.codigo')
+                ->where('A.identificacion', $noId)
+                ->where('A.tipoIdentificacion', $tipoIdent)
+                ->where('C.estado', 'AC')
+                ->select('A.numeroCarnet')
+                ->first();
+        } catch (\Throwable $e) {
+            $this->carnetCache[$key] = null;
+            return null;
+        }
 
-        $this->carnetCache[$key] = $carnet ? (string) $carnet : null;
+        $this->carnetCache[$key] = $afiliado && !empty($afiliado->numeroCarnet)
+            ? (string) $afiliado->numeroCarnet
+            : null;
 
         return $this->carnetCache[$key];
     }
@@ -388,7 +402,7 @@ class GesTipo1Import implements OnEachRow, WithStartRow, WithChunkReading, Skips
         if ($tipoIdent !== null && $noId !== null) {
             $numeroCarnet = $this->getNumeroCarnet($tipoIdent, $noId);
             if (empty($numeroCarnet)) {
-                $this->addError($excelRow, 'Numero carnet', 'no se encontro en maestroIdentificaciones');
+                $this->addError($excelRow, 'Numero carnet', 'no se encontro afiliado activo en DB externa con esa identificacion');
             }
         }
 

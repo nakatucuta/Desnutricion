@@ -1,4 +1,3 @@
-{{-- resources/views/ges_tipo1/show.blade.php --}}
 @extends('adminlte::page')
 
 @section('title', 'Ciclos de vida - ' . $etapa['titulo'])
@@ -16,8 +15,6 @@
 @stop
 
 @section('content')
-
-    {{-- Filtros superiores --}}
     <div class="card mb-3">
         <div class="card-body d-flex flex-wrap align-items-end">
             <div class="mr-3 mb-2">
@@ -36,13 +33,18 @@
 
             <div class="ml-auto mb-2">
                 <span class="badge badge-secondary p-2">
-                    <i class="fas fa-info-circle"></i> Datos en vivo (server-side)
+                    <i class="fas fa-info-circle"></i> {{ $dataSourceLabel ?? 'Datos materializados por curso de vida' }}
                 </span>
             </div>
         </div>
     </div>
 
-    {{-- KPIs --}}
+    @if (!empty($pageNotice))
+        <div class="alert alert-warning">
+            <i class="fas fa-exclamation-circle"></i> {{ $pageNotice }}
+        </div>
+    @endif
+
     <div class="row" id="kpis">
         <div class="col-12 col-sm-6 col-lg-3">
             <div class="small-box bg-primary">
@@ -57,7 +59,7 @@
             <div class="small-box bg-success">
                 <div class="inner">
                     <h3 id="kpiPacientes">0</h3>
-                    <p>Pacientes únicos</p>
+                    <p>Pacientes unicos</p>
                 </div>
                 <div class="icon"><i class="fas fa-user-check"></i></div>
             </div>
@@ -82,10 +84,9 @@
         </div>
     </div>
 
-    {{-- Tabla (Yajra DataTables server-side) --}}
     <div class="card">
         <div class="card-header">
-            <h3 class="card-title mb-0">Detalle de atenciones (0–5 años)</h3>
+            <h3 class="card-title mb-0">{{ $tableTitle ?? 'Detalle de atenciones' }}</h3>
         </div>
         <div class="card-body">
             <div class="table-responsive">
@@ -94,13 +95,13 @@
                         <tr>
                             <th>Fecha</th>
                             <th>Tipo Doc</th>
-                            <th>Identificación</th>
+                            <th>Identificacion</th>
                             <th>Primer Nombre</th>
                             <th>Segundo Nombre</th>
                             <th>Primer Apellido</th>
                             <th>Segundo Apellido</th>
                             <th>CUPS</th>
-                            <th>Descripción</th>
+                            <th>Descripcion</th>
                             <th>Dx Principal</th>
                             <th>Finalidad</th>
                             <th>IPS / Grupo</th>
@@ -112,7 +113,6 @@
             </div>
         </div>
     </div>
-
 @stop
 
 @section('css')
@@ -127,7 +127,6 @@
     <script src="https://cdn.jsdelivr.net/npm/moment@2.29.4/moment.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/moment@2.29.4/locale/es.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/daterangepicker/daterangepicker.min.js"></script>
-
     <script src="https://cdn.datatables.net/1.13.4/js/jquery.dataTables.min.js"></script>
     <script src="https://cdn.datatables.net/1.13.4/js/dataTables.bootstrap4.min.js"></script>
 
@@ -142,6 +141,7 @@
             function setLabel(start, end) {
                 $('#daterange span').text(start.format('YYYY-MM-DD') + ' - ' + end.format('YYYY-MM-DD'));
             }
+
             $('#daterange').daterangepicker({
                 startDate: startDefault,
                 endDate: endIncDefault,
@@ -153,48 +153,48 @@
                 },
                 ranges: {
                     'Hoy': [moment(), moment()],
-                    'Ayer': [moment().subtract(1,'days'), moment().subtract(1,'days')],
-                    'Últimos 7 días': [moment().subtract(6,'days'), moment()],
-                    'Últimos 30 días': [moment().subtract(29,'days'), moment()],
+                    'Ayer': [moment().subtract(1, 'days'), moment().subtract(1, 'days')],
+                    'Ultimos 7 dias': [moment().subtract(6, 'days'), moment()],
+                    'Ultimos 30 dias': [moment().subtract(29, 'days'), moment()],
                     'Este mes': [moment().startOf('month'), moment().endOf('month')],
-                    'Año actual': [moment().startOf('year'), moment()]
+                    'Ano actual': [moment().startOf('year'), moment()]
                 }
             }, setLabel);
+
             setLabel(startDefault, endIncDefault);
 
-           const tabla = $('#tabla').DataTable({
-  serverSide: true,
-  processing: true,
-  deferRender: true,
-  searchDelay: 400,
-  ajax: {
-    url: "{{ route('ciclosvida.data', $etapa['slug']) }}",
-    type: 'GET',
-    data: function (d) {
-      const drp = $('#daterange').data('daterangepicker');
-      d.desde = drp.startDate.format('YYYY-MM-DD');
-      d.hasta = drp.endDate.clone().add(1,'day').format('YYYY-MM-DD'); // exclusivo
-    }
-  },
-  columns: [
-    { data: 'fechaConsulta',         name: 'V.fechaAtencion' },
-    { data: 'tipoIdentificacion',    name: 'V.tipoIdentificacion' },
-    { data: 'identificacion',        name: 'V.identificacion' },
-    { data: 'primerNombre',          name: 'V.primerNombre' },
-    { data: 'segundoNombre',         name: 'V.segundoNombre' },
-    { data: 'primerApellido',        name: 'V.primerApellido' },
-    { data: 'segundoApellido',       name: 'V.segundoApellido' },
-    { data: 'codigoConsulta',        name: 'V.codigoConsulta' },
-    { data: 'descrip',               name: 'C.descrip' },
-    { data: 'diagnosticoPrincipal',  name: 'V.diagnosticoPrincipal' },
-    { data: 'finalidadConsulta',     name: 'V.finalidadConsulta' },
-    { data: 'ips_Prim',              name: 'V.ips_Prim' },
-    { data: 'edad',                  name: 'V.edad' },
-  ],
-  order: [[0, 'desc']],
-  language: { url: 'https://cdn.datatables.net/plug-ins/1.13.4/i18n/es-ES.json' }
-});
-
+            const tabla = $('#tabla').DataTable({
+                serverSide: true,
+                processing: true,
+                deferRender: true,
+                searchDelay: 400,
+                ajax: {
+                    url: @json($dataUrl ?? route('ciclosvida.data', $etapa['slug'])),
+                    type: 'GET',
+                    data: function (d) {
+                        const drp = $('#daterange').data('daterangepicker');
+                        d.desde = drp.startDate.format('YYYY-MM-DD');
+                        d.hasta = drp.endDate.clone().add(1, 'day').format('YYYY-MM-DD');
+                    }
+                },
+                columns: [
+                    { data: 'fechaConsulta', name: 'V.fechaAtencion' },
+                    { data: 'tipoIdentificacion', name: 'V.tipoIdentificacion' },
+                    { data: 'identificacion', name: 'V.identificacion' },
+                    { data: 'primerNombre', name: 'V.primerNombre' },
+                    { data: 'segundoNombre', name: 'V.segundoNombre' },
+                    { data: 'primerApellido', name: 'V.primerApellido' },
+                    { data: 'segundoApellido', name: 'V.segundoApellido' },
+                    { data: 'codigoConsulta', name: 'V.codigoConsulta' },
+                    { data: 'descrip', name: 'C.descrip' },
+                    { data: 'diagnosticoPrincipal', name: 'V.diagnosticoPrincipal' },
+                    { data: 'finalidadConsulta', name: 'V.finalidadConsulta' },
+                    { data: 'ips_Prim', name: 'V.ips_Prim' },
+                    { data: 'edad', name: 'V.edad' },
+                ],
+                order: [[0, 'desc']],
+                language: { url: 'https://cdn.datatables.net/plug-ins/1.13.4/i18n/es-ES.json' }
+            });
 
             $('#tabla').on('xhr.dt', function (e, settings, json) {
                 const k = (json && json.kpis) ? json.kpis : {};

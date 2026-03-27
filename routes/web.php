@@ -466,6 +466,9 @@ Route::prefix('asignaciones/{asignacion}')
 
 Route::middleware(['auth'])->group(function () {
     Route::get('/ciclos-vida', [CicloVidaController::class, 'index'])->name('ciclosvida.index');
+    Route::get('/ciclos-vida/estadisticas', [CicloVidaController::class, 'statistics'])->name('ciclosvida.stats.index');
+    Route::get('/ciclos-vida/informacion-general', [CicloVidaController::class, 'generalInfo'])->name('ciclosvida.general.index');
+    Route::get('/ciclos-vida/estadisticas/data', [CicloVidaController::class, 'dashboardData'])->name('ciclosvida.dashboard.data');
 
     Route::get('/ciclos-vida/primera-infancia/opciones', [CicloVidaController::class, 'menuPrimeraInfancia'])->name('ciclosvida.pi.menu');
     Route::get('/ciclos-vida/infancia/opciones',          [CicloVidaController::class, 'menuInfancia'])->name('ciclosvida.infancia.menu');
@@ -548,7 +551,7 @@ Route::get('/pi/nutri/vitamina-a',  [CicloVidaController::class,'pivitaminaa'])
     ->defaults('key','nutri_vitamina_a');
 
 // Data (Yajra)
-Route::get('/pi/datos/data',  [CicloVidaController::class,'pidatogenerales'])
+Route::get('/pi/datos/data',  [CicloVidaController::class,'pivitaminaaData'])
     ->name('pi.nutri.vitamina_a.data');
 
 
@@ -591,6 +594,9 @@ Route::post('/pi/nutri/alerta/email', [CicloVidaController::class,'pialertaEmail
 
 
     // === Rutas existentes (detalle + data) ===
+    Route::get('/ciclos-vida/{slug}/modulos/{moduleKey}', [CicloVidaController::class, 'showModule'])->name('ciclosvida.module.show');
+    Route::get('/ciclos-vida/{slug}/modulos/{moduleKey}/data', [CicloVidaController::class, 'moduleData'])->name('ciclosvida.module.data');
+    Route::get('/ciclos-vida/{slug}/modulos/{moduleKey}/info', [CicloVidaController::class, 'moduleInfo'])->name('ciclosvida.module.info');
     Route::get('/ciclos-vida/{slug}', [CicloVidaController::class, 'show'])->name('ciclosvida.show');
     Route::get('/ciclos-vida/{slug}/data', [CicloVidaController::class, 'data'])->name('ciclosvida.data');
 });

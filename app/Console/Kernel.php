@@ -15,8 +15,31 @@ class Kernel extends ConsoleKernel
      */
     protected function schedule(Schedule $schedule)
     {
-          // Lanza el chequeo cada 10 min (ajusta a tu gusto)
-    $schedule->command('seguimientos:enviar-alertas')->everyTenMinutes();
+        $schedule->command('seguimientos:enviar-alertas')->everyTenMinutes();
+
+        $schedule->command('ciclosvida:cache-refresh primera_infancia')
+            ->dailyAt('02:15')
+            ->withoutOverlapping();
+
+        $schedule->command('ciclosvida:cache-refresh infancia')
+            ->dailyAt('02:35')
+            ->withoutOverlapping();
+
+        $schedule->command('ciclosvida:cache-refresh adolescencia')
+            ->dailyAt('02:55')
+            ->withoutOverlapping();
+
+        $schedule->command('ciclosvida:cache-refresh juventud')
+            ->dailyAt('03:15')
+            ->withoutOverlapping();
+
+        $schedule->command('ciclosvida:cache-refresh adultez')
+            ->dailyAt('03:35')
+            ->withoutOverlapping();
+
+        $schedule->command('ciclosvida:cache-refresh vejez')
+            ->dailyAt('03:55')
+            ->withoutOverlapping();
     }
 
     /**

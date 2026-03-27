@@ -76,27 +76,26 @@
             <div class="col-md-2">
                 <label class="form-label">Desde</label>
                 <input type="date" name="desde" id="desde" class="form-control"
-                       value="{{ now()->subDays(30)->toDateString() }}">
+                       value="{{ now()->subDays((int) data_get(config('ciclosvida.courses.primera_infancia'), 'refresh.days', 120))->toDateString() }}">
             </div>
             <div class="col-md-2">
                 <label class="form-label">Hasta</label>
                 <input type="date" name="hasta" id="hasta" class="form-control"
-                       value="{{ now()->toDateString() }}">
+                       value="{{ now()->addDay()->toDateString() }}">
             </div>
             <div class="col-md-2">
                 <label class="form-label">Filtrar edad</label>
                 <select name="filtraEdad" id="filtraEdad" class="form-control">
-                    <option value="1" selected>Si</option>
-                    <option value="0">No</option>
+                    <option value="1" selected>Fijo PI (0-5)</option>
                 </select>
             </div>
             <div class="col-md-2">
                 <label class="form-label">Edad mín (años)</label>
-                <input type="number" name="edadMin" id="edadMin" class="form-control" value="0" min="0">
+                <input type="number" name="edadMin" id="edadMin" class="form-control" value="0" min="0" readonly>
             </div>
             <div class="col-md-2">
                 <label class="form-label">Edad máx (años)</label>
-                <input type="number" name="edadMax" id="edadMax" class="form-control" value="5" min="0">
+                <input type="number" name="edadMax" id="edadMax" class="form-control" value="5" min="0" readonly>
             </div>
             <div class="col-md-2 d-grid">
                 <button type="button" id="btn-aplicar" class="btn btn-primary">
@@ -202,11 +201,20 @@
             setTimeout(() => showOverlay(false), 200);
         }
         function showError(msg){
+            $errBox.classList.remove('alert-warning');
+            $errBox.classList.add('alert-danger');
             $errBox.classList.remove('d-none');
             $errBox.textContent = msg || 'Ocurrió un error.';
             console.error(msg);
         }
         function hideError(){ $errBox.classList.add('d-none'); $errBox.textContent = ''; }
+        function showNotice(msg){
+            if (!msg) return;
+            $errBox.classList.remove('alert-danger');
+            $errBox.classList.add('alert-warning');
+            $errBox.classList.remove('d-none');
+            $errBox.textContent = msg;
+        }
         function getParams(){
             return {
                 desde: document.getElementById('desde').value,
@@ -285,11 +293,16 @@
                         const p = getParams();
                         d.desde = p.desde; d.hasta = p.hasta;
                         d.filtraEdad = p.filtraEdad; d.edadMin = p.edadMin; d.edadMax = p.edadMax;
-                        $kpiRange.textContent = `${p.desde} → ${p.hasta}`;
                         hideError(); startLoading();
                     },
                     dataSrc: function(json){
                         dataArriving();
+                        if (json.cut) {
+                            $kpiRange.textContent = `${json.cut.from} → ${json.cut.to}`;
+                        }
+                        if (json.notice) {
+                            showNotice(json.notice);
+                        }
                         return json.data || [];
                     },
                     error: function(xhr){

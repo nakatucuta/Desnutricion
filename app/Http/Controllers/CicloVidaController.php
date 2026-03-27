@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Services\CicloVida\CicloVidaCacheRepository;
+use App\Support\CicloVidaCatalog;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
@@ -52,35 +54,162 @@ class CicloVidaController extends Controller
 
     public function index()
     {
-        $etapas = $this->etapas;
-        // Vista de tarjetas principal
-        return view('ciclo_vidas.index', compact('etapas'));
+        $etapas = $this->catalogCourseCards();
+        $quickCards = [
+            [
+                'title' => 'Estadisticas',
+                'description' => 'Tablero consolidado con tendencias, graficas, top de IPS, modulos y comparativo entre cursos de vida.',
+                'icon' => 'fas fa-chart-pie',
+                'color' => 'grad-indigo',
+                'route' => route('ciclosvida.stats.index'),
+            ],
+            [
+                'title' => 'Informacion general',
+                'description' => 'Vista ejecutiva con enfoque, rango etario, resumen operativo y accesos dinamicos por cada curso de vida.',
+                'icon' => 'fas fa-layer-group',
+                'color' => 'grad-emerald',
+                'route' => route('ciclosvida.general.index'),
+            ],
+        ];
+
+        return view('ciclo_vidas.home', compact('etapas', 'quickCards'));
+    }
+
+    public function dashboardData(Request $request)
+    {
+        return response()->json($this->cacheRepo()->dashboard($request));
+    }
+
+    public function statistics()
+    {
+        $etapas = $this->catalogCourseCards();
+        $desde = now()->subDays(120)->startOfDay()->toDateString();
+        $hasta = now()->toDateString();
+        $focusAreas = [
+            [
+                'title' => 'Atencion integral por curso de vida',
+                'description' => 'Seguimiento de consultas medicas, odontologicas y otras atenciones trazadoras segun Resolucion 3280 de 2018.',
+                'icon' => 'fas fa-stethoscope',
+            ],
+            [
+                'title' => 'Proteccion especifica y SSR',
+                'description' => 'Consolida acciones de proteccion especifica, salud sexual y reproductiva, pruebas rapidas y metodos de planificacion.',
+                'icon' => 'fas fa-shield-heart',
+            ],
+            [
+                'title' => 'Tamizajes prioritarios',
+                'description' => 'Prioriza riesgo cardiovascular, cuello uterino, mama, prostata y colon con enfoque util para gestion.',
+                'icon' => 'fas fa-chart-line',
+            ],
+        ];
+        $normativeLinks = $this->normativeLinks();
+
+        return view('ciclo_vidas.index', compact('etapas', 'desde', 'hasta', 'focusAreas', 'normativeLinks'));
+    }
+
+    public function generalInfo()
+    {
+        $courseMeta = collect(CicloVidaCatalog::courses())
+            ->map(function (array $course, string $courseKey) {
+                return [
+                    'key' => $courseKey,
+                    'slug' => $course['slug'] ?? $courseKey,
+                    'label' => $course['label'] ?? $courseKey,
+                    'description' => $course['description'] ?? '',
+                    'ageLabel' => $course['age_label'] ?? '',
+                    'icon' => $course['icon'] ?? 'fas fa-layer-group',
+                    'color' => $course['color'] ?? 'bg-secondary',
+                    'menuRoute' => route($course['menu_route']),
+                    'groups' => collect(CicloVidaCatalog::menuGroups($courseKey))
+                        ->map(function (array $group) {
+                            return [
+                                'title' => $group['title'] ?? 'Grupo',
+                                'items' => collect($group['items'] ?? [])
+                                    ->pluck('short_label')
+                                    ->filter()
+                                    ->values()
+                                    ->all(),
+                            ];
+                        })
+                        ->values()
+                        ->all(),
+                ];
+            })
+            ->values()
+            ->all();
+
+        $desde = now()->subDays(120)->startOfDay()->toDateString();
+        $hasta = now()->toDateString();
+        $normativeLinks = $this->normativeLinks();
+
+        return view('ciclo_vidas.informacion_general', compact('courseMeta', 'desde', 'hasta', 'normativeLinks'));
     }
 
     // Menú de opciones para "Primera Infancia"
     public function menuPrimeraInfancia()
     {
-        return view('ciclo_vidas.pi_menu');
+        return $this->renderCourseMenu('primera_infancia');
+    }
+
+    public function menuInfancia()
+    {
+        return $this->renderCourseMenu('infancia');
+    }
+
+    public function menuAdolescencia()
+    {
+        return $this->renderCourseMenu('adolescencia');
+    }
+
+    public function menuJuventud()
+    {
+        return $this->renderCourseMenu('juventud');
+    }
+
+    public function menuAdultez()
+    {
+        return $this->renderCourseMenu('adultez');
+    }
+
+    public function menuVejez()
+    {
+        return $this->renderCourseMenu('vejez');
     }
 
     public function show(string $slug)
     {
-        if (!array_key_exists($slug, $this->etapas)) {
-            abort(404);
-        }
-
-        $etapa = $this->etapas[$slug] + ['slug' => $slug];
+        $course = CicloVidaCatalog::courseBySlug($slug);
+        $etapa = [
+            'slug' => $slug,
+            'titulo' => $course['label'],
+            'descripcion' => $course['description'],
+        ];
 
         // Rango por defecto: año actual (hasta exclusivo)
         $desde = now()->startOfYear()->toDateString();
         $hasta = now()->addDay()->toDateString();
 
         // Vista detalle (tu DataTable server-side)
-        return view('ciclo_vidas.show', compact('etapa', 'desde', 'hasta'));
+        return view('ciclo_vidas.show', [
+            'etapa' => $etapa,
+            'desde' => $desde,
+            'hasta' => $hasta,
+            'dataUrl' => route('ciclosvida.data', $slug),
+            'tableTitle' => 'Detalle de atenciones · '.$course['label'],
+            'dataSourceLabel' => 'Datos materializados por curso de vida',
+        ]);
     }
 
 public function data(Request $request, string $slug)
 {
+    $course = CicloVidaCatalog::courseBySlug($slug);
+
+    if ($course['key'] !== 'primera_infancia') {
+        return DataTables::of(DB::query()->selectRaw('1')->whereRaw('1=0'))->toJson();
+    }
+
+    return $this->cacheRepo()->eventTable($course['key'], ['medica'], $request);
+
     if ($slug !== 'primera-infancia') {
         return \Yajra\DataTables\Facades\DataTables::of(DB::query()->selectRaw('1')->whereRaw('1=0'))->toJson();
     }
@@ -192,6 +321,19 @@ public function data(Request $request, string $slug)
      */
     public function piPlaceholder(Request $request)
     {
+        $key = $request->get('key', 'en_construccion');
+        $title = $key;
+
+        try {
+            $title = CicloVidaCatalog::module('primera_infancia', $key)['label'];
+        } catch (\Throwable $e) {
+        }
+
+        return view('ciclo_vidas.placeholder', [
+            'key' => $key,
+            'titulo' => $title,
+        ]);
+
         // 'key' via ->defaults('key','...') en las rutas
         $key = $request->get('key', 'en_construccion');
 
@@ -236,6 +378,8 @@ public function enfermeria()
   
 public function enfermeriaData(Request $request)
 {
+    return $this->cacheRepo()->eventTable('primera_infancia', ['enfermeria'], $request);
+
     // 1) Rango de fechas (exclusivo en 'hasta')
     try {
         $desde = Carbon::parse($request->query('desde'))->toDateString();
@@ -359,6 +503,12 @@ public function pibucal()
 
 public function bucalData(Request $request)
 {
+    return $this->cacheRepo()->eventTable(
+        'primera_infancia',
+        ['odontologia_general', 'fluor', 'placa', 'sellantes'],
+        $request
+    );
+
     // 1) Fechas (hasta exclusivo)
     try {
         $desde = Carbon::parse($request->query('desde'))->toDateString();
@@ -481,6 +631,8 @@ public function pifluor()
 
 public function pifluorData(Request $request)
 {
+    return $this->cacheRepo()->eventTable('primera_infancia', ['fluor'], $request);
+
     try {
         $desde = Carbon::parse($request->query('desde'))->toDateString();
         $hasta = Carbon::parse($request->query('hasta'))->toDateString(); // exclusivo
@@ -553,6 +705,8 @@ public function piplaca()
 
 public function piplacaData(Request $request)
 {
+    return $this->cacheRepo()->eventTable('primera_infancia', ['placa'], $request);
+
     // Rango de fechas (hasta exclusivo)
     try {
         $desde = \Carbon\Carbon::parse($request->query('desde'))->toDateString();
@@ -652,6 +806,8 @@ public function pisellante()
 
   public function pisellanteData(Request $request)
 {
+    return $this->cacheRepo()->eventTable('primera_infancia', ['sellantes'], $request);
+
     // 1) Rango de fechas (hasta exclusivo)
     try {
         $desde = \Carbon\Carbon::parse($request->query('desde'))->toDateString();
@@ -743,6 +899,8 @@ public function piphemoglobina()
 }
 public function piphemoglobinaData(Request $request)
 {
+    return $this->cacheRepo()->eventTable('primera_infancia', ['hemoglobina'], $request);
+
     // 1) Fechas (hasta exclusivo)
     try {
         $desde = \Carbon\Carbon::parse($request->query('desde'))->toDateString();
@@ -840,6 +998,8 @@ public function piphemoglobinaData(Request $request)
      */
    public function pialertaData(Request $r)
 {
+    return $this->cacheRepo()->alertTable('primera_infancia', $r);
+
     try {
         @set_time_limit(300);
 
@@ -984,34 +1144,27 @@ public function pialertaEmail(Request $r)
     Log::info('pialertaEmail params', compact('desde','hasta','filtra','emin','emax'));
 
     try {
-        $sql = "
-            SET NOCOUNT ON;
-            SET ARITHABORT ON;
-            SET ANSI_WARNINGS ON;
-            SET QUOTED_IDENTIFIER ON;
-
-            SELECT *
-            FROM PRUEBA_DESNUTRICION.dbo.fn_pi_alertas(
-                CONVERT(date, ?),
-                CONVERT(date, ?),
-                CONVERT(bit, ?),
-                CONVERT(int, ?),
-                CONVERT(int, ?)
-            )
-            ORDER BY primerApellido, segundoApellido, primerNombre, segundoNombre, descrip
-            OPTION (RECOMPILE, MAXDOP 1);
-        ";
-
-        $rows = DB::connection('sqlsrv_1')->select($sql, [$desde, $hasta, $filtra, $emin, $emax]);
-        $totalRows = count($rows);
-        Log::info('pialertaEmail rows count', ['count' => $totalRows]);
+        $alertData = $this->cacheRepo()->alertNotificationData('primera_infancia', $r);
+        $rows = collect($alertData['rows'] ?? []);
+        $cut = $alertData['cut'] ?? null;
+        $totalRows = $rows->count();
+        Log::info('pialertaEmail rows count', [
+            'count' => $totalRows,
+            'cut' => $cut,
+            'exact' => $alertData['exact'] ?? false,
+        ]);
 
         if ($totalRows === 0) {
-            return response()->json(['ok' => true, 'msg' => 'No hay pacientes pendientes en el rango indicado.', 'rows' => 0, 'recipients' => 0]);
+            return response()->json([
+                'ok' => true,
+                'msg' => 'No hay un corte materializado de alertas disponible para enviar o el corte no tiene pendientes.',
+                'rows' => 0,
+                'recipients' => 0,
+            ]);
         }
 
         // destinatarios a partir de codigohabilitacion
-        $codigos = collect($rows)->pluck('codigoHabilitacion')->filter()->unique()->values();
+        $codigos = $rows->pluck('codigoHabilitacion')->filter()->unique()->values();
         $destinatariosRaw = DB::table('users')
             ->whereIn('codigohabilitacion', $codigos)
             ->pluck('email')->all();
@@ -1025,10 +1178,14 @@ public function pialertaEmail(Request $r)
 
         // HTML del correo (vista si existe; si no, fallback)
         if (view()->exists('emails.alerta_pi')) {
-            $html = view('emails.alerta_pi', ['desde' => $desde, 'hasta' => $hasta, 'items' => $rows])->render();
+            $html = view('emails.alerta_pi', [
+                'desde' => $cut['from'] ?? $desde,
+                'hasta' => $cut['to'] ?? $hasta,
+                'items' => $rows,
+            ])->render();
         } else {
             $html = '<html><body>'
-                  . '<p><strong>Rango:</strong> '.e($desde).' al '.e($hasta).'</p>'
+                  . '<p><strong>Rango materializado:</strong> '.e($cut['from'] ?? $desde).' al '.e($cut['to'] ?? $hasta).'</p>'
                   . '<p>Pacientes con actividades pendientes:</p>'
                   . '<table border="1" cellpadding="6" cellspacing="0">'
                   . '<thead><tr>'
@@ -1096,6 +1253,7 @@ public function pialertaEmail(Request $r)
             'msg'        => "Correos enviados: {$enviados}",
             'rows'       => $totalRows,
             'recipients' => $enviados,
+            'cut'        => $cut,
         ]);
 
     } catch (\Throwable $e) {
@@ -1122,6 +1280,8 @@ public function PIlactancia(Request $r)
 
 public function PIlactanciaData(Request $r)
 {
+    return $this->cacheRepo()->eventTable('primera_infancia', ['lactancia'], $r);
+
     try {
         @set_time_limit(300);
 
@@ -1194,6 +1354,8 @@ public function pivitaminaa(Request $r)
 
 public function pivitaminaaData(Request $r)
 {
+    return $this->cacheRepo()->eventTable('primera_infancia', ['vitamina_a'], $r);
+
     try {
         @set_time_limit(300);
 
@@ -1269,6 +1431,8 @@ public function PIhierro()
 
 public function PIhierroData(Request $r)
 {
+    return $this->cacheRepo()->eventTable('primera_infancia', ['hierro'], $r);
+
     @set_time_limit(300);
 
     $draw   = (int) $r->input('draw', 0);
@@ -1385,6 +1549,8 @@ public function PIhierroData(Request $r)
 
 public function piResumenGenerales(Request $r)
 {
+    return $this->cacheRepo()->summary('primera_infancia', $r);
+
     try {
         // Rango por defecto: año en curso… mañana (exclusivo)
         $desde = $r->input('desde', now()->startOfYear()->format('Y-m-d'));
@@ -1468,6 +1634,134 @@ public function piResumenGenerales(Request $r)
 public function pidatogenerales()
 {
     return view('ciclo_vidas.datosgenerales');
+}
+
+public function showModule(string $slug, string $moduleKey)
+{
+    $course = CicloVidaCatalog::courseBySlug($slug);
+    $module = CicloVidaCatalog::module($course['key'], $moduleKey);
+
+    $etapa = [
+        'slug' => $slug,
+        'titulo' => $module['label'],
+        'descripcion' => trim(($course['label'] ?? '').' · '.($module['description'] ?? $course['description'] ?? '')),
+    ];
+
+    $defaultDays = (int) data_get($course, 'refresh.days', 120);
+    $desde = now()->subDays(max($defaultDays, 1))->startOfDay()->toDateString();
+    $hasta = now()->addDay()->toDateString();
+
+    return view('ciclo_vidas.show', [
+        'etapa' => $etapa,
+        'desde' => $desde,
+        'hasta' => $hasta,
+        'dataUrl' => route('ciclosvida.module.data', ['slug' => $slug, 'moduleKey' => $moduleKey]),
+        'course' => $course,
+        'module' => $module + ['key' => $moduleKey],
+        'tableTitle' => 'Detalle de atenciones · '.$module['label'],
+        'dataSourceLabel' => 'Datos materializados por curso de vida',
+        'pageNotice' => empty($module['materialized'])
+            ? 'La estructura de este modulo ya quedo preparada para el curso de vida, pero aun no tiene una fuente materializada cargada.'
+            : null,
+    ]);
+}
+
+public function moduleData(Request $request, string $slug, string $moduleKey)
+{
+    $course = CicloVidaCatalog::courseBySlug($slug);
+    $module = CicloVidaCatalog::module($course['key'], $moduleKey);
+
+    if (($module['record_type'] ?? 'event') === 'alert') {
+        return $this->cacheRepo()->alertTable($course['key'], $request);
+    }
+
+    if ($moduleKey === 'datos_generales') {
+        return $this->cacheRepo()->summary($course['key'], $request);
+    }
+
+    return $this->cacheRepo()->eventTable(
+        $course['key'],
+        [$module['cache_module_key'] ?? $moduleKey],
+        $request,
+        ['record_type' => $module['record_type'] ?? 'event']
+    );
+}
+
+public function moduleInfo(string $slug, string $moduleKey)
+{
+    $course = CicloVidaCatalog::courseBySlug($slug);
+    $module = CicloVidaCatalog::module($course['key'], $moduleKey);
+
+    return view('ciclo_vidas.module_info', [
+        'course' => $course,
+        'module' => $module + ['key' => $moduleKey],
+    ]);
+}
+
+private function renderCourseMenu(string $courseKey)
+{
+    $course = CicloVidaCatalog::course($courseKey);
+    $groups = CicloVidaCatalog::menuGroups($courseKey);
+
+    return view('ciclo_vidas.pi_menu', [
+        'course' => $course,
+        'groups' => $groups,
+    ]);
+}
+
+private function cacheRepo(): CicloVidaCacheRepository
+{
+    return app(CicloVidaCacheRepository::class);
+}
+
+private function catalogCourseCards(): array
+{
+    return collect(CicloVidaCatalog::courses())
+        ->mapWithKeys(function (array $course, string $courseKey) {
+            $groupCount = count($course['groups'] ?? []);
+            $moduleCount = collect($course['groups'] ?? [])
+                ->pluck('items')
+                ->flatten()
+                ->filter()
+                ->unique()
+                ->count();
+
+            return [
+                $course['slug'] => [
+                    'titulo' => $course['label'],
+                    'descripcion' => $course['description'],
+                    'color' => $course['color'],
+                    'icono' => $course['icon'],
+                    'route_name' => $course['menu_route'],
+                    'course_key' => $courseKey,
+                    'age_label' => $course['age_label'] ?? '',
+                    'group_count' => $groupCount,
+                    'module_count' => $moduleCount,
+                ],
+            ];
+        })
+        ->all();
+}
+
+private function normativeLinks(): array
+{
+    return [
+        [
+            'label' => 'Resolucion 3280 de 2018',
+            'url' => 'https://www.minsalud.gov.co/salud/publica/Paginas/normograma-promocion-y-prevencion.aspx',
+            'description' => 'Base de la Ruta Integral de Atencion para la Promocion y el Mantenimiento de la Salud.',
+        ],
+        [
+            'label' => 'Enfoque de ciclo de vida',
+            'url' => 'https://www.minsalud.gov.co/proteccionsocial/Paginas/ciclovida.aspx',
+            'description' => 'Referencia conceptual para vulnerabilidades, oportunidades y priorizacion por etapa.',
+        ],
+        [
+            'label' => 'Tamizajes prioritarios',
+            'url' => 'https://www.minsalud.gov.co/salud/publica/ssr/Paginas/Cancer-de-cuello-uterino.aspx',
+            'description' => 'Apoya la priorizacion de cuello uterino, mama y otros tamizajes diferenciales.',
+        ],
+    ];
 }
 
 }
