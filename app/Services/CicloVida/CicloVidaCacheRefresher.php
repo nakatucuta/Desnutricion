@@ -472,9 +472,16 @@ class CicloVidaCacheRefresher
                 'diag',
             ]);
 
+            $recordType = (string) ($module['record_type'] ?? $module['type'] ?? 'event');
+            $hashWindowKey = $recordType === 'alert' || $eventDate === null
+                ? $from->toDateString().'|'.$to->toDateString()
+                : '';
+
             $recordHash = hash('sha256', json_encode([
                 $courseKey,
                 $moduleKey,
+                $recordType,
+                $hashWindowKey,
                 $this->firstString($data, ['tipoIdentificacion']),
                 $this->firstString($data, ['identificacion']),
                 $eventDate,
@@ -502,7 +509,7 @@ class CicloVidaCacheRefresher
                 'course_key' => $courseKey,
                 'module_key' => $moduleKey,
                 'module_label' => $this->fitDbText((string) ($module['label'] ?? $moduleKey), 160),
-                'record_type' => (string) ($module['record_type'] ?? $module['type'] ?? 'event'),
+                'record_type' => $recordType,
                 'range_start' => $this->dbDate($from),
                 'range_end' => $this->dbDate($to),
                 'event_date' => $eventDate ? Carbon::parse($eventDate) : null,
