@@ -33,7 +33,7 @@ SELECT
             - CASE WHEN DATEADD(YEAR, DATEDIFF(YEAR, FN.fechaNac, @Hoy), FN.fechaNac) > @Hoy THEN 1 ELSE 0 END
     END AS edad,
     -- Rango de edad
-    '0-5 a�os' AS rangoEdad
+    NULL AS rangoEdad
 FROM sga..maestroInfNominalR202 R1
 INNER JOIN sga..maestroInfNominalR202EV R2
  on R1.id=R2.id	
@@ -60,10 +60,6 @@ WHERE
     -- Filtros pedidos:
 	AND cast(R1.plaFamPvez as date) BETWEEN @Desde AND @HastaExclusivo
     AND FN.fechaNac IS NOT NULL
-    AND (
-        DATEDIFF(YEAR, FN.fechaNac, @Hoy) 
-        - CASE WHEN DATEADD(YEAR, DATEDIFF(YEAR, FN.fechaNac, @Hoy), FN.fechaNac) > @Hoy THEN 1 ELSE 0 END
-    ) BETWEEN 29 AND 59
 ORDER BY Afi.numeroCarnet, fechaConsulta
 
 

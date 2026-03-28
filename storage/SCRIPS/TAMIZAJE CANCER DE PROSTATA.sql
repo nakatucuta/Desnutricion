@@ -25,7 +25,7 @@ ON g.idGrupoIps = h.id
 
 WHERE A.codigoProcedimiento IN ('906611') AND
 --a.diagnostico in ('Z002','Z003','Z001') AND
-a.finalidadProcedimiento IN ('4') AND
+a.finalidadProcedimiento IN ('1') AND
 a.fechaProcedimiento between '2025-01-01' and '2025-06-30'
 
 UNION ALL
