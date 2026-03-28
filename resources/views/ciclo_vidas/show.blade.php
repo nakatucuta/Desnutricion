@@ -16,26 +16,13 @@
 
 @section('content')
     <div class="card mb-3">
-        <div class="card-body d-flex flex-wrap align-items-end">
-            <div class="mr-3 mb-2">
-                <label class="mb-1 font-weight-bold">Rango de fecha</label>
-                <div id="daterange" class="form-control d-inline-block" style="width: 280px; cursor: pointer;">
-                    <i class="far fa-calendar-alt"></i>
-                    <span class="ml-2"></span> <i class="fa fa-caret-down float-right mt-1"></i>
-                </div>
-            </div>
-
-            <div class="mb-2">
-                <button id="btnAplicar" class="btn btn-primary">
-                    <i class="fas fa-sync"></i> Aplicar
-                </button>
-            </div>
-
-            <div class="ml-auto mb-2">
-                <span class="badge badge-secondary p-2">
-                    <i class="fas fa-info-circle"></i> {{ $dataSourceLabel ?? 'Datos materializados por curso de vida' }}
-                </span>
-            </div>
+        <div class="card-body">
+            @include('ciclo_vidas.partials.date_range_toolbar', [
+                'pickerId' => 'daterange',
+                'applyButtonId' => 'btnAplicar',
+                'applyLabel' => 'Aplicar rango',
+                'note' => '<i class="fas fa-info-circle"></i> '.e($dataSourceLabel ?? 'Datos materializados por curso de vida'),
+            ])
         </div>
     </div>
 
@@ -118,6 +105,7 @@
 @section('css')
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/daterangepicker/daterangepicker.css">
     <link rel="stylesheet" href="https://cdn.datatables.net/1.13.4/css/dataTables.bootstrap4.min.css">
+    @include('ciclo_vidas.partials.date_range_shared_styles')
     <style>
         .small-box { border-radius: 16px; }
     </style>
@@ -129,39 +117,18 @@
     <script src="https://cdn.jsdelivr.net/npm/daterangepicker/daterangepicker.min.js"></script>
     <script src="https://cdn.datatables.net/1.13.4/js/jquery.dataTables.min.js"></script>
     <script src="https://cdn.datatables.net/1.13.4/js/dataTables.bootstrap4.min.js"></script>
+    @include('ciclo_vidas.partials.date_range_shared_script')
 
     <script>
         $(function () {
             moment.locale('es');
 
-            const startDefault = moment(@json($desde), 'YYYY-MM-DD');
-            const endExDefault = moment(@json($hasta), 'YYYY-MM-DD');
-            const endIncDefault = endExDefault.clone().subtract(1, 'day');
-
-            function setLabel(start, end) {
-                $('#daterange span').text(start.format('YYYY-MM-DD') + ' - ' + end.format('YYYY-MM-DD'));
-            }
-
-            $('#daterange').daterangepicker({
-                startDate: startDefault,
-                endDate: endIncDefault,
-                locale: {
-                    format: 'YYYY-MM-DD',
-                    applyLabel: 'Aplicar',
-                    cancelLabel: 'Cancelar',
-                    customRangeLabel: 'Personalizado'
-                },
-                ranges: {
-                    'Hoy': [moment(), moment()],
-                    'Ayer': [moment().subtract(1, 'days'), moment().subtract(1, 'days')],
-                    'Ultimos 7 dias': [moment().subtract(6, 'days'), moment()],
-                    'Ultimos 30 dias': [moment().subtract(29, 'days'), moment()],
-                    'Este mes': [moment().startOf('month'), moment().endOf('month')],
-                    'Ano actual': [moment().startOf('year'), moment()]
-                }
-            }, setLabel);
-
-            setLabel(startDefault, endIncDefault);
+            const rangePicker = window.CicloVidaDateRange.init({
+                pickerSelector: '#daterange',
+                start: @json($desde),
+                end: @json($hasta),
+                endExclusive: true
+            });
 
             const tabla = $('#tabla').DataTable({
                 serverSide: true,
@@ -172,9 +139,8 @@
                     url: @json($dataUrl ?? route('ciclosvida.data', $etapa['slug'])),
                     type: 'GET',
                     data: function (d) {
-                        const drp = $('#daterange').data('daterangepicker');
-                        d.desde = drp.startDate.format('YYYY-MM-DD');
-                        d.hasta = drp.endDate.clone().add(1, 'day').format('YYYY-MM-DD');
+                        d.desde = rangePicker.getStart().format('YYYY-MM-DD');
+                        d.hasta = rangePicker.getEndExclusive().format('YYYY-MM-DD');
                     }
                 },
                 columns: [

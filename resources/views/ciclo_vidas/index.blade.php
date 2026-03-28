@@ -26,16 +26,35 @@
 @stop
 
 @section('content')
+    <div id="cvStatsLoading" class="cv-stats-loading is-visible" aria-live="polite" aria-busy="true">
+        <div class="cv-stats-loading__backdrop"></div>
+        <div class="cv-stats-loading__panel">
+            <div class="cv-stats-loading__grid"></div>
+            <div class="cv-stats-loading__orb">
+                <span></span>
+                <span></span>
+                <span></span>
+            </div>
+            <div class="cv-stats-loading__brand">
+                <img src="{{ asset('vendor/adminlte/dist/img/logo.png') }}" alt="Escudo institucional">
+            </div>
+            <h3>Construyendo tablero estadistico</h3>
+            <p>Estamos integrando indicadores, graficas territoriales y comparativos por curso de vida.</p>
+            <div class="cv-stats-loading__status">
+                <span class="cv-stats-loading__dot"></span>
+                <span id="cvStatsLoadingText">Consultando estadisticas materializadas...</span>
+            </div>
+        </div>
+    </div>
+
     <div class="cv-toolbar card shadow-sm mb-4">
         <div class="card-body">
             <div class="cv-filter-grid">
                 <div>
-                    <label class="mb-1 font-weight-bold">Rango de fecha</label>
-                    <div id="daterange" class="form-control d-inline-block w-100" style="cursor: pointer;">
-                        <i class="far fa-calendar-alt"></i>
-                        <span class="ml-2"></span>
-                        <i class="fa fa-caret-down float-right mt-1"></i>
-                    </div>
+                    @include('ciclo_vidas.partials.date_range_toolbar', [
+                        'pickerId' => 'daterange',
+                        'wrapperClass' => 'cv-date-toolbar--stats',
+                    ])
                 </div>
                 <div>
                     <label class="mb-1 font-weight-bold">Curso de vida</label>
@@ -375,6 +394,7 @@
 
 @section('css')
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/daterangepicker/daterangepicker.css">
+    @include('ciclo_vidas.partials.date_range_shared_styles')
     <style>
         .content-wrapper, .content, .container-fluid { background: #f4f7fb !important; }
         .cv-hero {
@@ -422,6 +442,156 @@
             letter-spacing: .08em;
             margin-bottom: .2rem;
         }
+        .cv-stats-loading {
+            position: fixed;
+            inset: 0;
+            z-index: 3000;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 1.25rem;
+        }
+        .cv-stats-loading.is-visible {
+            display: flex;
+        }
+        .cv-stats-loading__backdrop {
+            position: absolute;
+            inset: 0;
+            background:
+                radial-gradient(circle at top left, rgba(56,189,248,.28), transparent 30%),
+                radial-gradient(circle at bottom right, rgba(16,185,129,.24), transparent 32%),
+                rgba(15, 23, 42, .74);
+            backdrop-filter: blur(12px);
+        }
+        .cv-stats-loading__panel {
+            position: relative;
+            width: min(540px, 100%);
+            overflow: hidden;
+            border-radius: 28px;
+            border: 1px solid rgba(255,255,255,.14);
+            background: linear-gradient(145deg, rgba(15, 23, 42, .96), rgba(30, 41, 59, .92));
+            box-shadow: 0 30px 80px rgba(15, 23, 42, .42);
+            padding: 2rem 1.8rem 1.7rem;
+            text-align: center;
+            color: #fff;
+        }
+        .cv-stats-loading__panel::before {
+            content: '';
+            position: absolute;
+            inset: -30% auto auto -10%;
+            width: 220px;
+            height: 220px;
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(59,130,246,.38), transparent 70%);
+            pointer-events: none;
+        }
+        .cv-stats-loading__panel::after {
+            content: '';
+            position: absolute;
+            right: -70px;
+            bottom: -70px;
+            width: 200px;
+            height: 200px;
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(16,185,129,.28), transparent 72%);
+            pointer-events: none;
+        }
+        .cv-stats-loading__grid {
+            position: absolute;
+            inset: 0;
+            background-image:
+                linear-gradient(rgba(148, 163, 184, .08) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(148, 163, 184, .08) 1px, transparent 1px);
+            background-size: 28px 28px;
+            mask-image: linear-gradient(180deg, transparent, rgba(255,255,255,.75), transparent);
+            pointer-events: none;
+        }
+        .cv-stats-loading__orb {
+            position: relative;
+            width: 104px;
+            height: 104px;
+            margin: 0 auto 1rem;
+        }
+        .cv-stats-loading__orb span {
+            position: absolute;
+            inset: 0;
+            border-radius: 50%;
+            border: 2px solid transparent;
+            border-top-color: rgba(96, 165, 250, .95);
+            border-right-color: rgba(45, 212, 191, .75);
+            animation: cvStatsSpin 1.45s linear infinite;
+        }
+        .cv-stats-loading__orb span:nth-child(2) {
+            inset: 12px;
+            border-top-color: rgba(34, 211, 238, .9);
+            border-right-color: rgba(110, 231, 183, .7);
+            animation-duration: 1.05s;
+            animation-direction: reverse;
+        }
+        .cv-stats-loading__orb span:nth-child(3) {
+            inset: 26px;
+            border-top-color: rgba(250, 204, 21, .95);
+            border-right-color: rgba(96, 165, 250, .72);
+            animation-duration: .9s;
+        }
+        .cv-stats-loading__brand {
+            position: relative;
+            z-index: 1;
+            margin-bottom: .8rem;
+        }
+        .cv-stats-loading__brand img {
+            width: 48px;
+            height: 48px;
+            object-fit: contain;
+            filter: drop-shadow(0 8px 18px rgba(0,0,0,.35));
+        }
+        .cv-stats-loading__panel h3 {
+            position: relative;
+            z-index: 1;
+            font-size: 1.5rem;
+            font-weight: 800;
+            color: #fff;
+            margin-bottom: .45rem;
+        }
+        .cv-stats-loading__panel p {
+            position: relative;
+            z-index: 1;
+            margin: 0 auto 1.1rem;
+            max-width: 360px;
+            color: rgba(226, 232, 240, .86);
+        }
+        .cv-stats-loading__status {
+            position: relative;
+            z-index: 1;
+            display: inline-flex;
+            align-items: center;
+            gap: .65rem;
+            padding: .7rem 1rem;
+            border-radius: 999px;
+            background: rgba(15, 23, 42, .45);
+            border: 1px solid rgba(148, 163, 184, .18);
+            color: #e2e8f0;
+            font-weight: 600;
+        }
+        .cv-stats-loading__dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #22d3ee;
+            box-shadow: 0 0 0 0 rgba(34, 211, 238, .7);
+            animation: cvStatsPulse 1.5s ease-out infinite;
+        }
+        body.cv-stats-loading-lock {
+            overflow: hidden;
+        }
+        @keyframes cvStatsSpin {
+            to { transform: rotate(360deg); }
+        }
+        @keyframes cvStatsPulse {
+            0% { box-shadow: 0 0 0 0 rgba(34, 211, 238, .7); }
+            70% { box-shadow: 0 0 0 14px rgba(34, 211, 238, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(34, 211, 238, 0); }
+        }
         .cv-toolbar, .cv-course-card, .cv-focus-card, .cv-kpi, .cv-cycle-card {
             border-radius: 20px;
         }
@@ -429,6 +599,14 @@
             display: grid;
             grid-template-columns: repeat(4, minmax(0, 1fr));
             gap: .95rem 1rem;
+        }
+        .cv-date-toolbar--stats .cv-date-toolbar__main {
+            min-width: 100%;
+            flex-basis: 100%;
+        }
+        .cv-date-toolbar--stats .cv-date-toolbar__action,
+        .cv-date-toolbar--stats .cv-date-toolbar__note {
+            display: none;
         }
         .cv-toolbar-actions {
             display: flex;
@@ -598,16 +776,36 @@
     <script src="https://cdn.jsdelivr.net/npm/moment@2.29.4/locale/es.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/daterangepicker/daterangepicker.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
+    @include('ciclo_vidas.partials.date_range_shared_script')
 
     <script>
         $(function () {
             moment.locale('es');
 
             const dashboardUrl = @json(route('ciclosvida.dashboard.data'));
-            const startDefault = moment(@json($desde), 'YYYY-MM-DD');
-            const endDefault = moment(@json($hasta), 'YYYY-MM-DD');
+            const rangePicker = window.CicloVidaDateRange.init({
+                pickerSelector: '#daterange',
+                start: @json($desde),
+                end: @json($hasta),
+                endExclusive: false
+            });
             const numberFmt = (value) => Number(value || 0).toLocaleString('es-CO');
+            const $statsLoading = $('#cvStatsLoading');
+            const $statsLoadingText = $('#cvStatsLoadingText');
             const charts = {};
+
+            function showStatsLoading(message) {
+                if (message) {
+                    $statsLoadingText.text(message);
+                }
+                $('body').addClass('cv-stats-loading-lock');
+                $statsLoading.addClass('is-visible');
+            }
+
+            function hideStatsLoading() {
+                $('body').removeClass('cv-stats-loading-lock');
+                $statsLoading.removeClass('is-visible');
+            }
 
             function destroyChart(key) {
                 if (charts[key]) {
@@ -625,10 +823,6 @@
                     .replace(/'/g, '&#039;');
             }
 
-            function setLabel(start, end) {
-                $('#daterange span').text(start.format('YYYY-MM-DD') + ' - ' + end.format('YYYY-MM-DD'));
-            }
-
             function syncSelectOptions(selector, items, selected, placeholder) {
                 const $select = $(selector);
                 const options = [`<option value="">${escapeHtml(placeholder)}</option>`];
@@ -640,25 +834,6 @@
                 $select.html(options.join(''));
                 $select.val(selected || '');
             }
-
-            $('#daterange').daterangepicker({
-                startDate: startDefault,
-                endDate: endDefault,
-                locale: {
-                    format: 'YYYY-MM-DD',
-                    applyLabel: 'Aplicar',
-                    cancelLabel: 'Cancelar',
-                    customRangeLabel: 'Personalizado'
-                },
-                ranges: {
-                    'Ultimos 30 dias': [moment().subtract(29, 'days'), moment()],
-                    'Ultimos 90 dias': [moment().subtract(89, 'days'), moment()],
-                    'Ultimos 120 dias': [moment().subtract(119, 'days'), moment()],
-                    'Ano actual': [moment().startOf('year'), moment()]
-                }
-            }, setLabel);
-
-            setLabel(startDefault, endDefault);
 
             function renderKpis(kpis) {
                 $('#kpiTotal').text(numberFmt(kpis.total));
@@ -840,11 +1015,9 @@
             }
 
             function collectParams() {
-                const drp = $('#daterange').data('daterangepicker');
-
                 return {
-                    desde: drp.startDate.format('YYYY-MM-DD'),
-                    hasta: drp.endDate.clone().add(1, 'day').format('YYYY-MM-DD'),
+                    desde: rangePicker.getStart().format('YYYY-MM-DD'),
+                    hasta: rangePicker.getEndExclusive().format('YYYY-MM-DD'),
                     curso: $('#filterCurso').val() || '',
                     linea: $('#filterLinea').val() || '',
                     modulo: $('#filterModulo').val() || '',
@@ -856,9 +1029,9 @@
             }
 
             function loadDashboard() {
-                const drp = $('#daterange').data('daterangepicker');
                 const params = collectParams();
 
+                showStatsLoading('Consultando estadisticas materializadas...');
                 $('#btnDashboard').prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> Actualizando');
                 $('#btnClearFilters').prop('disabled', true);
 
@@ -877,7 +1050,7 @@
                         renderHorizontalChart('services', 'serviceChart', payload.services || [], '#7c3aed');
                         renderHorizontalChart('departments', 'departmentChart', payload.departments || [], '#f59e0b');
                         renderFilters(payload.filters || { selected: {} });
-                        $('#dashboardRangeLabel').text('Corte: ' + (payload.desde || params.desde) + ' a ' + (payload.hasta || drp.endDate.format('YYYY-MM-DD')));
+                        $('#dashboardRangeLabel').text('Corte: ' + (payload.desde || params.desde) + ' a ' + (payload.hasta || rangePicker.getEndInclusive().format('YYYY-MM-DD')));
                     })
                     .fail(function () {
                         $('#dashboardRangeLabel').text('No fue posible cargar el tablero');
@@ -885,6 +1058,7 @@
                     .always(function () {
                         $('#btnDashboard').prop('disabled', false).html('<i class="fas fa-chart-pie"></i> Aplicar filtros');
                         $('#btnClearFilters').prop('disabled', false);
+                        hideStatsLoading();
                     });
             }
 

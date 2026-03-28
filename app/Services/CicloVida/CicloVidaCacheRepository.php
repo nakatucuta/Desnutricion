@@ -202,6 +202,8 @@ class CicloVidaCacheRepository
             ->where('r.range_start', $from->toDateString())
             ->where('r.range_end', $to->toDateString());
 
+        $viewMode = strtolower(trim((string) $request->input('view_mode', 'alerts')));
+
         $draw = (int) $request->input('draw', 1);
         $start = max(0, (int) $request->input('start', 0));
         $length = (int) $request->input('length', 10);
@@ -209,42 +211,145 @@ class CicloVidaCacheRepository
             $length = 10;
         }
 
-        $recordsTotal = (clone $builder)->count();
-
         $search = trim((string) data_get($request->input('search'), 'value', ''));
-        $filtered = clone $builder;
-        if ($search !== '') {
-            $like = '%'.$search.'%';
-            $filtered->where(function (Builder $query) use ($like): void {
-                $query->orWhere('r.tipo_identificacion', 'like', $like)
-                    ->orWhere('r.identificacion', 'like', $like)
-                    ->orWhere('r.primer_apellido', 'like', $like)
-                    ->orWhere('r.segundo_apellido', 'like', $like)
-                    ->orWhere('r.primer_nombre', 'like', $like)
-                    ->orWhere('r.segundo_nombre', 'like', $like)
-                    ->orWhere('r.ips_primaria', 'like', $like)
-                    ->orWhere('r.codigo_ips', 'like', $like)
-                    ->orWhere('r.descripcion_servicio', 'like', $like);
-            });
-        }
+        if ($viewMode === 'patients') {
+            $grouped = DB::query()
+                ->fromSub(
+                    (clone $builder)->select([
+                        'r.tipo_identificacion',
+                        'r.identificacion',
+                        'r.primer_apellido',
+                        'r.segundo_apellido',
+                        'r.primer_nombre',
+                        'r.segundo_nombre',
+                        'r.fecha_nacimiento',
+                        'r.edad',
+                        'r.edad_meses',
+                        'r.ips_primaria',
+                        'r.codigo_ips',
+                        'r.descripcion_servicio',
+                    ]),
+                    'a'
+                )
+                ->selectRaw("
+                    a.tipo_identificacion as tipoIdentificacion,
+                    a.identificacion,
+                    LTRIM(RTRIM(COALESCE(a.primer_apellido,'') + ' ' + COALESCE(a.segundo_apellido,''))) as apellidos,
+                    LTRIM(RTRIM(COALESCE(a.primer_nombre,'') + ' ' + COALESCE(a.segundo_nombre,''))) as nombres,
+                    a.fecha_nacimiento as fechaNacimiento,
+                    a.edad as edadAnios,
+                    a.edad_meses as edadMeses,
+                    a.ips_primaria as ips_Prim,
+                    a.codigo_ips as codigoHabilitacion,
+                    COUNT(1) as totalAlertas,
+                    COUNT(DISTINCT a.descripcion_servicio) as actividadesPendientes,
+                    STRING_AGG(CONVERT(nvarchar(max), COALESCE(a.descripcion_servicio, 'Sin descripcion')), ' | ') as motivosAlerta
+                ")
+                ->groupBy(
+                    'a.tipo_identificacion',
+                    'a.identificacion',
+                    'a.primer_apellido',
+                    'a.segundo_apellido',
+                    'a.primer_nombre',
+                    'a.segundo_nombre',
+                    'a.fecha_nacimiento',
+                    'a.edad',
+                    'a.edad_meses',
+                    'a.ips_primaria',
+                    'a.codigo_ips'
+                );
 
-        $recordsFiltered = (clone $filtered)->count();
-        $data = $filtered
-            ->orderBy('r.id', 'desc')
-            ->offset($start)
-            ->limit($length)
-            ->get([
-                'r.tipo_identificacion as tipoIdentificacion',
-                'r.identificacion',
-                DB::raw("LTRIM(RTRIM(COALESCE(r.primer_apellido,'') + ' ' + COALESCE(r.segundo_apellido,''))) as apellidos"),
-                DB::raw("LTRIM(RTRIM(COALESCE(r.primer_nombre,'') + ' ' + COALESCE(r.segundo_nombre,''))) as nombres"),
-                'r.fecha_nacimiento as fechaNacimiento',
-                'r.edad as edadAnios',
+            $recordsTotal = DB::query()->fromSub(clone $grouped, 'p')->count();
+            $filtered = DB::query()->fromSub($grouped, 'p');
+
+            if ($search !== '') {
+                $like = '%'.$search.'%';
+                $filtered->where(function (Builder $query) use ($like): void {
+                    $query->orWhere('p.tipoIdentificacion', 'like', $like)
+                        ->orWhere('p.identificacion', 'like', $like)
+                        ->orWhere('p.apellidos', 'like', $like)
+                        ->orWhere('p.nombres', 'like', $like)
+                        ->orWhere('p.ips_Prim', 'like', $like)
+                        ->orWhere('p.codigoHabilitacion', 'like', $like)
+                        ->orWhere('p.motivosAlerta', 'like', $like);
+                });
+            }
+
+            $recordsFiltered = (clone $filtered)->count();
+
+            $map = [
+                'tipoIdentificacion' => 'p.tipoIdentificacion',
+                'identificacion' => 'p.identificacion',
+                'apellidos' => 'p.apellidos',
+                'nombres' => 'p.nombres',
+                'fechaNacimiento' => 'p.fechaNacimiento',
+                'edadAnios' => 'p.edadAnios',
+                'edadMeses' => 'p.edadMeses',
+                'ips_Prim' => 'p.ips_Prim',
+                'codigoHabilitacion' => 'p.codigoHabilitacion',
+                'actividadesPendientes' => 'p.actividadesPendientes',
+                'totalAlertas' => 'p.totalAlertas',
+            ];
+
+            $applied = false;
+            foreach ((array) $request->input('order', []) as $order) {
+                $index = (int) data_get($order, 'column', -1);
+                $dataKey = (string) data_get($request->input('columns'), "{$index}.data", '');
+                $column = $map[$dataKey] ?? null;
+                if ($column === null) {
+                    continue;
+                }
+
+                $direction = strtolower((string) data_get($order, 'dir', 'asc')) === 'desc' ? 'desc' : 'asc';
+                $filtered->orderBy($column, $direction);
+                $applied = true;
+            }
+
+            if (!$applied) {
+                $filtered->orderBy('p.totalAlertas', 'desc')->orderBy('p.apellidos');
+            }
+
+            $data = $filtered
+                ->offset($start)
+                ->limit($length)
+                ->get();
+        } else {
+            $recordsTotal = (clone $builder)->count();
+            $filtered = clone $builder;
+            if ($search !== '') {
+                $like = '%'.$search.'%';
+                $filtered->where(function (Builder $query) use ($like): void {
+                    $query->orWhere('r.tipo_identificacion', 'like', $like)
+                        ->orWhere('r.identificacion', 'like', $like)
+                        ->orWhere('r.primer_apellido', 'like', $like)
+                        ->orWhere('r.segundo_apellido', 'like', $like)
+                        ->orWhere('r.primer_nombre', 'like', $like)
+                        ->orWhere('r.segundo_nombre', 'like', $like)
+                        ->orWhere('r.ips_primaria', 'like', $like)
+                        ->orWhere('r.codigo_ips', 'like', $like)
+                        ->orWhere('r.descripcion_servicio', 'like', $like);
+                });
+            }
+
+            $recordsFiltered = (clone $filtered)->count();
+            $data = $filtered
+                ->orderBy('r.id', 'desc')
+                ->offset($start)
+                ->limit($length)
+                ->get([
+                    'r.tipo_identificacion as tipoIdentificacion',
+                    'r.identificacion',
+                    DB::raw("LTRIM(RTRIM(COALESCE(r.primer_apellido,'') + ' ' + COALESCE(r.segundo_apellido,''))) as apellidos"),
+                    DB::raw("LTRIM(RTRIM(COALESCE(r.primer_nombre,'') + ' ' + COALESCE(r.segundo_nombre,''))) as nombres"),
+                    'r.fecha_nacimiento as fechaNacimiento',
+                    'r.edad as edadAnios',
                 'r.edad_meses as edadMeses',
                 'r.ips_primaria as ips_Prim',
                 'r.codigo_ips as codigoHabilitacion',
                 'r.descripcion_servicio as descrip',
+                'r.descripcion_servicio as motivoAlerta',
             ]);
+        }
 
         $payload = [
             'draw' => $draw,
@@ -252,6 +357,7 @@ class CicloVidaCacheRepository
             'recordsFiltered' => $recordsFiltered,
             'data' => $data,
             'kpis' => $this->alertSummary($courseKey, $from, $to),
+            'view_mode' => $viewMode,
         ];
         $payload['cut'] = [
             'from' => $from->toDateString(),
@@ -442,6 +548,15 @@ class CicloVidaCacheRepository
             })
             ->take(12)
             ->values();
+
+        $courseModuleRows = (clone $base)
+            ->select([
+                'r.course_key',
+                'r.module_key',
+                DB::raw('COUNT(1) as total'),
+            ])
+            ->groupBy('r.course_key', 'r.module_key')
+            ->get();
 
         $ips = (clone $base)
             ->select([
@@ -661,6 +776,46 @@ class CicloVidaCacheRepository
             ],
         ];
 
+        $courseAlerts = $this->courseAlertSummaries($courses, $from, $to);
+        $courseDetails = $courses->map(function (array $course) use ($courseModuleRows, $courseAlerts) {
+            $moduleItems = $courseModuleRows
+                ->where('course_key', $course['key'])
+                ->sortByDesc('total')
+                ->take(6)
+                ->map(function ($row) {
+                    return [
+                        'key' => $row->module_key,
+                        'label' => $this->moduleLabel((string) $row->module_key),
+                        'value' => (int) $row->total,
+                    ];
+                })
+                ->values();
+
+            $alert = $courseAlerts[$course['key']] ?? [
+                'total' => 0,
+                'pacientes' => 0,
+                'ips' => 0,
+                'updated_at' => null,
+                'exact' => false,
+            ];
+
+            return [
+                'key' => $course['key'],
+                'label' => $course['label'],
+                'ageLabel' => $course['ageLabel'],
+                'description' => data_get(CicloVidaCatalog::course($course['key']), 'description', ''),
+                'icon' => $course['icon'],
+                'color' => $course['color'],
+                'total' => $course['total'],
+                'pacientes' => $course['pacientes'],
+                'ips' => $course['ips'],
+                'modulos' => $course['modulos'],
+                'updatedAt' => $course['updatedAt'],
+                'topModules' => $moduleItems,
+                'missing' => $alert,
+            ];
+        })->values();
+
         return [
             'ok' => true,
             'desde' => $from->toDateString(),
@@ -694,6 +849,7 @@ class CicloVidaCacheRepository
             ],
             'filters' => $filterOptions,
             'highlights' => $highlights,
+            'courseDetails' => $courseDetails,
         ];
     }
 
@@ -892,6 +1048,66 @@ class CicloVidaCacheRepository
             'pacientes' => (int) ($summary->unique_patients ?? 0),
             'ips' => (int) ($summary->unique_ips ?? 0),
         ];
+    }
+
+    protected function courseAlertSummaries($courses, Carbon $from, Carbon $to): array
+    {
+        $result = [];
+
+        foreach ($courses as $course) {
+            $courseKey = $course['key'];
+
+            $summary = DB::table('ciclo_vida_cache_summaries')
+                ->where('course_key', $courseKey)
+                ->where('module_key', 'alertas')
+                ->where('range_start', $from->toDateString())
+                ->where('range_end', $to->toDateString())
+                ->first([
+                    'total_records',
+                    'unique_patients',
+                    'unique_ips',
+                    'updated_at',
+                ]);
+
+            $exact = true;
+
+            if (!$summary) {
+                $latestRun = DB::table('ciclo_vida_cache_runs')
+                    ->where('course_key', $courseKey)
+                    ->where('module_key', 'alertas')
+                    ->where('status', 'success')
+                    ->orderByDesc('id')
+                    ->first(['range_start', 'range_end', 'finished_at']);
+
+                if ($latestRun) {
+                    $summary = DB::table('ciclo_vida_cache_summaries')
+                        ->where('course_key', $courseKey)
+                        ->where('module_key', 'alertas')
+                        ->where('range_start', $latestRun->range_start)
+                        ->where('range_end', $latestRun->range_end)
+                        ->first([
+                            'total_records',
+                            'unique_patients',
+                            'unique_ips',
+                            'updated_at',
+                        ]);
+
+                    $exact = false;
+                }
+            }
+
+            $result[$courseKey] = [
+                'total' => (int) ($summary->total_records ?? 0),
+                'pacientes' => (int) ($summary->unique_patients ?? 0),
+                'ips' => (int) ($summary->unique_ips ?? 0),
+                'updated_at' => !empty($summary->updated_at)
+                    ? Carbon::parse((string) $summary->updated_at)->format('Y-m-d H:i')
+                    : null,
+                'exact' => $exact,
+            ];
+        }
+
+        return $result;
     }
 
     protected function moduleLabel(string $moduleKey): string

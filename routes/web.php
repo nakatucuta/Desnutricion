@@ -468,6 +468,9 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/ciclos-vida', [CicloVidaController::class, 'index'])->name('ciclosvida.index');
     Route::get('/ciclos-vida/estadisticas', [CicloVidaController::class, 'statistics'])->name('ciclosvida.stats.index');
     Route::get('/ciclos-vida/informacion-general', [CicloVidaController::class, 'generalInfo'])->name('ciclosvida.general.index');
+    Route::get('/ciclos-vida/reportes', [CicloVidaController::class, 'reports'])->name('ciclosvida.reports.index');
+    Route::get('/ciclos-vida/reportes/preview', [CicloVidaController::class, 'reportPreview'])->name('ciclosvida.reports.preview');
+    Route::get('/ciclos-vida/reportes/export/{format}', [CicloVidaController::class, 'reportExport'])->name('ciclosvida.reports.export');
     Route::get('/ciclos-vida/estadisticas/data', [CicloVidaController::class, 'dashboardData'])->name('ciclosvida.dashboard.data');
 
     Route::get('/ciclos-vida/primera-infancia/opciones', [CicloVidaController::class, 'menuPrimeraInfancia'])->name('ciclosvida.pi.menu');

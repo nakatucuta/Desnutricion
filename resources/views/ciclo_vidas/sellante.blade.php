@@ -19,25 +19,13 @@
 
     {{-- Filtros --}}
     <div class="card mb-3">
-        <div class="card-body d-flex flex-wrap align-items-end">
-            <div class="mr-3 mb-2">
-                <label class="mb-1 font-weight-bold">Rango de fecha</label>
-                <div id="daterange" class="form-control d-inline-block" style="width: 280px; cursor: pointer;">
-                    <i class="far fa-calendar-alt"></i>
-                    <span class="ml-2"></span> <i class="fa fa-caret-down float-right mt-1"></i>
-                </div>
-            </div>
-            <div class="mb-2">
-                <button id="btnAplicar" class="btn btn-primary">
-                    <i class="fas fa-sync"></i> Aplicar
-                </button>
-            </div>
-
-            <div class="ml-auto mb-2">
-                <span class="badge badge-secondary p-2">
-                    <i class="fas fa-database"></i> Server-side
-                </span>
-            </div>
+        <div class="card-body">
+            @include('ciclo_vidas.partials.date_range_toolbar', [
+                'pickerId' => 'daterange',
+                'applyButtonId' => 'btnAplicar',
+                'applyLabel' => 'Aplicar rango',
+                'note' => '<i class="fas fa-database"></i> Server-side',
+            ])
         </div>
     </div>
 

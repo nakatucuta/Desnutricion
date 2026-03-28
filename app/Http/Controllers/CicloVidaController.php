@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Services\CicloVida\CicloVidaCacheRepository;
+use App\Services\CicloVida\CicloVidaReportDesigner;
 use App\Support\CicloVidaCatalog;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -69,6 +70,13 @@ class CicloVidaController extends Controller
                 'icon' => 'fas fa-layer-group',
                 'color' => 'grad-emerald',
                 'route' => route('ciclosvida.general.index'),
+            ],
+            [
+                'title' => 'Reportes',
+                'description' => 'Disenador flexible con plantillas, vista previa y exportacion en Excel, CSV y JSON para todos los cursos de vida.',
+                'icon' => 'fas fa-file-export',
+                'color' => 'grad-rose',
+                'route' => route('ciclosvida.reports.index'),
             ],
         ];
 
@@ -141,8 +149,36 @@ class CicloVidaController extends Controller
         $desde = now()->subDays(120)->startOfDay()->toDateString();
         $hasta = now()->toDateString();
         $normativeLinks = $this->normativeLinks();
+        $companyLogo = asset('vendor/adminlte/dist/img/logo.png');
 
-        return view('ciclo_vidas.informacion_general', compact('courseMeta', 'desde', 'hasta', 'normativeLinks'));
+        return view('ciclo_vidas.informacion_general', compact('courseMeta', 'desde', 'hasta', 'normativeLinks', 'companyLogo'));
+    }
+
+    public function reports()
+    {
+        $designer = app(CicloVidaReportDesigner::class);
+        $page = $designer->pageData();
+
+        return view('ciclo_vidas.reportes', [
+            'filters' => $page['filters'],
+            'fieldGroups' => $page['fieldGroups'],
+            'templates' => $page['templates'],
+            'desde' => now()->subDays(120)->startOfDay()->toDateString(),
+            'hasta' => now()->toDateString(),
+            'companyLogo' => asset('vendor/adminlte/dist/img/logo.png'),
+            'previewUrl' => route('ciclosvida.reports.preview'),
+            'exportBaseUrl' => route('ciclosvida.reports.export', ['format' => '__FORMAT__']),
+        ]);
+    }
+
+    public function reportPreview(Request $request)
+    {
+        return response()->json(app(CicloVidaReportDesigner::class)->preview($request));
+    }
+
+    public function reportExport(Request $request, string $format)
+    {
+        return app(CicloVidaReportDesigner::class)->export($request, $format);
     }
 
     // Menú de opciones para "Primera Infancia"

@@ -85,6 +85,14 @@ class CicloVidaCacheRefresher
                     }
 
                     if (!empty($filtered)) {
+                        $filtered = $this->removeExistingHashes($filtered);
+
+                        if (empty($filtered)) {
+                            unset($records, $filtered);
+                            gc_collect_cycles();
+                            continue;
+                        }
+
                         $recordsLoaded += count($filtered);
                         $batchSize = $this->resolveBatchSize($filtered[0] ?? []);
                         foreach (array_chunk($filtered, $batchSize) as $chunk) {
@@ -746,6 +754,44 @@ class CicloVidaCacheRefresher
         $batchSize = (int) floor($maxParams / $columnCount);
 
         return max(1, min($batchSize, 50));
+    }
+
+    protected function removeExistingHashes(array $records): array
+    {
+        if ($records === []) {
+            return $records;
+        }
+
+        $hashes = array_values(array_filter(array_map(
+            static fn (array $record): ?string => $record['record_hash'] ?? null,
+            $records
+        )));
+
+        if ($hashes === []) {
+            return $records;
+        }
+
+        $existing = [];
+        foreach (array_chunk($hashes, 1000) as $chunk) {
+            $rows = DB::table('ciclo_vida_cache_records')
+                ->whereIn('record_hash', $chunk)
+                ->pluck('record_hash')
+                ->all();
+
+            foreach ($rows as $hash) {
+                $existing[(string) $hash] = true;
+            }
+        }
+
+        if ($existing === []) {
+            return $records;
+        }
+
+        return array_values(array_filter($records, static function (array $record) use ($existing): bool {
+            $hash = $record['record_hash'] ?? null;
+
+            return $hash === null || !isset($existing[$hash]);
+        }));
     }
 
     protected function normalizeDate(array $data, array $keys): ?string

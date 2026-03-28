@@ -28,7 +28,7 @@
 @section('content')
     <div class="row mb-4">
         @foreach ($quickCards as $card)
-            <div class="col-12 col-lg-6 mb-3">
+            <div class="col-12 col-lg-4 mb-3">
                 <a href="{{ $card['route'] }}" class="cv-home-link">
                     <div class="cv-home-feature {{ $card['color'] }}">
                         <div class="cv-home-feature-icon">
@@ -111,7 +111,11 @@
             letter-spacing: .03em;
             margin-bottom: .9rem;
         }
-        .cv-home-hero h1 { font-size: 2.15rem; font-weight: 800; }
+        .cv-home-hero h1 {
+            font-size: 2.15rem;
+            font-weight: 800;
+            color: #fff !important;
+        }
         .cv-home-hero p { color: rgba(255,255,255,.82); }
         .cv-home-side {
             display: grid;
@@ -165,6 +169,7 @@
         .cv-home-arrow { color: rgba(255,255,255,.72); }
         .grad-indigo { background: linear-gradient(135deg, #4338ca, #2563eb); }
         .grad-emerald { background: linear-gradient(135deg, #0f766e, #16a34a); }
+        .grad-rose { background: linear-gradient(135deg, #be123c, #f43f5e); }
         .cv-home-course {
             border: 1px solid #e6edf7;
             box-shadow: 0 10px 26px rgba(15, 23, 42, .05);

@@ -18,6 +18,8 @@
     <link rel="stylesheet" href="https://cdn.datatables.net/1.13.8/css/jquery.dataTables.min.css">
     <link rel="stylesheet" href="https://cdn.datatables.net/buttons/2.4.2/css/buttons.dataTables.min.css">
     <link rel="stylesheet" href="https://cdn.datatables.net/responsive/2.5.0/css/responsive.dataTables.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/daterangepicker/daterangepicker.css">
+    @include('ciclo_vidas.partials.date_range_shared_styles')
     <style>
         .card { border-radius: 14px; }
         .dt-buttons .btn { margin-right: .25rem; }
@@ -73,31 +75,27 @@
         {{-- Filtros --}}
         <form id="filtros" class="row g-3 align-items-end mb-3">
             @csrf
-            <div class="col-md-2">
-                <label class="form-label">Desde</label>
-                <input type="date" name="desde" id="desde" class="form-control"
-                       value="{{ now()->subDays((int) data_get(config('ciclosvida.courses.primera_infancia'), 'refresh.days', 120))->toDateString() }}">
+            <div class="col-12">
+                @include('ciclo_vidas.partials.date_range_toolbar', [
+                    'pickerId' => 'daterange',
+                    'note' => '<i class="fas fa-info-circle"></i> Corte materializado para alertas y notificacion a prestadores.',
+                ])
             </div>
-            <div class="col-md-2">
-                <label class="form-label">Hasta</label>
-                <input type="date" name="hasta" id="hasta" class="form-control"
-                       value="{{ now()->addDay()->toDateString() }}">
-            </div>
-            <div class="col-md-2">
+            <div class="col-md-3">
                 <label class="form-label">Filtrar edad</label>
                 <select name="filtraEdad" id="filtraEdad" class="form-control">
                     <option value="1" selected>Fijo PI (0-5)</option>
                 </select>
             </div>
-            <div class="col-md-2">
+            <div class="col-md-3">
                 <label class="form-label">Edad mín (años)</label>
                 <input type="number" name="edadMin" id="edadMin" class="form-control" value="0" min="0" readonly>
             </div>
-            <div class="col-md-2">
+            <div class="col-md-3">
                 <label class="form-label">Edad máx (años)</label>
                 <input type="number" name="edadMax" id="edadMax" class="form-control" value="5" min="0" readonly>
             </div>
-            <div class="col-md-2 d-grid">
+            <div class="col-md-3 d-grid">
                 <button type="button" id="btn-aplicar" class="btn btn-primary">
                     <i class="fas fa-sync-alt"></i> Aplicar
                 </button>
@@ -151,6 +149,10 @@
     <script src="https://cdn.datatables.net/buttons/2.4.2/js/buttons.colVis.min.js"></script>
     <script src="https://cdn.datatables.net/responsive/2.5.0/js/dataTables.responsive.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/moment@2.29.4/moment.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/moment@2.29.4/locale/es.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/daterangepicker/daterangepicker.min.js"></script>
+    @include('ciclo_vidas.partials.date_range_shared_script')
 
     <script>
         /* ===== Helpers UI ===== */
@@ -168,6 +170,7 @@
 
         let progressTimer = null;
         let loadStartTs = 0;
+        let rangePicker = null;
 
         function showOverlay(flag){ $overlay.style.display = flag ? 'flex' : 'none'; }
         function setProgress(pct, stage){
@@ -217,8 +220,8 @@
         }
         function getParams(){
             return {
-                desde: document.getElementById('desde').value,
-                hasta: document.getElementById('hasta').value,
+                desde: rangePicker.getStart().format('YYYY-MM-DD'),
+                hasta: rangePicker.getEndExclusive().format('YYYY-MM-DD'),
                 filtraEdad: document.getElementById('filtraEdad').value,
                 edadMin: document.getElementById('edadMin').value,
                 edadMax: document.getElementById('edadMax').value,
@@ -278,6 +281,14 @@
         $.fn.dataTable.ext.errMode = 'none';
 
         document.addEventListener('DOMContentLoaded', function(){
+            moment.locale('es');
+            rangePicker = window.CicloVidaDateRange.init({
+                pickerSelector: '#daterange',
+                start: @json(now()->subDays((int) data_get(config('ciclosvida.courses.primera_infancia'), 'refresh.days', 120))->toDateString()),
+                end: @json(now()->addDay()->toDateString()),
+                endExclusive: true
+            });
+
             const RUTA_DATA  = "{{ route('pi.alertas.data') }}";
             const RUTA_EMAIL = "{{ route('pi.alertas.email') }}";
 
