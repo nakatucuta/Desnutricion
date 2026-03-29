@@ -25,8 +25,11 @@ LEFT JOIN sga..maestroIpsGru h
 ON g.idGrupoIps = h.id
 
 WHERE A.codigoProcedimiento IN ('902211') AND
-a.diagnostico in ('Z002','Z003','Z001') AND
-a.finalidadProcedimiento IN ('4') AND
+A.finalidadProcedimiento IN ('1','4') AND
+(
+    NULLIF(LTRIM(RTRIM(A.diagnostico)), '') IS NULL
+    OR LTRIM(RTRIM(A.diagnostico)) IN ('Z000','Z001','Z002','Z003')
+) AND
 a.fechaProcedimiento between '2025-01-01' and '2025-06-30'
 
 UNION ALL
@@ -55,7 +58,10 @@ LEFT JOIN sga..maestroIpsGru h
 ON g.idGrupoIps = h.id
 
 where codProcedimiento in ('902211')  and
-coddiagnosticoPrincipal IN ('Z002','Z003','Z001') AND
+(
+    NULLIF(LTRIM(RTRIM(coddiagnosticoPrincipal)), '') IS NULL
+    OR LTRIM(RTRIM(coddiagnosticoPrincipal)) IN ('Z000','Z001','Z002','Z003')
+) AND
 --finalidadTecnologiaSalud IN ('03') AND
 fechaInicioAtencion between '2025-01-01' and '2025-06-30'
 
