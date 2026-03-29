@@ -31,7 +31,7 @@
 @stop
 
 @section('content')
-    <div id="cvGeneralLoading" class="cv-general-loading is-visible" aria-live="polite" aria-busy="true">
+    <div id="cvGeneralLoading" class="cv-general-loading" aria-live="polite" aria-busy="true">
         <div class="cv-general-loading__backdrop"></div>
         <div class="cv-general-loading__panel">
             <div class="cv-general-loading__grid"></div>
@@ -60,7 +60,7 @@
                 'applyLabel' => 'Actualizar resumen',
                 'applyIcon' => 'fas fa-sync-alt',
                 'noteClass' => 'cv-info-note',
-                'note' => '<span id="rangeNote"><i class="fas fa-info-circle"></i> Corte dinamico para resumen operativo transversal.</span>',
+                'note' => '<span id="rangeNote"><i class="fas fa-info-circle"></i> Selecciona un rango y presiona Actualizar resumen para construir el panorama operativo.</span>',
             ])
         </div>
     </div>
@@ -956,6 +956,7 @@
             let missingDetailTable = null;
             const $loadingOverlay = $('#cvGeneralLoading');
             const $loadingText = $('#cvGeneralLoadingText');
+            window.__courseDetailsPayload = [];
 
             const numberFmt = (value) => Number(value || 0).toLocaleString('es-CO');
 
@@ -1101,6 +1102,11 @@
                     return;
                 }
 
+                if (!window.__courseDetailsPayload.length) {
+                    alert('Primero selecciona un rango y actualiza el resumen para consultar el detalle de alertas.');
+                    return;
+                }
+
                 const currentDetail = (window.__courseDetailsPayload || []).find(item => item.key === selectedCourse.key) || {};
                 const columns = getAlertColumns(viewMode);
                 const modeLabel = viewMode === 'patients' ? 'Pacientes en alerta' : 'Atenciones faltantes';
@@ -1189,8 +1195,6 @@
             $('[data-open-missing-detail]').on('click', function () {
                 openMissingDetail($(this).data('open-missing-detail'));
             });
-
-            loadInfo();
         });
     </script>
 @stop

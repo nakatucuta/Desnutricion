@@ -9,6 +9,7 @@
 
         const previewUrl = @json($previewUrl);
         const exportBaseUrl = @json($exportBaseUrl);
+        const advancedFiltersUrl = @json($advancedFiltersUrl);
         const fieldGroups = @json($fieldGroups);
         const templates = @json($templates);
         const rangePicker = window.CicloVidaDateRange.init({
@@ -20,6 +21,7 @@
 
         let selectedFields = [];
         let activeTemplate = null;
+        let advancedFiltersLoaded = false;
 
         const defaultFields = ['course_label', 'module_label', 'event_date', 'tipo_identificacion', 'identificacion', 'nombre_completo', 'edad', 'ips_primaria', 'descripcion_servicio'];
         const fieldMap = {};
@@ -47,6 +49,88 @@
 
         function fieldLabel(key) {
             return fieldMap[key]?.label || key;
+        }
+
+        function escapeHtml(value) {
+            return String(value || '')
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+        }
+
+        function syncDynamicSelectOptions(selector, items, placeholder, selected) {
+            const options = [`<option value="">${escapeHtml(placeholder)}</option>`];
+
+            (items || []).forEach(function (item) {
+                options.push(`<option value="${escapeHtml(item.value)}">${escapeHtml(item.label)}</option>`);
+            });
+
+            $(selector).html(options.join(''));
+            $(selector).val(selected || '');
+        }
+
+        function setAdvancedFiltersState(message, tone) {
+            const $state = $('#advancedFiltersState');
+            $state.text(message);
+            $state.removeClass('text-muted text-info text-success text-danger');
+            $state.addClass(tone || 'text-muted');
+        }
+
+        function populateAdvancedFilters(options, selectedValues) {
+            const selected = selectedValues || {};
+            syncDynamicSelectOptions('#reportGender', options.genders || [], 'Todos', selected.genero || '');
+            syncDynamicSelectOptions('#reportDepartment', options.departments || [], 'Todos', selected.departamento || '');
+            syncDynamicSelectOptions('#reportMunicipality', options.municipalities || [], 'Todos', selected.municipio || '');
+            syncDynamicSelectOptions('#reportIps', options.ips || [], 'Todas', selected.ips || '');
+            $('[data-advanced-filter="true"]').prop('disabled', false);
+        }
+
+        function currentAdvancedOptions(selector) {
+            return $(selector).find('option').map(function () {
+                return $(this).val()
+                    ? { value: $(this).val(), label: $(this).text() }
+                    : null;
+            }).get().filter(Boolean);
+        }
+
+        function loadAdvancedFilters(forceReload, selectedValues) {
+            if (advancedFiltersLoaded && !forceReload) {
+                if (selectedValues) {
+                    populateAdvancedFilters({
+                        genders: currentAdvancedOptions('#reportGender'),
+                        departments: currentAdvancedOptions('#reportDepartment'),
+                        municipalities: currentAdvancedOptions('#reportMunicipality'),
+                        ips: currentAdvancedOptions('#reportIps')
+                    }, selectedValues);
+                }
+
+                return $.Deferred().resolve().promise();
+            }
+
+            showLoading('Cargando filtros avanzados del reporte...');
+            $('#btnLoadAdvancedFilters').prop('disabled', true).html('<i class="fas fa-spinner fa-spin mr-2"></i>Cargando');
+            setAdvancedFiltersState('Cargando genero, territorio e IPS...', 'text-info');
+
+            return $.getJSON(advancedFiltersUrl)
+                .done(function (payload) {
+                    populateAdvancedFilters(payload || {}, selectedValues);
+                    advancedFiltersLoaded = true;
+                    $('#btnLoadAdvancedFilters')
+                        .removeClass('btn-outline-primary')
+                        .addClass('btn-outline-success')
+                        .html('<i class="fas fa-check mr-2"></i>Filtros avanzados listos');
+                    setAdvancedFiltersState('Filtros avanzados listos para segmentar el reporte.', 'text-success');
+                })
+                .fail(function () {
+                    setAdvancedFiltersState('No fue posible cargar los filtros avanzados.', 'text-danger');
+                    alert('No fue posible cargar los filtros avanzados del reporte.');
+                })
+                .always(function () {
+                    $('#btnLoadAdvancedFilters').prop('disabled', false);
+                    hideLoading();
+                });
         }
 
         function normalizeSelectedFields() {
@@ -137,10 +221,6 @@
                 $('#reportCourse').val(data.course_key || '');
                 $('#reportModule').val(data.module_key || '');
                 $('#reportType').val(data.record_type || 'all');
-                $('#reportGender').val(data.genero || '');
-                $('#reportDepartment').val(data.departamento || '');
-                $('#reportMunicipality').val(data.municipio || '');
-                $('#reportIps').val(data.ips || '');
                 $('#reportAgeMin').val(data.edad_min || '');
                 $('#reportAgeMax').val(data.edad_max || '');
                 if (data.desde && data.hasta) {
@@ -150,8 +230,20 @@
                 if (activeTemplate) {
                     $('[data-template-card="' + activeTemplate.key + '"]').addClass('is-active');
                 }
-                renderSelectedFields();
-                alert('Diseño cargado correctamente.');
+                const finalizeDesignLoad = function () {
+                    $('#reportGender').val(data.genero || '');
+                    $('#reportDepartment').val(data.departamento || '');
+                    $('#reportMunicipality').val(data.municipio || '');
+                    $('#reportIps').val(data.ips || '');
+                    renderSelectedFields();
+                    alert('Diseno cargado correctamente.');
+                };
+
+                if (data.genero || data.departamento || data.municipio || data.ips) {
+                    loadAdvancedFilters(false, data).always(finalizeDesignLoad);
+                } else {
+                    finalizeDesignLoad();
+                }
             } catch (error) {
                 alert('No fue posible cargar el diseño guardado.');
             }
@@ -267,6 +359,10 @@
             renderSelectedFields();
         });
 
+        $('#btnLoadAdvancedFilters').on('click', function () {
+            loadAdvancedFilters(false);
+        });
+
         $('#btnPreviewReport').on('click', loadPreview);
         $('#btnSaveLocalDesign').on('click', saveLocalDesign);
         $('#btnLoadLocalDesign').on('click', loadLocalDesign);
@@ -294,6 +390,6 @@
         });
 
         applyTemplate('vejez_junio');
-        loadPreview();
+        setAdvancedFiltersState('Aun no se han cargado filtros avanzados.', 'text-muted');
     });
 </script>

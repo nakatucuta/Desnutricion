@@ -8,6 +8,7 @@ use Carbon\Carbon;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Maatwebsite\Excel\Facades\Excel;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -21,6 +22,29 @@ class CicloVidaReportDesigner
             'fieldGroups' => $this->fieldGroups(),
             'templates' => $this->templates(),
         ];
+    }
+
+    public function lightweightPageData(): array
+    {
+        return [
+            'filters' => $this->filterOptions(includeDistinct: false),
+            'fieldGroups' => $this->fieldGroups(),
+            'templates' => $this->templates(),
+        ];
+    }
+
+    public function advancedFilterOptions(): array
+    {
+        return Cache::remember('ciclosvida.report.advanced_filters.v1', now()->addMinutes(30), function (): array {
+            $options = $this->filterOptions(includeDistinct: true);
+
+            return [
+                'genders' => $options['genders'] ?? collect(),
+                'departments' => $options['departments'] ?? collect(),
+                'municipalities' => $options['municipalities'] ?? collect(),
+                'ips' => $options['ips'] ?? collect(),
+            ];
+        });
     }
 
     public function preview(Request $request): array
@@ -71,7 +95,7 @@ class CicloVidaReportDesigner
         };
     }
 
-    protected function filterOptions(): array
+    protected function filterOptions(bool $includeDistinct = true): array
     {
         $courseOptions = collect(CicloVidaCatalog::courses())
             ->map(function (array $course, string $key) {
@@ -95,14 +119,7 @@ class CicloVidaReportDesigner
             ->sortBy('label')
             ->values();
 
-        $distinct = DB::table('ciclo_vida_cache_records as r')
-            ->leftJoinSub($this->demographicLookupSubquery(), 'd', function ($join): void {
-                $join->on('r.tipo_identificacion', '=', 'd.tipo_identificacion')
-                    ->on('r.identificacion', '=', 'd.identificacion');
-            })
-            ->whereNotNull('r.id');
-
-        return [
+        $options = [
             'courses' => $courseOptions,
             'modules' => $moduleOptions,
             'recordTypes' => collect([
@@ -110,35 +127,56 @@ class CicloVidaReportDesigner
                 ['value' => 'event', 'label' => 'Solo atenciones'],
                 ['value' => 'alert', 'label' => 'Solo alertas'],
             ]),
-            'genders' => (clone $distinct)
-                ->select(DB::raw("COALESCE(NULLIF(d.genero,''), 'Sin genero') as label"))
-                ->distinct()
-                ->orderBy('label')
-                ->get()
-                ->map(fn ($row) => ['value' => $row->label, 'label' => $row->label])
-                ->values(),
-            'departments' => (clone $distinct)
-                ->select(DB::raw("COALESCE(NULLIF(d.departamento,''), 'Sin departamento') as label"))
-                ->distinct()
-                ->orderBy('label')
-                ->get()
-                ->map(fn ($row) => ['value' => $row->label, 'label' => $row->label])
-                ->values(),
-            'municipalities' => (clone $distinct)
-                ->select(DB::raw("COALESCE(NULLIF(d.municipio,''), 'Sin municipio') as label"))
-                ->distinct()
-                ->orderBy('label')
-                ->get()
-                ->map(fn ($row) => ['value' => $row->label, 'label' => $row->label])
-                ->values(),
-            'ips' => (clone $distinct)
-                ->select(DB::raw("COALESCE(NULLIF(r.ips_primaria,''), 'Sin IPS') as label"))
-                ->distinct()
-                ->orderBy('label')
-                ->get()
-                ->map(fn ($row) => ['value' => $row->label, 'label' => $row->label])
-                ->values(),
+            'genders' => collect(),
+            'departments' => collect(),
+            'municipalities' => collect(),
+            'ips' => collect(),
         ];
+
+        if (!$includeDistinct) {
+            return $options;
+        }
+
+        $distinct = DB::table('ciclo_vida_cache_records as r')
+            ->leftJoinSub($this->demographicLookupSubquery(), 'd', function ($join): void {
+                $join->on('r.tipo_identificacion', '=', 'd.tipo_identificacion')
+                    ->on('r.identificacion', '=', 'd.identificacion');
+            })
+            ->whereNotNull('r.id');
+
+        $options['genders'] = (clone $distinct)
+            ->select(DB::raw("COALESCE(NULLIF(d.genero,''), 'Sin genero') as label"))
+            ->distinct()
+            ->orderBy('label')
+            ->get()
+            ->map(fn ($row) => ['value' => $row->label, 'label' => $row->label])
+            ->values();
+
+        $options['departments'] = (clone $distinct)
+            ->select(DB::raw("COALESCE(NULLIF(d.departamento,''), 'Sin departamento') as label"))
+            ->distinct()
+            ->orderBy('label')
+            ->get()
+            ->map(fn ($row) => ['value' => $row->label, 'label' => $row->label])
+            ->values();
+
+        $options['municipalities'] = (clone $distinct)
+            ->select(DB::raw("COALESCE(NULLIF(d.municipio,''), 'Sin municipio') as label"))
+            ->distinct()
+            ->orderBy('label')
+            ->get()
+            ->map(fn ($row) => ['value' => $row->label, 'label' => $row->label])
+            ->values();
+
+        $options['ips'] = (clone $distinct)
+            ->select(DB::raw("COALESCE(NULLIF(r.ips_primaria,''), 'Sin IPS') as label"))
+            ->distinct()
+            ->orderBy('label')
+            ->get()
+            ->map(fn ($row) => ['value' => $row->label, 'label' => $row->label])
+            ->values();
+
+        return $options;
     }
 
     protected function fieldGroups(): array

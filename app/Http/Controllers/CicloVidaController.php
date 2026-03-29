@@ -157,7 +157,7 @@ class CicloVidaController extends Controller
     public function reports()
     {
         $designer = app(CicloVidaReportDesigner::class);
-        $page = $designer->pageData();
+        $page = $designer->lightweightPageData();
 
         return view('ciclo_vidas.reportes', [
             'filters' => $page['filters'],
@@ -168,7 +168,13 @@ class CicloVidaController extends Controller
             'companyLogo' => asset('vendor/adminlte/dist/img/logo.png'),
             'previewUrl' => route('ciclosvida.reports.preview'),
             'exportBaseUrl' => route('ciclosvida.reports.export', ['format' => '__FORMAT__']),
+            'advancedFiltersUrl' => route('ciclosvida.reports.filters'),
         ]);
+    }
+
+    public function reportFilters()
+    {
+        return response()->json(app(CicloVidaReportDesigner::class)->advancedFilterOptions());
     }
 
     public function reportPreview(Request $request)

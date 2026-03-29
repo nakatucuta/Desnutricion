@@ -29,7 +29,7 @@
 @stop
 
 @section('content')
-    <div id="cvReportLoading" class="cv-report-loading is-visible" aria-live="polite" aria-busy="true">
+    <div id="cvReportLoading" class="cv-report-loading" aria-live="polite" aria-busy="true">
         <div class="cv-report-loading__backdrop"></div>
         <div class="cv-report-loading__panel">
             <div class="cv-report-loading__grid"></div>
@@ -82,8 +82,23 @@
                     'applyLabel' => 'Vista previa',
                     'applyIcon' => 'fas fa-eye',
                     'noteClass' => 'cv-report-note',
-                    'note' => '<span><i class="fas fa-info-circle"></i> Diseña un reporte libre o parte de una plantilla prediseñada.</span>',
+                    'note' => '<span><i class="fas fa-info-circle"></i> Entra rapido, define el rango que necesitas y genera la vista previa solo cuando el corte ya este listo.</span>',
                 ])
+            </div>
+
+            <div class="alert alert-light border shadow-sm d-flex flex-column flex-lg-row align-items-lg-center justify-content-between mb-4">
+                <div class="mb-3 mb-lg-0">
+                    <strong>Filtros avanzados bajo demanda</strong>
+                    <div class="text-muted small">
+                        Para acelerar la apertura del modulo, genero, territorio e IPS se cargan solo si los necesitas.
+                    </div>
+                </div>
+                <div class="d-flex flex-column align-items-lg-end">
+                    <button type="button" id="btnLoadAdvancedFilters" class="btn btn-outline-primary btn-sm mb-2">
+                        <i class="fas fa-bolt mr-2"></i>Cargar filtros avanzados
+                    </button>
+                    <span id="advancedFiltersState" class="small text-muted">Aun no se han cargado filtros avanzados.</span>
+                </div>
             </div>
 
             <div class="cv-report-filter-grid mb-4">
@@ -115,7 +130,7 @@
                 </div>
                 <div>
                     <label class="mb-1 font-weight-bold">Genero</label>
-                    <select id="reportGender" class="form-control">
+                    <select id="reportGender" class="form-control" data-advanced-filter="true" disabled>
                         <option value="">Todos</option>
                         @foreach ($filters['genders'] as $option)
                             <option value="{{ $option['value'] }}">{{ $option['label'] }}</option>
@@ -124,7 +139,7 @@
                 </div>
                 <div>
                     <label class="mb-1 font-weight-bold">Departamento</label>
-                    <select id="reportDepartment" class="form-control">
+                    <select id="reportDepartment" class="form-control" data-advanced-filter="true" disabled>
                         <option value="">Todos</option>
                         @foreach ($filters['departments'] as $option)
                             <option value="{{ $option['value'] }}">{{ $option['label'] }}</option>
@@ -133,7 +148,7 @@
                 </div>
                 <div>
                     <label class="mb-1 font-weight-bold">Municipio</label>
-                    <select id="reportMunicipality" class="form-control">
+                    <select id="reportMunicipality" class="form-control" data-advanced-filter="true" disabled>
                         <option value="">Todos</option>
                         @foreach ($filters['municipalities'] as $option)
                             <option value="{{ $option['value'] }}">{{ $option['label'] }}</option>
@@ -142,7 +157,7 @@
                 </div>
                 <div>
                     <label class="mb-1 font-weight-bold">IPS / Grupo</label>
-                    <select id="reportIps" class="form-control">
+                    <select id="reportIps" class="form-control" data-advanced-filter="true" disabled>
                         <option value="">Todas</option>
                         @foreach ($filters['ips'] as $option)
                             <option value="{{ $option['value'] }}">{{ $option['label'] }}</option>

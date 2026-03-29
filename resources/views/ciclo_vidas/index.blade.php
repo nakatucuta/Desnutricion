@@ -26,7 +26,7 @@
 @stop
 
 @section('content')
-    <div id="cvStatsLoading" class="cv-stats-loading is-visible" aria-live="polite" aria-busy="true">
+    <div id="cvStatsLoading" class="cv-stats-loading" aria-live="polite" aria-busy="true">
         <div class="cv-stats-loading__backdrop"></div>
         <div class="cv-stats-loading__panel">
             <div class="cv-stats-loading__grid"></div>
@@ -110,10 +110,10 @@
                 </div>
                 <div class="cv-note mb-2">
                     <i class="fas fa-info-circle"></i>
-                    Indicadores utiles para valoracion integral, proteccion especifica, tamizajes prioritarios, SSR, gestion territorial e institucional.
+                    Entra al tablero al instante, elige el rango que necesitas y luego aplica filtros para consultar solo el corte que vas a analizar.
                 </div>
             </div>
-            <div id="activeFiltersSummary" class="cv-filter-summary mt-2">Sin filtros adicionales.</div>
+            <div id="activeFiltersSummary" class="cv-filter-summary mt-2">Selecciona un rango y presiona Aplicar filtros para construir el tablero.</div>
         </div>
     </div>
 
@@ -220,7 +220,7 @@
                     <h3 class="card-title mb-1">Resumen comparativo por curso de vida</h3>
                     <small class="text-muted">Lectura consolidada para comparar el comportamiento de cada curso y entrar luego a su detalle operativo.</small>
                 </div>
-                <span class="badge badge-light px-3 py-2 mt-2 mt-md-0" id="dashboardRangeLabel">Cargando corte...</span>
+                <span class="badge badge-light px-3 py-2 mt-2 mt-md-0" id="dashboardRangeLabel">Selecciona un rango y aplica filtros</span>
             </div>
         </div>
         <div class="card-body">
@@ -793,6 +793,7 @@
             const $statsLoading = $('#cvStatsLoading');
             const $statsLoadingText = $('#cvStatsLoadingText');
             const charts = {};
+            let hasLoadedDashboard = false;
 
             function showStatsLoading(message) {
                 if (message) {
@@ -1010,7 +1011,11 @@
                 $('#activeFiltersSummary').text(
                     active.length
                         ? 'Filtros activos: ' + active.map(item => item[0] + ': ' + item[1]).join(' | ')
-                        : 'Sin filtros adicionales.'
+                        : (
+                            hasLoadedDashboard
+                                ? 'Sin filtros adicionales. Mostrando todos los cursos para el rango seleccionado.'
+                                : 'Selecciona un rango y presiona Aplicar filtros para construir el tablero.'
+                        )
                 );
             }
 
@@ -1037,6 +1042,7 @@
 
                 $.getJSON(dashboardUrl, params)
                     .done(function (payload) {
+                        hasLoadedDashboard = true;
                         renderKpis(payload.kpis || {});
                         renderHighlights(payload.highlights || []);
                         renderCourseCards(payload.courses || []);
@@ -1067,8 +1073,6 @@
                 $('#filterCurso, #filterLinea, #filterModulo, #filterDepartamento, #filterMunicipio, #filterIps, #filterRangoEdad').val('');
                 loadDashboard();
             });
-
-            loadDashboard();
         });
     </script>
 @stop
