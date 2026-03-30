@@ -15,31 +15,33 @@ class Kernel extends ConsoleKernel
      */
     protected function schedule(Schedule $schedule)
     {
-        $schedule->command('seguimientos:enviar-alertas')->everyTenMinutes();
+        $timezone = (string) config('app.timezone', 'America/Bogota');
 
-        $schedule->command('ciclosvida:cache-refresh primera_infancia')
-            ->dailyAt('02:15')
-            ->withoutOverlapping();
+        $schedule->command('seguimientos:enviar-alertas')
+            ->everyTenMinutes()
+            ->timezone($timezone);
 
-        $schedule->command('ciclosvida:cache-refresh infancia')
-            ->dailyAt('02:35')
-            ->withoutOverlapping();
+        // Ejecuta refresh recientes dos veces al dia y los deja escalonados para no saturar la base.
+        $this->scheduleCicloVidaRefresh($schedule, 'primera_infancia', 2, 14, 15, $timezone);
+        $this->scheduleCicloVidaRefresh($schedule, 'infancia', 2, 14, 35, $timezone);
+        $this->scheduleCicloVidaRefresh($schedule, 'adolescencia', 2, 14, 55, $timezone);
+        $this->scheduleCicloVidaRefresh($schedule, 'juventud', 3, 15, 15, $timezone);
+        $this->scheduleCicloVidaRefresh($schedule, 'adultez', 3, 15, 35, $timezone);
+        $this->scheduleCicloVidaRefresh($schedule, 'vejez', 3, 15, 55, $timezone);
+    }
 
-        $schedule->command('ciclosvida:cache-refresh adolescencia')
-            ->dailyAt('02:55')
-            ->withoutOverlapping();
-
-        $schedule->command('ciclosvida:cache-refresh juventud')
-            ->dailyAt('03:15')
-            ->withoutOverlapping();
-
-        $schedule->command('ciclosvida:cache-refresh adultez')
-            ->dailyAt('03:35')
-            ->withoutOverlapping();
-
-        $schedule->command('ciclosvida:cache-refresh vejez')
-            ->dailyAt('03:55')
-            ->withoutOverlapping();
+    protected function scheduleCicloVidaRefresh(
+        Schedule $schedule,
+        string $course,
+        int $firstHour,
+        int $secondHour,
+        int $offset,
+        string $timezone
+    ): void {
+        $schedule->command("ciclosvida:cache-refresh {$course}")
+            ->twiceDailyAt($firstHour, $secondHour, $offset)
+            ->timezone($timezone)
+            ->withoutOverlapping(700);
     }
 
     /**
