@@ -92,7 +92,6 @@ class GesTipo1Import implements OnEachRow, WithStartRow, WithChunkReading, Skips
 
     private function addError(int $excelRow, string $field, string $message, $value = null): void
     {
-        // La fila debe marcarse invalida aunque no se pueda anexar mas mensajes al arreglo.
         $this->rowHasErrors = true;
 
         if (count($this->errores) >= 5000) {
@@ -230,7 +229,7 @@ class GesTipo1Import implements OnEachRow, WithStartRow, WithChunkReading, Skips
         }
 
         $v = mb_strtoupper(trim((string) $value), 'UTF-8');
-        // Normalizaciones comunes en fuentes de salud/aseguramiento.
+
         if ($v === 'PPT') {
             $v = 'PT';
         }
@@ -238,7 +237,6 @@ class GesTipo1Import implements OnEachRow, WithStartRow, WithChunkReading, Skips
             $v = 'CE';
         }
 
-        // Catalogo amplio usado en reportes de salud en Colombia (RIPS/maestro personas).
         $allowed = ['CC', 'TI', 'RC', 'CE', 'PA', 'AS', 'MS', 'CD', 'SC', 'PE', 'PT', 'CN', 'DE', 'SI', 'NIT', 'NUIP'];
 
         if (!in_array($v, $allowed, true)) {
@@ -270,31 +268,40 @@ class GesTipo1Import implements OnEachRow, WithStartRow, WithChunkReading, Skips
 
     private function getNumeroCarnet(string $tipoIdent, string $noId): ?string
     {
+        $tipoIdent = mb_strtoupper(trim((string) $tipoIdent), 'UTF-8');
+        $noId = preg_replace('/\s+/', '', trim((string) $noId));
+
         $key = $tipoIdent . '|' . $noId;
+
         if (array_key_exists($key, $this->carnetCache)) {
             return $this->carnetCache[$key];
         }
 
         try {
-            $afiliado = DB::connection('sqlsrv_1')
-                ->table('sga..maestroIdentificaciones as A')
-                ->join('sga..maestroafiliados as B', function ($join) {
+            $numeroCarnet = DB::connection('sqlsrv_1')
+                ->table('sga.dbo.maestroIdentificaciones as A')
+                ->join('sga.dbo.maestroafiliados as B', function ($join) {
                     $join->on('A.tipoIdentificacion', '=', 'B.tipoIdentificacion')
                         ->on('A.identificacion', '=', 'B.identificacion');
                 })
-                ->join('sga..refEstadoActual as C', 'B.estadoActual', '=', 'C.codigo')
+                ->join('sga.dbo.refEstadoActual as C', 'B.estadoActual', '=', 'C.codigo')
                 ->where('A.identificacion', $noId)
                 ->where('A.tipoIdentificacion', $tipoIdent)
                 ->where('C.estado', 'AC')
-                ->select('A.numeroCarnet')
-                ->first();
+                ->value('A.numeroCarnet');
         } catch (\Throwable $e) {
+            $this->addError(
+                0,
+                'DB externa',
+                'error consultando sqlsrv_1: ' . $e->getMessage()
+            );
+
             $this->carnetCache[$key] = null;
             return null;
         }
 
-        $this->carnetCache[$key] = $afiliado && !empty($afiliado->numeroCarnet)
-            ? (string) $afiliado->numeroCarnet
+        $this->carnetCache[$key] = !empty($numeroCarnet)
+            ? (string) $numeroCarnet
             : null;
 
         return $this->carnetCache[$key];
@@ -350,6 +357,14 @@ class GesTipo1Import implements OnEachRow, WithStartRow, WithChunkReading, Skips
         $tipoIdent = $this->parseTipoDocumento($r[6] ?? null, $excelRow);
         $noId = $this->parseString($r[7] ?? null, $excelRow, 'No ID usuario', true, 30);
 
+        if ($noId !== null) {
+            $noId = preg_replace('/\s+/', '', trim((string) $noId));
+        }
+
+        if ($tipoIdent !== null) {
+            $tipoIdent = mb_strtoupper(trim((string) $tipoIdent), 'UTF-8');
+        }
+
         if ($noId !== null && !preg_match('/^[A-Za-z0-9\-]+$/', $noId)) {
             $this->addError($excelRow, 'No ID usuario', 'solo permite letras, numeros y guion', $noId);
         }
@@ -395,14 +410,14 @@ class GesTipo1Import implements OnEachRow, WithStartRow, WithChunkReading, Skips
             } else {
                 $this->seenInFile[$key] = true;
             }
-
         }
 
         $numeroCarnet = null;
         if ($tipoIdent !== null && $noId !== null) {
             $numeroCarnet = $this->getNumeroCarnet($tipoIdent, $noId);
+
             if (empty($numeroCarnet)) {
-                $this->addError($excelRow, 'Numero carnet', 'no se encontro afiliado activo en DB externa con esa identificacion');
+                $this->addError($excelRow, 'Numero carnet', 'no se encontro afiliado activo en DB externa con esa identificacion', $tipoIdent . ' - ' . $noId);
             }
         }
 

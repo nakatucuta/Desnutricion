@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Services\CicloVida\CicloVidaCacheRepository;
+use App\Services\CicloVida\CicloVidaCoverageAnalyzer;
 use App\Services\CicloVida\CicloVidaReportDesigner;
 use App\Support\CicloVidaCatalog;
 use Illuminate\Http\Request;
@@ -77,6 +78,13 @@ class CicloVidaController extends Controller
                 'icon' => 'fas fa-file-export',
                 'color' => 'grad-rose',
                 'route' => route('ciclosvida.reports.index'),
+            ],
+            [
+                'title' => 'Cobertura y brechas',
+                'description' => 'Analiza atenciones realizadas, oportunidades normativas y faltantes por curso de vida con filtros territoriales y operativos.',
+                'icon' => 'fas fa-table-cells-large',
+                'color' => 'grad-cyan',
+                'route' => route('ciclosvida.coverage.index'),
             ],
         ];
 
@@ -188,6 +196,31 @@ class CicloVidaController extends Controller
     }
 
     // Menú de opciones para "Primera Infancia"
+    public function coverage()
+    {
+        $page = app(CicloVidaCoverageAnalyzer::class)->pageData();
+
+        return view('ciclo_vidas.cobertura_brechas', [
+            'filters' => $page['filters'],
+            'ruleLegend' => $page['ruleLegend'],
+            'desde' => now()->subDays(120)->startOfDay()->toDateString(),
+            'hasta' => now()->toDateString(),
+            'companyLogo' => asset('img/logo.png'),
+            'dataUrl' => route('ciclosvida.coverage.data'),
+            'advancedFiltersUrl' => route('ciclosvida.coverage.filters'),
+        ]);
+    }
+
+    public function coverageFilters()
+    {
+        return response()->json(app(CicloVidaCoverageAnalyzer::class)->advancedFilterOptions());
+    }
+
+    public function coverageData(Request $request)
+    {
+        return response()->json(app(CicloVidaCoverageAnalyzer::class)->analyze($request));
+    }
+
     public function menuPrimeraInfancia()
     {
         return $this->renderCourseMenu('primera_infancia');
