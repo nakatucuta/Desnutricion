@@ -74,8 +74,26 @@
         .cv-coverage-clickable-row:hover{background:#f3f8ff}
         .cv-coverage-clickable-row td:first-child::after{content:'Ver listado';display:inline-flex;margin-left:.75rem;padding:.25rem .55rem;border-radius:999px;background:#edf5ff;color:#2d5d93;font-size:.72rem;font-weight:800}
         .cv-coverage-clickable-row--active{background:#e8f2ff!important;box-shadow:inset 3px 0 0 #1d4ed8}
-        .cv-coverage-loading{position:fixed;inset:0;background:rgba(7,18,32,.38);z-index:1055;display:grid;place-items:center}
-        .cv-coverage-loading__panel{width:min(460px,calc(100vw - 2rem));padding:2rem;border-radius:28px;background:#fff;text-align:center;box-shadow:0 30px 80px rgba(15,23,42,.24)}
+        .cv-stats-loading{position:fixed;inset:0;z-index:3000;display:none;align-items:center;justify-content:center;padding:1.25rem}
+        .cv-stats-loading.is-visible{display:flex}
+        .cv-stats-loading__backdrop{position:absolute;inset:0;background:radial-gradient(circle at top left,rgba(56,189,248,.28),transparent 30%),radial-gradient(circle at bottom right,rgba(16,185,129,.24),transparent 32%),rgba(15,23,42,.74);backdrop-filter:blur(12px)}
+        .cv-stats-loading__panel{position:relative;width:min(540px,100%);overflow:hidden;border-radius:28px;border:1px solid rgba(255,255,255,.14);background:linear-gradient(145deg,rgba(15,23,42,.96),rgba(30,41,59,.92));box-shadow:0 30px 80px rgba(15,23,42,.42);padding:2rem 1.8rem 1.7rem;text-align:center;color:#fff}
+        .cv-stats-loading__panel::before{content:'';position:absolute;inset:-30% auto auto -10%;width:220px;height:220px;border-radius:50%;background:radial-gradient(circle,rgba(59,130,246,.38),transparent 70%);pointer-events:none}
+        .cv-stats-loading__panel::after{content:'';position:absolute;right:-70px;bottom:-70px;width:200px;height:200px;border-radius:50%;background:radial-gradient(circle,rgba(16,185,129,.28),transparent 72%);pointer-events:none}
+        .cv-stats-loading__grid{position:absolute;inset:0;background-image:linear-gradient(rgba(148,163,184,.08) 1px,transparent 1px),linear-gradient(90deg,rgba(148,163,184,.08) 1px,transparent 1px);background-size:28px 28px;mask-image:linear-gradient(180deg,transparent,rgba(255,255,255,.75),transparent);pointer-events:none}
+        .cv-stats-loading__orb{position:relative;width:104px;height:104px;margin:0 auto 1rem}
+        .cv-stats-loading__orb span{position:absolute;inset:0;border-radius:50%;border:2px solid transparent;border-top-color:rgba(96,165,250,.95);border-right-color:rgba(45,212,191,.75);animation:cvStatsSpin 1.45s linear infinite}
+        .cv-stats-loading__orb span:nth-child(2){inset:12px;border-top-color:rgba(34,211,238,.9);border-right-color:rgba(110,231,183,.7);animation-duration:1.05s;animation-direction:reverse}
+        .cv-stats-loading__orb span:nth-child(3){inset:26px;border-top-color:rgba(250,204,21,.95);border-right-color:rgba(96,165,250,.72);animation-duration:.9s}
+        .cv-stats-loading__brand{position:relative;z-index:1;margin-bottom:.8rem}
+        .cv-stats-loading__brand img{width:48px;height:48px;object-fit:contain;filter:drop-shadow(0 8px 18px rgba(0,0,0,.35))}
+        .cv-stats-loading__panel h3{position:relative;z-index:1;font-size:1.5rem;font-weight:800;color:#fff;margin-bottom:.45rem}
+        .cv-stats-loading__panel p{position:relative;z-index:1;margin:0 auto 1.1rem;max-width:360px;color:rgba(226,232,240,.86)}
+        .cv-stats-loading__status{position:relative;z-index:1;display:inline-flex;align-items:center;gap:.65rem;padding:.7rem 1rem;border-radius:999px;background:rgba(15,23,42,.45);border:1px solid rgba(148,163,184,.18);color:#e2e8f0;font-weight:600}
+        .cv-stats-loading__dot{width:10px;height:10px;border-radius:50%;background:#22d3ee;box-shadow:0 0 0 0 rgba(34,211,238,.7);animation:cvStatsPulse 1.5s ease-out infinite}
+        body.cv-stats-loading-lock{overflow:hidden}
+        @keyframes cvStatsSpin{to{transform:rotate(360deg)}}
+        @keyframes cvStatsPulse{0%{box-shadow:0 0 0 0 rgba(34,211,238,.7)}70%{box-shadow:0 0 0 14px rgba(34,211,238,0)}100%{box-shadow:0 0 0 0 rgba(34,211,238,0)}}
         @media (max-width:991.98px){.cv-coverage-hero{flex-direction:column;align-items:flex-start}.cv-coverage-brand{width:100%}.cv-coverage-section__summary,.cv-coverage-drilldown__header{flex-direction:column;align-items:flex-start}}
     </style>
 @stop
@@ -131,6 +149,20 @@
 
             const state = { advanced: null, selectedMissingCourse: '' };
 
+            function showCoverageLoading(message = 'Consultando cobertura y faltantes materializados...') {
+                const label = q('cvCoverageLoadingText');
+                if (label) {
+                    label.textContent = message;
+                }
+                document.body.classList.add('cv-stats-loading-lock');
+                refs.loading.classList.add('is-visible');
+            }
+
+            function hideCoverageLoading() {
+                document.body.classList.remove('cv-stats-loading-lock');
+                refs.loading.classList.remove('is-visible');
+            }
+
             function setSummaryErrorState() {
                 refs.summaryRealized.textContent = '--';
                 refs.summaryRealizedPatients.textContent = 'No disponible';
@@ -154,7 +186,7 @@
                 refs.missingRows.innerHTML = '<tr><td colspan="7" class="text-center text-danger py-4">La pantalla no pudo inicializar el calculo de brechas.</td></tr>';
                 refs.realizedDetails.innerHTML = '';
                 refs.missingDetails.innerHTML = '';
-                refs.loading.hidden = true;
+                hideCoverageLoading();
             }
 
             if (typeof window.jQuery === 'undefined') {
@@ -367,7 +399,7 @@
             }
 
             async function fetchMissingPatientDetail(courseKey) {
-                refs.loading.hidden = false;
+                showCoverageLoading('Construyendo listado de personas con atenciones faltantes...');
                 refs.missingPatientPanel.hidden = false;
                 const panel = ensureMissingPanel();
                 panel.title.textContent = 'Cargando personas con atenciones faltantes';
@@ -392,7 +424,7 @@
                     panel.exportCsv.href = '#';
                     panel.exportXlsx.href = '#';
                 } finally {
-                    refs.loading.hidden = true;
+                    hideCoverageLoading();
                 }
             }
 
@@ -421,7 +453,7 @@
             }
 
             async function fetchCoverage() {
-                refs.loading.hidden = false;
+                showCoverageLoading('Consolidando cobertura y brechas por curso de vida...');
                 try {
                     const currentFilters = filters();
                     const response = await fetch(`${dataUrl}?${new URLSearchParams(currentFilters).toString()}`, { headers: { 'X-Requested-With': 'XMLHttpRequest' } });
@@ -451,7 +483,7 @@
                     refs.missingDetails.innerHTML = '';
                     clearMissingPatientPanel('El listado de personas con atenciones faltantes no estuvo disponible por un error en el analisis.');
                 } finally {
-                    refs.loading.hidden = true;
+                    hideCoverageLoading();
                 }
             }
 
@@ -497,11 +529,24 @@
 
 
 @section('content')
-    <div id="cvCoverageLoading" class="cv-coverage-loading" hidden>
-        <div class="cv-coverage-loading__panel">
-            <img src="{{ $companyLogo }}" alt="Escudo institucional">
-            <h3>Procesando cobertura y brechas</h3>
-            <p>Estamos consolidando atenciones realizadas, oportunidades y faltantes por curso de vida.</p>
+    <div id="cvCoverageLoading" class="cv-stats-loading" aria-live="polite" aria-busy="true">
+        <div class="cv-stats-loading__backdrop"></div>
+        <div class="cv-stats-loading__panel">
+            <div class="cv-stats-loading__grid"></div>
+            <div class="cv-stats-loading__orb">
+                <span></span>
+                <span></span>
+                <span></span>
+            </div>
+            <div class="cv-stats-loading__brand">
+                <img src="{{ $companyLogo }}" alt="Escudo institucional">
+            </div>
+            <h3>Construyendo tablero de cobertura</h3>
+            <p>Estamos integrando atenciones realizadas, brechas normativas y listados detallados por curso de vida.</p>
+            <div class="cv-stats-loading__status">
+                <span class="cv-stats-loading__dot"></span>
+                <span id="cvCoverageLoadingText">Consultando cobertura y faltantes materializados...</span>
+            </div>
         </div>
     </div>
 
