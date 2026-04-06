@@ -42,7 +42,7 @@ class GesTipo3Import implements OnEachRow, WithStartRow, WithChunkReading, Skips
         $this->batchVerificationsId = $batchVerificationsId;
 
         $this->cupsSet = DB::connection('sqlsrv_1')
-            ->table('refcups')
+            ->table('sga.dbo.refcups')
             ->pluck('codigo')
             ->map(fn ($c) => mb_strtoupper(trim((string) $c), 'UTF-8'))
             ->flip()
@@ -88,7 +88,6 @@ class GesTipo3Import implements OnEachRow, WithStartRow, WithChunkReading, Skips
         }
 
         if (is_string($value)) {
-            // Limpia espacios no separables u ocultos frecuentes en Excel.
             $value = str_replace(
                 ["\xC2\xA0", "\u{00A0}", "\u{2007}", "\u{202F}", "\u{200B}"],
                 ' ',
@@ -96,6 +95,7 @@ class GesTipo3Import implements OnEachRow, WithStartRow, WithChunkReading, Skips
             );
             $value = trim($value);
             $upper = mb_strtoupper($value, 'UTF-8');
+
             if ($value === '' || $upper === 'N/A' || $upper === 'NA' || $upper === 'NULL' || $upper === 'NONE') {
                 return null;
             }
@@ -118,9 +118,11 @@ class GesTipo3Import implements OnEachRow, WithStartRow, WithChunkReading, Skips
 
         $msg = "Fila {$excelRow} | {$field}: {$message}";
         $value = $this->clean($value);
+
         if ($value !== null) {
             $msg .= ' (valor: ' . mb_substr((string) $value, 0, 120) . ')';
         }
+
         $this->errores[] = $msg;
     }
 
@@ -186,9 +188,9 @@ class GesTipo3Import implements OnEachRow, WithStartRow, WithChunkReading, Skips
         ?int $min = null,
         ?int $max = null,
         bool $allowDecimal = false
-    ): ?int
-    {
+    ): ?int {
         $value = $this->clean($value);
+
         if ($value === null) {
             if ($required) {
                 $this->addError($excelRow, $field, 'campo obligatorio');
@@ -197,6 +199,7 @@ class GesTipo3Import implements OnEachRow, WithStartRow, WithChunkReading, Skips
         }
 
         $normalized = str_replace([' ', ','], ['', '.'], (string) $value);
+
         if (!is_numeric($normalized)) {
             $this->addError($excelRow, $field, 'debe ser numero entero', $value);
             return null;
@@ -216,6 +219,7 @@ class GesTipo3Import implements OnEachRow, WithStartRow, WithChunkReading, Skips
             $this->addError($excelRow, $field, "debe ser >= {$min}", $value);
             return null;
         }
+
         if ($max !== null && $n > $max) {
             $this->addError($excelRow, $field, "debe ser <= {$max}", $value);
             return null;
@@ -227,6 +231,7 @@ class GesTipo3Import implements OnEachRow, WithStartRow, WithChunkReading, Skips
     private function parseDecimal($value, int $excelRow, string $field, bool $required = false, ?float $min = null, ?float $max = null): ?float
     {
         $value = $this->clean($value);
+
         if ($value === null) {
             if ($required) {
                 $this->addError($excelRow, $field, 'campo obligatorio');
@@ -235,6 +240,7 @@ class GesTipo3Import implements OnEachRow, WithStartRow, WithChunkReading, Skips
         }
 
         $normalized = str_replace([' ', ','], ['', '.'], (string) $value);
+
         if (!is_numeric($normalized)) {
             $this->addError($excelRow, $field, 'debe ser numerico', $value);
             return null;
@@ -246,6 +252,7 @@ class GesTipo3Import implements OnEachRow, WithStartRow, WithChunkReading, Skips
             $this->addError($excelRow, $field, "debe ser >= {$min}", $value);
             return null;
         }
+
         if ($max !== null && $n > $max) {
             $this->addError($excelRow, $field, "debe ser <= {$max}", $value);
             return null;
@@ -257,6 +264,7 @@ class GesTipo3Import implements OnEachRow, WithStartRow, WithChunkReading, Skips
     private function parseTipoDocumento($value, int $excelRow): ?string
     {
         $value = $this->clean($value);
+
         if ($value === null) {
             $this->addError($excelRow, 'Tipo identificacion', 'campo obligatorio');
             return null;
@@ -267,6 +275,7 @@ class GesTipo3Import implements OnEachRow, WithStartRow, WithChunkReading, Skips
         if ($v === 'PPT') {
             $v = 'PT';
         }
+
         if ($v === 'TE') {
             $v = 'CE';
         }
@@ -284,11 +293,13 @@ class GesTipo3Import implements OnEachRow, WithStartRow, WithChunkReading, Skips
     private function parseBoolCode($value, int $excelRow, string $field): ?int
     {
         $value = $this->clean($value);
+
         if ($value === null) {
             return null;
         }
 
         $v = mb_strtoupper(trim((string) $value), 'UTF-8');
+
         $map = [
             '1' => 1,
             'SI' => 1,
@@ -306,6 +317,7 @@ class GesTipo3Import implements OnEachRow, WithStartRow, WithChunkReading, Skips
             if (is_numeric($v)) {
                 return (((float) $v) > 0) ? 1 : 0;
             }
+
             $this->addError($excelRow, $field, 'solo permite SI/NO o 1/0', $value);
             return null;
         }
@@ -316,6 +328,7 @@ class GesTipo3Import implements OnEachRow, WithStartRow, WithChunkReading, Skips
     private function parseString($value, int $excelRow, string $field, bool $required = false, int $max = 255): ?string
     {
         $value = $this->clean($value);
+
         if ($value === null) {
             if ($required) {
                 $this->addError($excelRow, $field, 'campo obligatorio');
@@ -324,6 +337,7 @@ class GesTipo3Import implements OnEachRow, WithStartRow, WithChunkReading, Skips
         }
 
         $v = trim((string) $value);
+
         if (mb_strlen($v) > $max) {
             $this->addError($excelRow, $field, "supera {$max} caracteres");
             return null;
@@ -332,9 +346,34 @@ class GesTipo3Import implements OnEachRow, WithStartRow, WithChunkReading, Skips
         return $v;
     }
 
+    private function normalizeTipoIdent(?string $tipoIdent): ?string
+    {
+        if ($tipoIdent === null) {
+            return null;
+        }
+
+        return mb_strtoupper(trim((string) $tipoIdent), 'UTF-8');
+    }
+
+    private function normalizeNoId(?string $noId): ?string
+    {
+        if ($noId === null) {
+            return null;
+        }
+
+        $noId = trim((string) $noId);
+        $noId = preg_replace('/\s+/', '', $noId);
+
+        return $noId;
+    }
+
     private function getParentGestanteId(string $tipoIdent, string $noId): ?int
     {
+        $tipoIdent = $this->normalizeTipoIdent($tipoIdent);
+        $noId = $this->normalizeNoId($noId);
+
         $key = $tipoIdent . '|' . $noId;
+
         if (array_key_exists($key, $this->parentCache)) {
             return $this->parentCache[$key];
         }
@@ -352,30 +391,40 @@ class GesTipo3Import implements OnEachRow, WithStartRow, WithChunkReading, Skips
 
     private function hasActiveAffiliate(string $tipoIdent, string $noId): bool
     {
+        $tipoIdent = $this->normalizeTipoIdent($tipoIdent);
+        $noId = $this->normalizeNoId($noId);
+
         $key = $tipoIdent . '|' . $noId;
+
         if (array_key_exists($key, $this->afiliadoActivoCache)) {
             return $this->afiliadoActivoCache[$key];
         }
 
         try {
-            $afiliado = DB::connection('sqlsrv_1')
-                ->table('sga..maestroIdentificaciones as A')
-                ->join('sga..maestroafiliados as B', function ($join) {
+            $numeroCarnet = DB::connection('sqlsrv_1')
+                ->table('sga.dbo.maestroIdentificaciones as A')
+                ->join('sga.dbo.maestroafiliados as B', function ($join) {
                     $join->on('A.tipoIdentificacion', '=', 'B.tipoIdentificacion')
                         ->on('A.identificacion', '=', 'B.identificacion');
                 })
-                ->join('sga..refEstadoActual as C', 'B.estadoActual', '=', 'C.codigo')
+                ->join('sga.dbo.refEstadoActual as C', 'B.estadoActual', '=', 'C.codigo')
                 ->where('A.identificacion', $noId)
                 ->where('A.tipoIdentificacion', $tipoIdent)
                 ->where('C.estado', 'AC')
-                ->select('A.numeroCarnet')
-                ->first();
+                ->value('A.numeroCarnet');
         } catch (\Throwable $e) {
+            $this->addError(
+                0,
+                'DB externa',
+                'error consultando sqlsrv_1: ' . $e->getMessage(),
+                $tipoIdent . ' - ' . $noId
+            );
+
             $this->afiliadoActivoCache[$key] = false;
             return false;
         }
 
-        $this->afiliadoActivoCache[$key] = $afiliado && !empty($afiliado->numeroCarnet);
+        $this->afiliadoActivoCache[$key] = !empty($numeroCarnet);
 
         return $this->afiliadoActivoCache[$key];
     }
@@ -425,6 +474,10 @@ class GesTipo3Import implements OnEachRow, WithStartRow, WithChunkReading, Skips
         $consecutivo = $this->parseInteger($r[1] ?? null, $excelRow, 'Consecutivo de registro', true, 1);
         $tipoIdent = $this->parseTipoDocumento($r[2] ?? null, $excelRow);
         $noId = $this->parseString($r[3] ?? null, $excelRow, 'No ID usuario', true, 30);
+
+        $tipoIdent = $this->normalizeTipoIdent($tipoIdent);
+        $noId = $this->normalizeNoId($noId);
+
         if ($noId !== null && !preg_match('/^[A-Za-z0-9\-]+$/', $noId)) {
             $this->addError($excelRow, 'No ID usuario', 'solo permite letras, numeros y guion', $noId);
         }
@@ -436,7 +489,7 @@ class GesTipo3Import implements OnEachRow, WithStartRow, WithChunkReading, Skips
 
         $cups = $this->parseString($r[5] ?? null, $excelRow, 'Codigo CUPS', true, 30);
         if ($cups !== null) {
-            $cups = mb_strtoupper($cups, 'UTF-8');
+            $cups = mb_strtoupper(trim($cups), 'UTF-8');
             if (!isset($this->cupsSet[$cups])) {
                 $this->addError($excelRow, 'Codigo CUPS', 'no existe en referencia CUPS (refcups)', $cups);
             }
@@ -471,17 +524,18 @@ class GesTipo3Import implements OnEachRow, WithStartRow, WithChunkReading, Skips
         $gesTipo1Id = null;
         if ($tipoIdent !== null && $noId !== null) {
             if (!$this->hasActiveAffiliate($tipoIdent, $noId)) {
-                $this->addError($excelRow, 'Afiliado', 'no se encontro afiliado activo en DB externa con esa identificacion');
+                $this->addError($excelRow, 'Afiliado', 'no se encontro afiliado activo en DB externa con esa identificacion', $tipoIdent . ' - ' . $noId);
             }
 
             $gesTipo1Id = $this->getParentGestanteId($tipoIdent, $noId);
             if ($gesTipo1Id === null) {
-                $this->addError($excelRow, 'Relacion ges_tipo2', 'no existe registro padre para tipo/no identificacion');
+                $this->addError($excelRow, 'Relacion ges_tipo1', 'no existe registro padre para tipo/no identificacion', $tipoIdent . ' - ' . $noId);
             }
         }
 
         if ($tipoIdent !== null && $noId !== null && $consecutivo !== null && $fechaTecnologia !== null && $cups !== null) {
             $dupKey = implode('|', [$tipoIdent, $noId, $consecutivo, $fechaTecnologia, $cups]);
+
             if (isset($this->seenInFile[$dupKey])) {
                 $this->rowsDuplicated++;
                 $this->addError($excelRow, 'Duplicado en archivo', 'registro repetido en el mismo Excel');
