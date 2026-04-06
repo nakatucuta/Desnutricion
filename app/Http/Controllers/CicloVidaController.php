@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Exports\CicloVidaCoverageMissingExport;
 use App\Services\CicloVida\CicloVidaCacheRepository;
 use App\Services\CicloVida\CicloVidaCoverageAnalyzer;
 use App\Services\CicloVida\CicloVidaReportDesigner;
@@ -12,6 +13,8 @@ use Carbon\Carbon;
 use Yajra\DataTables\Facades\DataTables;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail; 
+use Maatwebsite\Excel\Facades\Excel;
+use Maatwebsite\Excel\Excel as ExcelFormat;
 
 class CicloVidaController extends Controller
 {
@@ -210,6 +213,8 @@ class CicloVidaController extends Controller
             'companyLogo' => asset('img/logo.png'),
             'dataUrl' => route('ciclosvida.coverage.data'),
             'advancedFiltersUrl' => route('ciclosvida.coverage.filters'),
+            'missingDetailUrl' => route('ciclosvida.coverage.missing.detail'),
+            'missingExportBaseUrl' => route('ciclosvida.coverage.missing.export', ['format' => '__FORMAT__']),
         ]);
     }
 
@@ -234,6 +239,67 @@ class CicloVidaController extends Controller
                 'error' => $e->getMessage(),
             ], 500);
         }
+    }
+
+    public function coverageMissingDetail(Request $request)
+    {
+        try {
+            return response()->json(app(CicloVidaCoverageAnalyzer::class)->missingDetail($request));
+        } catch (\Throwable $e) {
+            Log::error('ciclosvida.coverage.missing.detail', [
+                'message' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            return response()->json([
+                'ok' => false,
+                'message' => 'No fue posible cargar el listado de personas con atenciones faltantes.',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    public function coverageMissingExport(Request $request, string $format = 'csv')
+    {
+        @set_time_limit(0);
+        @ini_set('max_execution_time', '0');
+        @ignore_user_abort(true);
+
+        $format = strtolower(trim($format));
+        if (!in_array($format, ['csv', 'xlsx'], true)) {
+            $format = 'csv';
+        }
+
+        $detail = app(CicloVidaCoverageAnalyzer::class)->missingDetail($request);
+        $courseLabel = str_replace(' ', '_', strtolower($detail['meta']['course_label'] ?? 'curso'));
+        $filename = 'cobertura_brechas_faltantes_'.$courseLabel.'_'.now()->format('Ymd_His').'.'.$format;
+
+        if ($format === 'xlsx') {
+            $export = new CicloVidaCoverageMissingExport(collect($detail['rows'] ?? []));
+            return Excel::download($export, $filename, ExcelFormat::XLSX);
+        }
+
+        $rows = array_map(
+            fn (array $row) => CicloVidaCoverageMissingExport::mapRow($row),
+            $detail['rows'] ?? []
+        );
+
+        return response()->streamDownload(function () use ($rows): void {
+            $output = fopen('php://output', 'w');
+            fprintf($output, chr(0xEF).chr(0xBB).chr(0xBF));
+            fputcsv($output, CicloVidaCoverageMissingExport::headingsRow());
+
+            foreach (array_chunk($rows, 5000) as $chunk) {
+                foreach ($chunk as $row) {
+                    fputcsv($output, array_values($row));
+                }
+                fflush($output);
+            }
+
+            fclose($output);
+        }, $filename, [
+            'Content-Type' => 'text/csv; charset=UTF-8',
+        ]);
     }
 
     public function menuPrimeraInfancia()

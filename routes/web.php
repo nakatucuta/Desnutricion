@@ -475,6 +475,8 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/ciclos-vida/cobertura-brechas', [CicloVidaController::class, 'coverage'])->name('ciclosvida.coverage.index');
     Route::get('/ciclos-vida/cobertura-brechas/filtros', [CicloVidaController::class, 'coverageFilters'])->name('ciclosvida.coverage.filters');
     Route::get('/ciclos-vida/cobertura-brechas/data', [CicloVidaController::class, 'coverageData'])->name('ciclosvida.coverage.data');
+    Route::get('/ciclos-vida/cobertura-brechas/faltantes/detalle', [CicloVidaController::class, 'coverageMissingDetail'])->name('ciclosvida.coverage.missing.detail');
+    Route::get('/ciclos-vida/cobertura-brechas/faltantes/export/{format?}', [CicloVidaController::class, 'coverageMissingExport'])->name('ciclosvida.coverage.missing.export');
     Route::get('/ciclos-vida/estadisticas/data', [CicloVidaController::class, 'dashboardData'])->name('ciclosvida.dashboard.data');
 
     Route::get('/ciclos-vida/primera-infancia/opciones', [CicloVidaController::class, 'menuPrimeraInfancia'])->name('ciclosvida.pi.menu');

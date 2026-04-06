@@ -13,6 +13,7 @@ use Illuminate\Support\Str;
 class CicloVidaCoverageAnalyzer
 {
     protected array $dueCountsMemo = [];
+    protected array $duePatientDetailMemo = [];
 
     public function pageData(): array
     {
@@ -80,10 +81,26 @@ class CicloVidaCoverageAnalyzer
     public function analyze(Request $request): array
     {
         $this->dueCountsMemo = [];
+        $this->duePatientDetailMemo = [];
         $filters = $this->normalizeFilters($request);
         $cacheKey = 'ciclosvida.coverage.analysis.'.md5(json_encode($filters, JSON_UNESCAPED_UNICODE));
 
         return Cache::remember($cacheKey, now()->addMinutes(10), fn (): array => $this->performAnalysis($filters));
+    }
+
+    public function missingDetail(Request $request): array
+    {
+        $this->dueCountsMemo = [];
+        $this->duePatientDetailMemo = [];
+        $filters = $this->normalizeFilters($request);
+
+        if ($filters['course_key'] === '') {
+            throw new \InvalidArgumentException('Debes seleccionar un curso de vida para consultar el detalle de faltantes.');
+        }
+
+        $cacheKey = 'ciclosvida.coverage.missing-detail.'.md5(json_encode($filters, JSON_UNESCAPED_UNICODE));
+
+        return Cache::remember($cacheKey, now()->addMinutes(10), fn (): array => $this->performMissingDetail($filters));
     }
 
     protected function performAnalysis(array $filters): array
@@ -262,6 +279,134 @@ class CicloVidaCoverageAnalyzer
             'missing' => [
                 'courses' => $missingCourses,
             ],
+        ];
+    }
+
+    protected function performMissingDetail(array $filters): array
+    {
+        $courseCatalog = $this->courseCatalog($filters['course_key']);
+        $course = collect($courseCatalog)->first();
+
+        if (!$course) {
+            throw new \InvalidArgumentException('El curso de vida seleccionado no es valido para el detalle de faltantes.');
+        }
+
+        $catalogRows = array_values(array_filter(
+            $this->catalogRows($filters['course_key'], $filters['module_key']),
+            fn (array $row) => $row['course_key'] === $filters['course_key'] && $row['measurable']
+        ));
+
+        if ($catalogRows === []) {
+            return [
+                'ok' => true,
+                'meta' => [
+                    'from' => $filters['from'],
+                    'to' => $filters['to'],
+                    'course_key' => $filters['course_key'],
+                    'course_label' => $course['label'],
+                    'filters' => $this->activeFilterPills($filters),
+                ],
+                'summary' => [
+                    'rows' => 0,
+                    'patients' => 0,
+                    'missing_attentions' => 0,
+                    'ips' => 0,
+                ],
+                'rows' => [],
+            ];
+        }
+
+        $actualCounts = $this->actualCountsPerPatient($filters, $catalogRows);
+        $detailRows = [];
+        $patientKeys = [];
+        $ips = [];
+
+        foreach ($catalogRows as $row) {
+            $duePatients = $this->duePatientsPerRow($filters, $row);
+
+            foreach ($duePatients as $patientKey => $patient) {
+                $expected = (int) ($patient['expected_attentions'] ?? 0);
+                if ($expected <= 0) {
+                    continue;
+                }
+
+                $actual = (int) ($actualCounts[$patientKey][$row['course_key']][$row['module_key']] ?? 0);
+                $valid = min($expected, $actual);
+                $missing = max($expected - $actual, 0);
+
+                if ($missing <= 0) {
+                    continue;
+                }
+
+                $ipsResponsable = $patient['ips_primaria'] ?: 'Sin IPS';
+                $patientKeys[$patientKey] = true;
+                $ips[$ipsResponsable] = true;
+
+                $detailRows[] = [
+                    'course_key' => $row['course_key'],
+                    'course_label' => $course['label'],
+                    'module_key' => $row['module_key'],
+                    'module_label' => $row['short_label'],
+                    'module_description' => $row['description'],
+                    'rule_label' => $row['rule_label'],
+                    'tipo_identificacion' => $patient['tipo_identificacion'],
+                    'identificacion' => $patient['identificacion'],
+                    'primer_nombre' => $patient['primer_nombre'],
+                    'segundo_nombre' => $patient['segundo_nombre'],
+                    'primer_apellido' => $patient['primer_apellido'],
+                    'segundo_apellido' => $patient['segundo_apellido'],
+                    'nombre_completo' => $this->fullName(
+                        $patient['primer_nombre'],
+                        $patient['segundo_nombre'],
+                        $patient['primer_apellido'],
+                        $patient['segundo_apellido']
+                    ),
+                    'fecha_nacimiento' => $patient['fecha_nacimiento'],
+                    'genero' => $patient['genero'],
+                    'departamento' => $patient['departamento'],
+                    'municipio' => $patient['municipio'],
+                    'zona' => $patient['zona'],
+                    'estado_actual' => $patient['estado_actual'],
+                    'ips_responsable' => $ipsResponsable,
+                    'expected_attentions' => $expected,
+                    'valid_attentions' => $valid,
+                    'missing_attentions' => $missing,
+                ];
+            }
+        }
+
+        usort($detailRows, function (array $left, array $right): int {
+            return [
+                $left['primer_apellido'],
+                $left['segundo_apellido'],
+                $left['primer_nombre'],
+                $left['segundo_nombre'],
+                $left['module_label'],
+            ] <=> [
+                $right['primer_apellido'],
+                $right['segundo_apellido'],
+                $right['primer_nombre'],
+                $right['segundo_nombre'],
+                $right['module_label'],
+            ];
+        });
+
+        return [
+            'ok' => true,
+            'meta' => [
+                'from' => $filters['from'],
+                'to' => $filters['to'],
+                'course_key' => $filters['course_key'],
+                'course_label' => $course['label'],
+                'filters' => $this->activeFilterPills($filters),
+            ],
+            'summary' => [
+                'rows' => count($detailRows),
+                'patients' => count($patientKeys),
+                'missing_attentions' => array_sum(array_column($detailRows, 'missing_attentions')),
+                'ips' => count($ips),
+            ],
+            'rows' => $detailRows,
         ];
     }
 
@@ -536,6 +681,119 @@ class CicloVidaCoverageAnalyzer
         return $this->dueCountsMemo[$memoKey] = $result;
     }
 
+    protected function duePatientsPerRow(array $filters, array $row): array
+    {
+        $memoKey = md5(json_encode([
+            'filters' => [
+                'from' => $filters['from'],
+                'to' => $filters['to'],
+                'departamento' => $filters['departamento'],
+                'municipio' => $filters['municipio'],
+                'ips' => $filters['ips'],
+                'genero' => $filters['genero'],
+                'zona' => $filters['zona'],
+                'estado_actual' => $filters['estado_actual'],
+            ],
+            'rule' => $row['rule'] ?? [],
+            'detail' => true,
+        ], JSON_UNESCAPED_UNICODE));
+
+        if (array_key_exists($memoKey, $this->duePatientDetailMemo)) {
+            return $this->duePatientDetailMemo[$memoKey];
+        }
+
+        $windows = $this->ruleDueBirthWindows($filters, $row['rule'] ?? []);
+        if ($windows === []) {
+            return $this->duePatientDetailMemo[$memoKey] = [];
+        }
+
+        $union = null;
+
+        foreach ($windows as $window) {
+            $segment = DB::query()
+                ->fromSub($this->patientProfileSubquery($filters, [
+                    'oldest_birth_date' => $window['start'],
+                    'latest_birth_date' => $window['end'],
+                ]), 'p')
+                ->whereNotNull('p.fecha_nacimiento')
+                ->whereDate('p.fecha_nacimiento', '>=', $window['start'])
+                ->whereDate('p.fecha_nacimiento', '<=', $window['end']);
+
+            $this->applyGenderPopulationFilter($segment, $row['rule'] ?? [], 'p.genero');
+
+            $segment->selectRaw("CONCAT(COALESCE(p.tipo_identificacion,''), '|', COALESCE(p.identificacion,'')) as patient_key")
+                ->addSelect([
+                    'p.tipo_identificacion',
+                    'p.identificacion',
+                    'p.primer_nombre',
+                    'p.segundo_nombre',
+                    'p.primer_apellido',
+                    'p.segundo_apellido',
+                    'p.fecha_nacimiento',
+                    'p.genero',
+                    'p.estado_actual',
+                    'p.departamento',
+                    'p.municipio',
+                    'p.zona',
+                    'p.ips_primaria',
+                ]);
+
+            if ($union === null) {
+                $union = $segment;
+            } else {
+                $union->unionAll($segment);
+            }
+        }
+
+        if ($union === null) {
+            return $this->duePatientDetailMemo[$memoKey] = [];
+        }
+
+        $rows = DB::query()
+            ->fromSub($union, 'd')
+            ->selectRaw("
+                d.patient_key,
+                MAX(d.tipo_identificacion) as tipo_identificacion,
+                MAX(d.identificacion) as identificacion,
+                MAX(d.primer_nombre) as primer_nombre,
+                MAX(d.segundo_nombre) as segundo_nombre,
+                MAX(d.primer_apellido) as primer_apellido,
+                MAX(d.segundo_apellido) as segundo_apellido,
+                MAX(d.fecha_nacimiento) as fecha_nacimiento,
+                MAX(d.genero) as genero,
+                MAX(d.estado_actual) as estado_actual,
+                MAX(d.departamento) as departamento,
+                MAX(d.municipio) as municipio,
+                MAX(d.zona) as zona,
+                MAX(d.ips_primaria) as ips_primaria,
+                COUNT(1) as expected_attentions
+            ")
+            ->groupBy('d.patient_key')
+            ->get();
+
+        $result = [];
+        foreach ($rows as $rowData) {
+            $result[$rowData->patient_key] = [
+                'tipo_identificacion' => (string) ($rowData->tipo_identificacion ?? ''),
+                'identificacion' => (string) ($rowData->identificacion ?? ''),
+                'primer_nombre' => (string) ($rowData->primer_nombre ?? ''),
+                'segundo_nombre' => (string) ($rowData->segundo_nombre ?? ''),
+                'primer_apellido' => (string) ($rowData->primer_apellido ?? ''),
+                'segundo_apellido' => (string) ($rowData->segundo_apellido ?? ''),
+                'fecha_nacimiento' => $rowData->fecha_nacimiento,
+                'genero' => (string) ($rowData->genero ?? ''),
+                'estado_actual' => (string) ($rowData->estado_actual ?? ''),
+                'departamento' => (string) ($rowData->departamento ?? 'Sin departamento'),
+                'municipio' => (string) ($rowData->municipio ?? 'Sin municipio'),
+                'zona' => (string) ($rowData->zona ?? 'Sin zona'),
+                'ips_primaria' => (string) ($rowData->ips_primaria ?? 'Sin IPS'),
+                'expected_attentions' => (int) ($rowData->expected_attentions ?? 0),
+            ];
+        }
+
+        return $this->duePatientDetailMemo[$memoKey] = $result;
+    }
+
     protected function actualCountsPerPatient(array $filters, array $measurableRows): array
     {
         $base = $this->eventAnalyticsBase($filters);
@@ -718,6 +976,10 @@ class CicloVidaCoverageAnalyzer
             ->select([
                 'x.tipoIdentificacion as tipo_identificacion',
                 'x.identificacion',
+                DB::raw('MAX(afi.primerNombre) as primer_nombre'),
+                DB::raw('MAX(afi.segundoNombre) as segundo_nombre'),
+                DB::raw('MAX(afi.primerApellido) as primer_apellido'),
+                DB::raw('MAX(afi.segundoApellido) as segundo_apellido'),
                 DB::raw('MAX(afi.fechaNacimiento) as fecha_nacimiento'),
                 DB::raw('MAX(afi.genero) as genero'),
                 DB::raw("MAX(COALESCE(NULLIF(ea.estado,''), NULLIF(CAST(afi.estadoActual AS varchar(20)), ''), 'Sin estado')) as estado_actual"),
@@ -741,6 +1003,18 @@ class CicloVidaCoverageAnalyzer
         }
 
         return $query;
+    }
+
+    protected function fullName(string $firstName, string $middleName, string $lastName, string $secondLastName): string
+    {
+        $value = trim(implode(' ', array_filter([
+            trim($firstName),
+            trim($middleName),
+            trim($lastName),
+            trim($secondLastName),
+        ])));
+
+        return $value !== '' ? $value : 'Sin nombre';
     }
 
     protected function distinctOptions(Builder $base, string $expression): array
