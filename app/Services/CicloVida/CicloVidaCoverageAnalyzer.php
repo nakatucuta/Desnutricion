@@ -12,6 +12,8 @@ use Illuminate\Support\Str;
 
 class CicloVidaCoverageAnalyzer
 {
+    protected array $dueCountsMemo = [];
+
     public function pageData(): array
     {
         return [
@@ -24,6 +26,7 @@ class CicloVidaCoverageAnalyzer
                     ->values()
                     ->all(),
                 'modules' => $this->moduleOptions(),
+                'moduleCatalog' => $this->moduleCatalogByCourse(),
             ],
             'ruleLegend' => collect($this->coverageRules())
                 ->map(fn (array $rule, string $key) => [
@@ -39,11 +42,34 @@ class CicloVidaCoverageAnalyzer
     {
         return Cache::remember('ciclosvida.coverage.filters.v1', now()->addMinutes(30), function (): array {
             $base = DB::query()->fromSub($this->patientProfileSubquery(), 'p');
+            $locations = (clone $base)
+                ->selectRaw("
+                    COALESCE(NULLIF(p.departamento,''), 'Sin departamento') as department_label,
+                    COALESCE(NULLIF(p.municipio,''), 'Sin municipio') as municipality_label
+                ")
+                ->distinct()
+                ->orderBy('department_label')
+                ->orderBy('municipality_label')
+                ->get();
+
+            $municipalityMap = $locations
+                ->groupBy('department_label')
+                ->map(function ($items) {
+                    return $items
+                        ->pluck('municipality_label')
+                        ->unique()
+                        ->sort()
+                        ->values()
+                        ->map(fn ($label) => ['value' => $label, 'label' => $label])
+                        ->all();
+                })
+                ->all();
 
             return [
                 'genders' => $this->distinctOptions($base, "COALESCE(NULLIF(p.genero,''), 'Sin genero')"),
                 'departments' => $this->distinctOptions($base, "COALESCE(NULLIF(p.departamento,''), 'Sin departamento')"),
                 'municipalities' => $this->distinctOptions($base, "COALESCE(NULLIF(p.municipio,''), 'Sin municipio')"),
+                'municipality_map' => $municipalityMap,
                 'ips' => $this->distinctOptions($base, "COALESCE(NULLIF(p.ips_primaria,''), 'Sin IPS')"),
                 'zones' => $this->distinctOptions($base, "COALESCE(NULLIF(p.zona,''), 'Sin zona')"),
                 'states' => $this->distinctOptions($base, "COALESCE(NULLIF(p.estado_actual,''), 'Sin estado')"),
@@ -53,6 +79,7 @@ class CicloVidaCoverageAnalyzer
 
     public function analyze(Request $request): array
     {
+        $this->dueCountsMemo = [];
         $filters = $this->normalizeFilters($request);
         $cacheKey = 'ciclosvida.coverage.analysis.'.md5(json_encode($filters, JSON_UNESCAPED_UNICODE));
 
@@ -64,6 +91,7 @@ class CicloVidaCoverageAnalyzer
         $catalogRows = $this->catalogRows($filters['course_key'], $filters['module_key']);
         $courseCatalog = $this->courseCatalog($filters['course_key']);
 
+        $realizedGlobalStats = $this->realizedGlobalSummary($filters);
         $realizedCourseStats = $this->realizedCourseStats($filters);
         $realizedModuleStats = $this->realizedModuleStats($filters);
 
@@ -93,8 +121,15 @@ class CicloVidaCoverageAnalyzer
                     'unique_patients' => (int) $realized['unique_patients'],
                     'unique_ips' => (int) $realized['unique_ips'],
                     'unique_municipalities' => (int) $realized['unique_municipalities'],
+                    'avg_per_patient' => (int) $realized['unique_patients'] > 0
+                        ? round(((int) $realized['total_attentions']) / ((int) $realized['unique_patients']), 2)
+                        : null,
                 ];
             }
+
+            $modulesWithActivity = collect($moduleDetails)
+                ->filter(fn (array $module) => (int) $module['total_attentions'] > 0)
+                ->count();
 
             $realizedCourses[] = [
                 'course_key' => $courseKey,
@@ -106,6 +141,15 @@ class CicloVidaCoverageAnalyzer
                 'unique_patients' => (int) ($realizedCourseStats[$courseKey]['unique_patients'] ?? 0),
                 'unique_ips' => (int) ($realizedCourseStats[$courseKey]['unique_ips'] ?? 0),
                 'unique_municipalities' => (int) ($realizedCourseStats[$courseKey]['unique_municipalities'] ?? 0),
+                'avg_per_patient' => (int) ($realizedCourseStats[$courseKey]['unique_patients'] ?? 0) > 0
+                    ? round(
+                        ((int) ($realizedCourseStats[$courseKey]['total_attentions'] ?? 0))
+                        / ((int) ($realizedCourseStats[$courseKey]['unique_patients'] ?? 0)),
+                        2
+                    )
+                    : null,
+                'modules_with_activity' => $modulesWithActivity,
+                'total_modules' => count($moduleDetails),
                 'modules' => $moduleDetails,
             ];
         }
@@ -138,6 +182,9 @@ class CicloVidaCoverageAnalyzer
                     'recorded_patients' => (int) $realized['unique_patients'],
                     'target_patients' => $gap['target_patients'] ?? null,
                     'patients_with_missing' => $gap['patients_with_missing'] ?? null,
+                    'patients_covered' => isset($gap['target_patients'], $gap['patients_with_missing'])
+                        ? max(((int) $gap['target_patients']) - ((int) $gap['patients_with_missing']), 0)
+                        : null,
                     'expected_attentions' => $gap['expected_attentions'] ?? null,
                     'valid_attentions' => $gap['valid_attentions'] ?? null,
                     'missing_attentions' => $gap['missing_attentions'] ?? null,
@@ -164,6 +211,7 @@ class CicloVidaCoverageAnalyzer
                 'color' => $course['color'],
                 'target_patients' => (int) $courseGap['target_patients'],
                 'patients_with_missing' => (int) $courseGap['patients_with_missing'],
+                'patients_covered' => max(((int) $courseGap['target_patients']) - ((int) $courseGap['patients_with_missing']), 0),
                 'expected_attentions' => (int) $courseGap['expected_attentions'],
                 'valid_attentions' => (int) $courseGap['valid_attentions'],
                 'missing_attentions' => (int) $courseGap['missing_attentions'],
@@ -172,12 +220,12 @@ class CicloVidaCoverageAnalyzer
                     ? round(((int) $courseGap['valid_attentions'] / (int) $courseGap['expected_attentions']) * 100, 1)
                     : null,
                 'measurable_modules' => (int) $courseGap['measurable_modules'],
+                'modules_with_gap' => collect($moduleDetails)
+                    ->filter(fn (array $module) => (int) ($module['missing_attentions'] ?? 0) > 0)
+                    ->count(),
                 'modules' => $moduleDetails,
             ];
         }
-
-        $totalRealized = array_sum(array_map(fn (array $course) => (int) $course['total_attentions'], $realizedCourses));
-        $totalRealizedPatients = array_sum(array_map(fn (array $course) => (int) $course['unique_patients'], $realizedCourses));
 
         return [
             'ok' => true,
@@ -185,6 +233,7 @@ class CicloVidaCoverageAnalyzer
                 'from' => $filters['from'],
                 'to' => $filters['to'],
                 'generated_at' => now()->format('Y-m-d H:i:s'),
+                'filters' => $this->activeFilterPills($filters),
                 'notes' => [
                     'Las atenciones realizadas salen del cache materializado por curso de vida.',
                     'Las atenciones faltantes se calculan de forma exacta solo en modulos con regla normativa parametrizada desde la fecha de nacimiento.',
@@ -192,8 +241,10 @@ class CicloVidaCoverageAnalyzer
                 ],
             ],
             'summary' => [
-                'total_realized' => $totalRealized,
-                'total_realized_patients' => $totalRealizedPatients,
+                'total_realized' => (int) ($realizedGlobalStats['total_attentions'] ?? 0),
+                'total_realized_patients' => (int) ($realizedGlobalStats['unique_patients'] ?? 0),
+                'total_realized_ips' => (int) ($realizedGlobalStats['unique_ips'] ?? 0),
+                'total_realized_municipalities' => (int) ($realizedGlobalStats['unique_municipalities'] ?? 0),
                 'total_expected' => (int) ($gapSummary['expected_attentions'] ?? 0),
                 'total_missing' => (int) ($gapSummary['missing_attentions'] ?? 0),
                 'total_valid' => (int) ($gapSummary['valid_attentions'] ?? 0),
@@ -211,6 +262,26 @@ class CicloVidaCoverageAnalyzer
             'missing' => [
                 'courses' => $missingCourses,
             ],
+        ];
+    }
+
+    protected function realizedGlobalSummary(array $filters): array
+    {
+        $row = DB::query()
+            ->fromSub($this->eventAnalyticsBase($filters), 'q')
+            ->selectRaw('
+                COUNT(1) as total_attentions,
+                COUNT(DISTINCT q.patient_key) as unique_patients,
+                COUNT(DISTINCT q.ips_primaria) as unique_ips,
+                COUNT(DISTINCT q.municipio) as unique_municipalities
+            ')
+            ->first();
+
+        return [
+            'total_attentions' => (int) ($row->total_attentions ?? 0),
+            'unique_patients' => (int) ($row->unique_patients ?? 0),
+            'unique_ips' => (int) ($row->unique_ips ?? 0),
+            'unique_municipalities' => (int) ($row->unique_municipalities ?? 0),
         ];
     }
 
@@ -297,46 +368,19 @@ class CicloVidaCoverageAnalyzer
             'non_measurable_modules' => count(array_filter($catalogRows, fn (array $row) => !$row['measurable'])),
         ];
 
-        $populationQuery = $this->populationBaseQuery($filters, $measurableRows);
+        $globalTargetPatients = [];
+        $globalPatientsWithGap = [];
+        $courseTargetPatients = [];
+        $coursePatientsWithGap = [];
 
-        foreach ($populationQuery->cursor() as $patient) {
-            $birthDate = !empty($patient->fecha_nacimiento) ? Carbon::parse((string) $patient->fecha_nacimiento)->startOfDay() : null;
-            if ($birthDate === null) {
-                continue;
-            }
+        foreach ($measurableRows as $row) {
+            $dueCounts = $this->dueCountsPerPatient($filters, $row);
 
-            $patientKey = trim(($patient->tipo_identificacion ?? '').'|'.($patient->identificacion ?? ''), '|');
-            if ($patientKey === '') {
-                continue;
-            }
-
-            $patientHasAnyOpportunity = false;
-            $patientHasAnyGap = false;
-            $coursePatientOpportunity = [];
-            $coursePatientGap = [];
-
-            foreach ($measurableRows as $row) {
-                $rule = $row['rule'];
-                if (!$this->matchesGenderRule((string) ($patient->genero ?? ''), $rule)) {
-                    continue;
-                }
-
-                $due = $this->expectedOccurrences($birthDate, Carbon::parse($filters['from']), Carbon::parse($filters['to']), $rule);
-                if ($due < 1) {
-                    continue;
-                }
-
+            foreach ($dueCounts as $patientKey => $due) {
                 $actual = $actualCounts[$patientKey][$row['course_key']][$row['module_key']] ?? 0;
                 $valid = min($due, $actual);
                 $missing = max($due - $actual, 0);
                 $excess = max($actual - $due, 0);
-
-                $patientHasAnyOpportunity = true;
-                $coursePatientOpportunity[$row['course_key']] = true;
-                if ($missing > 0) {
-                    $patientHasAnyGap = true;
-                    $coursePatientGap[$row['course_key']] = true;
-                }
 
                 $bucket = &$rowTotals[$row['course_key']][$row['module_key']];
                 if (!is_array($bucket)) {
@@ -382,22 +426,24 @@ class CicloVidaCoverageAnalyzer
                 $global['valid_attentions'] += $valid;
                 $global['missing_attentions'] += $missing;
                 $global['excess_attentions'] += $excess;
-            }
 
-            if ($patientHasAnyOpportunity) {
-                $global['target_patients']++;
-            }
-            if ($patientHasAnyGap) {
-                $global['patients_with_missing']++;
-            }
+                $globalTargetPatients[$patientKey] = true;
+                $courseTargetPatients[$row['course_key']][$patientKey] = true;
 
-            foreach (array_keys($coursePatientOpportunity) as $courseKey) {
-                $courseTotals[$courseKey]['target_patients'] = ($courseTotals[$courseKey]['target_patients'] ?? 0) + 1;
+                if ($missing > 0) {
+                    $globalPatientsWithGap[$patientKey] = true;
+                    $coursePatientsWithGap[$row['course_key']][$patientKey] = true;
+                }
             }
+        }
 
-            foreach (array_keys($coursePatientGap) as $courseKey) {
-                $courseTotals[$courseKey]['patients_with_missing'] = ($courseTotals[$courseKey]['patients_with_missing'] ?? 0) + 1;
-            }
+        $global['target_patients'] = count($globalTargetPatients);
+        $global['patients_with_missing'] = count($globalPatientsWithGap);
+
+        foreach ($measurableRows as $row) {
+            $courseKey = $row['course_key'];
+            $courseTotals[$courseKey]['target_patients'] = count($courseTargetPatients[$courseKey] ?? []);
+            $courseTotals[$courseKey]['patients_with_missing'] = count($coursePatientsWithGap[$courseKey] ?? []);
         }
 
         foreach ($measurableRows as $row) {
@@ -422,6 +468,72 @@ class CicloVidaCoverageAnalyzer
         }
 
         return [$rowTotals, $courseTotals, $global];
+    }
+
+    protected function dueCountsPerPatient(array $filters, array $row): array
+    {
+        $memoKey = md5(json_encode([
+            'filters' => [
+                'from' => $filters['from'],
+                'to' => $filters['to'],
+                'departamento' => $filters['departamento'],
+                'municipio' => $filters['municipio'],
+                'ips' => $filters['ips'],
+                'genero' => $filters['genero'],
+                'zona' => $filters['zona'],
+                'estado_actual' => $filters['estado_actual'],
+            ],
+            'rule' => $row['rule'] ?? [],
+        ], JSON_UNESCAPED_UNICODE));
+
+        if (array_key_exists($memoKey, $this->dueCountsMemo)) {
+            return $this->dueCountsMemo[$memoKey];
+        }
+
+        $windows = $this->ruleDueBirthWindows($filters, $row['rule'] ?? []);
+        if ($windows === []) {
+            return $this->dueCountsMemo[$memoKey] = [];
+        }
+
+        $union = null;
+
+        foreach ($windows as $window) {
+            $segment = DB::query()
+                ->fromSub($this->patientProfileSubquery($filters, [
+                    'oldest_birth_date' => $window['start'],
+                    'latest_birth_date' => $window['end'],
+                ]), 'p')
+                ->whereNotNull('p.fecha_nacimiento')
+                ->whereDate('p.fecha_nacimiento', '>=', $window['start'])
+                ->whereDate('p.fecha_nacimiento', '<=', $window['end']);
+
+            $this->applyGenderPopulationFilter($segment, $row['rule'] ?? [], 'p.genero');
+
+            $segment->selectRaw("CONCAT(COALESCE(p.tipo_identificacion,''), '|', COALESCE(p.identificacion,'')) as patient_key");
+
+            if ($union === null) {
+                $union = $segment;
+            } else {
+                $union->unionAll($segment);
+            }
+        }
+
+        if ($union === null) {
+            return $this->dueCountsMemo[$memoKey] = [];
+        }
+
+        $rows = DB::query()
+            ->fromSub($union, 'd')
+            ->selectRaw('d.patient_key, COUNT(1) as due_count')
+            ->groupBy('d.patient_key')
+            ->get();
+
+        $result = [];
+        foreach ($rows as $rowData) {
+            $result[$rowData->patient_key] = (int) $rowData->due_count;
+        }
+
+        return $this->dueCountsMemo[$memoKey] = $result;
     }
 
     protected function actualCountsPerPatient(array $filters, array $measurableRows): array
@@ -646,10 +758,10 @@ class CicloVidaCoverageAnalyzer
     protected function normalizeFilters(Request $request): array
     {
         try {
-            $from = Carbon::parse((string) $request->query('desde', now()->subDays(120)->toDateString()))->startOfDay();
+            $from = Carbon::parse((string) $request->query('desde', now()->subDays(29)->toDateString()))->startOfDay();
             $to = Carbon::parse((string) $request->query('hasta', now()->toDateString()))->startOfDay();
         } catch (\Throwable $e) {
-            $from = now()->subDays(120)->startOfDay();
+            $from = now()->subDays(29)->startOfDay();
             $to = now()->startOfDay();
         }
 
@@ -766,6 +878,72 @@ class CicloVidaCoverageAnalyzer
                 ];
             })
             ->sortBy('label')
+            ->values()
+            ->all();
+    }
+
+    protected function moduleCatalogByCourse(): array
+    {
+        $rules = $this->coverageRules();
+        $catalog = ['all' => []];
+
+        foreach (CicloVidaCatalog::courses() as $courseKey => $course) {
+            $catalog[$courseKey] = [];
+
+            foreach (($course['modules'] ?? []) as $moduleKey => $module) {
+                if (($module['record_type'] ?? 'event') !== 'event' || empty($module['materialized']) || $moduleKey === 'datos_generales') {
+                    continue;
+                }
+
+                $item = [
+                    'value' => $moduleKey,
+                    'label' => $module['short_label'] ?? $module['label'] ?? $moduleKey,
+                    'measurable' => isset($rules[$courseKey.'.'.$moduleKey]),
+                ];
+
+                $catalog[$courseKey][] = $item;
+                $catalog['all'][$moduleKey] = $catalog['all'][$moduleKey] ?? $item;
+            }
+        }
+
+        $catalog['all'] = collect($catalog['all'])
+            ->sortBy('label')
+            ->values()
+            ->all();
+
+        foreach ($catalog as $key => $items) {
+            if ($key === 'all') {
+                continue;
+            }
+
+            $catalog[$key] = collect($items)
+                ->sortBy('label')
+                ->values()
+                ->all();
+        }
+
+        return $catalog;
+    }
+
+    protected function activeFilterPills(array $filters): array
+    {
+        $map = [
+            'course_key' => 'Curso',
+            'module_key' => 'Atencion',
+            'departamento' => 'Departamento',
+            'municipio' => 'Municipio',
+            'ips' => 'IPS',
+            'genero' => 'Genero',
+            'zona' => 'Zona',
+            'estado_actual' => 'Estado',
+        ];
+
+        return collect($map)
+            ->filter(fn (string $label, string $key) => ($filters[$key] ?? '') !== '')
+            ->map(fn (string $label, string $key) => [
+                'label' => $label,
+                'value' => $filters[$key],
+            ])
             ->values()
             ->all();
     }
@@ -991,6 +1169,63 @@ class CicloVidaCoverageAnalyzer
         ];
     }
 
+    protected function ruleDueBirthWindows(array $filters, array $rule): array
+    {
+        $from = Carbon::parse($filters['from'])->startOfDay();
+        $to = Carbon::parse($filters['to'])->startOfDay();
+        $windows = [];
+
+        switch ($rule['type'] ?? null) {
+            case 'exact_years':
+                foreach ((array) ($rule['ages'] ?? []) as $age) {
+                    $age = (int) $age;
+                    $windows[] = [
+                        'start' => $from->copy()->subYears($age)->toDateString(),
+                        'end' => $to->copy()->subYears($age)->toDateString(),
+                    ];
+                }
+                break;
+
+            case 'exact_months':
+                foreach ((array) ($rule['months'] ?? []) as $month) {
+                    $month = (int) $month;
+                    $windows[] = [
+                        'start' => $from->copy()->subMonths($month)->toDateString(),
+                        'end' => $to->copy()->subMonths($month)->toDateString(),
+                    ];
+                }
+                break;
+
+            case 'periodic_years':
+                $startAge = (int) ($rule['start_age'] ?? 0);
+                $endAge = array_key_exists('end_age', $rule) && $rule['end_age'] !== null ? (int) $rule['end_age'] : 120;
+                $every = max(1, (int) ($rule['every'] ?? 1));
+
+                for ($age = $startAge; $age <= $endAge; $age += $every) {
+                    $windows[] = [
+                        'start' => $from->copy()->subYears($age)->toDateString(),
+                        'end' => $to->copy()->subYears($age)->toDateString(),
+                    ];
+                }
+                break;
+
+            case 'periodic_months':
+                $startMonth = (int) ($rule['start_month'] ?? 0);
+                $endMonth = array_key_exists('end_month', $rule) && $rule['end_month'] !== null ? (int) $rule['end_month'] : 1440;
+                $every = max(1, (int) ($rule['every'] ?? 1));
+
+                for ($month = $startMonth; $month <= $endMonth; $month += $every) {
+                    $windows[] = [
+                        'start' => $from->copy()->subMonths($month)->toDateString(),
+                        'end' => $to->copy()->subMonths($month)->toDateString(),
+                    ];
+                }
+                break;
+        }
+
+        return $windows;
+    }
+
     protected function expectedOccurrences(Carbon $birthDate, Carbon $from, Carbon $to, array $rule): int
     {
         $count = 0;
@@ -1077,5 +1312,23 @@ class CicloVidaCoverageAnalyzer
         }
 
         return true;
+    }
+
+    protected function applyGenderPopulationFilter(Builder $query, array $rule, string $column): void
+    {
+        if (empty($rule['gender'])) {
+            return;
+        }
+
+        $normalized = "UPPER(LTRIM(RTRIM(COALESCE({$column}, ''))))";
+
+        if ($rule['gender'] === 'female') {
+            $query->whereRaw("{$normalized} IN ('F', 'FEMENINO', 'MUJER', 'MUJERES')");
+            return;
+        }
+
+        if ($rule['gender'] === 'male') {
+            $query->whereRaw("{$normalized} IN ('M', 'MASCULINO', 'HOMBRE', 'HOMBRES')");
+        }
     }
 }

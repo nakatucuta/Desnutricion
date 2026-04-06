@@ -82,7 +82,7 @@ class CicloVidaController extends Controller
             [
                 'title' => 'Cobertura y brechas',
                 'description' => 'Analiza atenciones realizadas, oportunidades normativas y faltantes por curso de vida con filtros territoriales y operativos.',
-                'icon' => 'fas fa-table-cells-large',
+                'icon' => 'fas fa-th-large',
                 'color' => 'grad-cyan',
                 'route' => route('ciclosvida.coverage.index'),
             ],
@@ -199,12 +199,14 @@ class CicloVidaController extends Controller
     public function coverage()
     {
         $page = app(CicloVidaCoverageAnalyzer::class)->pageData();
+        $desde = now()->subDays(29)->startOfDay()->toDateString();
+        $hasta = now()->toDateString();
 
         return view('ciclo_vidas.cobertura_brechas', [
             'filters' => $page['filters'],
             'ruleLegend' => $page['ruleLegend'],
-            'desde' => now()->subDays(120)->startOfDay()->toDateString(),
-            'hasta' => now()->toDateString(),
+            'desde' => $desde,
+            'hasta' => $hasta,
             'companyLogo' => asset('img/logo.png'),
             'dataUrl' => route('ciclosvida.coverage.data'),
             'advancedFiltersUrl' => route('ciclosvida.coverage.filters'),
@@ -218,7 +220,20 @@ class CicloVidaController extends Controller
 
     public function coverageData(Request $request)
     {
-        return response()->json(app(CicloVidaCoverageAnalyzer::class)->analyze($request));
+        try {
+            return response()->json(app(CicloVidaCoverageAnalyzer::class)->analyze($request));
+        } catch (\Throwable $e) {
+            Log::error('ciclosvida.coverage.data', [
+                'message' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            return response()->json([
+                'ok' => false,
+                'message' => 'El analisis no pudo completarse. Verifica la conexion de base de datos o los filtros aplicados.',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
     }
 
     public function menuPrimeraInfancia()

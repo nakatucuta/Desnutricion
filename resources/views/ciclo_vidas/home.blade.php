@@ -44,9 +44,9 @@
             </div>
         </div>
 
-        <div class="row cv-home-command-grid mb-2">
+        <div class="cv-home-command-grid mb-2">
             @foreach ($quickCards as $card)
-                <div class="col-12 col-lg-4 mb-4">
+                <div class="cv-home-command-cell">
                     <a href="{{ $card['route'] }}" class="cv-home-link">
                         <article class="cv-home-feature {{ $card['color'] }}" data-tilt-card>
                             <div class="cv-home-feature__beam"></div>
@@ -386,6 +386,19 @@
 
         .cv-home-link {
             text-decoration: none !important;
+            display: block;
+            height: 100%;
+        }
+
+        .cv-home-command-grid {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 1.1rem;
+            align-items: stretch;
+        }
+
+        .cv-home-command-cell {
+            min-width: 0;
         }
 
         .cv-home-command-grid:hover .cv-home-feature:not(:hover) {
@@ -411,7 +424,8 @@
         }
 
         .cv-home-feature {
-            min-height: 285px;
+            height: 100%;
+            min-height: 320px;
             display: flex;
             flex-direction: column;
             justify-content: space-between;
@@ -487,6 +501,7 @@
             display: flex;
             align-items: flex-start;
             gap: 1rem;
+            flex: 1 1 auto;
         }
 
         .cv-home-feature-icon {
@@ -531,6 +546,10 @@
 
         .grad-rose {
             background: linear-gradient(135deg, #4c0519 0%, #b91c1c 48%, #fb7185 100%);
+        }
+
+        .grad-cyan {
+            background: linear-gradient(135deg, #06283d 0%, #0f766e 45%, #22d3ee 100%);
         }
 
         .cv-home-course {
@@ -647,6 +666,10 @@
             .cv-home-hero {
                 grid-template-columns: 1fr;
             }
+
+            .cv-home-command-grid {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
         }
 
         @media (max-width: 991px) {
@@ -663,6 +686,10 @@
         }
 
         @media (max-width: 767px) {
+            .cv-home-command-grid {
+                grid-template-columns: 1fr;
+            }
+
             .cv-home-hero h1 {
                 font-size: 2rem;
             }
