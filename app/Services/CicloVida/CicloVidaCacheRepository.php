@@ -123,7 +123,7 @@ class CicloVidaCacheRepository
                         ->orWhere('r.rango_edad', 'like', $like)
                         ->orWhereRaw('CONVERT(varchar(10), r.event_date, 23) LIKE ?', [$like]);
                 });
-            }, true)
+            }, false)
             ->order(function (Builder $query) use ($request): void {
                 $map = [
                     'fechaConsulta' => 'r.event_date',
