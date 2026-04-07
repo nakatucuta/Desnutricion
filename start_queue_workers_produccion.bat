@@ -9,7 +9,12 @@ echo Proyecto: %APP_DIR%
 
 cd /d "%APP_DIR%"
 if not exist "%WORKER_LOG_DIR%" mkdir "%WORKER_LOG_DIR%"
-php artisan optimize:clear
+rem optimize:clear dispara cache:clear (muy lento con millones de archivos en file cache).
+rem Para inicio rapido de workers, evitamos limpiar TODO el cache en cada arranque.
+php artisan config:clear
+php artisan route:clear
+php artisan view:clear
+php artisan event:clear
 php artisan config:cache
 
 start "QUEUE imports_pai #1" cmd /k "cd /d %APP_DIR% && echo [%%date%% %%time%%] Iniciando imports_pai #1>>%WORKER_LOG_DIR%\imports_pai_1.log && php artisan queue:work database --queue=imports_pai --sleep=1 --tries=1 --timeout=3600 --verbose >> %WORKER_LOG_DIR%\imports_pai_1.log 2>&1"
