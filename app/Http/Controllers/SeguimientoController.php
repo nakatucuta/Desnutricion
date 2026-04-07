@@ -153,10 +153,11 @@ class SeguimientoController extends Controller
     /**
      * 2) Vista principal: contadores + tabla.
      */
-    public function index()
+public function index()
 {
     $user = Auth::user();
     $isAdmin = in_array($user->usertype, [1, 3]);
+    $today = Carbon::now()->startOfDay();
 
     // ABIERTO
     $conteo = Seguimiento::where('estado', 1)
@@ -167,6 +168,7 @@ class SeguimientoController extends Controller
     // PRÃƒÆ’Ã¢â‚¬Å“XIMOS
     $otro = DB::table('sivigilas')
         ->join('seguimientos', 'sivigilas.id', '=', 'seguimientos.sivigilas_id')
+        ->leftJoin('users as u_seg', 'seguimientos.user_id', '=', 'u_seg.id')
         ->select([
             'sivigilas.num_ide_',
             'sivigilas.pri_nom_',
@@ -180,12 +182,32 @@ class SeguimientoController extends Controller
             'seguimientos.estado as est',
             'seguimientos.user_id as usr',
             'seguimientos.estado as estado',
+            'seguimientos.created_at as seguimiento_created_at',
+            'u_seg.name as responsable_nombre',
 
         ])
         ->where('seguimientos.estado', 1)
         ->when(!$isAdmin, fn($q) => $q->where('seguimientos.user_id', $user->id))
         ->orderBy('seguimientos.created_at', 'desc')
         ->get();
+
+    $notificacionesPendientes = $otro->filter(function ($seguimiento) use ($today) {
+        if (empty($seguimiento->fecha_proximo_control) || (int) $seguimiento->estado !== 1) {
+            return false;
+        }
+
+        try {
+            $fechaControl = Carbon::parse($seguimiento->fecha_proximo_control)->startOfDay();
+        } catch (\Throwable $e) {
+            return false;
+        }
+
+        // Normativa operativa: avisar vencidos y controles de hoy/1/2 dias.
+        return $today->diffInDays($fechaControl, false) <= 2;
+    })->values();
+
+    $novedadesPendientesCount = $notificacionesPendientes->count();
+    session(['seguimiento_113_novedades_pendientes' => $novedadesPendientesCount]);
 
     // CERRADOS
     $cerrados = Seguimiento::where('estado', '!=', 1)
@@ -202,7 +224,9 @@ class SeguimientoController extends Controller
         'conteo',
         'seguimientos',
         'otro',
-        'cerrados'
+        'cerrados',
+        'notificacionesPendientes',
+        'novedadesPendientesCount'
     ));
 }
 

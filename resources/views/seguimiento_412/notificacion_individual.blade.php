@@ -27,44 +27,44 @@
     }
 @endphp
 
-<article class="seg-notify-card113 {{ $nivelClase }}" data-year="{{ $anioSeguimiento }}">
-    <div class="seg-notify-card113__head">
-        <div class="seg-notify-card113__title-wrap">
-            <span class="seg-notify-card113__icon">
+<article class="seg-notify-card412 {{ $nivelClase }}" data-year="{{ $anioSeguimiento }}">
+    <div class="seg-notify-card412__head">
+        <div class="seg-notify-card412__title-wrap">
+            <span class="seg-notify-card412__icon">
                 <i class="fas {{ $nivelIcono }}"></i>
             </span>
             <div>
-                <h6 class="seg-notify-card113__title mb-0">Seguimiento #{{ $seguimiento->seguimiento_id ?? $seguimiento->idin }}</h6>
-                <small class="seg-notify-card113__subtitle">{{ $nivelDetalle }}</small>
+                <h6 class="seg-notify-card412__title mb-0">Seguimiento #{{ $seguimiento->seguimiento_id ?? $seguimiento->idin }}</h6>
+                <small class="seg-notify-card412__subtitle">{{ $nivelDetalle }}</small>
             </div>
         </div>
-        <span class="seg-notify-card113__badge">{{ $nivelTitulo }}</span>
+        <span class="seg-notify-card412__badge">{{ $nivelTitulo }}</span>
     </div>
 
-    <div class="seg-notify-card113__grid">
+    <div class="seg-notify-card412__grid">
         <div>
-            <span class="seg-notify-card113__label">Paciente</span>
-            <strong class="seg-notify-card113__value">{{ $nombrePaciente !== '' ? $nombrePaciente : 'Sin nombre' }}</strong>
+            <span class="seg-notify-card412__label">Paciente</span>
+            <strong class="seg-notify-card412__value">{{ $nombrePaciente !== '' ? $nombrePaciente : 'Sin nombre' }}</strong>
         </div>
         <div>
-            <span class="seg-notify-card113__label">Identificacion</span>
-            <strong class="seg-notify-card113__value">{{ $seguimiento->num_ide_ ?? 'N/D' }}</strong>
+            <span class="seg-notify-card412__label">Identificacion</span>
+            <strong class="seg-notify-card412__value">{{ $seguimiento->num_ide_ ?? 'N/D' }}</strong>
         </div>
         <div>
-            <span class="seg-notify-card113__label">Fecha proximo control</span>
-            <strong class="seg-notify-card113__value">{{ $fechaControl->format('Y-m-d') }}</strong>
+            <span class="seg-notify-card412__label">Fecha proximo control</span>
+            <strong class="seg-notify-card412__value">{{ $fechaControl->format('Y-m-d') }}</strong>
         </div>
         <div>
-            <span class="seg-notify-card113__label">Estado del caso</span>
-            <strong class="seg-notify-card113__value">{{ $estadoTexto }}</strong>
+            <span class="seg-notify-card412__label">Estado del caso</span>
+            <strong class="seg-notify-card412__value">{{ $estadoTexto }}</strong>
         </div>
         <div>
-            <span class="seg-notify-card113__label">Responsable</span>
-            <strong class="seg-notify-card113__value">{{ $responsable !== '' ? $responsable : 'Sin asignar' }}</strong>
+            <span class="seg-notify-card412__label">Responsable</span>
+            <strong class="seg-notify-card412__value">{{ $responsable !== '' ? $responsable : 'Sin asignar' }}</strong>
         </div>
     </div>
 
-    <div class="seg-notify-card113__timeline">
+    <div class="seg-notify-card412__timeline">
         @if($diasDiferencia < 0)
             <span><strong>{{ abs($diasDiferencia) }} dias</strong> de atraso</span>
         @elseif($diasDiferencia === 0)
@@ -74,8 +74,8 @@
         @endif
     </div>
 
-    <div class="seg-notify-card113__actions">
-        <a href="{{ route('Seguimiento.create') }}" class="btn btn-sm seg-notify-card113__btn">
+    <div class="seg-notify-card412__actions">
+        <a href="{{ route('new412_seguimiento.create') }}" class="btn btn-sm seg-notify-card412__btn">
             <i class="fas fa-clipboard-check mr-1"></i> Gestionar seguimiento
         </a>
     </div>

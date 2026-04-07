@@ -33,9 +33,10 @@ class Seguimiento412Controller extends Controller
     /**
      * Display a listing of the resource.
      */
-    public function index()
+public function index()
 {
     $user = Auth::user();
+    $today = Carbon::now()->startOfDay();
 
      // Contador de casos abiertos
      $conteo = DB::table('seguimiento_412s')
@@ -76,7 +77,51 @@ class Seguimiento412Controller extends Controller
         ->orderByDesc('seguimiento_412s.created_at')
         ->get();
 
-        return view('seguimiento_412.index', compact('conteo', 'otro', 'cerrados'));
+    $notificacionesPendientes = DB::table('cargue412s')
+        ->join('seguimiento_412s', 'cargue412s.id', '=', 'seguimiento_412s.cargue412_id')
+        ->leftJoin('users as u_seg412', 'seguimiento_412s.user_id', '=', 'u_seg412.id')
+        ->select(
+            'cargue412s.numero_identificacion as num_ide_',
+            'cargue412s.primer_nombre as pri_nom_',
+            'cargue412s.segundo_nombre as seg_nom_',
+            'cargue412s.primer_apellido as pri_ape_',
+            'cargue412s.segundo_apellido as seg_ape_',
+            'cargue412s.id as idin',
+            'seguimiento_412s.id as seguimiento_id',
+            'seguimiento_412s.estado',
+            'seguimiento_412s.user_id as usr',
+            'seguimiento_412s.fecha_proximo_control',
+            'seguimiento_412s.created_at as seguimiento_created_at',
+            'u_seg412.name as responsable_nombre'
+        )
+        ->where('seguimiento_412s.estado', 1)
+        ->whereNotNull('seguimiento_412s.fecha_proximo_control')
+        ->when((int) $user->usertype === 2, function ($q) use ($user) {
+            $q->where('seguimiento_412s.user_id', $user->id);
+        })
+        ->orderBy('seguimiento_412s.fecha_proximo_control')
+        ->get()
+        ->filter(function ($seguimiento) use ($today) {
+            try {
+                $fechaControl = Carbon::parse($seguimiento->fecha_proximo_control)->startOfDay();
+            } catch (\Throwable $e) {
+                return false;
+            }
+
+            return $today->diffInDays($fechaControl, false) <= 2;
+        })
+        ->values();
+
+    $novedadesPendientesCount = $notificacionesPendientes->count();
+    session(['seguimiento_412_novedades_pendientes' => $novedadesPendientesCount]);
+
+        return view('seguimiento_412.index', compact(
+            'conteo',
+            'otro',
+            'cerrados',
+            'notificacionesPendientes',
+            'novedadesPendientesCount'
+        ));
     }
 
 // PARA EL DATATABLE
