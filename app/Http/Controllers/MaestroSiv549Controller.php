@@ -26,11 +26,35 @@ class MaestroSiv549Controller extends Controller
             $years = array_values(array_unique($years));
         }
 
+        $availableQuery = $this->latestGestanteNotificationPerYearQuery()
+            ->where('year', $defaultYear);
+
+        $assignmentKey = DB::raw("
+            CONCAT(
+                LTRIM(RTRIM(ISNULL(CAST([tip_ide_] AS NVARCHAR(50)), ''))),
+                '|',
+                LTRIM(RTRIM(ISNULL(CAST([num_ide_] AS NVARCHAR(100)), ''))),
+                '|',
+                LTRIM(RTRIM(ISNULL(CAST([year] AS NVARCHAR(10)), '')))
+            )
+        ");
+
         $stats = [
-            'total' => MaestroSiv549::query()->count(),
-            'asignados' => AsignacionesMaestrosiv549::query()->distinct('num_ide_')->count('num_ide_'),
-            'sin_seguimientos' => AsignacionesMaestrosiv549::query()->doesntHave('seguimientosMaestrosiv549')->count(),
-            'semanas' => MaestroSiv549::query()->whereNotNull('semana')->where('semana', '<>', '')->distinct('semana')->count('semana'),
+            'total' => (clone $availableQuery)->count(),
+            'asignados' => AsignacionesMaestrosiv549::query()
+                ->where('year', $defaultYear)
+                ->distinct()
+                ->count($assignmentKey),
+            'sin_seguimientos' => AsignacionesMaestrosiv549::query()
+                ->where('year', $defaultYear)
+                ->doesntHave('seguimientosMaestrosiv549')
+                ->distinct()
+                ->count($assignmentKey),
+            'semanas' => (clone $availableQuery)
+                ->whereNotNull('semana')
+                ->where('semana', '<>', '')
+                ->distinct('semana')
+                ->count('semana'),
         ];
 
         $filterOptions = [
@@ -294,11 +318,35 @@ class MaestroSiv549Controller extends Controller
 
     private function buildFilteredQuery(Request $request): Builder
     {
-        $query = MaestroSiv549::query();
+        $query = $this->latestGestanteNotificationPerYearQuery();
 
         $this->applyFilters($query, $request);
 
         return $query;
+    }
+
+    private function latestGestanteNotificationPerYearQuery(): Builder
+    {
+        $ranked = MaestroSiv549::query()
+            ->select('maestrosiv549.*')
+            ->selectRaw("
+                ROW_NUMBER() OVER (
+                    PARTITION BY
+                        LTRIM(RTRIM(ISNULL(CAST([tip_ide_] AS NVARCHAR(50)), ''))),
+                        LTRIM(RTRIM(ISNULL(CAST([num_ide_] AS NVARCHAR(100)), ''))),
+                        LTRIM(RTRIM(ISNULL(CAST([year] AS NVARCHAR(10)), '')))
+                    ORDER BY
+                        TRY_CONVERT(datetime, [fec_not], 120) DESC,
+                        TRY_CONVERT(datetime, [fec_not], 103) DESC,
+                        TRY_CONVERT(datetime, [fec_not], 23) DESC,
+                        [fec_not] DESC,
+                        [nreg] DESC
+                ) AS [row_num]
+            ");
+
+        return MaestroSiv549::query()
+            ->fromSub($ranked, 'maestrosiv549')
+            ->where('row_num', 1);
     }
 
     private function applyFilters(Builder $query, Request $request): void
