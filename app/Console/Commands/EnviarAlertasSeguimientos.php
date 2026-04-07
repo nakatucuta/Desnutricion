@@ -12,7 +12,7 @@ use Illuminate\Support\Facades\Mail;
 class EnviarAlertasSeguimientos extends Command
 {
     protected $signature = 'seguimientos:enviar-alertas';
-    protected $description = 'Envía correos por hitos vencidos en seguimientos (basado en created_at) con anti-spam por hito.';
+    protected $description = 'Envia correos por hitos vencidos en seguimientos con control de una alerta por hito.';
 
     public function handle()
     {
@@ -20,98 +20,65 @@ class EnviarAlertasSeguimientos extends Command
         $totalEnviados = 0;
 
         SeguimientMaestrosiv549::with(['asignacion.user', 'alertasEnviadas'])
+            ->select([
+                'id',
+                'asignacion_id',
+                'created_at',
+                'fecha_hospitalizacion',
+                'fecha_egreso',
+                'fecha_control_rn_inmediato',
+                'descripcion_seguimiento_inmediato',
+                'fecha_seguimiento_1',
+                'fecha_seguimiento_2',
+                'fecha_seguimiento_3',
+                'fecha_seguimiento_4',
+                'fecha_seguimiento_5',
+                'fecha_consulta_6_meses',
+                'fecha_consulta_1_ano',
+            ])
             ->orderBy('id')
             ->chunkById(200, function ($chunk) use ($now, &$totalEnviados) {
-
-                foreach ($chunk as $s) {
-                    $a = $s->asignacion;
-                    if (!$a) {
+                foreach ($chunk as $seguimiento) {
+                    $asignacion = $seguimiento->asignacion;
+                    if (!$asignacion) {
                         continue;
                     }
 
-                    $to = optional($a->user)->email;
+                    $to = optional($asignacion->user)->email;
                     if (!$to) {
-                        continue; // sin destino
+                        continue;
                     }
 
-                    // Base: SIEMPRE created_at del seguimiento
-                    $base = $s->created_at ? Carbon::parse($s->created_at) : $now;
+                    $base = $this->resolveAlertBase($seguimiento, $now);
+                    $milestones = $this->buildMilestones($seguimiento, $base);
+                    $enviadas = $seguimiento->alertasEnviadas->pluck('hito')->flip();
 
-                    // Orden canónico de hitos
-                    $milestones = [
-                        '48h72h' => [
-                            'label' => '48–72h',
-                            'due'   => (clone $base)->addHours(72),
-                            'done'  => !empty($s->descripcion_seguimiento_inmediato),
-                        ],
-                        '7d' => [
-                            'label' => '7 días',
-                            'due'   => (clone $base)->addDays(7),
-                            'done'  => !empty($s->fecha_seguimiento_2),
-                        ],
-                        '14d' => [
-                            'label' => '14 días',
-                            'due'   => (clone $base)->addDays(14),
-                            'done'  => !empty($s->fecha_seguimiento_3),
-                        ],
-                        '21d' => [
-                            'label' => '21 días',
-                            'due'   => (clone $base)->addDays(21),
-                            'done'  => !empty($s->fecha_seguimiento_4),
-                        ],
-                        '28d' => [
-                            'label' => '28 días',
-                            'due'   => (clone $base)->addDays(28),
-                            'done'  => !empty($s->fecha_seguimiento_5),
-                        ],
-                        '6m' => [
-                            'label' => '6 meses',
-                            'due'   => (clone $base)->addMonthsNoOverflow(6),
-                            'done'  => !empty($s->fecha_consulta_6_meses),
-                        ],
-                        '1y' => [
-                            'label' => '1 año',
-                            'due'   => (clone $base)->addYearNoOverflow(1),
-                            'done'  => !empty($s->fecha_consulta_1_ano),
-                        ],
-                    ];
-
-                    // Alertas ya enviadas (por clave de hito)
-                    $enviadas = $s->alertasEnviadas->pluck('hito')->flip();
-
-                    // 1) Encuentra el PRIMER hito NO cumplido (en orden)
                     $firstUndoneKey = null;
-                    foreach ($milestones as $key => $m) {
-                        if (!$m['done']) {
+                    foreach ($milestones as $key => $milestone) {
+                        if (!$milestone['done']) {
                             $firstUndoneKey = $key;
                             break;
                         }
                     }
 
-                    // Si todo está cumplido, nada que hacer
                     if (!$firstUndoneKey) {
                         continue;
                     }
 
                     $first = $milestones[$firstUndoneKey];
 
-                    // 2) Solo consideramos ese primer no-cumplido:
-                    //    - Si aún no vence -> nada
-                    //    - Si ya venció y NO se ha notificado -> enviar una sola vez
-                    //    - Si ya venció y YA se notificó -> nada (espera a que lo cumplan)
                     if ($now->lte($first['due'])) {
                         continue;
                     }
 
                     if (isset($enviadas[$firstUndoneKey])) {
-                        continue; // ya avisado este hito; no avanzamos a los siguientes
+                        continue;
                     }
 
-                    // Armar y enviar correo
-                    $editUrl = route('asignaciones.seguimientmaestrosiv549.edit', [$s->asignacion_id, $s->id]);
+                    $editUrl = route('asignaciones.seguimientmaestrosiv549.edit', [$seguimiento->asignacion_id, $seguimiento->id]);
 
                     $mail = new HitoVencidoMail(
-                        $s,
+                        $seguimiento,
                         $first['label'],
                         $first['due'],
                         $first['due']->diffInDays($now),
@@ -123,22 +90,84 @@ class EnviarAlertasSeguimientos extends Command
                     if (!empty($cc)) {
                         $mailer->cc($cc);
                     }
+
                     $mailer->send($mail);
 
-                    // Registrar que ESTE hito ya fue notificado
                     SeguimientoAlerta::create([
-                        'seguimiento_id' => $s->id,
-                        'hito'           => $firstUndoneKey,
-                        'sent_at'        => Carbon::now(),
+                        'seguimiento_id' => $seguimiento->id,
+                        'hito' => $firstUndoneKey,
+                        'sent_at' => Carbon::now(),
                     ]);
 
                     $totalEnviados++;
-                    // Importante: NO avanzamos a los hitos siguientes.
                 }
-
             });
 
         $this->info("Alertas enviadas: {$totalEnviados}");
+
         return Command::SUCCESS;
+    }
+
+    private function resolveAlertBase(SeguimientMaestrosiv549 $seguimiento, Carbon $fallback): Carbon
+    {
+        if ($seguimiento->fecha_egreso instanceof Carbon) {
+            return $seguimiento->fecha_egreso->copy()->startOfDay();
+        }
+
+        if ($seguimiento->fecha_hospitalizacion instanceof Carbon) {
+            return $seguimiento->fecha_hospitalizacion->copy()->startOfDay();
+        }
+
+        if ($seguimiento->created_at instanceof Carbon) {
+            return $seguimiento->created_at->copy();
+        }
+
+        return $fallback->copy();
+    }
+
+    private function buildMilestones(SeguimientMaestrosiv549 $seguimiento, Carbon $base): array
+    {
+        return [
+            '48h72h' => [
+                'label' => '48-72h',
+                'due' => $base->copy()->addHours(72),
+                'done' => !empty($seguimiento->descripcion_seguimiento_inmediato) || !empty($seguimiento->fecha_control_rn_inmediato),
+            ],
+            'post_egreso' => [
+                'label' => 'Post egreso',
+                'due' => $base->copy()->addDays(3),
+                'done' => !empty($seguimiento->fecha_seguimiento_1),
+            ],
+            '7d' => [
+                'label' => '7 dias',
+                'due' => $base->copy()->addDays(7),
+                'done' => !empty($seguimiento->fecha_seguimiento_2),
+            ],
+            '14d' => [
+                'label' => '14 dias',
+                'due' => $base->copy()->addDays(14),
+                'done' => !empty($seguimiento->fecha_seguimiento_3),
+            ],
+            '21d' => [
+                'label' => '21 dias',
+                'due' => $base->copy()->addDays(21),
+                'done' => !empty($seguimiento->fecha_seguimiento_4),
+            ],
+            '28d' => [
+                'label' => '28 dias',
+                'due' => $base->copy()->addDays(28),
+                'done' => !empty($seguimiento->fecha_seguimiento_5),
+            ],
+            '6m' => [
+                'label' => '6 meses',
+                'due' => $base->copy()->addMonthsNoOverflow(6),
+                'done' => !empty($seguimiento->fecha_consulta_6_meses),
+            ],
+            '1y' => [
+                'label' => '1 ano',
+                'due' => $base->copy()->addYearNoOverflow(1),
+                'done' => !empty($seguimiento->fecha_consulta_1_ano),
+            ],
+        ];
     }
 }

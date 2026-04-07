@@ -22,8 +22,8 @@ class SeguimientoAlerta extends Model
         'updated_at' => 'datetime',
     ];
 
-    // Fuerza a Eloquent a usar el formato ISO correcto para SQL Server
-    protected $dateFormat = 'Y-d-m h:m:s'; // muy importante
+    // Formato estable para escritura de fechas en SQL Server
+    protected $dateFormat = 'Y-m-d H:i:s';
 
     public function seguimiento()
     {
