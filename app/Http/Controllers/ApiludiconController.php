@@ -2,17 +2,19 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\ApiConsumptionState;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use App\Models\ApiConsumptionState;
 
 class ApiludiconController extends Controller
 {
-    /**
-     * ✅ 1) Devuelve TODO paginado (sin rango de fechas)
-     *
-     * GET /api/ludycom/afiliados?per_page=100&page=1
-     */
+    private function afiliadosQuery()
+    {
+        return DB::connection('sqlsrv_1')
+            ->table('api_ludycom.dbo.datos')
+            ->selectRaw('*, [año] as anio_api');
+    }
+
     public function index_all(Request $request)
     {
         $validated = $request->validate([
@@ -22,109 +24,35 @@ class ApiludiconController extends Controller
         $perPage = $validated['per_page'] ?? 100;
 
         try {
-            $query = DB::connection('sqlsrv_1')
-                ->table('api_ludycom.dbo.datos')
-                ->select([
-                    'numeroCarnet',
-                    'codigoAgente',
-                    'tipoIdenCabezaFamilia',
-                    'idenCabezaFamilia',
-                    'serial',
-                    'tipoIdentificacion',
-                    'identificacion',
-                    'primerApellido',
-                    'segundoApellido',
-                    'primerNombre',
-                    'segundoNombre',
-                    'fechaNacimiento',
-                    'genero',
-                    'ESTADOACTUAL',
-                    'GRUPOIPS',
-                    'codigoMunicipio',
-                    'zona',
-                    'tipoAfiliado',
-                    'grupoPoblacional',
-                    'nivelSisben',
-                    'puntajeSisben',
-                    'discapacidad',
-                    'descripcion_discapacidad',
-                    'barrio',
-                    'direccion',
-                    'telefono',
-                    'telefono1',
-                    'telefono2',
-                    'email',
-                    'fechaAfiliacionArs',
-                    'fechaAfiliacionSistema',
-                    'fechaCambioEstado',
-                    'portabilidad',
-                    'IPS_PORTABILIDAD',
-                    'poblacion_victima',
-                    'poblacion_altocosto',
-                    'erc',
-                    'terapia_reemplazo_renal',
-                    'diabetes',
-                    'hta',
-                    'vih',
-                    'enfermedades_huerfanas',
-                    'hemofilia',
-                    'cancer',
-                    'artritis',
-                    'nefroproteccion',
-                    'desnutricion',
-                    'poblacion_gestante',
-                    'fpp',
-                    'contratacion_especial',
-                    'contratacion_nefro',
-                    'contratacion_cercana',
-                    'edad',
-                    'etareos',
-                    'cursos_vida',
-                    'edad_meses',
-                    'pai',
-                    'cruce_bdex_rnec',
-                    'marca_sisben_IV_III',
-                    'fecha_actualizacion',
-                    'mes',
-                    DB::raw('[año] as año'),
-                ])
+            $datos = $this->afiliadosQuery()
                 ->orderBy('año')
                 ->orderBy('mes')
-                ->orderBy('numeroCarnet');
-
-            $datos = $query->paginate($perPage);
+                ->orderBy('numeroCarnet')
+                ->paginate($perPage);
 
             return response()->json([
                 'status' => 'success',
-                'meta'   => [
+                'meta' => [
                     'current_page' => $datos->currentPage(),
-                    'per_page'     => $datos->perPage(),
-                    'total'        => $datos->total(),
-                    'last_page'    => $datos->lastPage(),
+                    'per_page' => $datos->perPage(),
+                    'total' => $datos->total(),
+                    'last_page' => $datos->lastPage(),
                 ],
                 'data' => $datos->items(),
             ], 200);
-
         } catch (\Throwable $e) {
             \Log::error('Error index_all api_ludycom', [
                 'error' => $e->getMessage(),
             ]);
 
             return response()->json([
-                'status'  => 'error',
+                'status' => 'error',
                 'message' => 'Error interno al consultar afiliados',
-                'data'    => [],
+                'data' => [],
             ], 500);
         }
     }
 
-    /**
-     * 🔥 1B) Devuelve SOLO NUEVOS por usuario/token (SIN fechas)
-     * Usa cursor numeroCarnet guardado en api_consumption_states.
-     *
-     * GET /api/ludycom/afiliados/nuevos?per_page=100
-     * (no usa page, cada llamada avanza sola)
-     */
     public function index_all_nuevos(Request $request)
     {
         $validated = $request->validate([
@@ -134,139 +62,62 @@ class ApiludiconController extends Controller
         $perPage = $validated['per_page'] ?? 100;
         $user = $request->user();
 
-        // ✅ Crea o trae cursor del usuario para este endpoint
         $state = ApiConsumptionState::firstOrCreate(
             ['user_id' => $user->id, 'endpoint' => 'ludycom_afiliados_all'],
             ['last_carnet' => null]
         );
 
         try {
-            $query = DB::connection('sqlsrv_1')
-                ->table('api_ludycom.dbo.datos')
-                ->select([
-                    'numeroCarnet',
-                    'codigoAgente',
-                    'tipoIdenCabezaFamilia',
-                    'idenCabezaFamilia',
-                    'serial',
-                    'tipoIdentificacion',
-                    'identificacion',
-                    'primerApellido',
-                    'segundoApellido',
-                    'primerNombre',
-                    'segundoNombre',
-                    'fechaNacimiento',
-                    'genero',
-                    'ESTADOACTUAL',
-                    'GRUPOIPS',
-                    'codigoMunicipio',
-                    'zona',
-                    'tipoAfiliado',
-                    'grupoPoblacional',
-                    'nivelSisben',
-                    'puntajeSisben',
-                    'discapacidad',
-                    'descripcion_discapacidad',
-                    'barrio',
-                    'direccion',
-                    'telefono',
-                    'telefono1',
-                    'telefono2',
-                    'email',
-                    'fechaAfiliacionArs',
-                    'fechaAfiliacionSistema',
-                    'fechaCambioEstado',
-                    'portabilidad',
-                    'IPS_PORTABILIDAD',
-                    'poblacion_victima',
-                    'poblacion_altocosto',
-                    'erc',
-                    'terapia_reemplazo_renal',
-                    'diabetes',
-                    'hta',
-                    'vih',
-                    'enfermedades_huerfanas',
-                    'hemofilia',
-                    'cancer',
-                    'artritis',
-                    'nefroproteccion',
-                    'desnutricion',
-                    'poblacion_gestante',
-                    'fpp',
-                    'contratacion_especial',
-                    'contratacion_nefro',
-                    'contratacion_cercana',
-                    'edad',
-                    'etareos',
-                    'cursos_vida',
-                    'edad_meses',
-                    'pai',
-                    'cruce_bdex_rnec',
-                    'marca_sisben_IV_III',
-                    'fecha_actualizacion',
-                    'mes',
-                    DB::raw('[año] as año'),
-                ]);
+            $query = $this->afiliadosQuery();
 
-            // ✅ Si ya tiene cursor, trae solo mayores a last_carnet
             if (!empty($state->last_carnet)) {
                 $query->where('numeroCarnet', '>', $state->last_carnet);
             }
 
-            // ✅ Orden estable + limit
             $datos = $query
                 ->orderBy('numeroCarnet')
                 ->limit($perPage)
                 ->get();
 
-            // Si no hay más nuevos
             if ($datos->isEmpty()) {
                 return response()->json([
-                    'status'  => 'success',
+                    'status' => 'success',
                     'message' => 'No hay nuevos registros para este usuario',
-                    'cursor'  => [
-                        'last_carnet' => $state->last_carnet
+                    'cursor' => [
+                        'last_carnet' => $state->last_carnet,
                     ],
-                    'data'    => [],
+                    'data' => [],
                 ], 200);
             }
 
-            // ✅ Actualiza cursor con el último entregado
             $ultimo = $datos->last();
 
             $state->update([
-                'last_carnet' => $ultimo->numeroCarnet
+                'last_carnet' => $ultimo->numeroCarnet,
             ]);
 
             return response()->json([
                 'status' => 'success',
                 'cursor' => [
-                    'last_carnet' => $state->last_carnet
+                    'last_carnet' => $state->last_carnet,
                 ],
-                'count'  => $datos->count(),
-                'data'   => $datos,
+                'count' => $datos->count(),
+                'data' => $datos,
             ], 200);
-
         } catch (\Throwable $e) {
-
             \Log::error('Error index_all_nuevos api_ludycom', [
                 'error' => $e->getMessage(),
-                'user'  => $user->id,
+                'user' => $user->id,
             ]);
 
             return response()->json([
-                'status'  => 'error',
+                'status' => 'error',
                 'message' => 'Error interno al consultar afiliados nuevos',
-                'data'    => [],
+                'data' => [],
             ], 500);
         }
     }
 
-    /**
-     * 🧹 Reset del cursor de nuevos (solo para este usuario)
-     *
-     * POST /api/ludycom/afiliados/reset
-     */
     public function reset_consumo_all(Request $request)
     {
         $user = $request->user();
@@ -277,17 +128,11 @@ class ApiludiconController extends Controller
         );
 
         return response()->json([
-            'status'  => 'success',
-            'message' => 'Cursor reseteado. El siguiente llamado traerá datos desde cero.'
+            'status' => 'success',
+            'message' => 'Cursor reseteado. El siguiente llamado traera datos desde cero.',
         ], 200);
     }
 
-    /**
-     * ✅ 2) Devuelve afiliados por IDENTIFICACION
-     *
-     * GET /api/ludycom/afiliados/identificacion/1020304050
-     * GET /api/ludycom/afiliados/identificacion/1020304050?tipoIdentificacion=ti
-     */
     public function show_by_identificacion(Request $request, $identificacion)
     {
         $validated = $request->validate([
@@ -297,72 +142,7 @@ class ApiludiconController extends Controller
         $tipoIdentificacion = $validated['tipoIdentificacion'] ?? null;
 
         try {
-            $query = DB::connection('sqlsrv_1')
-                ->table('api_ludycom.dbo.datos')
-                ->select([
-                    'numeroCarnet',
-                    'codigoAgente',
-                    'tipoIdenCabezaFamilia',
-                    'idenCabezaFamilia',
-                    'serial',
-                    'tipoIdentificacion',
-                    'identificacion',
-                    'primerApellido',
-                    'segundoApellido',
-                    'primerNombre',
-                    'segundoNombre',
-                    'fechaNacimiento',
-                    'genero',
-                    'ESTADOACTUAL',
-                    'GRUPOIPS',
-                    'codigoMunicipio',
-                    'zona',
-                    'tipoAfiliado',
-                    'grupoPoblacional',
-                    'nivelSisben',
-                    'puntajeSisben',
-                    'discapacidad',
-                    'descripcion_discapacidad',
-                    'barrio',
-                    'direccion',
-                    'telefono',
-                    'telefono1',
-                    'telefono2',
-                    'email',
-                    'fechaAfiliacionArs',
-                    'fechaAfiliacionSistema',
-                    'fechaCambioEstado',
-                    'portabilidad',
-                    'IPS_PORTABILIDAD',
-                    'poblacion_victima',
-                    'poblacion_altocosto',
-                    'erc',
-                    'terapia_reemplazo_renal',
-                    'diabetes',
-                    'hta',
-                    'vih',
-                    'enfermedades_huerfanas',
-                    'hemofilia',
-                    'cancer',
-                    'artritis',
-                    'nefroproteccion',
-                    'desnutricion',
-                    'poblacion_gestante',
-                    'fpp',
-                    'contratacion_especial',
-                    'contratacion_nefro',
-                    'contratacion_cercana',
-                    'edad',
-                    'etareos',
-                    'cursos_vida',
-                    'edad_meses',
-                    'pai',
-                    'cruce_bdex_rnec',
-                    'marca_sisben_IV_III',
-                    'fecha_actualizacion',
-                    'mes',
-                    DB::raw('[año] as año'),
-                ])
+            $query = $this->afiliadosQuery()
                 ->where('identificacion', $identificacion);
 
             if ($tipoIdentificacion) {
@@ -373,22 +153,21 @@ class ApiludiconController extends Controller
 
             if ($datos->isEmpty()) {
                 return response()->json([
-                    'status'  => 'error',
-                    'message' => 'No se encontró información para la identificación indicada',
-                    'data'    => [],
+                    'status' => 'error',
+                    'message' => 'No se encontro informacion para la identificacion indicada',
+                    'data' => [],
                 ], 404);
             }
 
             return response()->json([
                 'status' => 'success',
                 'params' => [
-                    'identificacion'     => $identificacion,
+                    'identificacion' => $identificacion,
                     'tipoIdentificacion' => $tipoIdentificacion,
                 ],
-                'count'  => $datos->count(),
-                'data'   => $datos,
+                'count' => $datos->count(),
+                'data' => $datos,
             ], 200);
-
         } catch (\Throwable $e) {
             \Log::error('Error show_by_identificacion api_ludycom', [
                 'error' => $e->getMessage(),
@@ -397,98 +176,26 @@ class ApiludiconController extends Controller
             ]);
 
             return response()->json([
-                'status'  => 'error',
+                'status' => 'error',
                 'message' => 'Error interno al consultar afiliado',
-                'data'    => [],
+                'data' => [],
             ], 500);
         }
     }
 
-
-
-        /**
-     * ✅ 3) Devuelve afiliado por numeroCarnet (código único)
-     *
-     * GET /api/ludycom/afiliados/carnet/ABC123
-     */
     public function show_by_numeroCarnet($numeroCarnet)
     {
         try {
-            $registro = DB::connection('sqlsrv_1')
-                ->table('api_ludycom.dbo.datos')
-                ->select([
-                    'numeroCarnet',
-                    'codigoAgente',
-                    'tipoIdenCabezaFamilia',
-                    'idenCabezaFamilia',
-                    'serial',
-                    'tipoIdentificacion',
-                    'identificacion',
-                    'primerApellido',
-                    'segundoApellido',
-                    'primerNombre',
-                    'segundoNombre',
-                    'fechaNacimiento',
-                    'genero',
-                    'ESTADOACTUAL',
-                    'GRUPOIPS',
-                    'codigoMunicipio',
-                    'zona',
-                    'tipoAfiliado',
-                    'grupoPoblacional',
-                    'nivelSisben',
-                    'puntajeSisben',
-                    'discapacidad',
-                    'descripcion_discapacidad',
-                    'barrio',
-                    'direccion',
-                    'telefono',
-                    'telefono1',
-                    'telefono2',
-                    'email',
-                    'fechaAfiliacionArs',
-                    'fechaAfiliacionSistema',
-                    'fechaCambioEstado',
-                    'portabilidad',
-                    'IPS_PORTABILIDAD',
-                    'poblacion_victima',
-                    'poblacion_altocosto',
-                    'erc',
-                    'terapia_reemplazo_renal',
-                    'diabetes',
-                    'hta',
-                    'vih',
-                    'enfermedades_huerfanas',
-                    'hemofilia',
-                    'cancer',
-                    'artritis',
-                    'nefroproteccion',
-                    'desnutricion',
-                    'poblacion_gestante',
-                    'fpp',
-                    'contratacion_especial',
-                    'contratacion_nefro',
-                    'contratacion_cercana',
-                    'edad',
-                    'etareos',
-                    'cursos_vida',
-                    'edad_meses',
-                    'pai',
-                    'cruce_bdex_rnec',
-                    'marca_sisben_IV_III',
-                    'fecha_actualizacion',
-                    'mes',
-                    DB::raw('[año] as año'),
-                ])
+            $registro = $this->afiliadosQuery()
                 ->where('numeroCarnet', $numeroCarnet)
                 ->orderBy('numeroCarnet')
                 ->first();
 
             if (!$registro) {
                 return response()->json([
-                    'status'  => 'error',
-                    'message' => 'No se encontró información para el numeroCarnet indicado',
-                    'data'    => null,
+                    'status' => 'error',
+                    'message' => 'No se encontro informacion para el numeroCarnet indicado',
+                    'data' => null,
                 ], 404);
             }
 
@@ -497,21 +204,20 @@ class ApiludiconController extends Controller
                 'params' => [
                     'numeroCarnet' => $numeroCarnet,
                 ],
-                'data'   => $registro,
+                'data' => $registro,
             ], 200);
-
         } catch (\Throwable $e) {
             \Log::error('Error show_by_numeroCarnet api_ludycom', [
-                'error'        => $e->getMessage(),
+                'error' => $e->getMessage(),
                 'numeroCarnet' => $numeroCarnet,
             ]);
 
             return response()->json([
-                'status'  => 'error',
+                'status' => 'error',
                 'message' => 'Error interno al consultar afiliado por numeroCarnet',
-                'data'    => null,
+                'data' => null,
             ], 500);
         }
     }
-
 }
+
