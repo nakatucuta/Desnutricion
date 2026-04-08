@@ -1,401 +1,349 @@
-{{-- resources/views/seguimiento/mi_formulario.blade.php --}}
+@php
+    $currentYear = (int) now()->year;
+    $selectedYear = old('filtro_anio_paciente_412', (string) $currentYear);
 
+    $years = collect($incomeedit ?? [])->map(function ($row) {
+        if (empty($row->created_at)) {
+            return null;
+        }
+        try {
+            return \Carbon\Carbon::parse($row->created_at)->year;
+        } catch (\Throwable $e) {
+            return null;
+        }
+    })->filter()->unique()->sortDesc()->values();
 
+    if (!$years->contains($currentYear)) {
+        $years = $years->prepend($currentYear);
+    }
 
+    $medicamentosOld = collect(old('medicamento', []));
+@endphp
 
-@section('css')
-<link rel="stylesheet" href="/css/admin_custom.css">
-<style>
-  /* === Tarjetas modernas === */
-  .card-custom {
-    background: #fff;
-    border-radius: 1rem;
-    box-shadow: 0 .5rem 1rem rgba(0,0,0,0.15);
-    border: none;
-    margin-bottom: 1.5rem;
-  }
-  .card-custom .card-header {
-    background: linear-gradient(135deg,#1d9bf0,#17bf63);
-    color: #fff;
-    font-weight: 600;
-    border-top-left-radius: 1rem;
-    border-top-right-radius: 1rem;
-  }
-
-  /* === Inputs con ícono === */
-  .input-group-text {
-    background: #f0f2f5;
-    border: none;
-    border-top-left-radius: .75rem;
-    border-bottom-left-radius: .75rem;
-  }
-  .form-control {
-    border: 1px solid #ddd;
-    border-left: none;
-    border-top-right-radius: .75rem;
-    border-bottom-right-radius: .75rem;
-  }
-
-  /* === Select2 personalizado === */
-  .select2-container { width:100% !important; }
-  .select2-results__option { font-size:14px; color:#333; }
-  .select2-container--default .select2-selection--single .select2-selection__rendered {
-    line-height:1.9;
-  }
-
-  /* === Botones degradados === */
-  .btn-gradient {
-    background: linear-gradient(45deg,#1d9bf0,#17bf63);
-    color: #fff;
-    border: none;
-    border-radius: .75rem;
-    padding: .75rem 1.5rem;
-    transition: opacity .3s;
-  }
-  .btn-gradient:hover { opacity:.9; }
-
-  /* === Overlay de envío dentro del botón === */
-  #loading-icon { margin-left:.5rem; }
-  #sending-text { margin-left:.5rem; font-weight:500; }
-
-  @media(max-width:767px){
-    .card-custom{ margin:1rem; }
-    .btn-gradient{ width:100%; margin-bottom:1rem; }
-  }
-</style>
-@stop
-
-
-@include('seguimiento.mensajes')
-
-<div class="row">
-  <div class="col-lg-12">
-    <div class="card card-custom">
-      <div class="card-header text-center">
-        <h2 class="card-title text-white">
-          <i class="far fa-hospital" style="font-size:45px;color:#3333ff;"></i>
-          Seguimiento
-          <i class="bi bi-plus"></i>
-          <i class="fas fa-user-md" style="font-size:45px;color:#3333ff;"></i>
-        </h2>
-      </div>
-      <div class="card-body">
-        <form id="update-form" action="{{ url('Seguimiento') }}" method="POST" enctype="multipart/form-data">
-          @csrf
-
-          <div class="row g-3">
-            {{-- Paciente --}}
-            <div class="col-md-6">
-              <label for="cargue412_id">Paciente</label>
-              <div class="input-group">
-                <span class="input-group-text"><i class="fas fa-user"></i></span>
-                <select class="person form-control" name="cargue412_id" id="cargue412_id" required>
-                  <option value="">SELECCIONE</option>
-                  @foreach($incomeedit as $developer)
-                    <option value="{{ $developer->idin }}">
-                      ({{ $developer->created_at
-                        ? \Carbon\Carbon::parse($developer->created_at)->format('Y-m-d')
-                        : 'SIN FECHA' }})
-                      {{ $developer->idin }} {{ $developer->numero_identificacion }}
-                      {{ $developer->primer_nombre }} {{ $developer->segundo_nombre }}
-                      {{ $developer->primer_apellido }} {{ $developer->segundo_apellido }}
-                    </option>
-                  @endforeach
-                </select>
-              </div>
-            </div>
-
-            {{-- Fecha Consulta --}}
-            <div class="col-md-6">
-              <label for="fecha_consulta">Fecha Consulta</label>
-              <div class="input-group">
-                <span class="input-group-text"><i class="fas fa-calendar-alt"></i></span>
-                <input class="form-control" type="date" name="fecha_consulta" id="fecha_consulta" required>
-              </div>
-            </div>
-          </div>
-
-          <div class="row g-3 mt-3">
-            {{-- Talla --}}
-            <div class="col-md-6">
-              <label for="talla_cm">Talla (cm)</label>
-              <div class="input-group">
-                <span class="input-group-text"><i class="fas fa-ruler"></i></span>
-                <input class="form-control" type="number" step="0.01" name="talla_cm" id="talla_cm" required>
-              </div>
-            </div>
-            {{-- Peso --}}
-            <div class="col-md-6">
-              <label for="peso_kilos">Peso (kg)</label>
-              <div class="input-group">
-                <span class="input-group-text"><i class="fas fa-weight-hanging"></i></span>
-                <input class="form-control" type="number" step="0.0001" name="peso_kilos" id="peso_kilos" required>
-              </div>
-            </div>
-          </div>
-
-          <div class="row g-3 mt-3">
-            {{-- Clasificación --}}
-            <div class="col-md-6">
-              <label for="clasificacion">Calificación</label>
-              <div class="input-group">
-                <span class="input-group-text"><i class="fas fa-clipboard-list"></i></span>
-                <select class="person2 form-control" name="clasificacion" id="clasificacion" required>
-                  <option value="">SELECCIONAR</option>
-                  <option value="DESNUTRICION AGUDA MODERADA">DESNUTRICION AGUDA MODERADA</option>
-                  <option value="DESNUTRICION AGUDA SEVERA">DESNUTRICION AGUDA SEVERA</option>
-                  <option value="DESNUTRICION AGUDA SEVERA TIPO KWASHIORKOR">KWASHIORKOR</option>
-                  <option value="DESNUTRICION AGUDA SEVERA TIPO MARASMO">MARASMO</option>
-                  <option value="DESNUTRICION AGUDA SEVERA MIXTA">MIXTA</option>
-                  <option value="RIESGO DE DESNUTRICION">RIESGO</option>
-                  <option value="BUSQUEDA FALLIDA">BUSQUEDA FALLIDA</option>
-                  <option value="PESO ADECUADO PARA LA TALLA">PESO ADECUADO</option>
-                </select>
-              </div>
-            </div>
-            {{-- Puntaje Z --}}
-            <div class="col-md-6">
-              <label for="puntajez">Puntaje Z</label>
-              <div class="input-group">
-                <span class="input-group-text"><i class="fas fa-chart-line"></i></span>
-                <input class="form-control" type="number" step="0.0001" name="puntajez" id="puntajez" required>
-              </div>
-            </div>
-          </div>
-
-          <div class="row g-3 mt-3">
-            {{-- Perímetro Braquial --}}
-            <div class="col-md-6">
-              <label for="perimetro_braqueal">Perímetro Braquial</label>
-              <div class="input-group">
-                <span class="input-group-text"><i class="fas fa-expand-arrows-alt"></i></span>
-                <input class="form-control" type="text" name="perimetro_braqueal" id="perimetro_braqueal" required>
-              </div>
-            </div>
-            {{-- Energía FTLC --}}
-            <div class="col-md-6">
-              <label for="requerimiento_energia_ftlc">Energía FTLC</label>
-              <div class="input-group">
-                <span class="input-group-text"><i class="fas fa-bolt"></i></span>
-                <input class="form-control" type="text" name="requerimiento_energia_ftlc" id="requerimiento_energia_ftlc" required>
-              </div>
-            </div>
-          </div>
-
-          <div class="row g-3 mt-3">
-            {{-- Observaciones --}}
-            <div class="col-md-6">
-              <label for="observaciones">Observaciones</label>
-              <textarea class="form-control" name="observaciones" id="observaciones" rows="5" maxlength="600"></textarea>
-            </div>
-            {{-- Medicamento --}}
-            <div class="col-md-6">
-              <label for="medicamento">Medicamento</label>
-              <select class="js-example-basic-multiple form-control" name="medicamento[]" id="medicamento" multiple>
-                <option value="23072-2">albendazol 200MG</option>
-                <option value="54114-1">albendazol 400MG</option>
-                <option value="35662-18">Acido folico</option>
-                <option value="31063-1">Vitamina A</option>
-                <option value="27440-3">Hierro</option>
-                <option value="NO APLICA">NO APLICA</option>
-              </select>
-            </div>
-          </div>
-
-          <div class="row g-3 mt-3">
-            {{-- Estado actual del menor --}}
-            <div class="col-md-3">
-              <label for="est_act_menor">Estado actual del menor</label>
-              <select class="person2 form-control" name="est_act_menor" id="est_act_menor" required>
-                <option value="">SELECCIONAR</option>
-                <option value="DESNUTRICION AGUDA MODERADA">DESNUTRICION AGUDA MODERADA</option>
-                <option value="PESO ADECUADO PARA LA TALLA">PESO ADECUADO</option>
-                <option value="RIESGO DE DESNUTRICIÓN AGUDA">RIESGO DE DESNUTRICIÓN AGUDA</option>
-                <option value="DESNUTRICIÓN AGUDA SEVERA TIPO MARASMO">MARASMO</option>
-                <option value="DESNUTRICIÓN AGUDA SEVERA TIPO KWASHIORKOR">KWASHIORKOR</option>
-                <option value="DESNUTRICIÓN AGUDA SEVERA MIXTA">MIXTA</option>
-                <option value="EN PROCESO DE RECUPERACION">EN PROCESO</option>
-                <option value="BUSQUEDA FALLIDA">BUSQUEDA FALLIDA</option>
-                <option value="PROCESO DE RECUPERACION">PROCESO DE RECUPERACION</option>
-                <option value="RECUPERADO">RECUPERADO</option>
-                <option value="FALLECIDO">FALLECIDO</option>
-              </select>
-            </div>
-            {{-- Tratamiento f75 --}}
-            <div class="col-md-4">
-              <label for="tratamiento_f75">Tratamiento f75</label>
-              <select class="person2 form-control" name="tratamiento_f75" id="tratamiento_f75" required>
-                <option value="">SELECCIONAR</option>
-                <option value="SI">SI</option>
-                <option value="NO">NO</option>
-              </select>
-            </div>
-            {{-- Fecha recibe f75 --}}
-            <div class="col-md-4" id="row_fecha_recibio_tratf75" style="display:none;">
-              <label for="fecha_recibio_tratf75">Fecha recibe f75</label>
-              <input class="form-control" type="date" name="fecha_recibio_tratf75" id="fecha_recibio_tratf75">
-            </div>
-          </div>
-
-          {{-- Card: Demanda Inducida --}}
-          <div class="card card-custom mb-4 mt-5">
-
-            <div class="card-header text-center">
-              <strong>DEMANDA INDUCIDA</strong>
-            </div>
-            <div class="card-body">
-              <div class="row g-3">
-                {{-- Esquema PAI --}}
-                <div class="col-12 col-md-6">
-                  <label for="Esquemq_complrto_pai_edad">Esquema PAI</label>
-                  <div class="input-group">
-                    <span class="input-group-text"><i class="fas fa-syringe"></i></span>
-                    <select
-                      class="person2 form-control"
-                      name="Esquemq_complrto_pai_edad"
-                      id="Esquemq_complrto_pai_edad"
-                      required>
-                      <option value="">SELECCIONAR</option>
-                      <option value="INCOMPLETO">INCOMPLETO</option>
-                      <option value="COMPLETO">COMPLETO</option>
-                    </select>
-                  </div>
-                </div>
-
-                {{-- Promoción/Mantenimiento --}}
-                <div class="col-12 col-md-6">
-                  <label for="Atecion_primocion_y_mantenimiento_res3280_2018">
-                    Atención ruta promoción y mantenimiento
-                  </label>
-                  <div class="input-group">
-                    <span class="input-group-text"><i class="fas fa-route"></i></span>
-                    <select
-                      class="person2 form-control"
-                      name="Atecion_primocion_y_mantenimiento_res3280_2018"
-                      id="Atecion_primocion_y_mantenimiento_res3280_2018"
-                      required>
-                      <option value="">SELECCIONAR</option>
-                      <option value="SI">SI</option>
-                      <option value="NO">NO</option>
-                    </select>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {{-- Card: Cierre de Caso --}}
-          <div class="card card-custom mb-4">
-            <div class="card-header text-center">
-              <i class="fas fa-check-circle"></i> Cierre de Caso
-            </div>
-            <div class="card-body">
-              <div class="row g-3">
-                {{-- Estado --}}
-                <div class="col-12 col-md-4">
-                  <label for="estado">¿Desea cerrar el caso?</label>
-                  <select
-                    class="person2 form-control"
-                    name="estado"
-                    id="estado"
-                    required>
-                    <option value="">SELECCIONAR</option>
-                    <option value="1">ABIERTO</option>
-                    <option value="0">CERRADO</option>
-                  </select>
-                </div>
-
-                {{-- Próx. Seguimiento --}}
-                <div class="col-12 col-md-4" id="input_oculto">
-                  <label for="fecha_proximo_control">Fecha Próx. Seguimiento</label>
-                  <input
-                    class="form-control"
-                    type="date"
-                    name="fecha_proximo_control"
-                    id="fecha_proximo_control">
-                </div>
-
-                {{-- Motivo de reapertura --}}
-            </div>
-            {{-- PDF Adjunto --}}
-            <div class="col-12 col-md-4">
-              <label for="pdf">PDF Adjunto</label>
-              <input type="file"
-                     name="pdf"
-                     id="pdf"
-                     class="form-control-file"
-                     required>
-            </div>
-          </div>
-              </div>
-            </div>
-          </div>
-
-          {{-- Botón enviar --}}
-          <div class="text-center mt-4">
-            <button id="update-btn" type="button" class="btn-gradient btn-lg" onclick="submitForm()">
-              <span id="button-text">ENVIAR</span>
-              <span id="loading-icon" class="spinner-border spinner-border-sm" style="display:none;"></span>
-              <span id="sending-text" style="display:none;">Enviando correo…</span>
-            </button>
-            <a href="{{ url('new412_seguimiento') }}" class="btn btn-secondary btn-lg mx-2">REGRESAR</a>
-          </div>
-
-        </form>
-      </div>
+<div class="s412-section">
+    <div class="s412-section__head">
+        <span><i class="fas fa-user-injured mr-1"></i> Paciente y Consulta</span>
+        <span class="s412-step">Paso 1/5</span>
     </div>
-  </div>
+    <div class="s412-section__body">
+        <div class="row">
+            <div class="col-12 col-lg-8">
+                <div class="s412-field">
+                    <div class="s412-year-filter">
+                        <label for="filtro_anio_paciente_412"><i class="fas fa-filter mr-1"></i> Filtro por anio</label>
+                        <select id="filtro_anio_paciente_412" name="filtro_anio_paciente_412">
+                            <option value="{{ $currentYear }}" {{ (string)$selectedYear === (string)$currentYear ? 'selected' : '' }}>{{ $currentYear }} (actual)</option>
+                            @foreach($years as $year)
+                                @if((int)$year !== $currentYear)
+                                    <option value="{{ $year }}" {{ (string)$selectedYear === (string)$year ? 'selected' : '' }}>{{ $year }}</option>
+                                @endif
+                            @endforeach
+                            <option value="all" {{ (string)$selectedYear === 'all' ? 'selected' : '' }}>Todos los anios</option>
+                        </select>
+                    </div>
+
+                    <label for="cargue412_id">Seleccionar paciente <span class="s412-req">*</span></label>
+                    <div class="s412-input-group">
+                        <i class="fas fa-search s412-icon"></i>
+                        <select id="cargue412_id" name="cargue412_id" class="s412-select with-icon" required>
+                            <option value="">Seleccione paciente...</option>
+                            @foreach($incomeedit as $p)
+                                @php
+                                    $fecha = null;
+                                    $anio = '';
+                                    if (!empty($p->created_at)) {
+                                        try {
+                                            $fecha = \Carbon\Carbon::parse($p->created_at);
+                                            $anio = $fecha->year;
+                                        } catch (\Throwable $e) {
+                                            $fecha = null;
+                                            $anio = '';
+                                        }
+                                    }
+
+                                    $fullName = trim(implode(' ', array_filter([
+                                        $p->primer_nombre ?? null,
+                                        $p->segundo_nombre ?? null,
+                                        $p->primer_apellido ?? null,
+                                        $p->segundo_apellido ?? null,
+                                    ])));
+
+                                    $fechaText = $fecha ? $fecha->format('Y-m-d') : 'SIN FECHA';
+                                @endphp
+                                <option
+                                    value="{{ $p->idin }}"
+                                    data-year="{{ $anio }}"
+                                    data-fecha="{{ $fechaText }}"
+                                    data-nombre="{{ $fullName }}"
+                                    data-documento="{{ $p->numero_identificacion }}"
+                                    data-codigo="{{ $p->idin }}"
+                                    {{ old('cargue412_id') == $p->idin ? 'selected' : '' }}>
+                                    {{ $fullName }} - {{ $p->numero_identificacion }} ({{ $fechaText }})
+                                </option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <p class="s412-year-meta" id="patientYearHelp412">Cargando pacientes filtrados por anio...</p>
+                    @error('cargue412_id')<div class="s412-error">{{ $message }}</div>@enderror
+                </div>
+            </div>
+
+            <div class="col-12 col-lg-4">
+                <div class="s412-field">
+                    <label for="fecha_consulta">Fecha consulta <span class="s412-req">*</span></label>
+                    <div class="s412-input-group">
+                        <i class="fas fa-calendar-alt s412-icon"></i>
+                        <input type="date" id="fecha_consulta" name="fecha_consulta" class="s412-input with-icon" value="{{ old('fecha_consulta', now()->format('Y-m-d')) }}" required>
+                    </div>
+                    @error('fecha_consulta')<div class="s412-error">{{ $message }}</div>@enderror
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
 
+<div class="s412-section">
+    <div class="s412-section__head">
+        <span><i class="fas fa-ruler-combined mr-1"></i> Antropometria</span>
+        <span class="s412-step">Paso 2/5</span>
+    </div>
+    <div class="s412-section__body">
+        <div class="row">
+            <div class="col-12 col-md-4">
+                <div class="s412-field">
+                    <label for="talla_cm">Talla (cm) <span class="s412-req">*</span></label>
+                    <div class="s412-input-group">
+                        <i class="fas fa-ruler s412-icon"></i>
+                        <input type="number" step="0.01" id="talla_cm" name="talla_cm" class="s412-input with-icon" value="{{ old('talla_cm') }}" required>
+                    </div>
+                    @error('talla_cm')<div class="s412-error">{{ $message }}</div>@enderror
+                </div>
+            </div>
 
-@section('js')
-<script>
-  $(function(){
-    // Select2 initialization
-    $('.person, .person2, #cargue412_id').select2({
-      placeholder: 'Seleccione...',
-      allowClear: true,
-      width: 'resolve'
-    });
-    $('.js-example-basic-multiple').select2({
-      placeholder: 'Seleccione medicamento(s)...',
-      multiple: true,
-      closeOnSelect: false,
-      allowClear: true,
-      width: 'resolve'
-    });
+            <div class="col-12 col-md-4">
+                <div class="s412-field">
+                    <label for="peso_kilos">Peso (kg) <span class="s412-req">*</span></label>
+                    <div class="s412-input-group">
+                        <i class="fas fa-weight-hanging s412-icon"></i>
+                        <input type="number" step="0.0001" id="peso_kilos" name="peso_kilos" class="s412-input with-icon" value="{{ old('peso_kilos') }}" required>
+                    </div>
+                    @error('peso_kilos')<div class="s412-error">{{ $message }}</div>@enderror
+                </div>
+            </div>
 
-    // Estado → Próx. Seguimiento + Motivo
-    $('#estado').on('change', function(){
-      if (this.value === '0') {
-        $('#input_oculto').slideUp();
-        $('#fecha_proximo_control').val('');
-        $('#inputsuperoculto').slideDown();
-      } else {
-        $('#input_oculto').slideDown();
-        $('#inputsuperoculto').slideUp().find('textarea').val('');
-      }
-    }).trigger('change');
+            <div class="col-12 col-md-4">
+                <div class="s412-field">
+                    <label for="puntajez">Puntaje Z <span class="s412-req">*</span></label>
+                    <div class="s412-input-group">
+                        <i class="fas fa-chart-line s412-icon"></i>
+                        <input type="number" step="0.0001" id="puntajez" name="puntajez" class="s412-input with-icon" value="{{ old('puntajez') }}" required>
+                    </div>
+                    @error('puntajez')<div class="s412-error">{{ $message }}</div>@enderror
+                </div>
+            </div>
 
-    // Tratamiento f75 → Fecha recibe f75
-    $('#tratamiento_f75').on('change', function(){
-      if (this.value === 'SI') {
-        $('#row_fecha_recibio_tratf75').slideDown();
-      } else {
-        $('#row_fecha_recibio_tratf75').slideUp().find('input').val('');
-      }
-    }).trigger('change');
-  });
+            <div class="col-12 col-md-6">
+                <div class="s412-field">
+                    <label for="perimetro_braqueal">Perimetro braquial <span class="s412-req">*</span></label>
+                    <div class="s412-input-group">
+                        <i class="fas fa-arrows-alt-h s412-icon"></i>
+                        <input type="text" id="perimetro_braqueal" name="perimetro_braqueal" class="s412-input with-icon" value="{{ old('perimetro_braqueal') }}" required>
+                    </div>
+                    @error('perimetro_braqueal')<div class="s412-error">{{ $message }}</div>@enderror
+                </div>
+            </div>
 
-  function submitForm(){
-    // show spinner/text
-    $('#button-text').hide();
-    $('#loading-icon, #sending-text').show();
-    $('#update-btn').prop('disabled', true);
-    // small delay to render
-    setTimeout(function(){
-      $('#update-form').submit();
-    }, 100);
-  }
-</script>
-@stop
+            <div class="col-12 col-md-6">
+                <div class="s412-field">
+                    <label for="requerimiento_energia_ftlc">Requerimiento energia FTLC <span class="s412-req">*</span></label>
+                    <div class="s412-input-group">
+                        <i class="fas fa-bolt s412-icon"></i>
+                        <input type="text" id="requerimiento_energia_ftlc" name="requerimiento_energia_ftlc" class="s412-input with-icon" value="{{ old('requerimiento_energia_ftlc') }}" required>
+                    </div>
+                    @error('requerimiento_energia_ftlc')<div class="s412-error">{{ $message }}</div>@enderror
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="s412-section">
+    <div class="s412-section__head">
+        <span><i class="fas fa-notes-medical mr-1"></i> Manejo clinico</span>
+        <span class="s412-step">Paso 3/5</span>
+    </div>
+    <div class="s412-section__body">
+        <div class="row">
+            <div class="col-12 col-md-6">
+                <div class="s412-field">
+                    <label for="clasificacion">Clasificacion <span class="s412-req">*</span></label>
+                    <select id="clasificacion" name="clasificacion" class="s412-select" required>
+                        <option value="">Seleccione...</option>
+                        <option value="DESNUTRICION AGUDA MODERADA" {{ old('clasificacion') == 'DESNUTRICION AGUDA MODERADA' ? 'selected' : '' }}>Desnutricion aguda moderada</option>
+                        <option value="DESNUTRICION AGUDA SEVERA" {{ old('clasificacion') == 'DESNUTRICION AGUDA SEVERA' ? 'selected' : '' }}>Desnutricion aguda severa</option>
+                        <option value="DESNUTRICION AGUDA SEVERA TIPO KWASHIORKOR" {{ old('clasificacion') == 'DESNUTRICION AGUDA SEVERA TIPO KWASHIORKOR' ? 'selected' : '' }}>Kwashiorkor</option>
+                        <option value="DESNUTRICION AGUDA SEVERA TIPO MARASMO" {{ old('clasificacion') == 'DESNUTRICION AGUDA SEVERA TIPO MARASMO' ? 'selected' : '' }}>Marasmo</option>
+                        <option value="DESNUTRICION AGUDA SEVERA MIXTA" {{ old('clasificacion') == 'DESNUTRICION AGUDA SEVERA MIXTA' ? 'selected' : '' }}>Mixta</option>
+                        <option value="RIESGO DE DESNUTRICION" {{ old('clasificacion') == 'RIESGO DE DESNUTRICION' ? 'selected' : '' }}>Riesgo de desnutricion</option>
+                        <option value="BUSQUEDA FALLIDA" {{ old('clasificacion') == 'BUSQUEDA FALLIDA' ? 'selected' : '' }}>Busqueda fallida</option>
+                        <option value="PESO ADECUADO PARA LA TALLA" {{ old('clasificacion') == 'PESO ADECUADO PARA LA TALLA' ? 'selected' : '' }}>Peso adecuado para la talla</option>
+                    </select>
+                    @error('clasificacion')<div class="s412-error">{{ $message }}</div>@enderror
+                </div>
+            </div>
+
+            <div class="col-12 col-md-6">
+                <div class="s412-field">
+                    <label for="observaciones">Observaciones <span class="s412-req">*</span></label>
+                    <textarea id="observaciones" name="observaciones" class="s412-textarea" maxlength="600" required>{{ old('observaciones') }}</textarea>
+                    @error('observaciones')<div class="s412-error">{{ $message }}</div>@enderror
+                </div>
+            </div>
+
+            <div class="col-12">
+                <div class="s412-field">
+                    <label for="medicamento">Medicamentos <span class="s412-req">*</span></label>
+                    <select id="medicamento" name="medicamento[]" class="s412-select" multiple required>
+                        <option value="23072-2" {{ $medicamentosOld->contains('23072-2') ? 'selected' : '' }}>Albendazol 200mg</option>
+                        <option value="54114-1" {{ $medicamentosOld->contains('54114-1') ? 'selected' : '' }}>Albendazol 400mg</option>
+                        <option value="35662-18" {{ $medicamentosOld->contains('35662-18') ? 'selected' : '' }}>Acido folico</option>
+                        <option value="31063-1" {{ $medicamentosOld->contains('31063-1') ? 'selected' : '' }}>Vitamina A</option>
+                        <option value="27440-3" {{ $medicamentosOld->contains('27440-3') ? 'selected' : '' }}>Hierro</option>
+                        <option value="NO APLICA" {{ $medicamentosOld->contains('NO APLICA') ? 'selected' : '' }}>No aplica</option>
+                    </select>
+                    @error('medicamento')<div class="s412-error">{{ $message }}</div>@enderror
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="s412-section">
+    <div class="s412-section__head">
+        <span><i class="fas fa-syringe mr-1"></i> Demanda inducida</span>
+        <span class="s412-step">Paso 4/5</span>
+    </div>
+    <div class="s412-section__body">
+        <div class="row">
+            <div class="col-12 col-md-6">
+                <div class="s412-field">
+                    <label for="Esquemq_complrto_pai_edad">Esquema PAI <span class="s412-req">*</span></label>
+                    <select id="Esquemq_complrto_pai_edad" name="Esquemq_complrto_pai_edad" class="s412-select" required>
+                        <option value="">Seleccione...</option>
+                        <option value="INCOMPLETO" {{ old('Esquemq_complrto_pai_edad') == 'INCOMPLETO' ? 'selected' : '' }}>Incompleto</option>
+                        <option value="COMPLETO" {{ old('Esquemq_complrto_pai_edad') == 'COMPLETO' ? 'selected' : '' }}>Completo</option>
+                    </select>
+                    @error('Esquemq_complrto_pai_edad')<div class="s412-error">{{ $message }}</div>@enderror
+                </div>
+            </div>
+
+            <div class="col-12 col-md-6">
+                <div class="s412-field">
+                    <label for="Atecion_primocion_y_mantenimiento_res3280_2018">Atencion promocion y mantenimiento <span class="s412-req">*</span></label>
+                    <select id="Atecion_primocion_y_mantenimiento_res3280_2018" name="Atecion_primocion_y_mantenimiento_res3280_2018" class="s412-select" required>
+                        <option value="">Seleccione...</option>
+                        <option value="SI" {{ old('Atecion_primocion_y_mantenimiento_res3280_2018') == 'SI' ? 'selected' : '' }}>Si</option>
+                        <option value="NO" {{ old('Atecion_primocion_y_mantenimiento_res3280_2018') == 'NO' ? 'selected' : '' }}>No</option>
+                    </select>
+                    @error('Atecion_primocion_y_mantenimiento_res3280_2018')<div class="s412-error">{{ $message }}</div>@enderror
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="s412-section">
+    <div class="s412-section__head">
+        <span><i class="fas fa-check-circle mr-1"></i> Cierre de caso</span>
+        <span class="s412-step">Paso 5/5</span>
+    </div>
+    <div class="s412-section__body">
+        <div class="row">
+            <div class="col-12 col-md-4">
+                <div class="s412-field">
+                    <label for="est_act_menor">Estado actual del menor</label>
+                    <select id="est_act_menor" name="est_act_menor" class="s412-select" required>
+                        <option value="">Seleccione...</option>
+                        <option value="DESNUTRICION AGUDA MODERADA" {{ old('est_act_menor') == 'DESNUTRICION AGUDA MODERADA' ? 'selected' : '' }}>Desnutricion aguda moderada</option>
+                        <option value="PESO ADECUADO PARA LA TALLA" {{ old('est_act_menor') == 'PESO ADECUADO PARA LA TALLA' ? 'selected' : '' }}>Peso adecuado para la talla</option>
+                        <option value="RIESGO DE DESNUTRICION AGUDA" {{ old('est_act_menor') == 'RIESGO DE DESNUTRICION AGUDA' ? 'selected' : '' }}>Riesgo de desnutricion aguda</option>
+                        <option value="DESNUTRICION AGUDA SEVERA TIPO MARASMO" {{ old('est_act_menor') == 'DESNUTRICION AGUDA SEVERA TIPO MARASMO' ? 'selected' : '' }}>Marasmo</option>
+                        <option value="DESNUTRICION AGUDA SEVERA TIPO KWASHIORKOR" {{ old('est_act_menor') == 'DESNUTRICION AGUDA SEVERA TIPO KWASHIORKOR' ? 'selected' : '' }}>Kwashiorkor</option>
+                        <option value="DESNUTRICION AGUDA SEVERA MIXTA" {{ old('est_act_menor') == 'DESNUTRICION AGUDA SEVERA MIXTA' ? 'selected' : '' }}>Mixta</option>
+                        <option value="EN PROCESO DE RECUPERACION" {{ old('est_act_menor') == 'EN PROCESO DE RECUPERACION' ? 'selected' : '' }}>En proceso de recuperacion</option>
+                        <option value="BUSQUEDA FALLIDA" {{ old('est_act_menor') == 'BUSQUEDA FALLIDA' ? 'selected' : '' }}>Busqueda fallida</option>
+                        <option value="PROCESO DE RECUPERACION" {{ old('est_act_menor') == 'PROCESO DE RECUPERACION' ? 'selected' : '' }}>Proceso de recuperacion</option>
+                        <option value="RECUPERADO" {{ old('est_act_menor') == 'RECUPERADO' ? 'selected' : '' }}>Recuperado</option>
+                        <option value="FALLECIDO" {{ old('est_act_menor') == 'FALLECIDO' ? 'selected' : '' }}>Fallecido</option>
+                    </select>
+                    @error('est_act_menor')<div class="s412-error">{{ $message }}</div>@enderror
+                </div>
+            </div>
+
+            <div class="col-12 col-md-4">
+                <div class="s412-field">
+                    <label for="tratamiento_f75">Tratamiento F75</label>
+                    <select id="tratamiento_f75" name="tratamiento_f75" class="s412-select" required>
+                        <option value="">Seleccione...</option>
+                        <option value="SI" {{ old('tratamiento_f75') == 'SI' ? 'selected' : '' }}>Si</option>
+                        <option value="NO" {{ old('tratamiento_f75') == 'NO' ? 'selected' : '' }}>No</option>
+                    </select>
+                    @error('tratamiento_f75')<div class="s412-error">{{ $message }}</div>@enderror
+                </div>
+            </div>
+
+            <div class="col-12 col-md-4" id="row_fecha_recibio_tratf75" style="display:none;">
+                <div class="s412-field">
+                    <label for="fecha_recibio_tratf75">Fecha recibio tratamiento F75</label>
+                    <input type="date" id="fecha_recibio_tratf75" name="fecha_recibio_tratf75" class="s412-input" value="{{ old('fecha_recibio_tratf75') }}">
+                    @error('fecha_recibio_tratf75')<div class="s412-error">{{ $message }}</div>@enderror
+                </div>
+            </div>
+
+            <div class="col-12 col-md-4">
+                <div class="s412-field">
+                    <label for="estado">Estado de seguimiento <span class="s412-req">*</span></label>
+                    <select id="estado" name="estado" class="s412-select" required>
+                        <option value="">Seleccione...</option>
+                        <option value="1" {{ old('estado') == '1' ? 'selected' : '' }}>Abierto</option>
+                        <option value="0" {{ old('estado') == '0' ? 'selected' : '' }}>Cerrado</option>
+                    </select>
+                    @error('estado')<div class="s412-error">{{ $message }}</div>@enderror
+                </div>
+            </div>
+
+            <div class="col-12 col-md-4" id="input_oculto">
+                <div class="s412-field">
+                    <label for="fecha_proximo_control">Fecha proximo seguimiento</label>
+                    <input type="date" id="fecha_proximo_control" name="fecha_proximo_control" class="s412-input" value="{{ old('fecha_proximo_control') }}">
+                    @error('fecha_proximo_control')<div class="s412-error">{{ $message }}</div>@enderror
+                </div>
+            </div>
+
+            <div class="col-12 col-md-4" id="inputsuperoculto" style="display:none;">
+                <div class="s412-field">
+                    <label for="motivo_reapuertura">Motivo de cierre/reapertura</label>
+                    <textarea id="motivo_reapuertura" name="motivo_reapuertura" class="s412-textarea" style="min-height: 80px;">{{ old('motivo_reapuertura') }}</textarea>
+                    @error('motivo_reapuertura')<div class="s412-error">{{ $message }}</div>@enderror
+                </div>
+            </div>
+
+            <div class="col-12">
+                <div class="s412-field">
+                    <label for="pdf">Adjuntar PDF <span class="s412-req">*</span></label>
+                    <input type="file" id="pdf" name="pdf" class="s412-input" accept="application/pdf" required>
+                    @error('pdf')<div class="s412-error">{{ $message }}</div>@enderror
+                </div>
+            </div>
+        </div>
+
+        <div class="s412-actions">
+            <button id="update-btn" type="button" class="s412-btn-main" onclick="submitForm()">
+                <i class="fas fa-paper-plane"></i> Guardar seguimiento
+            </button>
+            <a href="{{ url('new412_seguimiento') }}" class="s412-btn-back">
+                <i class="fas fa-arrow-left"></i> Regresar
+            </a>
+        </div>
+    </div>
+</div>
