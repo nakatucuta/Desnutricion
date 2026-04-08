@@ -25,6 +25,7 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Yajra\DataTables\Facades\DataTables;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class SeguimientoController extends Controller
 {
@@ -234,29 +235,49 @@ public function index()
 public function viewPDF($id)
 {
     $seguimiento = Seguimiento::findOrFail($id);
-    $nombreArchivo = $seguimiento->pdf;
+    $raw = (string) ($seguimiento->pdf ?? '');
+    $normalized = ltrim(str_replace('\\', '/', trim($raw)), '/');
+    $normalized = preg_replace('#^storage/#', '', $normalized);
+    $basename = basename($normalized);
 
-    // Ruta 1: raÃƒÆ’Ã‚Â­z de /public
-    $ruta1 = $nombreArchivo;
+    $candidates = array_values(array_unique(array_filter([
+        $normalized,
+        'pdf/' . $normalized,
+        $basename,
+        'pdf/' . $basename,
+    ])));
 
-    // Ruta 2: subcarpeta /public/pdf
-    $ruta2 = 'pdf/' . $nombreArchivo;
+    foreach ($candidates as $relativePath) {
+        if (Storage::disk('public')->exists($relativePath)) {
+            return response()->file(Storage::disk('public')->path($relativePath));
+        }
 
-    if (Storage::disk('public')->exists($ruta1)) {
-        \Log::info("viewPDF: encontrado en disk(public): {$ruta1}");
-        return redirect(Storage::url($ruta1));
+        $fullPaths = [
+            public_path($relativePath),
+            public_path('storage/' . $relativePath),
+            storage_path('app/public/' . $relativePath),
+        ];
+
+        foreach ($fullPaths as $fullPath) {
+            if (is_file($fullPath)) {
+                return response()->file($fullPath);
+            }
+        }
     }
 
-    if (Storage::disk('public')->exists($ruta2)) {
-        \Log::info("viewPDF: encontrado en disk(public): {$ruta2}");
-        return redirect(Storage::url($ruta2));
-    }
+    \Log::error('viewPDF ERROR: archivo no encontrado', [
+        'seguimiento_id' => $id,
+        'pdf_raw' => $raw,
+        'candidates' => $candidates,
+    ]);
 
-    // No encontrado en ninguna de las dos rutas
-    \Log::error("viewPDF ERROR: no existe en disk(public): {$ruta1} ni {$ruta2}");
-    abort(404, 'El archivo PDF no se encuentra disponible.');
+    return response()->view('shared.pdf_not_found', [
+        'moduleName' => 'Seguimiento 113',
+        'recordId' => $id,
+        'rawPath' => $raw,
+        'backUrl' => route('revision.index'),
+    ], 404);
 }
-
     /**
      * Show the form for creating a new resource.
      *
@@ -1216,6 +1237,161 @@ public function buscarSeguimiento(Request $request)
     }
 
     return response()->json([]);
+}
+
+public function reportDesigner()
+{
+    $year = (int) now()->year;
+    $columns = $this->getReportColumns113();
+
+    return view('report_designer.index', [
+        'moduleKey' => '113',
+        'moduleLabel' => 'Seguimiento 113',
+        'year' => $year,
+        'columns' => $columns,
+        'lockedColumns' => ['registro_id', 'documento', 'nombre_paciente'],
+        'previewUrl' => route('Seguimiento.report-preview'),
+        'exportUrl' => route('Seguimiento.report-export'),
+        'backUrl' => route('Seguimiento.index'),
+    ]);
+}
+
+public function reportPreview(Request $request)
+{
+    $payload = $this->buildReportPayload113($request, true);
+    return response()->json($payload);
+}
+
+public function reportExport(Request $request): StreamedResponse
+{
+    $payload = $this->buildReportPayload113($request, false);
+    $headers = $payload['headers'];
+    $rows = $payload['rows'];
+    $filename = 'reporte_seguimiento_113_' . now()->format('Ymd_His') . '.csv';
+
+    return response()->streamDownload(function () use ($headers, $rows) {
+        $out = fopen('php://output', 'w');
+        // UTF-8 BOM for Excel compatibility.
+        fwrite($out, "\xEF\xBB\xBF");
+        fputcsv($out, $headers, ';');
+        foreach ($rows as $row) {
+            fputcsv($out, $row, ';');
+        }
+        fclose($out);
+    }, $filename, ['Content-Type' => 'text/csv; charset=UTF-8']);
+}
+
+private function getReportColumns113(): array
+{
+    return [
+        'registro_id' => 'ID seguimiento',
+        'documento' => 'Documento',
+        'nombre_paciente' => 'Nombre paciente',
+        'responsable' => 'Responsable',
+        'fecha_consulta' => 'Fecha consulta',
+        'estado' => 'Estado',
+        'clasificacion' => 'Clasificacion',
+        'puntajez' => 'Puntaje Z',
+        'peso_kilos' => 'Peso (kg)',
+        'talla_cm' => 'Talla (cm)',
+        'perimetro_braqueal' => 'Perimetro braquial',
+        'requerimiento_energia_ftlc' => 'Energia FTLC',
+        'fecha_entrega_ftlc' => 'Fecha entrega FTLC',
+        'medicamento' => 'Medicamentos',
+        'observaciones' => 'Observaciones',
+        'est_act_menor' => 'Estado actual del menor',
+        'tratamiento_f75' => 'Tratamiento F75',
+        'fecha_recibio_tratf75' => 'Fecha recibio F75',
+        'fecha_proximo_control' => 'Fecha proximo control',
+        'esquema_pai' => 'Esquema PAI',
+        'atencion_mantenimiento' => 'Atencion promocion y mantenimiento',
+        'motivo_reapuertura' => 'Motivo reapertura',
+        'fecha_registro' => 'Fecha registro',
+    ];
+}
+
+private function buildReportPayload113(Request $request, bool $preview): array
+{
+    $locked = ['registro_id', 'documento', 'nombre_paciente'];
+    $columnsCatalog = $this->getReportColumns113();
+    $selected = collect($request->input('columns', []))
+        ->filter(fn($c) => is_string($c) && array_key_exists($c, $columnsCatalog))
+        ->values()
+        ->all();
+    $selected = array_values(array_unique(array_merge($locked, $selected)));
+
+    $year = (int) $request->input('anio', now()->year);
+    $status = $request->input('estado', 'all');
+    $q = trim((string) $request->input('q', ''));
+    $user = Auth::user();
+
+    $query = DB::table('seguimientos as seg')
+        ->join('sivigilas as s', 's.id', '=', 'seg.sivigilas_id')
+        ->join('users as u', 'u.id', '=', 'seg.user_id')
+        ->select([
+            'seg.id as registro_id',
+            's.num_ide_ as documento',
+            DB::raw("CONCAT(COALESCE(s.pri_nom_,''),' ',COALESCE(s.seg_nom_,''),' ',COALESCE(s.pri_ape_,''),' ',COALESCE(s.seg_ape_,'')) as nombre_paciente"),
+            'u.name as responsable',
+            'seg.fecha_consulta',
+            'seg.estado',
+            'seg.clasificacion',
+            'seg.puntajez',
+            'seg.peso_kilos',
+            'seg.talla_cm',
+            'seg.perimetro_braqueal',
+            'seg.requerimiento_energia_ftlc',
+            'seg.fecha_entrega_ftlc',
+            'seg.medicamento',
+            'seg.observaciones',
+            'seg.est_act_menor',
+            'seg.tratamiento_f75',
+            'seg.fecha_recibio_tratf75',
+            'seg.fecha_proximo_control',
+            'seg.Esquemq_complrto_pai_edad as esquema_pai',
+            'seg.Atecion_primocion_y_mantenimiento_res3280_2018 as atencion_mantenimiento',
+            'seg.motivo_reapuertura',
+            'seg.created_at as fecha_registro',
+        ])
+        ->whereYear('seg.created_at', $year)
+        ->when(!in_array($user->usertype, [1, 3]), fn($qq) => $qq->where('seg.user_id', $user->id))
+        ->when($status === 'abierto', fn($qq) => $qq->where('seg.estado', 1))
+        ->when($status === 'cerrado', fn($qq) => $qq->where('seg.estado', '!=', 1))
+        ->when($q !== '', function ($qq) use ($q) {
+            $qq->where(function ($w) use ($q) {
+                $w->where('s.num_ide_', 'like', "%{$q}%")
+                  ->orWhere('s.pri_nom_', 'like', "%{$q}%")
+                  ->orWhere('s.seg_nom_', 'like', "%{$q}%")
+                  ->orWhere('s.pri_ape_', 'like', "%{$q}%")
+                  ->orWhere('s.seg_ape_', 'like', "%{$q}%")
+                  ->orWhere('seg.clasificacion', 'like', "%{$q}%");
+            });
+        })
+        ->orderByDesc('seg.id');
+
+    $rows = $preview ? $query->limit(120)->get() : $query->get();
+
+    $headers = array_map(fn($key) => $columnsCatalog[$key], $selected);
+    $dataRows = $rows->map(function ($row) use ($selected) {
+        return collect($selected)->map(function ($key) use ($row) {
+            $value = $row->{$key} ?? '';
+            if ($key === 'estado') {
+                return ((string) $value === '1') ? 'Abierto' : 'Cerrado';
+            }
+            return is_null($value) ? '' : (string) $value;
+        })->all();
+    })->all();
+
+    return [
+        'headers' => $headers,
+        'rows' => $dataRows,
+        'meta' => [
+            'total' => count($dataRows),
+            'year' => $year,
+            'status' => $status,
+            'query' => $q,
+        ],
+    ];
 }
 
 

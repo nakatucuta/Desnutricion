@@ -22,6 +22,7 @@ use Maatwebsite\Excel\Facades\Excel;
 use App\Exports\Seguimiento412Export;
 use Illuminate\Support\Facades\Log;
 use Yajra\DataTables\Facades\DataTables;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 
 
@@ -509,17 +510,195 @@ public function data(Request $request)
 
 
     // Método para ver el PDF
+public function reportDesigner()
+{
+    $year = (int) now()->year;
+    $columns = $this->getReportColumns412();
+
+    return view('report_designer.index', [
+        'moduleKey' => '412',
+        'moduleLabel' => 'Seguimiento 412',
+        'year' => $year,
+        'columns' => $columns,
+        'lockedColumns' => ['registro_id', 'documento', 'nombre_paciente'],
+        'previewUrl' => route('new412_seguimiento.report-preview'),
+        'exportUrl' => route('new412_seguimiento.report-export'),
+        'backUrl' => route('new412_seguimiento.index'),
+    ]);
+}
+
+public function reportPreview(Request $request)
+{
+    $payload = $this->buildReportPayload412($request, true);
+    return response()->json($payload);
+}
+
+public function reportExport(Request $request): StreamedResponse
+{
+    $payload = $this->buildReportPayload412($request, false);
+    $headers = $payload['headers'];
+    $rows = $payload['rows'];
+    $filename = 'reporte_seguimiento_412_' . now()->format('Ymd_His') . '.csv';
+
+    return response()->streamDownload(function () use ($headers, $rows) {
+        $out = fopen('php://output', 'w');
+        fwrite($out, "\xEF\xBB\xBF");
+        fputcsv($out, $headers, ';');
+        foreach ($rows as $row) {
+            fputcsv($out, $row, ';');
+        }
+        fclose($out);
+    }, $filename, ['Content-Type' => 'text/csv; charset=UTF-8']);
+}
+
+private function getReportColumns412(): array
+{
+    return [
+        'registro_id' => 'ID seguimiento',
+        'documento' => 'Documento',
+        'nombre_paciente' => 'Nombre paciente',
+        'responsable' => 'Responsable',
+        'fecha_consulta' => 'Fecha consulta',
+        'estado' => 'Estado',
+        'clasificacion' => 'Clasificacion',
+        'puntajez' => 'Puntaje Z',
+        'peso_kilos' => 'Peso (kg)',
+        'talla_cm' => 'Talla (cm)',
+        'perimetro_braqueal' => 'Perimetro braquial',
+        'requerimiento_energia_ftlc' => 'Energia FTLC',
+        'medicamento' => 'Medicamentos',
+        'observaciones' => 'Observaciones',
+        'est_act_menor' => 'Estado actual del menor',
+        'fecha_proximo_control' => 'Fecha proximo control',
+        'esquema_pai' => 'Esquema PAI',
+        'atencion_mantenimiento' => 'Atencion promocion y mantenimiento',
+        'motivo_reapuertura' => 'Motivo reapertura',
+        'fecha_registro' => 'Fecha registro',
+    ];
+}
+
+private function buildReportPayload412(Request $request, bool $preview): array
+{
+    $locked = ['registro_id', 'documento', 'nombre_paciente'];
+    $columnsCatalog = $this->getReportColumns412();
+    $selected = collect($request->input('columns', []))
+        ->filter(fn($c) => is_string($c) && array_key_exists($c, $columnsCatalog))
+        ->values()
+        ->all();
+    $selected = array_values(array_unique(array_merge($locked, $selected)));
+
+    $year = (int) $request->input('anio', now()->year);
+    $status = $request->input('estado', 'all');
+    $q = trim((string) $request->input('q', ''));
+    $user = Auth::user();
+
+    $query = DB::table('seguimiento_412s as seg')
+        ->join('cargue412s as c', 'c.id', '=', 'seg.cargue412_id')
+        ->join('users as u', 'u.id', '=', 'seg.user_id')
+        ->select([
+            'seg.id as registro_id',
+            'c.numero_identificacion as documento',
+            DB::raw("CONCAT(COALESCE(c.primer_nombre,''),' ',COALESCE(c.segundo_nombre,''),' ',COALESCE(c.primer_apellido,''),' ',COALESCE(c.segundo_apellido,'')) as nombre_paciente"),
+            'u.name as responsable',
+            'seg.fecha_consulta',
+            'seg.estado',
+            'seg.clasificacion',
+            'seg.puntajez',
+            'seg.peso_kilos',
+            'seg.talla_cm',
+            'seg.perimetro_braqueal',
+            'seg.requerimiento_energia_ftlc',
+            'seg.medicamento',
+            'seg.observaciones',
+            'seg.est_act_menor',
+            'seg.fecha_proximo_control',
+            'seg.Esquemq_complrto_pai_edad as esquema_pai',
+            'seg.Atecion_primocion_y_mantenimiento_res3280_2018 as atencion_mantenimiento',
+            'seg.motivo_reapuertura',
+            'seg.created_at as fecha_registro',
+        ])
+        ->whereYear('seg.created_at', $year)
+        ->when($user->usertype == 2, fn($qq) => $qq->where('seg.user_id', $user->id))
+        ->when($status === 'abierto', fn($qq) => $qq->where('seg.estado', 1))
+        ->when($status === 'cerrado', fn($qq) => $qq->where('seg.estado', 0))
+        ->when($q !== '', function ($qq) use ($q) {
+            $qq->where(function ($w) use ($q) {
+                $w->where('c.numero_identificacion', 'like', "%{$q}%")
+                  ->orWhere('c.primer_nombre', 'like', "%{$q}%")
+                  ->orWhere('c.segundo_nombre', 'like', "%{$q}%")
+                  ->orWhere('c.primer_apellido', 'like', "%{$q}%")
+                  ->orWhere('c.segundo_apellido', 'like', "%{$q}%")
+                  ->orWhere('seg.clasificacion', 'like', "%{$q}%");
+            });
+        })
+        ->orderByDesc('seg.id');
+
+    $rows = $preview ? $query->limit(120)->get() : $query->get();
+
+    $headers = array_map(fn($key) => $columnsCatalog[$key], $selected);
+    $dataRows = $rows->map(function ($row) use ($selected) {
+        return collect($selected)->map(function ($key) use ($row) {
+            $value = $row->{$key} ?? '';
+            if ($key === 'estado') {
+                return ((string) $value === '1') ? 'Abierto' : 'Cerrado';
+            }
+            return is_null($value) ? '' : (string) $value;
+        })->all();
+    })->all();
+
+    return [
+        'headers' => $headers,
+        'rows' => $dataRows,
+        'meta' => [
+            'total' => count($dataRows),
+            'year' => $year,
+            'status' => $status,
+            'query' => $q,
+        ],
+    ];
+}
 public function viewPDF($id)
 {
     $seguimiento = Seguimiento_412::findOrFail($id);
-    $filePath = storage_path('app/public/pdf/' . $seguimiento->pdf);
+    $raw = (string) ($seguimiento->pdf ?? '');
+    $normalized = ltrim(str_replace('\\', '/', trim($raw)), '/');
+    $normalized = preg_replace('#^storage/#', '', $normalized);
+    $basename = basename($normalized);
 
-    return response()->file($filePath);
+    $candidates = array_values(array_unique(array_filter([
+        $normalized,
+        'pdf/' . $normalized,
+        $basename,
+        'pdf/' . $basename,
+    ])));
+
+    foreach ($candidates as $relativePath) {
+        if (is_file(storage_path('app/public/' . $relativePath))) {
+            return response()->file(storage_path('app/public/' . $relativePath));
+        }
+
+        if (is_file(public_path($relativePath))) {
+            return response()->file(public_path($relativePath));
+        }
+
+        if (is_file(public_path('storage/' . $relativePath))) {
+            return response()->file(public_path('storage/' . $relativePath));
+        }
+    }
+
+    \Log::error('viewPDF 412 ERROR: archivo no encontrado', [
+        'seguimiento_id' => $id,
+        'pdf_raw' => $raw,
+        'candidates' => $candidates,
+    ]);
+
+    return response()->view('shared.pdf_not_found', [
+        'moduleName' => 'Seguimiento 412',
+        'recordId' => $id,
+        'rawPath' => $raw,
+        'backUrl' => route('revision.index'),
+    ], 404);
 }
-
-
-
-
 public function reporte_seguimiento412()
 {   
     return Excel::download(new Seguimiento412Export, 'seguimientos_412.xls');

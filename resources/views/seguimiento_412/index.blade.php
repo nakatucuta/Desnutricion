@@ -40,6 +40,10 @@
             <i class="fas fa-file-export mr-1"></i> Exportar reporte
         </button>
         <div class="dropdown-menu dropdown-menu-right" aria-labelledby="dropdownExport">
+            <a class="dropdown-item" href="{{ route('new412_seguimiento.report-designer') }}">
+                <i class="fas fa-drafting-compass mr-2 text-primary"></i> Disenador de reporte
+            </a>
+            <div class="dropdown-divider"></div>
             <a class="dropdown-item" href="{{ route('export6') }}">
                 <i class="far fa-file-alt mr-2 text-info"></i> Reporte general
             </a>

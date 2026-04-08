@@ -596,17 +596,6 @@ return [
         // ],
         ['header' => 'labels'],
         [
-            'text'       => 'ALERTAS',
-            'icon_color' => 'red',
-            'url'        => 'alert',
-            'label'       => '***',  
-            'label_color' => 'danger',
-            'icon_color'  => 'red',
-            'icon'        => 'fas fa-exclamation-triangle fa-2x ',
-            
-        ],
-
-        [
             'text'       => 'ESTADISTICAS',
             'icon_color' => 'blue',
             'url'        => 'grafica-barras',

@@ -168,11 +168,25 @@ Route::middleware(['auth', \App\Http\Middleware\IncreaseExecutionTime::class])->
 });
 
 
+Route::get('revision/data', [RevisionController::class, 'data'])
+     ->name('revision.data')
+     ->middleware('auth');
+
 Route::resource('revision', RevisionController::class);
 
 Route::resource('seguimiento_ocasional', SeguimientoOcasionalController::class)->middleware('auth');
 Route::resource('new412', Cargue412Controller::class);
-Route::resource('new412_seguimiento', Seguimiento412Controller::class);
+Route::get('new412_seguimiento/report-designer', [Seguimiento412Controller::class, 'reportDesigner'])
+     ->name('new412_seguimiento.report-designer')
+     ->middleware('auth');
+Route::post('new412_seguimiento/report-preview', [Seguimiento412Controller::class, 'reportPreview'])
+     ->name('new412_seguimiento.report-preview')
+     ->middleware('auth');
+Route::post('new412_seguimiento/report-export', [Seguimiento412Controller::class, 'reportExport'])
+     ->name('new412_seguimiento.report-export')
+     ->middleware('auth');
+Route::resource('new412_seguimiento', Seguimiento412Controller::class)
+     ->whereNumber('new412_seguimiento');
 
 // Ruta adicional para DataTables (AJAX)
 Route::get('new412_seguimiento-data', [Seguimiento412Controller::class, 'data'])
@@ -190,8 +204,18 @@ Route::get('/Seguimiento/data', [SeguimientoController::class, 'data'])
      ->name('Seguimiento.data')
      ->middleware('auth');
 
-Route::resource('Seguimiento', SeguimientoController::class)
+Route::get('Seguimiento/report-designer', [SeguimientoController::class, 'reportDesigner'])
+     ->name('Seguimiento.report-designer')
      ->middleware('auth');
+Route::post('Seguimiento/report-preview', [SeguimientoController::class, 'reportPreview'])
+     ->name('Seguimiento.report-preview')
+     ->middleware('auth');
+Route::post('Seguimiento/report-export', [SeguimientoController::class, 'reportExport'])
+     ->name('Seguimiento.report-export')
+     ->middleware('auth');
+Route::resource('Seguimiento', SeguimientoController::class)
+     ->middleware('auth')
+     ->whereNumber('Seguimiento');
      
      // Para que Select2 AJAX busque pacientes
 Route::get('Seguimiento/search-pacientes', [SeguimientoController::class, 'searchPacientes'])
