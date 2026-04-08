@@ -348,7 +348,10 @@ public function reportExport(Request $request)
      * @return \Illuminate\Http\Response
      */
     public function create($num_ide_,$fec_not)
-    { 
+    {
+        $num_ide_ = trim((string) $num_ide_);
+        $fec_not = trim((string) $fec_not);
+
         $fecha_casteada = DB::connection('sqlsrv_1')->table('maestroSiv113')
         ->selectRaw("CONVERT(CHAR(10), '$fec_not', 105) as fec_not")
         // ->selectRaw("CAST(fec_not AS DATE) as fecha_casteada")
@@ -364,6 +367,12 @@ public function reportExport(Request $request)
         ->where('num_ide_', $num_ide_)
         ->whereRaw('CAST(fec_not AS DATE) = ?', [$fecha_casteada])
         ->first();
+
+        if (!$incomeedit1) {
+            return redirect()
+                ->route('sivigila.index')
+                ->with('error', 'No se encontraron datos del paciente para la fecha seleccionada.');
+        }
 
        
         $incomeedit2 = DB::connection('sqlsrv_1')->table('maestroSiv113')
