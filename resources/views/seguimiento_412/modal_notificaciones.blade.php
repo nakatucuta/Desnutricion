@@ -117,11 +117,22 @@
 
     <script>
         document.addEventListener('DOMContentLoaded', function () {
+            const autoCloseMs = 8000;
             setTimeout(function () {
                 if (typeof $ !== 'undefined') {
                     $('#modalNovedades412').modal('show');
                 }
             }, 500);
+
+            setTimeout(function () {
+                const toast = document.getElementById('toastNovedades412');
+                if (toast) {
+                    toast.style.display = 'none';
+                }
+                if (typeof $ !== 'undefined') {
+                    $('#modalNovedades412').modal('hide');
+                }
+            }, autoCloseMs);
         });
     </script>
 @endif

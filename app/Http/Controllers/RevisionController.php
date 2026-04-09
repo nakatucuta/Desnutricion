@@ -199,13 +199,20 @@ class RevisionController extends Controller
                     return '<div class="btn-group" role="group">' . $reviewAction . '</div>';
                 })
                 ->filter(function ($builder) use ($request) {
-                    $search = $request->input('search.value');
-                    if ($search) {
+                    $search = trim((string) $request->input('search.value', ''));
+                    if ($search !== '') {
                         $builder->where(function ($w) use ($search) {
-                            $w->where('documento', 'like', "%{$search}%")
+                            $w->where('modulo', 'like', "%{$search}%")
+                              ->orWhere('registro_id', 'like', "%{$search}%")
+                              ->orWhere('documento', 'like', "%{$search}%")
                               ->orWhere('nombre_paciente', 'like', "%{$search}%")
                               ->orWhere('responsable', 'like', "%{$search}%")
-                              ->orWhere('clasificacion', 'like', "%{$search}%");
+                              ->orWhere('fecha_consulta', 'like', "%{$search}%")
+                              ->orWhere('clasificacion', 'like', "%{$search}%")
+                              ->orWhere('fecha_proximo_control', 'like', "%{$search}%")
+                              ->orWhereRaw("CASE WHEN CAST(estado as int)=1 THEN 'abierto' ELSE 'cerrado' END like ?", ["%{$search}%"])
+                              ->orWhereRaw("CASE WHEN CAST(revisado_flag as int)=1 THEN 'revisado' ELSE 'pendiente' END like ?", ["%{$search}%"])
+                              ->orWhereRaw("CASE WHEN modulo='113' THEN 'seguimiento 113' WHEN modulo='412' THEN 'seguimiento 412' ELSE modulo END like ?", ["%{$search}%"]);
                         });
                     }
                 })
