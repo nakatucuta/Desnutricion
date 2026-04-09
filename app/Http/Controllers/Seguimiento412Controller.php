@@ -352,14 +352,14 @@ public function data(Request $request)
                     465,
                     'ssl'
                 );
-                $transport->setUsername(env('MAIL_USERNAME'));
-                $transport->setPassword(env('MAIL_PASSWORD'));
+                $transport->setUsername((string) env('MAIL_USERNAME', ''));
+                $transport->setPassword((string) env('MAIL_PASSWORD', ''));
     
                 Log::info("SMTP configurado: host=".env('MAIL_HOST')." port=465 encryption=ssl");
     
                 $mailer = new Mailer($transport);
                 $email  = (new Email())
-                    ->from(new Address(env('MAIL_FROM_ADDRESS'), env('MAIL_FROM_NAME')))
+                    ->from(new Address((string) env('MAIL_FROM_ADDRESS', 'no-reply@localhost.local'), (string) env('MAIL_FROM_NAME', 'Sistema')))
                     ->to(new Address($user->email))
                     ->subject('Recordatorio de control')
                     ->html($html);
@@ -467,12 +467,12 @@ public function data(Request $request)
                     465,
                     'ssl'
                 );
-                $transport->setUsername(env('MAIL_USERNAME'));
-                $transport->setPassword(env('MAIL_PASSWORD'));
+                $transport->setUsername((string) env('MAIL_USERNAME', ''));
+                $transport->setPassword((string) env('MAIL_PASSWORD', ''));
     
                 $mailer = new Mailer($transport);
                 $email = (new Email())
-                    ->from(new Address(env('MAIL_FROM_ADDRESS'), env('MAIL_FROM_NAME')))
+                    ->from(new Address((string) env('MAIL_FROM_ADDRESS', 'no-reply@localhost.local'), (string) env('MAIL_FROM_NAME', 'Sistema')))
                     ->to(new Address($user->email))
                     ->subject('Recordatorio de control actualizado')
                     ->html($html);

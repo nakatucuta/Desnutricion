@@ -435,30 +435,35 @@ public function viewPDF($id)
                       . "Por favor gestiona lo antes posible en "
                       . "<a href=\"".url('login')."\">la aplicaciÃƒÆ’Ã‚Â³n</a>.";
 
-                // SMTP SSL puerto 465
-                $transport = new EsmtpTransport(
-                    env('MAIL_HOST','smtp.gmail.com'),
-                    465,
-                    'ssl'
-                );
-                $transport->setUsername(env('MAIL_USERNAME'));
-                $transport->setPassword(env('MAIL_PASSWORD'));
+                $mailHost = (string) env('MAIL_HOST', '');
+                $mailUser = (string) env('MAIL_USERNAME', '');
+                $mailPass = (string) env('MAIL_PASSWORD', '');
+                $mailFromAddress = (string) env('MAIL_FROM_ADDRESS', '');
+                $mailFromName = (string) env('MAIL_FROM_NAME', 'Sistema');
 
-                Log::info("SMTP configurado: ".env('MAIL_HOST').":465 ssl");
+                if ($mailHost === '' || $mailUser === '' || $mailPass === '' || $mailFromAddress === '') {
+                    Log::warning('SMTP no configurado para enviar correo de seguimiento 113 (store).');
+                } else {
+                    $transport = new EsmtpTransport($mailHost, 465, 'ssl');
+                    $transport->setUsername($mailUser);
+                    $transport->setPassword($mailPass);
 
-                $mailer = new Mailer($transport);
-                $email  = (new Email())
-                    ->from(new Address(env('MAIL_FROM_ADDRESS'), env('MAIL_FROM_NAME')))
-                    ->to(new Address($user->email))
-                    ->subject('Nuevo seguimiento asignado')
-                    ->html($html);
+                    Log::info("SMTP configurado: {$mailHost}:465 ssl");
 
-                try {
-                    $mailer->send($email);
-                    $mailSent = true;
-                    Log::info("Correo de seguimiento enviado a {$user->email}");
-                } catch (\Throwable $e) {
-                    Log::warning("Error SMTP: {$e->getMessage()}");
+                    $mailer = new Mailer($transport);
+                    $email  = (new Email())
+                        ->from(new Address($mailFromAddress, $mailFromName))
+                        ->to(new Address($user->email))
+                        ->subject('Nuevo seguimiento asignado')
+                        ->html($html);
+
+                    try {
+                        $mailer->send($email);
+                        $mailSent = true;
+                        Log::info("Correo de seguimiento enviado a {$user->email}");
+                    } catch (\Throwable $e) {
+                        Log::warning("Error SMTP: {$e->getMessage()}");
+                    }
                 }
             } else {
                 Log::warning("Usuario ID {$sivigila->user_id} sin email vÃƒÆ’Ã‚Â¡lido");
@@ -586,8 +591,8 @@ public function viewPDF($id)
                     465,
                     'ssl'
                 );
-                $transport->setUsername(env('MAIL_USERNAME'));
-                $transport->setPassword(env('MAIL_PASSWORD'));
+                $transport->setUsername((string) env('MAIL_USERNAME', ''));
+                $transport->setPassword((string) env('MAIL_PASSWORD', ''));
 
                 // Log de la configuraciÃƒÆ’Ã‚Â³n real:
                 Log::info("SMTP configurado: host=" . env('MAIL_HOST') .
@@ -596,7 +601,7 @@ public function viewPDF($id)
                 $mailer = new Mailer($transport);
 
                 $email = (new Email())
-                    ->from(new Address(env('MAIL_FROM_ADDRESS'), env('MAIL_FROM_NAME')))
+                    ->from(new Address((string) env('MAIL_FROM_ADDRESS', 'no-reply@localhost.local'), (string) env('MAIL_FROM_NAME', 'Sistema')))
                     ->to(new Address($user->email))
                     ->subject('Recordatorio de control')
                     ->html(
