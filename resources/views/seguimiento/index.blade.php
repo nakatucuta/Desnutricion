@@ -32,6 +32,9 @@
     <a href="{{ route('Seguimiento.create') }}" title="Nuevo seguimiento" class="btn seg113-btn seg113-btn--primary">
         <i class="fas fa-plus-circle mr-1"></i> Nuevo seguimiento
     </a>
+    <a href="{{ route('seguimientos.inteligencia') }}" class="btn seg113-btn seg113-btn--success">
+        <i class="fas fa-brain mr-1"></i> Inteligencia 113/412
+    </a>
 
     <div class="dropdown export-dropdown">
         <button class="btn seg113-btn seg113-btn--success dropdown-toggle shadow-sm"

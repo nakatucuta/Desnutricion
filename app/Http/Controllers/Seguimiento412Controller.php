@@ -277,6 +277,10 @@ public function data(Request $request)
             'pdf.max'      => 'El tamaño del PDF no puede exceder :max kilobytes.',
         ]);
     
+        if ($qualityResponse = $this->qualityCheck412($request)) {
+            return $qualityResponse;
+        }
+
         // 2) Evitar seguimientos duplicados
         if (Seguimiento_412::where('cargue412_id', $request->cargue412_id)
             ->where('fecha_proximo_control', '>', now())
@@ -416,6 +420,25 @@ public function data(Request $request)
      */
     public function update(Request $request, Seguimiento_412 $seguimiento_412, $id)
     {
+        $request->validate([
+            'fecha_consulta' => 'required|string|max:100',
+            'peso_kilos' => 'required',
+            'talla_cm' => 'required',
+            'puntajez' => 'required',
+            'clasificacion' => 'required',
+            'requerimiento_energia_ftlc' => 'required',
+            'medicamento' => 'required|array',
+            'Esquemq_complrto_pai_edad' => 'required',
+            'Atecion_primocion_y_mantenimiento_res3280_2018' => 'required',
+            'observaciones' => 'required',
+            'cargue412_id' => 'required|exists:cargue412s,id',
+            'estado' => 'required|in:0,1',
+        ]);
+
+        if ($qualityResponse = $this->qualityCheck412($request)) {
+            return $qualityResponse;
+        }
+
         $datosEmpleado = $request->except(['_token','_method']);
         $medicamentos = implode(',', $datosEmpleado['medicamento']);
         $datosEmpleado['medicamento'] = $medicamentos;
@@ -497,6 +520,49 @@ public function data(Request $request)
             ->with($flashKey, $flashMsg);
     }
     
+
+    private function qualityCheck412(Request $request)
+    {
+        $errors = [];
+        $peso = (float) $request->input('peso_kilos', 0);
+        $talla = (float) $request->input('talla_cm', 0);
+        $puntaje = (float) $request->input('puntajez', 0);
+
+        if ($peso <= 0) {
+            $errors['peso_kilos'] = 'Modo calidad: el peso debe ser mayor a 0.';
+        }
+        if ($talla <= 0) {
+            $errors['talla_cm'] = 'Modo calidad: la talla debe ser mayor a 0.';
+        }
+        if ($puntaje < -10 || $puntaje > 10) {
+            $errors['puntajez'] = 'Modo calidad: el puntaje Z parece inconsistente (rango permitido: -10 a 10).';
+        }
+
+        $fechaConsulta = $request->input('fecha_consulta');
+        $fechaProximo = $request->input('fecha_proximo_control');
+        if (!empty($fechaConsulta) && !empty($fechaProximo)) {
+            try {
+                $fc = Carbon::parse($fechaConsulta);
+                $fp = Carbon::parse($fechaProximo);
+                if ($fp->lt($fc)) {
+                    $errors['fecha_proximo_control'] = 'Modo calidad: la fecha de proximo control no puede ser anterior a la fecha de consulta.';
+                }
+            } catch (\Throwable $e) {
+            }
+        }
+
+        $clasificacion = mb_strtolower((string) $request->input('clasificacion', ''), 'UTF-8');
+        if ((str_contains($clasificacion, 'sever') || str_contains($clasificacion, 'grave'))
+            && trim((string) $request->input('perimetro_braqueal', '')) === '') {
+            $errors['perimetro_braqueal'] = 'Modo calidad: para clasificacion severa debe registrar el perimetro braquial.';
+        }
+
+        if (!empty($errors)) {
+            return back()->withErrors($errors)->withInput()->with('error', 'Modo calidad de dato: corrige los campos marcados.');
+        }
+
+        return null;
+    }
 
     /**
      * Remove the specified resource from storage.

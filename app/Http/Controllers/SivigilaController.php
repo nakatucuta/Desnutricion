@@ -128,6 +128,8 @@ class SivigilaController extends Controller
    
 public function data(Request $request)
 {
+    $canManageCrud = $this->canManageAssignments(Auth::user());
+
     $query = $this->buildSivigilaQuery($request)->select([
         'v.fec_noti',
         'v.semana',
@@ -142,20 +144,78 @@ public function data(Request $request)
     ]);
 
     return DataTables::of($query)
-        ->addColumn('acciones', function ($row) {
-            if ($row->procesado) {
-                return '<button class="btn btn-secondary btn-sm" disabled>
-                          <i class="fas fa-stop"></i> Procesado
-                        </button>';
+        ->addColumn('procesado_badge', function ($row) {
+            return (int) $row->procesado === 1
+                ? '<span class="badge badge-success"><i class="fas fa-check mr-1"></i>Procesado</span>'
+                : '<span class="badge badge-warning"><i class="fas fa-clock mr-1"></i>Pendiente</span>';
+        })
+        ->addColumn('acciones', function ($row) use ($canManageCrud) {
+            $seguimientoUrl = url("sivigila/{$row->num_ide_}/{$row->fec_noti}/create");
+            $doc = trim((string) $row->num_ide_);
+            $local = Sivigila::query()
+                ->where('num_ide_', $doc)
+                ->whereDate('fec_not', $row->fec_noti)
+                ->orderByDesc('id')
+                ->first();
+
+            // Fallback: si no hay match exacto por fecha, usar la ultima asignacion del documento.
+            if (!$local) {
+                $local = Sivigila::query()
+                    ->where('num_ide_', $doc)
+                    ->orderByDesc('fec_not')
+                    ->orderByDesc('id')
+                    ->first();
             }
-            // ya es YYYY-MM-DD, sin time
-            $url = url("sivigila/{$row->num_ide_}/{$row->fec_noti}/create");
-            return '<a href="'. e($url) .'" class="btn btn-success btn-sm">
-                      <i class="fas fa-zoom-in"></i> Seguimiento
-                    </a>';
+
+            $localId = $local?->id;
+            $hasSeguimiento = $localId
+                ? Seguimiento::where('sivigilas_id', $localId)->exists()
+                : false;
+
+            $dropdown = '<div class="dropdown">
+                <button class="btn btn-sm btn-outline-primary dropdown-toggle" type="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                    <i class="fas fa-cogs mr-1"></i> Acciones
+                </button>
+                <div class="dropdown-menu dropdown-menu-right shadow-sm">';
+
+            if ((int) $row->procesado !== 1) {
+                $dropdown .= '<a class="dropdown-item" href="' . e($seguimientoUrl) . '">
+                                <i class="fas fa-notes-medical text-success mr-2"></i> Iniciar seguimiento
+                              </a>';
+            } else {
+                $dropdown .= '<span class="dropdown-item text-muted">
+                                <i class="fas fa-check-circle text-secondary mr-2"></i> Procesado
+                              </span>';
+            }
+
+            if ($canManageCrud && $localId) {
+                $dropdown .= '<div class="dropdown-divider"></div>';
+                $dropdown .= '<a class="dropdown-item" href="' . route('sivigila.show', $localId) . '">
+                                <i class="fas fa-eye text-info mr-2"></i> Visualizar asignacion
+                              </a>';
+                $dropdown .= '<a class="dropdown-item" href="' . route('sivigila.edit', $localId) . '">
+                                <i class="fas fa-edit text-warning mr-2"></i> Editar asignacion
+                              </a>';
+
+                if ($hasSeguimiento) {
+                    $dropdown .= '<span class="dropdown-item text-muted">
+                                    <i class="fas fa-lock text-secondary mr-2"></i> No se puede eliminar (ya tiene seguimiento)
+                                  </span>';
+                } else {
+                    $dropdown .= '<form method="POST" action="' . route('sivigila.destroy', $localId) . '" onsubmit="return confirm(\'Seguro que deseas eliminar esta asignacion?\');">
+                                    ' . csrf_field() . method_field('DELETE') . '
+                                    <button type="submit" class="dropdown-item text-danger">
+                                        <i class="fas fa-trash-alt mr-2"></i> Eliminar
+                                    </button>
+                                  </form>';
+                }
+            }
+
+            $dropdown .= '</div></div>';
+            return $dropdown;
         })
         ->skipTotalRecords()
-        ->rawColumns(['acciones'])
+        ->rawColumns(['procesado_badge', 'acciones'])
         ->make(true);
 }
 
@@ -727,7 +787,26 @@ public function reportExport(Request $request)
      */
     public function show(Sivigila $empleado)
     {
-        //
+        if (!$this->canManageAssignments(Auth::user())) {
+            abort(403, 'No tienes permiso para visualizar asignaciones.');
+        }
+
+        $sivigila = $empleado->load('user');
+        if (!$sivigila || !$sivigila->id) {
+            return redirect()
+                ->route('sivigila.index')
+                ->with('error1', 'No se pudo abrir la asignacion seleccionada.');
+        }
+
+        $audits = SivigilaAssignmentAudit::query()
+            ->where('sivigila_id', $sivigila->id)
+            ->orderByDesc('id')
+            ->limit(20)
+            ->get();
+
+        $hasSeguimiento = Seguimiento::where('sivigilas_id', $sivigila->id)->exists();
+
+        return view('sivigila.show_assignment', compact('sivigila', 'audits', 'hasSeguimiento'));
     }
 
     /**
@@ -736,12 +815,19 @@ public function reportExport(Request $request)
      * @param  \App\Models\Sivigila  $empleado
      * @return \Illuminate\Http\Response
      */
-    public function edit($num_ide_)
+    public function edit(Sivigila $sivigila)
     {
-        
-     
+        if (!$this->canManageAssignments(Auth::user())) {
+            abort(403, 'No tienes permiso para editar asignaciones.');
+        }
 
-        
+        $usuarios = DB::table('users')
+            ->select('id', 'name', 'codigohabilitacion', 'usertype')
+            ->where('usertype', 2)
+            ->orderBy('name')
+            ->get();
+
+        return view('sivigila.edit_assignment', compact('sivigila', 'usuarios'));
     }
 
     /**
@@ -751,9 +837,70 @@ public function reportExport(Request $request)
      * @param  \App\Models\Sivigila  $empleado
      * @return \Illuminate\Http\Response
      */
-    public function update(Request $request, Sivigila $empleado)
+    public function update(Request $request, Sivigila $sivigila)
     {
-        //
+        if (!$this->canManageAssignments(Auth::user())) {
+            abort(403, 'No tienes permiso para actualizar asignaciones.');
+        }
+
+        $request->validate([
+            'user_id' => 'required|exists:users,id',
+            'telefono_' => 'nullable|string|max:60',
+            'Caso_confirmada_desnutricion_etiologia_primaria' => 'required|string|max:120',
+            'nombreips_manejo_hospita' => 'required|in:SI,NO',
+            'Ips_manejo_hospitalario' => 'nullable|string|max:255',
+            'estado' => 'required|in:0,1',
+        ]);
+
+        $oldUserId = (int) ($sivigila->user_id ?? 0);
+        $newUserId = (int) $request->input('user_id');
+        $oldAssigned = $oldUserId ? User::find($oldUserId) : null;
+        $newAssigned = User::find($newUserId);
+        $actionType = $oldUserId === $newUserId ? 'sin_cambio' : 'reasignacion';
+
+        $sivigila->fill([
+            'user_id' => $newUserId,
+            'telefono_' => $request->input('telefono_'),
+            'Caso_confirmada_desnutricion_etiologia_primaria' => $request->input('Caso_confirmada_desnutricion_etiologia_primaria'),
+            'nombreips_manejo_hospita' => $request->input('nombreips_manejo_hospita'),
+            'Ips_manejo_hospitalario' => $request->input('Ips_manejo_hospitalario'),
+            'estado' => (int) $request->input('estado'),
+        ]);
+        $sivigila->save();
+
+        SivigilaAssignmentAudit::create([
+            'sivigila_id' => (int) $sivigila->id,
+            'performed_by_user_id' => Auth::id(),
+            'old_assigned_user_id' => $oldUserId ?: null,
+            'new_assigned_user_id' => $newUserId ?: null,
+            'action_type' => $actionType,
+            'num_ide_' => $sivigila->num_ide_,
+            'paciente_nombre' => trim(implode(' ', array_filter([
+                $sivigila->pri_nom_,
+                $sivigila->seg_nom_,
+                $sivigila->pri_ape_,
+                $sivigila->seg_ape_,
+            ]))),
+            'fec_not' => $sivigila->fec_not,
+            'nom_upgd' => '',
+            'old_assigned_name' => $oldAssigned?->name,
+            'new_assigned_name' => $newAssigned?->name,
+            'old_assigned_email' => $oldAssigned?->email,
+            'new_assigned_email' => $newAssigned?->email,
+            'old_assigned_code' => $oldAssigned?->codigohabilitacion,
+            'new_assigned_code' => $newAssigned?->codigohabilitacion,
+            'ip_address' => $request->ip(),
+            'user_agent' => (string) $request->userAgent(),
+            'changes' => [
+                'old_user_id' => $oldUserId,
+                'new_user_id' => $newUserId,
+                'estado' => (int) $request->input('estado'),
+            ],
+        ]);
+
+        return redirect()
+            ->route('sivigila.index')
+            ->with('mensaje', 'Asignacion actualizada correctamente.');
     }
 
     /**
@@ -762,9 +909,32 @@ public function reportExport(Request $request)
      * @param  \App\Models\Sivigila  $empleado
      * @return \Illuminate\Http\Response
      */
-    public function destroy(Sivigila $empleado)
+    public function destroy(Sivigila $sivigila)
     {
-        //
+        if (!$this->canManageAssignments(Auth::user())) {
+            abort(403, 'No tienes permiso para eliminar asignaciones.');
+        }
+
+        $hasSeguimiento = Seguimiento::where('sivigilas_id', $sivigila->id)->exists();
+        if ($hasSeguimiento) {
+            return redirect()
+                ->route('sivigila.index')
+                ->with('error1', 'No se puede eliminar: el registro ya tiene seguimientos asociados.');
+        }
+
+        $sivigila->delete();
+
+        return redirect()
+            ->route('sivigila.index')
+            ->with('mensaje', 'Asignacion eliminada correctamente.');
+    }
+
+    private function canManageAssignments($user): bool
+    {
+        if (!$user) {
+            return false;
+        }
+        return (int) $user->usertype !== 2;
     }
 
     public function search(Request $request)

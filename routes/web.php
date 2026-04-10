@@ -32,6 +32,7 @@ use App\Http\Controllers\NovedadController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\Cargue412AuditController;
 use App\Http\Controllers\SivigilaAuditController;
+use App\Http\Controllers\SeguimientoInteligenciaController;
 
 /*
 |--------------------------------------------------------------------------
@@ -212,6 +213,9 @@ Route::post('Seguimiento/report-preview', [SeguimientoController::class, 'report
      ->middleware('auth');
 Route::post('Seguimiento/report-export', [SeguimientoController::class, 'reportExport'])
      ->name('Seguimiento.report-export')
+     ->middleware('auth');
+Route::get('seguimientos/inteligencia', [SeguimientoInteligenciaController::class, 'index'])
+     ->name('seguimientos.inteligencia')
      ->middleware('auth');
 Route::resource('Seguimiento', SeguimientoController::class)
      ->middleware('auth')

@@ -606,6 +606,14 @@ return [
             // 'can'         => 'view-statistics', 
            
         ],
+        [
+            'text'       => 'INTELIGENCIA 113/412',
+            'icon_color' => 'teal',
+            'url'        => 'seguimientos/inteligencia',
+            'icon'       => 'fas fa-brain fa-2x',
+            'label'      => 'NEW',
+            'label_color'=> 'success',
+        ],
 
         [
             'text'       => 'MANUAL DE USUARIO',

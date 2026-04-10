@@ -5,15 +5,18 @@
 
     // Modelo base para precargar en create: el último seguimiento (si existe)
     $model = isset($seg) && $seg ? $seg : ($ultimo ?? null);
+    $prefill = $prefillDemografia ?? [];
 
-    // Helper para obtener valor -> old() > modelo (con formateo para dates)
-    $val = function(string $name) use($model) {
+    // Helper para obtener valor -> old() > modelo > prefill (con formateo para dates)
+    $val = function(string $name) use($model, $prefill) {
         $ov = old($name);
         if ($ov !== null && $ov !== '') return $ov;
-        if (!$model) return '';
-        $attr = $model->getAttribute($name);
-        if ($attr instanceof \Carbon\Carbon) return $attr->format('Y-m-d');
-        return $attr ?? '';
+        if ($model) {
+            $attr = $model->getAttribute($name);
+            if ($attr instanceof \Carbon\Carbon) return $attr->format('Y-m-d');
+            if ($attr !== null && $attr !== '') return $attr;
+        }
+        return $prefill[$name] ?? '';
     };
 
     // ¿el valor actual es un PDF (ruta/URL)?
@@ -635,3 +638,4 @@
   });
 </script>
 @endpush
+

@@ -6,6 +6,7 @@ use App\Models\GesTipo1;
 use App\Models\GesTipo1Seguimiento;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Carbon\Carbon;
 
@@ -17,7 +18,9 @@ class GesTipo1SeguimientoController extends Controller
     public function create(GesTipo1 $ges)
     {
         $ultimo = $ges->seguimientos()->reorder()->latest('id')->first();
-        return view('ges_tipo1.seguimientos.create', compact('ges','ultimo'));
+        $prefillDemografia = $this->buildDemografiaPrefill($ges);
+
+        return view('ges_tipo1.seguimientos.create', compact('ges', 'ultimo', 'prefillDemografia'));
     }
 
     public function store(Request $request, GesTipo1 $ges)
@@ -62,7 +65,8 @@ class GesTipo1SeguimientoController extends Controller
 
     public function edit(GesTipo1 $ges, GesTipo1Seguimiento $seg)
     {
-        return view('ges_tipo1.seguimientos.edit', compact('ges','seg'));
+        $prefillDemografia = [];
+        return view('ges_tipo1.seguimientos.edit', compact('ges', 'seg', 'prefillDemografia'));
     }
 
     public function update(Request $request, GesTipo1 $ges, GesTipo1Seguimiento $seg)
@@ -145,6 +149,264 @@ class GesTipo1SeguimientoController extends Controller
             'malaria_resultado' => 'Malaria',
             'chagas_resultado' => 'Chagas',
         ];
+    }
+
+    private function buildDemografiaPrefill(GesTipo1 $ges): array
+    {
+        $documento = trim((string) ($ges->no_id_del_usuario ?? ''));
+        $tipoDocumento = trim((string) ($ges->tipo_de_identificacion_de_la_usuaria ?? ''));
+
+        $sgaAfiliado = $this->fetchSgaAfiliado($documento);
+        $afiliado = null;
+        if ($documento !== '') {
+            $afiliado = DB::table('afiliados')
+                ->when($tipoDocumento !== '', function ($q) use ($tipoDocumento) {
+                    $q->where('tipo_identificacion', $tipoDocumento);
+                })
+                ->where('numero_identificacion', $documento)
+                ->orderByDesc('updated_at')
+                ->orderByDesc('id')
+                ->first();
+        }
+
+        $fechaNacimiento = $this->formatDateForInput(
+            $this->firstFilled(
+                $this->pickValue($sgaAfiliado, ['fechaNacimiento', 'fecha_nacimiento', 'fecNacimiento', 'fec_nacimiento']),
+                $afiliado->fecha_nacimiento ?? null,
+                $ges->fecha_de_nacimiento ?? null
+            )
+        );
+
+        $edadAnios = $this->firstFilled(
+            $this->pickValue($sgaAfiliado, ['edad', 'edadAnos', 'edad_anos']),
+            $afiliado->edad_anos ?? null
+        );
+        if (($edadAnios === null || $edadAnios === '') && $fechaNacimiento) {
+            $edadAnios = Carbon::parse($fechaNacimiento)->age;
+        }
+
+        $codigoAgente = (string) $this->firstFilled(
+            $this->pickValue($sgaAfiliado, ['codigoAgente', 'codigo_agente']),
+            ''
+        );
+
+        $regimenDesdeCodigo = $this->mapRegimenByCodigoAgente($codigoAgente);
+        $regimenDesdeSga = $this->pickValue($sgaAfiliado, ['regimen', 'tipoAfiliacion', 'tipo_afiliacion']);
+        $tipoDocSga = $this->pickValue($sgaAfiliado, ['tipoIdentificacion', 'tipo_identificacion']);
+        $docSga = $this->pickValue($sgaAfiliado, ['identificacion', 'numeroIdentificacion', 'numero_identificacion']);
+        $telefonoSga = $this->firstFilled(
+            $this->pickValue($sgaAfiliado, ['celular', 'telefono', 'telefonoFijo', 'telefono_fijo']),
+            null
+        );
+        $zonaSga = $this->pickValue($sgaAfiliado, ['zona', 'area']);
+        $ipsPrimariaSga = $this->fetchSgaIpsPrimariaByCarnet(
+            (string) $this->pickValue($sgaAfiliado, ['numeroCarnet', 'numero_carnet'])
+        );
+
+        return [
+            'tipo_documento' => $this->firstFilled($tipoDocSga, $afiliado->tipo_identificacion ?? null, $tipoDocumento),
+            'numero_identificacion' => $this->firstFilled($docSga, $afiliado->numero_identificacion ?? null, $documento),
+            'apellido_1' => $this->firstFilled(
+                $this->pickValue($sgaAfiliado, ['primerApellido', 'primer_apellido', 'pri_ape_', 'priApe']),
+                $afiliado->primer_apellido ?? null,
+                $ges->primer_apellido ?? null
+            ),
+            'apellido_2' => $this->firstFilled(
+                $this->pickValue($sgaAfiliado, ['segundoApellido', 'segundo_apellido', 'seg_ape_', 'segApe']),
+                $afiliado->segundo_apellido ?? null,
+                $ges->segundo_apellido ?? null
+            ),
+            'nombre_1' => $this->firstFilled(
+                $this->pickValue($sgaAfiliado, ['primerNombre', 'primer_nombre', 'pri_nom_', 'priNom']),
+                $afiliado->primer_nombre ?? null,
+                $ges->primer_nombre ?? null
+            ),
+            'nombre_2' => $this->firstFilled(
+                $this->pickValue($sgaAfiliado, ['segundoNombre', 'segundo_nombre', 'seg_nom_', 'segNom']),
+                $afiliado->segundo_nombre ?? null,
+                $ges->segundo_nombre ?? null
+            ),
+            'fecha_nacimiento' => $fechaNacimiento,
+            'edad_anios' => $edadAnios,
+            'sexo' => $this->firstFilled(
+                $this->pickValue($sgaAfiliado, ['sexo']),
+                $afiliado->sexo ?? null
+            ),
+            'regimen_afiliacion' => $this->firstFilled($regimenDesdeCodigo, $regimenDesdeSga, $afiliado->regimen ?? null),
+            'pertenencia_etnica' => $this->firstFilled(
+                $this->pickValue($sgaAfiliado, ['pertenenciaEtnica', 'pertenencia_etnica', 'etnia']),
+                $afiliado->pertenencia_etnica ?? null,
+                $ges->codigo_pertenencia_etnica ?? null
+            ),
+            'grupo_poblacional' => $this->firstFilled(
+                $this->pickValue($sgaAfiliado, ['grupoPoblacional', 'grupo_poblacional', 'condicionUsuaria', 'condicion_usuaria']),
+                $afiliado->condicion_usuaria ?? null
+            ),
+            'departamento_residencia' => $this->firstFilled(
+                $this->pickValue($sgaAfiliado, ['departamentoResidencia', 'departamento_residencia']),
+                $afiliado->departamento_residencia ?? null
+            ),
+            'municipio_residencia' => $this->firstFilled(
+                $this->pickValue($sgaAfiliado, ['municipioResidencia', 'municipio_residencia']),
+                $afiliado->municipio_residencia ?? null,
+                $ges->municipio_de_residencia_habitual ?? null
+            ),
+            'zona' => $this->firstFilled($zonaSga, $afiliado->area ?? null, $ges->zona_territorial_de_residencia ?? null),
+            'etnia' => $this->firstFilled(
+                $this->pickValue($sgaAfiliado, ['etnia', 'pertenenciaEtnica', 'pertenencia_etnica']),
+                $afiliado->pertenencia_etnica ?? null
+            ),
+            'asentamiento' => $this->firstFilled(
+                $this->pickValue($sgaAfiliado, ['asentamiento', 'comuna']),
+                $afiliado->comuna ?? null
+            ),
+            'telefono_usuaria' => $this->firstFilled($telefonoSga, $afiliado->celular ?? null, $afiliado->telefono_fijo ?? null),
+            'direccion' => $this->firstFilled(
+                $this->pickValue($sgaAfiliado, ['direccion', 'direccionResidencia', 'direccion_residencia']),
+                $afiliado->direccion ?? null,
+                $ges->direccion_de_residencia_de_la_gestante ?? null
+            ),
+            'nivel_educativo' => $this->firstFilled(
+                $this->pickValue($sgaAfiliado, ['nivelEducativo', 'nivel_educativo']),
+                $ges->codigo_nivel_educativo_de_la_gestante ?? null
+            ),
+            'discapacidad' => $this->firstFilled(
+                $this->pickValue($sgaAfiliado, ['discapacidad', 'discapacitado']),
+                $afiliado->discapacitado ?? null
+            ),
+            'mujer_cabeza_hogar' => null,
+            'ocupacion' => $this->firstFilled(
+                $this->pickValue($sgaAfiliado, ['ocupacion', 'codigoOcupacion', 'codigo_ocupacion']),
+                $ges->codigo_de_ocupacion ?? null
+            ),
+            'estado_civil' => null,
+            'control_tradicional' => null,
+            'gestante_renuente' => null,
+            'inasistente' => null,
+            'ips_primaria' => $this->firstFilled(
+                $ipsPrimariaSga,
+                $this->pickValue($sgaAfiliado, ['ipsPrimaria', 'ips_primaria']),
+                $ges->codigo_de_habilitacion_ips_primaria_de_la_gestante ?? null
+            ),
+        ];
+    }
+
+    private function formatDateForInput($value): ?string
+    {
+        if ($value === null || $value === '') {
+            return null;
+        }
+
+        try {
+            return Carbon::parse((string) $value)->format('Y-m-d');
+        } catch (\Throwable $e) {
+            return null;
+        }
+    }
+
+    private function fetchSgaAfiliado(string $documento): ?object
+    {
+        if ($documento === '') {
+            return null;
+        }
+
+        try {
+            return DB::connection('sqlsrv_1')
+                ->table('maestroAfiliados as a')
+                ->select('a.*')
+                ->where('a.identificacion', $documento)
+                ->first();
+        } catch (\Throwable $e) {
+            Log::warning('No se pudo consultar SGA maestroafiliados para prefill de seguimiento.', [
+                'documento' => $documento,
+                'error' => $e->getMessage(),
+            ]);
+            return null;
+        }
+    }
+
+    private function fetchSgaIpsPrimariaByCarnet(string $numeroCarnet): ?string
+    {
+        if ($numeroCarnet === '') {
+            return null;
+        }
+
+        try {
+            return DB::connection('sqlsrv_1')
+                ->table('maestroips as b')
+                ->join('maestroIpsGru as c', 'b.idGrupoIps', '=', 'c.id')
+                ->where('b.numeroCarnet', $numeroCarnet)
+                ->value('c.descrip');
+        } catch (\Throwable $e) {
+            Log::warning('No se pudo consultar IPS primaria en SGA para prefill de seguimiento.', [
+                'numero_carnet' => $numeroCarnet,
+                'error' => $e->getMessage(),
+            ]);
+            return null;
+        }
+    }
+
+    private function mapRegimenByCodigoAgente(?string $codigoAgente): ?string
+    {
+        $codigo = strtoupper(trim((string) $codigoAgente));
+        if ($codigo === '') {
+            return null;
+        }
+
+        if (str_ends_with($codigo, 'C4')) {
+            return 'CONTRIBUTIVO';
+        }
+
+        if (str_ends_with($codigo, '04')) {
+            return 'SUBSIDIADO';
+        }
+
+        return null;
+    }
+
+    private function pickValue($row, array $keys)
+    {
+        if (!$row) {
+            return null;
+        }
+
+        $normalized = [];
+        foreach ((array) $row as $k => $v) {
+            $normalized[strtolower((string) $k)] = $v;
+        }
+
+        foreach ($keys as $k) {
+            $lk = strtolower((string) $k);
+            if (!array_key_exists($lk, $normalized)) {
+                continue;
+            }
+
+            $v = $normalized[$lk];
+            if ($v !== null && trim((string) $v) !== '') {
+                return $v;
+            }
+        }
+
+        return null;
+    }
+
+    private function firstFilled(...$values)
+    {
+        foreach ($values as $v) {
+            if ($v === null) {
+                continue;
+            }
+
+            if (!is_string($v)) {
+                return $v;
+            }
+
+            if (trim($v) !== '') {
+                return $v;
+            }
+        }
+
+        return null;
     }
 
     private function rules(): array

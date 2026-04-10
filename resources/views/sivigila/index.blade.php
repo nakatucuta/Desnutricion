@@ -137,6 +137,7 @@
                         <th>Identificacion</th>
                         <th>Nombre</th>
                         <th>UPGD Notificadora</th>
+                        <th>Procesado</th>
                         <th>Acciones</th>
                     </tr>
                 </thead>
@@ -205,6 +206,8 @@
 #selectedColumnsListSivigila .list-group-item{cursor:move}
 .aw-overlay{position:fixed;inset:0;background:rgba(15,23,42,.32);z-index:2100;display:flex;align-items:center;justify-content:center}
 .aw-overlay-card{background:#fff;padding:14px 18px;border-radius:12px;box-shadow:0 12px 24px rgba(0,0,0,.2)}
+#sivigila-table .dropdown-menu .dropdown-item{font-size:.84rem}
+#sivigila-table .btn-outline-primary{border-radius:10px}
 </style>
 @stop
 
@@ -256,6 +259,7 @@ $(function() {
                 render: row => [row.pri_nom_, row.seg_nom_, row.pri_ape_, row.seg_ape_].filter(Boolean).join(' ')
             },
             { data: 'nom_upgd', name: 'v.nom_upgd' },
+            { data: 'procesado_badge', name: 'v.procesado', orderable: false, searchable: false },
             { data: 'acciones', orderable: false, searchable: false }
         ]
     });
