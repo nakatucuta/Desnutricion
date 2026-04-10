@@ -2,8 +2,8 @@
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\SivigilaController;
 use App\Http\Controllers\Api\AuthController;
+use App\Http\Controllers\Api\ApiAfiliadosController;
 use App\Http\Controllers\ApiludiconController;
 /*
 |--------------------------------------------------------------------------
@@ -19,15 +19,15 @@ Route::post('/login', [AuthController::class, 'login'])
 Route::middleware(['auth:sanctum', 'throttle:60,1'])->group(function () {
 
     // ✅ Endpoint actual (NO se toca)
-    Route::get('/afiliados', [SivigilaController::class, 'index_api'])
+    Route::get('/afiliados', [ApiAfiliadosController::class, 'index'])
         ->name('api.afiliados');
 
     // ✅ NUEVO: solo nuevos
-    Route::get('/afiliados/nuevos', [SivigilaController::class, 'index_api_nuevos'])
+    Route::get('/afiliados/nuevos', [ApiAfiliadosController::class, 'nuevos'])
         ->name('api.afiliados.nuevos');
 
     // ✅ Opcional: reset del cursor
-    Route::post('/afiliados/reset', [SivigilaController::class, 'reset_consumo_afiliados'])
+    Route::post('/afiliados/reset', [ApiAfiliadosController::class, 'reset'])
         ->name('api.afiliados.reset');
 
     Route::post('/logout', [AuthController::class, 'logout'])

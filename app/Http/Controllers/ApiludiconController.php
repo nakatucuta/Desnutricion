@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\ApiConsumptionState;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
 class ApiludiconController extends Controller
@@ -11,8 +12,15 @@ class ApiludiconController extends Controller
     private function afiliadosQuery()
     {
         return DB::connection('sqlsrv_1')
-            ->table('api_ludycom.dbo.datos')
-            ->selectRaw('*, [año] as anio_api');
+            ->table('api_ludycom.dbo.datos');
+    }
+
+    private function serializeRows($rows): array
+    {
+        return Collection::make($rows)
+            ->map(fn ($row) => (array) $row)
+            ->values()
+            ->all();
     }
 
     public function index_all(Request $request)
@@ -25,7 +33,7 @@ class ApiludiconController extends Controller
 
         try {
             $datos = $this->afiliadosQuery()
-                ->orderBy('año')
+                ->orderByRaw('[año]')
                 ->orderBy('mes')
                 ->orderBy('numeroCarnet')
                 ->paginate($perPage);
@@ -38,7 +46,7 @@ class ApiludiconController extends Controller
                     'total' => $datos->total(),
                     'last_page' => $datos->lastPage(),
                 ],
-                'data' => $datos->items(),
+                'data' => $this->serializeRows($datos->items()),
             ], 200);
         } catch (\Throwable $e) {
             \Log::error('Error index_all api_ludycom', [
@@ -102,7 +110,7 @@ class ApiludiconController extends Controller
                     'last_carnet' => $state->last_carnet,
                 ],
                 'count' => $datos->count(),
-                'data' => $datos,
+                'data' => $this->serializeRows($datos),
             ], 200);
         } catch (\Throwable $e) {
             \Log::error('Error index_all_nuevos api_ludycom', [
@@ -166,7 +174,7 @@ class ApiludiconController extends Controller
                     'tipoIdentificacion' => $tipoIdentificacion,
                 ],
                 'count' => $datos->count(),
-                'data' => $datos,
+                'data' => $this->serializeRows($datos),
             ], 200);
         } catch (\Throwable $e) {
             \Log::error('Error show_by_identificacion api_ludycom', [
@@ -204,7 +212,7 @@ class ApiludiconController extends Controller
                 'params' => [
                     'numeroCarnet' => $numeroCarnet,
                 ],
-                'data' => $registro,
+                'data' => (array) $registro,
             ], 200);
         } catch (\Throwable $e) {
             \Log::error('Error show_by_numeroCarnet api_ludycom', [
@@ -220,4 +228,3 @@ class ApiludiconController extends Controller
         }
     }
 }
-

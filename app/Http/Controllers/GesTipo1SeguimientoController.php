@@ -195,7 +195,8 @@ class GesTipo1SeguimientoController extends Controller
         $tipoDocSga = $this->pickValue($sgaAfiliado, ['tipoIdentificacion', 'tipo_identificacion']);
         $docSga = $this->pickValue($sgaAfiliado, ['identificacion', 'numeroIdentificacion', 'numero_identificacion']);
         $telefonoSga = $this->firstFilled(
-            $this->pickValue($sgaAfiliado, ['celular', 'telefono', 'telefonoFijo', 'telefono_fijo']),
+            $this->pickValue($sgaAfiliado, ['celular']),
+            $this->pickValue($sgaAfiliado, ['telefono', 'telefonoFijo', 'telefono_fijo']),
             null
         );
         $zonaSga = $this->pickValue($sgaAfiliado, ['zona', 'area']);
