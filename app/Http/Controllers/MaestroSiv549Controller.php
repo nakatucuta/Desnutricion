@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Carbon;
 use Maatwebsite\Excel\Excel as ExcelFormat;
 use Maatwebsite\Excel\Facades\Excel;
 use Yajra\DataTables\Facades\DataTables;
@@ -118,6 +119,8 @@ class MaestroSiv549Controller extends Controller
             'edad_',
             'sexo_',
             'fec_not',
+            'fec_not_ultima',
+            'fec_not_sort',
             'semana',
             'year',
             'ocupacion_',
@@ -149,6 +152,20 @@ class MaestroSiv549Controller extends Controller
                     $row->seg_ape_,
                 ])));
             })
+            ->editColumn('fec_not', function ($row) {
+                $raw = $row->fec_not_ultima ?? $row->fec_not ?? null;
+                if (!$raw) {
+                    return '';
+                }
+
+                try {
+                    $fecha = Carbon::parse((string) $raw)->format('Y-m-d');
+                } catch (\Throwable $e) {
+                    $fecha = (string) $raw;
+                }
+
+                return $fecha . ' <span class="badge badge-info ml-1">Ultima notificacion</span>';
+            })
             ->addColumn('acciones', function ($row) use ($assignedIds, $canAssign) {
                 $asignado = in_array(trim((string) $row->num_ide_), $assignedIds, true);
                 $url = route('asignaciones-maestrosiv549.create', [
@@ -171,7 +188,7 @@ class MaestroSiv549Controller extends Controller
             ->setRowClass(function ($row) use ($assignedIds) {
                 return in_array(trim((string) $row->num_ide_), $assignedIds, true) ? 'row-asignado' : '';
             })
-            ->rawColumns(['acciones'])
+            ->rawColumns(['fec_not', 'acciones'])
             ->make(true);
     }
 
@@ -327,8 +344,21 @@ class MaestroSiv549Controller extends Controller
 
     private function latestGestanteNotificationPerYearQuery(): Builder
     {
+        $fecNotExpr = $this->fecNotDateExpr();
+
         $ranked = MaestroSiv549::query()
             ->select('maestrosiv549.*')
+            ->selectRaw("
+                {$fecNotExpr} AS [fec_not_sort]
+            ")
+            ->selectRaw("
+                MAX({$fecNotExpr}) OVER (
+                    PARTITION BY
+                        LTRIM(RTRIM(ISNULL(CAST([tip_ide_] AS NVARCHAR(50)), ''))),
+                        LTRIM(RTRIM(ISNULL(CAST([num_ide_] AS NVARCHAR(100)), ''))),
+                        LTRIM(RTRIM(ISNULL(CAST([year] AS NVARCHAR(10)), '')))
+                ) AS [fec_not_ultima]
+            ")
             ->selectRaw("
                 ROW_NUMBER() OVER (
                     PARTITION BY
@@ -336,9 +366,7 @@ class MaestroSiv549Controller extends Controller
                         LTRIM(RTRIM(ISNULL(CAST([num_ide_] AS NVARCHAR(100)), ''))),
                         LTRIM(RTRIM(ISNULL(CAST([year] AS NVARCHAR(10)), '')))
                     ORDER BY
-                        TRY_CONVERT(datetime, [fec_not], 120) DESC,
-                        TRY_CONVERT(datetime, [fec_not], 103) DESC,
-                        TRY_CONVERT(datetime, [fec_not], 23) DESC,
+                        {$fecNotExpr} DESC,
                         [fec_not] DESC,
                         [nreg] DESC
                 ) AS [row_num]
@@ -351,8 +379,13 @@ class MaestroSiv549Controller extends Controller
 
     private function applyFilters(Builder $query, Request $request): void
     {
+        $year = trim((string) $request->input('year', ''));
+        if ($year === '') {
+            $year = (string) now()->year;
+        }
+        $query->whereRaw("LTRIM(RTRIM(ISNULL(CAST([year] AS NVARCHAR(10)), ''))) = ?", [$year]);
+
         $equals = [
-            'year',
             'semana',
             'tip_ide_',
             'sexo_',
@@ -375,11 +408,15 @@ class MaestroSiv549Controller extends Controller
         }
 
         if ($request->filled('fec_desde')) {
-            $query->whereDate('fec_not', '>=', $request->input('fec_desde'));
+            $query->whereRaw($this->fecNotDateExpr() . ' >= TRY_CONVERT(date, ?, 23)', [
+                $request->input('fec_desde'),
+            ]);
         }
 
         if ($request->filled('fec_hasta')) {
-            $query->whereDate('fec_not', '<=', $request->input('fec_hasta'));
+            $query->whereRaw($this->fecNotDateExpr() . ' <= TRY_CONVERT(date, ?, 23)', [
+                $request->input('fec_hasta'),
+            ]);
         }
 
         if ($request->filled('edad_desde')) {
@@ -470,6 +507,15 @@ class MaestroSiv549Controller extends Controller
             ->filter()
             ->values()
             ->all();
+    }
+
+    private function fecNotDateExpr(): string
+    {
+        return "COALESCE(
+            TRY_CONVERT(date, [fec_not], 120),
+            TRY_CONVERT(date, [fec_not], 103),
+            TRY_CONVERT(date, [fec_not], 23)
+        )";
     }
 
     private function reportColumnCatalog(): array

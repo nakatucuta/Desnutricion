@@ -553,7 +553,7 @@ $(function () {
             { data: 'nombre_completo', name: 'nombre_completo', orderable: false },
             { data: 'edad_', name: 'edad_' },
             { data: 'sexo_', name: 'sexo_' },
-            { data: 'fec_not', name: 'fec_not' },
+            { data: 'fec_not', name: 'fec_not_sort' },
             { data: 'semana', name: 'semana' },
             { data: 'year', name: 'year' },
             { data: 'nmun_resi', name: 'nmun_resi' },
