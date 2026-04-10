@@ -202,6 +202,38 @@ class GesTipo1SeguimientoController extends Controller
         $ipsPrimariaSga = $this->fetchSgaIpsPrimariaByCarnet(
             (string) $this->pickValue($sgaAfiliado, ['numeroCarnet', 'numero_carnet'])
         );
+        $residenciaSga = $this->fetchSgaResidenciaByDocumento($documento);
+        $codigoDepartamento = $this->firstFilled(
+            $this->pickValue($sgaAfiliado, ['codigoDepartamento', 'cod_dpto_o']),
+            null
+        );
+        $codigoMunicipio = $this->firstFilled(
+            $this->pickValue($sgaAfiliado, ['codigoMunicipio', 'cod_mun_o']),
+            null
+        );
+
+        $codigoMunicipioPlano = trim((string) $this->firstFilled(
+            $afiliado->municipio_residencia ?? null,
+            $ges->municipio_de_residencia_habitual ?? null
+        ));
+        if (
+            ($codigoDepartamento === null || $codigoDepartamento === '') &&
+            ($codigoMunicipio === null || $codigoMunicipio === '') &&
+            preg_match('/^\d{5}$/', $codigoMunicipioPlano)
+        ) {
+            $codigoDepartamento = substr($codigoMunicipioPlano, 0, 2);
+            $codigoMunicipio = substr($codigoMunicipioPlano, 2, 3);
+        }
+
+        $residenciaPorCodigo = $this->fetchSgaResidenciaByCodes($codigoDepartamento, $codigoMunicipio);
+        $departamentoNombre = $this->firstFilled(
+            $residenciaSga['departamento'] ?? null,
+            $residenciaPorCodigo['departamento'] ?? null
+        );
+        $municipioNombre = $this->firstFilled(
+            $residenciaSga['municipio'] ?? null,
+            $residenciaPorCodigo['municipio'] ?? null
+        );
 
         return [
             'tipo_documento' => $this->firstFilled($tipoDocSga, $afiliado->tipo_identificacion ?? null, $tipoDocumento),
@@ -229,7 +261,7 @@ class GesTipo1SeguimientoController extends Controller
             'fecha_nacimiento' => $fechaNacimiento,
             'edad_anios' => $edadAnios,
             'sexo' => $this->firstFilled(
-                $this->pickValue($sgaAfiliado, ['sexo']),
+                $this->pickValue($sgaAfiliado, ['genero', 'sexo']),
                 $afiliado->sexo ?? null
             ),
             'regimen_afiliacion' => $this->firstFilled($regimenDesdeCodigo, $regimenDesdeSga, $afiliado->regimen ?? null),
@@ -243,10 +275,12 @@ class GesTipo1SeguimientoController extends Controller
                 $afiliado->condicion_usuaria ?? null
             ),
             'departamento_residencia' => $this->firstFilled(
+                $departamentoNombre,
                 $this->pickValue($sgaAfiliado, ['departamentoResidencia', 'departamento_residencia']),
                 $afiliado->departamento_residencia ?? null
             ),
             'municipio_residencia' => $this->firstFilled(
+                $municipioNombre,
                 $this->pickValue($sgaAfiliado, ['municipioResidencia', 'municipio_residencia']),
                 $afiliado->municipio_residencia ?? null,
                 $ges->municipio_de_residencia_habitual ?? null
@@ -344,6 +378,135 @@ class GesTipo1SeguimientoController extends Controller
             ]);
             return null;
         }
+    }
+
+    private function fetchSgaResidenciaByDocumento(string $documento): array
+    {
+        if ($documento === '') {
+            return ['departamento' => null, 'municipio' => null];
+        }
+
+        try {
+            // Intento principal: SQL exacto solicitado por negocio
+            $directo = DB::connection('sqlsrv_1')
+                ->table(DB::raw('sga..maestroafiliados A'))
+                ->leftJoin(DB::raw('sga..municipios B'), function ($join) {
+                    $join->on('A.codigoDepartamento', '=', 'B.codigoDepartamento')
+                        ->on('A.codigoMunicipio', '=', 'B.codigoMunicipio');
+                })
+                ->leftJoin(DB::raw('sga..departamentos C'), 'A.codigoDepartamento', '=', 'C.codigo')
+                ->selectRaw('A.numeroCarnet, C.descrip as nombreDepartamento, B.descrip as nombreMunicipio')
+                ->where('A.identificacion', $documento)
+                ->first();
+
+            $depDirecto = trim((string) ($directo->nombreDepartamento ?? ''));
+            $munDirecto = trim((string) ($directo->nombreMunicipio ?? ''));
+            if ($depDirecto !== '' || $munDirecto !== '') {
+                return [
+                    'departamento' => $depDirecto !== '' ? $depDirecto : null,
+                    'municipio' => $munDirecto !== '' ? $munDirecto : null,
+                ];
+            }
+
+            $row = DB::connection('sqlsrv_1')
+                ->table('maestroafiliados as A')
+                ->select('A.numeroCarnet', 'A.codigoDepartamento', 'A.codigoMunicipio')
+                ->where('A.identificacion', $documento)
+                ->first();
+
+            $municipioDirecto = null;
+            try {
+                $municipioDirecto = DB::connection('sqlsrv_1')
+                    ->table('maestroafiliados as A')
+                    ->leftJoin('municipios as B', function ($join) {
+                        $join->on('A.codigoDepartamento', '=', 'B.codigoDepartamento')
+                            ->on('A.codigoMunicipio', '=', 'B.codigoMunicipio');
+                    })
+                    ->where('A.identificacion', $documento)
+                    ->value(DB::raw('B.descrip'));
+            } catch (\Throwable $e) {
+                // continua a estrategia por codigo
+            }
+
+            $dep = trim((string) ($row->codigoDepartamento ?? ''));
+            $mun = trim((string) ($row->codigoMunicipio ?? ''));
+
+            if (($dep === '' || $mun === '') && preg_match('/^\d{5}$/', $mun)) {
+                $dep = substr($mun, 0, 2);
+                $mun = substr($mun, 2, 3);
+            }
+
+            $resuelta = $this->fetchSgaResidenciaByCodes($dep, $mun);
+            if (trim((string) $municipioDirecto) !== '' && empty($resuelta['municipio'])) {
+                $resuelta['municipio'] = $municipioDirecto;
+            }
+
+            return $resuelta;
+        } catch (\Throwable $e) {
+            Log::warning('No se pudo consultar municipio/departamento en SGA para prefill de seguimiento.', [
+                'documento' => $documento,
+                'error' => $e->getMessage(),
+            ]);
+
+            return ['departamento' => null, 'municipio' => null];
+        }
+    }
+
+    private function fetchSgaResidenciaByCodes($codigoDepartamento, $codigoMunicipio): array
+    {
+        $dep = trim((string) ($codigoDepartamento ?? ''));
+        $mun = trim((string) ($codigoMunicipio ?? ''));
+        if ($dep === '' || $mun === '') {
+            return ['departamento' => null, 'municipio' => null];
+        }
+
+        $municipio = null;
+        foreach (['[sga].[dbo].[municipios] as B', 'municipios as B'] as $municipiosTable) {
+            try {
+                $municipio = DB::connection('sqlsrv_1')
+                    ->table(DB::raw($municipiosTable))
+                    ->whereRaw("RIGHT('00' + CAST(B.codigoDepartamento AS VARCHAR(2)), 2) = RIGHT('00' + ?, 2)", [$dep])
+                    ->whereRaw("RIGHT('000' + CAST(B.codigoMunicipio AS VARCHAR(3)), 3) = RIGHT('000' + ?, 3)", [$mun])
+                    ->value(DB::raw('B.descrip'));
+
+                if (trim((string) $municipio) !== '') {
+                    break;
+                }
+            } catch (\Throwable $e) {
+                // sigue con siguiente estrategia
+            }
+        }
+
+        $departamento = null;
+        foreach (['[sga].[dbo].[departamentos] as D', 'departamentos as D'] as $departamentosTable) {
+            try {
+                $departamento = DB::connection('sqlsrv_1')
+                    ->table(DB::raw($departamentosTable))
+                    ->where(function ($q) use ($dep) {
+                        $q->whereRaw("RIGHT('00' + CAST(D.codigoDepartamento AS VARCHAR(2)), 2) = RIGHT('00' + ?, 2)", [$dep])
+                          ->orWhereRaw("RIGHT('00' + CAST(D.codigo AS VARCHAR(2)), 2) = RIGHT('00' + ?, 2)", [$dep]);
+                    })
+                    ->value(DB::raw('D.descrip'));
+
+                if (trim((string) $departamento) !== '') {
+                    break;
+                }
+            } catch (\Throwable $e) {
+                // sigue con siguiente estrategia
+            }
+        }
+
+        if (trim((string) $municipio) === '' && trim((string) $departamento) === '') {
+            Log::warning('No se pudo resolver municipio/departamento SGA por codigo para prefill de seguimiento.', [
+                'codigo_departamento' => $dep,
+                'codigo_municipio' => $mun,
+            ]);
+        }
+
+        return [
+            'departamento' => trim((string) $departamento) !== '' ? $departamento : null,
+            'municipio' => trim((string) $municipio) !== '' ? $municipio : null,
+        ];
     }
 
     private function mapRegimenByCodigoAgente(?string $codigoAgente): ?string
