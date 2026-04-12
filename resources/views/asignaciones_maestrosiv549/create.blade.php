@@ -37,6 +37,26 @@
 
 @section('content')
 <div class="container-fluid px-0">
+    <div id="asigLoading" class="asig-loading" aria-live="polite" aria-busy="true">
+        <div class="asig-loading__backdrop"></div>
+        <div class="asig-loading__panel">
+            <div class="asig-loading__orb">
+                <span></span>
+                <span></span>
+                <span></span>
+            </div>
+            <div class="asig-loading__brand">
+                <img src="{{ asset('img/logo.png') }}" alt="Escudo institucional">
+            </div>
+            <h3>Guardando asignacion</h3>
+            <p>Estamos registrando el caso y vinculando el prestador seleccionado. Por favor espera.</p>
+            <div class="asig-loading__status">
+                <span class="asig-loading__dot"></span>
+                <span id="asigLoadingText">Procesando asignacion...</span>
+            </div>
+        </div>
+    </div>
+
     @if ($errors->any())
         <div class="alert alert-danger shadow-sm">
             <div class="font-weight-bold mb-1"><i class="fas fa-exclamation-triangle mr-1"></i> Hay datos por revisar</div>
@@ -399,6 +419,110 @@
         0%,100%{ transform:translateY(0); }
         50%{ transform:translateY(-8px); }
     }
+    .asig-loading{
+        position:fixed;
+        inset:0;
+        z-index:3100;
+        display:none;
+        align-items:center;
+        justify-content:center;
+        padding:1.25rem;
+    }
+    .asig-loading.is-visible{ display:flex; }
+    .asig-loading__backdrop{
+        position:absolute;
+        inset:0;
+        background:
+            radial-gradient(circle at top left, rgba(59,130,246,.24), transparent 30%),
+            radial-gradient(circle at bottom right, rgba(34,197,94,.2), transparent 32%),
+            rgba(15, 23, 42, .72);
+        backdrop-filter:blur(10px);
+    }
+    .asig-loading__panel{
+        position:relative;
+        width:min(520px, 100%);
+        border-radius:26px;
+        border:1px solid rgba(255,255,255,.15);
+        background:linear-gradient(145deg, rgba(15, 23, 42, .96), rgba(30, 41, 59, .92));
+        box-shadow:0 30px 80px rgba(15, 23, 42, .42);
+        padding:2rem 1.8rem 1.7rem;
+        text-align:center;
+        color:#fff;
+        overflow:hidden;
+    }
+    .asig-loading__orb{
+        position:relative;
+        width:102px;
+        height:102px;
+        margin:0 auto 1rem;
+    }
+    .asig-loading__orb span{
+        position:absolute;
+        inset:0;
+        border-radius:50%;
+        border:2px solid transparent;
+        border-top-color:rgba(96,165,250,.95);
+        border-right-color:rgba(34,197,94,.78);
+        animation:asigSpin 1.35s linear infinite;
+    }
+    .asig-loading__orb span:nth-child(2){
+        inset:12px;
+        border-top-color:rgba(34,211,238,.9);
+        border-right-color:rgba(251,191,36,.72);
+        animation-duration:1.05s;
+        animation-direction:reverse;
+    }
+    .asig-loading__orb span:nth-child(3){
+        inset:24px;
+        border-top-color:rgba(74,222,128,.95);
+        border-right-color:rgba(96,165,250,.72);
+        animation-duration:.9s;
+    }
+    .asig-loading__brand img{
+        width:48px;
+        height:48px;
+        object-fit:contain;
+        border-radius:14px;
+        background:rgba(255,255,255,.92);
+        padding:.3rem;
+        margin-bottom:.8rem;
+    }
+    .asig-loading__panel h3{
+        color:#fff;
+        font-size:1.45rem;
+        font-weight:800;
+    }
+    .asig-loading__panel p{
+        color:rgba(226,232,240,.86);
+        max-width:360px;
+        margin:0 auto 1rem;
+    }
+    .asig-loading__status{
+        display:inline-flex;
+        align-items:center;
+        gap:.65rem;
+        padding:.7rem 1rem;
+        border-radius:999px;
+        background:rgba(15,23,42,.45);
+        border:1px solid rgba(148,163,184,.18);
+        color:#e2e8f0;
+        font-weight:600;
+    }
+    .asig-loading__dot{
+        width:10px;
+        height:10px;
+        border-radius:50%;
+        background:#22d3ee;
+        box-shadow:0 0 0 0 rgba(34,211,238,.7);
+        animation:asigPulse 1.5s ease-out infinite;
+    }
+    body.asig-loading-lock{ overflow:hidden; }
+    @keyframes asigSpin{ to { transform:rotate(360deg); } }
+    @keyframes asigPulse{
+        0%{ box-shadow:0 0 0 0 rgba(34,211,238,.7); }
+        70%{ box-shadow:0 0 0 14px rgba(34,211,238,0); }
+        100%{ box-shadow:0 0 0 0 rgba(34,211,238,0); }
+    }
     @media (max-width: 991px){
         .asig-hero{
             flex-direction:column;
@@ -430,6 +554,8 @@
 <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 <script>
 $(function () {
+    let assignmentSubmitting = false;
+
     $('.select2-user').select2({
         placeholder: '-- Selecciona uno o varios usuarios --',
         width: '100%',
@@ -456,6 +582,28 @@ $(function () {
         setTimeout(function () {
             $('#btn-asignar-guardar').removeClass('btn-pop');
         }, 900);
+    });
+
+    function showAssignmentLoading(message) {
+        if (message) {
+            $('#asigLoadingText').text(message);
+        }
+
+        $('body').addClass('asig-loading-lock');
+        $('#asigLoading').addClass('is-visible');
+    }
+
+    $('#assignmentForm549').on('submit', function (e) {
+        if (assignmentSubmitting) {
+            e.preventDefault();
+            return false;
+        }
+
+        assignmentSubmitting = true;
+        $('#btn-asignar-guardar')
+            .prop('disabled', true)
+            .html('<i class="fas fa-spinner fa-spin mr-1"></i> Guardando...');
+        showAssignmentLoading('Registrando asignacion y redirigiendo...');
     });
 });
 </script>

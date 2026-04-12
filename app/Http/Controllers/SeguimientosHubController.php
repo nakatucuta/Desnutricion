@@ -22,7 +22,7 @@ class SeguimientosHubController extends Controller
         abort_if(!auth()->check(), 401, 'No autenticado');
 
         $user = auth()->user();
-        $muestraTodo = in_array((int) $user->usertype, [1, 2], true);
+        $muestraTodo = (int) ($user->usertype ?? 0) === 1;
 
         $subUltimo = SeguimientMaestrosiv549::select('id')
             ->whereColumn('asignacion_id', 'asignaciones_maestrosiv549.id')
@@ -69,19 +69,29 @@ class SeguimientosHubController extends Controller
             ->addColumn('acciones', function ($row) {
                 if (!empty($row->ultimo_seguimiento_id)) {
                     $url = route('asignaciones.seguimientmaestrosiv549.edit', [$row->id, $row->ultimo_seguimiento_id]);
+                    $showUrl = route('asignaciones.seguimientmaestrosiv549.show', [$row->id, $row->ultimo_seguimiento_id]);
                     $title = 'Continuar (editar ultimo seguimiento)';
                     $cls = 'btn-warning';
                     $icon = 'fa-edit';
+
+                    return '
+                        <a href="'.$showUrl.'" class="btn btn-sm btn-info mr-1" title="Ver detalle ultimo seguimiento">
+                            <i class="fas fa-eye"></i>
+                        </a>
+                        <a href="'.$url.'" class="btn btn-sm '.$cls.'" title="'.$title.'">
+                            <i class="fas '.$icon.'"></i>
+                        </a>
+                    ';
                 } else {
                     $url = route('asignaciones.seguimientmaestrosiv549.create', $row->id);
                     $title = 'Iniciar seguimiento';
                     $cls = 'btn-primary';
                     $icon = 'fa-notes-medical';
-                }
 
-                return '<a href="'.$url.'" class="btn btn-sm '.$cls.'" title="'.$title.'">
-                            <i class="fas '.$icon.'"></i>
-                        </a>';
+                    return '<a href="'.$url.'" class="btn btn-sm '.$cls.'" title="'.$title.'">
+                                <i class="fas '.$icon.'"></i>
+                            </a>';
+                }
             })
             ->rawColumns(['acciones'])
             ->make(true);
@@ -92,7 +102,8 @@ class SeguimientosHubController extends Controller
         abort_if(!auth()->check(), 401, 'No autenticado');
 
         $user = auth()->user();
-        $muestraTodo = in_array((int) $user->usertype, [1, 2], true);
+        $muestraTodo = (int) ($user->usertype ?? 0) === 1;
+        $canDelete = (int) ($user->usertype ?? 0) === 1;
 
         $q = SeguimientMaestrosiv549::with(['asignacion.user'])
             ->select([
@@ -148,23 +159,33 @@ class SeguimientosHubController extends Controller
 
                 return $fechas ? reset($fechas) : ($s->created_at?->format('Y-m-d') ?? 'N/D');
             })
-            ->addColumn('acciones', function ($s) {
+            ->addColumn('acciones', function ($s) use ($canDelete) {
+                $showUrl = route('asignaciones.seguimientmaestrosiv549.show', [$s->asignacion_id, $s->id]);
                 $editUrl = route('asignaciones.seguimientmaestrosiv549.edit', [$s->asignacion_id, $s->id]);
-                $delUrl = route('asignaciones.seguimientmaestrosiv549.destroy', [$s->asignacion_id, $s->id]);
-                $csrf = csrf_field();
-                $method = method_field('DELETE');
-
-                return '
-                    <a href="'.$editUrl.'" class="btn btn-sm btn-warning" title="Editar">
+                $html = '
+                    <a href="'.$showUrl.'" class="btn btn-sm btn-info mr-1" title="Ver detalle">
+                        <i class="fas fa-eye"></i>
+                    </a>
+                    <a href="'.$editUrl.'" class="btn btn-sm btn-warning mr-1" title="Editar">
                         <i class="fas fa-edit"></i>
                     </a>
-                    <form action="'.$delUrl.'" method="POST" style="display:inline-block" onsubmit="return confirm(\'Eliminar seguimiento?\')">
-                        '.$csrf.$method.'
-                        <button type="submit" class="btn btn-sm btn-danger" title="Eliminar">
-                            <i class="fas fa-trash-alt"></i>
-                        </button>
-                    </form>
                 ';
+
+                if ($canDelete) {
+                    $delUrl = route('asignaciones.seguimientmaestrosiv549.destroy', [$s->asignacion_id, $s->id]);
+                    $csrf = csrf_field();
+                    $method = method_field('DELETE');
+                    $html .= '
+                        <form action="'.$delUrl.'" method="POST" style="display:inline-block" onsubmit="return confirm(\'Eliminar seguimiento?\')">
+                            '.$csrf.$method.'
+                            <button type="submit" class="btn btn-sm btn-danger" title="Eliminar">
+                                <i class="fas fa-trash-alt"></i>
+                            </button>
+                        </form>
+                    ';
+                }
+
+                return $html;
             })
             ->rawColumns(['acciones'])
             ->make(true);
@@ -175,7 +196,7 @@ class SeguimientosHubController extends Controller
         abort_if(!auth()->check(), 401, 'No autenticado');
 
         $user = auth()->user();
-        $muestraTodo = in_array((int) $user->usertype, [1, 2], true);
+        $muestraTodo = (int) ($user->usertype ?? 0) === 1;
 
         $query = SeguimientMaestrosiv549::with(['asignacion.user'])
             ->select([
@@ -267,6 +288,7 @@ class SeguimientosHubController extends Controller
             }
 
             $nombre = trim("{$a->pri_nom_} {$a->seg_nom_} {$a->pri_ape_} {$a->seg_ape_}");
+            $showUrl = route('asignaciones.seguimientmaestrosiv549.show', [$s->asignacion_id, $s->id]);
             $editUrl = route('asignaciones.seguimientmaestrosiv549.edit', [$s->asignacion_id, $s->id]);
 
             $rows[] = [
@@ -279,7 +301,10 @@ class SeguimientosHubController extends Controller
                 'hito' => $vencido['label'],
                 'fecha_limite' => $vencido['due']->toDateString(),
                 'dias_atraso' => $vencido['due']->diffInDays($now),
-                'acciones' => '<a href="'.$editUrl.'" class="btn btn-sm btn-danger" title="Atender alerta"><i class="fas fa-exclamation-triangle"></i></a>',
+                'acciones' => '
+                    <a href="'.$showUrl.'" class="btn btn-sm btn-info mr-1" title="Ver detalle"><i class="fas fa-eye"></i></a>
+                    <a href="'.$editUrl.'" class="btn btn-sm btn-danger" title="Atender alerta"><i class="fas fa-exclamation-triangle"></i></a>
+                ',
                 'created_at' => optional($s->created_at)->format('Y-m-d H:i'),
             ];
         }
@@ -294,7 +319,7 @@ class SeguimientosHubController extends Controller
         abort_if(!auth()->check(), 401, 'No autenticado');
 
         $user = auth()->user();
-        $canSeeAll = in_array((int) $user->usertype, [1, 2], true);
+        $canSeeAll = (int) ($user->usertype ?? 0) === 1;
         $filters = $request->only(['tip_ide_', 'num_ide_', 'fec_desde', 'fec_hasta']);
 
         $filename = 'seguimientos_'.now()->format('Ymd_His').'.xlsx';

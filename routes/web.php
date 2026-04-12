@@ -476,10 +476,12 @@ Route::prefix('seguimientos1ges')->name('seguimientos.')->group(function () {
 // === CRUD de seguimientos anidado a la asignaciÃ³n (para crear/editar) ===
 Route::prefix('asignaciones/{asignacion}')
     ->name('asignaciones.')
+    ->middleware('auth')
     ->group(function () {
         Route::get('seguimientmaestrosiv549/create', [SeguimientMaestrosiv549Controller::class, 'create'])->name('seguimientmaestrosiv549.create');
         Route::post('seguimientmaestrosiv549',        [SeguimientMaestrosiv549Controller::class, 'store'])->name('seguimientmaestrosiv549.store');
 
+        Route::get('seguimientmaestrosiv549/{seguimiento}', [SeguimientMaestrosiv549Controller::class, 'show'])->name('seguimientmaestrosiv549.show');
         Route::get('seguimientmaestrosiv549/{seguimiento}/edit', [SeguimientMaestrosiv549Controller::class, 'edit'])->name('seguimientmaestrosiv549.edit');
         Route::put('seguimientmaestrosiv549/{seguimiento}',      [SeguimientMaestrosiv549Controller::class, 'update'])->name('seguimientmaestrosiv549.update');
         Route::delete('seguimientmaestrosiv549/{seguimiento}',   [SeguimientMaestrosiv549Controller::class, 'destroy'])->name('seguimientmaestrosiv549.destroy');

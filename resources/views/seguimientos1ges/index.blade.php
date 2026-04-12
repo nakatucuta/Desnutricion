@@ -140,7 +140,7 @@
                                     <th>Evento</th>
                                     <th>Fec. notif.</th>
                                     <th>Prestador</th>
-                                    <th style="width:90px;">Acciones</th>
+                                    <th style="width:140px;">Acciones</th>
                                 </tr>
                             </thead>
                         </table>
@@ -166,7 +166,7 @@
                                     <th>Prestador</th>
                                     <th>Ultimo hito</th>
                                     <th>Creado</th>
-                                    <th style="width:120px;">Acciones</th>
+                                    <th style="width:210px;">Acciones</th>
                                 </tr>
                             </thead>
                         </table>
@@ -196,7 +196,7 @@
                                     <th>Vencido</th>
                                     <th>Fecha limite</th>
                                     <th>Dias atraso</th>
-                                    <th style="width:90px;">Acciones</th>
+                                    <th style="width:150px;">Acciones</th>
                                 </tr>
                             </thead>
                         </table>

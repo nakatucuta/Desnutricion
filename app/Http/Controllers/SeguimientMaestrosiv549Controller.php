@@ -8,14 +8,23 @@ use Illuminate\Http\Request;
 
 class SeguimientMaestrosiv549Controller extends Controller
 {
+    public function __construct()
+    {
+        $this->middleware('auth');
+    }
+
     public function create(AsignacionesMaestrosiv549 $asignacion)
     {
+        $this->authorizeAsignacionAccess($asignacion);
+
         $seguimiento = null;
         return view('seguimientmaestrosiv549.create', compact('asignacion','seguimiento'));
     }
 
     public function store(Request $request, AsignacionesMaestrosiv549 $asignacion)
     {
+        $this->authorizeAsignacionAccess($asignacion);
+
         $data = $this->rules($request);
         $data = $this->normalizeBooleans($request, $data);
 
@@ -27,13 +36,24 @@ class SeguimientMaestrosiv549Controller extends Controller
             ->with('success', 'Seguimiento creado correctamente.');
     }
 
+    public function show(AsignacionesMaestrosiv549 $asignacion, SeguimientMaestrosiv549 $seguimiento)
+    {
+        $this->authorizeSeguimientoAccess($asignacion, $seguimiento);
+
+        return view('seguimientmaestrosiv549.show', compact('asignacion', 'seguimiento'));
+    }
+
     public function edit(AsignacionesMaestrosiv549 $asignacion, SeguimientMaestrosiv549 $seguimiento)
     {
+        $this->authorizeSeguimientoAccess($asignacion, $seguimiento);
+
         return view('seguimientmaestrosiv549.edit', compact('asignacion','seguimiento'));
     }
 
     public function update(Request $request, AsignacionesMaestrosiv549 $asignacion, SeguimientMaestrosiv549 $seguimiento)
     {
+        $this->authorizeSeguimientoAccess($asignacion, $seguimiento);
+
         $data = $this->rules($request);
         $data = $this->normalizeBooleans($request, $data);
 
@@ -45,10 +65,38 @@ class SeguimientMaestrosiv549Controller extends Controller
 
     public function destroy(AsignacionesMaestrosiv549 $asignacion, SeguimientMaestrosiv549 $seguimiento)
     {
+        $this->authorizeSeguimientoAccess($asignacion, $seguimiento);
+        $this->authorizeDelete();
+
         $seguimiento->delete();
 
         return redirect()->route('seguimientos.index')
             ->with('success', 'Seguimiento eliminado.');
+    }
+
+    private function authorizeAsignacionAccess(AsignacionesMaestrosiv549 $asignacion): void
+    {
+        abort_if(!auth()->check(), 401, 'No autenticado');
+
+        $user = auth()->user();
+        $canSeeAll = (int) ($user->usertype ?? 0) === 1;
+
+        if ($canSeeAll) {
+            return;
+        }
+
+        abort_unless((int) $asignacion->user_id === (int) $user->id, 403, 'No autorizado para acceder a esta asignacion.');
+    }
+
+    private function authorizeSeguimientoAccess(AsignacionesMaestrosiv549 $asignacion, SeguimientMaestrosiv549 $seguimiento): void
+    {
+        abort_if((int) $seguimiento->asignacion_id !== (int) $asignacion->id, 404, 'Seguimiento no asociado al caso solicitado.');
+        $this->authorizeAsignacionAccess($asignacion);
+    }
+
+    private function authorizeDelete(): void
+    {
+        abort_unless((int) (auth()->user()->usertype ?? 0) === 1, 403, 'Solo los administradores pueden eliminar seguimientos.');
     }
 
     /**

@@ -28,7 +28,7 @@ class SeguimientosExport implements FromQuery, WithHeadings, WithMapping, Should
             ->with(['asignacion.user']) // para mapear fácilmente
             ->orderByDesc('id');
 
-        // Permisos: si NO es admin (1/2), solo ve sus asignaciones
+        // Permisos: si NO es admin (1), solo ve sus asignaciones
         if (!$this->canSeeAll) {
             $q->whereHas('asignacion', function (Builder $qa) {
                 $qa->where('user_id', $this->userId);
