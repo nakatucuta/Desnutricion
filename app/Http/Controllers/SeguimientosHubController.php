@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Exports\SeguimientosExport;
 use App\Models\AsignacionesMaestrosiv549;
 use App\Models\SeguimientMaestrosiv549;
+use App\Services\Seguimiento549AlertService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Maatwebsite\Excel\Facades\Excel;
@@ -12,6 +13,10 @@ use Yajra\DataTables\Facades\DataTables;
 
 class SeguimientosHubController extends Controller
 {
+    public function __construct(private readonly Seguimiento549AlertService $alertService)
+    {
+    }
+
     public function index()
     {
         return view('seguimientos1ges.index');
@@ -231,65 +236,37 @@ class SeguimientosHubController extends Controller
                 continue;
             }
 
-            $base = $this->resolveSeguimientoAlertBase($s, $now);
-            $milestones = [
-                [
-                    'label' => '48-72h',
-                    'due' => $base->copy()->addHours(72),
-                    'done' => !empty($s->descripcion_seguimiento_inmediato) || !empty($s->fecha_control_rn_inmediato),
-                ],
-                [
-                    'label' => 'Post egreso',
-                    'due' => $base->copy()->addDays(3),
-                    'done' => !empty($s->fecha_seguimiento_1),
-                ],
-                [
-                    'label' => '7 dias',
-                    'due' => $base->copy()->addDays(7),
-                    'done' => !empty($s->fecha_seguimiento_2),
-                ],
-                [
-                    'label' => '14 dias',
-                    'due' => $base->copy()->addDays(14),
-                    'done' => !empty($s->fecha_seguimiento_3),
-                ],
-                [
-                    'label' => '21 dias',
-                    'due' => $base->copy()->addDays(21),
-                    'done' => !empty($s->fecha_seguimiento_4),
-                ],
-                [
-                    'label' => '28 dias',
-                    'due' => $base->copy()->addDays(28),
-                    'done' => !empty($s->fecha_seguimiento_5),
-                ],
-                [
-                    'label' => '6 meses',
-                    'due' => $base->copy()->addMonthsNoOverflow(6),
-                    'done' => !empty($s->fecha_consulta_6_meses),
-                ],
-                [
-                    'label' => '1 ano',
-                    'due' => $base->copy()->addYearNoOverflow(1),
-                    'done' => !empty($s->fecha_consulta_1_ano),
-                ],
-            ];
+            $snapshot = $this->alertService->evaluate($s, $now);
+            $timeline = $snapshot['timeline'];
+            $risk = $snapshot['risk'];
 
-            $vencido = null;
-            foreach ($milestones as $milestone) {
-                if (!$milestone['done'] && $now->gt($milestone['due'])) {
-                    $vencido = $milestone;
-                    break;
-                }
-            }
-
-            if (!$vencido) {
+            $hasTimelineAlert = in_array($timeline['status'], ['yellow', 'red'], true);
+            $hasRiskAlert = in_array($risk['level'], ['high', 'very_high', 'critical'], true);
+            if (!$hasTimelineAlert && !$hasRiskAlert) {
                 continue;
             }
 
             $nombre = trim("{$a->pri_nom_} {$a->seg_nom_} {$a->pri_ape_} {$a->seg_ape_}");
             $showUrl = route('asignaciones.seguimientmaestrosiv549.show', [$s->asignacion_id, $s->id]);
             $editUrl = route('asignaciones.seguimientmaestrosiv549.edit', [$s->asignacion_id, $s->id]);
+            $hito = $timeline['first_pending']['label'] ?? 'Sin hito pendiente';
+            $fechaLimite = $timeline['first_due'] ? $timeline['first_due']->toDateString() : 'N/D';
+            $diasAtraso = ($timeline['minutes_to_due'] ?? 0) < 0 ? intdiv(abs($timeline['minutes_to_due']), 1440) : 0;
+
+            $semColor = 'success';
+            if ($timeline['status'] === 'yellow') {
+                $semColor = 'warning';
+            } elseif ($timeline['status'] === 'red') {
+                $semColor = 'danger';
+            }
+
+            $riskBadgeColor = match ($risk['level']) {
+                'critical' => 'danger',
+                'very_high' => 'warning',
+                'high' => 'info',
+                'moderate' => 'secondary',
+                default => 'light',
+            };
 
             $rows[] = [
                 'id' => $s->id,
@@ -298,9 +275,12 @@ class SeguimientosHubController extends Controller
                 'tip_ide_' => trim((string) $a->tip_ide_) ?: 'N/D',
                 'num_ide_' => trim((string) $a->num_ide_) ?: 'N/D',
                 'prestador' => optional($a->user)->name ?? 'N/D',
-                'hito' => $vencido['label'],
-                'fecha_limite' => $vencido['due']->toDateString(),
-                'dias_atraso' => $vencido['due']->diffInDays($now),
+                'hito' => $hito,
+                'fecha_limite' => $fechaLimite,
+                'dias_atraso' => $diasAtraso,
+                'riesgo' => '<span class="badge badge-'.$riskBadgeColor.'">'.$risk['label'].' ('.$risk['score'].')</span>',
+                'semaforo' => '<span class="badge badge-'.$semColor.'">'.$timeline['status_label'].'</span>',
+                'temporizador' => $timeline['countdown'],
                 'acciones' => '
                     <a href="'.$showUrl.'" class="btn btn-sm btn-info mr-1" title="Ver detalle"><i class="fas fa-eye"></i></a>
                     <a href="'.$editUrl.'" class="btn btn-sm btn-danger" title="Atender alerta"><i class="fas fa-exclamation-triangle"></i></a>
@@ -310,8 +290,137 @@ class SeguimientosHubController extends Controller
         }
 
         return DataTables::of(collect($rows))
-            ->rawColumns(['acciones'])
+            ->rawColumns(['acciones', 'riesgo', 'semaforo'])
             ->make(true);
+    }
+
+    public function dataIndicadores(Request $request)
+    {
+        abort_if(!auth()->check(), 401, 'No autenticado');
+
+        $user = auth()->user();
+        $muestraTodo = (int) ($user->usertype ?? 0) === 1;
+        $desde = $this->parseDateInput($request->get('fec_desde'));
+        $hasta = $this->parseDateInput($request->get('fec_hasta'));
+
+        $query = SeguimientMaestrosiv549::with('asignacion.user')
+            ->select([
+                'id',
+                'asignacion_id',
+                'created_at',
+                'eclampsia',
+                'preeclampsia_severa',
+                'sepsis_infeccion_sistemica_severa',
+                'hemorragia_obstetrica_severa',
+                'ruptura_uterina',
+                'falla_cardiovascular',
+                'falla_renal',
+                'falla_hepatica',
+                'falla_cerebral',
+                'falla_respiratoria',
+                'falla_coagulacion',
+                'cirugia_adicional',
+                'causa_agrupada',
+            ]);
+
+        if (!$muestraTodo) {
+            $query->whereHas('asignacion', function ($qa) use ($user) {
+                $qa->where('user_id', $user->id);
+            });
+        }
+
+        $now = Carbon::now();
+        $rows = $query->get();
+
+        $total = 0;
+        $onTimeNotificacion = 0;
+        $crit3mas = 0;
+        $muertes = 0;
+        $altoRiesgo = 0;
+        $superInmediataVencida = 0;
+
+        $causas = [];
+        $ips = [];
+        $eapb = [];
+        $municipios = [];
+        $semanas = [];
+
+        foreach ($rows as $s) {
+            $a = $s->asignacion;
+            if (!$a) {
+                continue;
+            }
+
+            $fecNot = $this->tryParseDate($a->fec_not ?? null);
+            $fechaEvento = $fecNot ?: ($s->created_at instanceof Carbon ? $s->created_at->copy() : null);
+
+            if ($desde && (!$fechaEvento || $fechaEvento->copy()->startOfDay()->lt($desde->copy()->startOfDay()))) {
+                continue;
+            }
+
+            if ($hasta && (!$fechaEvento || $fechaEvento->copy()->startOfDay()->gt($hasta->copy()->startOfDay()))) {
+                continue;
+            }
+
+            $total++;
+
+            $snapshot = $this->alertService->evaluate($s, $now);
+            $risk = $snapshot['risk'];
+            $timeline = $snapshot['timeline'];
+
+            if (in_array($risk['level'], ['high', 'very_high', 'critical'], true)) {
+                $altoRiesgo++;
+            }
+            if (($timeline['first_pending_key'] ?? null) === '48h72h' && ($timeline['minutes_to_due'] ?? 1) < 0) {
+                $superInmediataVencida++;
+            }
+            if (!empty($a->fec_def_)) {
+                $muertes++;
+            }
+
+            if ($risk['criteria_count'] >= 3) {
+                $crit3mas++;
+            }
+
+            if ($fecNot) {
+                if ($s->created_at && $s->created_at->copy()->lessThanOrEqualTo($fecNot->copy()->endOfDay())) {
+                    $onTimeNotificacion++;
+                }
+
+                $week = 'SE '.str_pad((string) $fecNot->weekOfYear, 2, '0', STR_PAD_LEFT);
+                $semanas[$week] = ($semanas[$week] ?? 0) + 1;
+            }
+
+            $causa = trim((string) ($s->causa_agrupada ?: $a->caus_agrup ?? 'Sin clasificar'));
+            $ipsLabel = trim((string) ($a->nom_upgd ?: optional($a->user)->name ?: 'Sin IPS'));
+            $eapbLabel = trim((string) ($a->cod_ase_ ?: 'Sin EAPB'));
+            $munLabel = trim((string) ($a->nmun_resi ?: 'Sin municipio'));
+
+            $causas[$causa] = ($causas[$causa] ?? 0) + 1;
+            $ips[$ipsLabel] = ($ips[$ipsLabel] ?? 0) + 1;
+            $eapb[$eapbLabel] = ($eapb[$eapbLabel] ?? 0) + 1;
+            $municipios[$munLabel] = ($municipios[$munLabel] ?? 0) + 1;
+        }
+
+        return response()->json([
+            'totales' => [
+                'casos' => $total,
+                'oportunidad_notificacion_pct' => $total > 0 ? round(($onTimeNotificacion / $total) * 100, 1) : 0.0,
+                'casos_3_criterios_pct' => $total > 0 ? round(($crit3mas / $total) * 100, 1) : 0.0,
+                'letalidad_pct' => $total > 0 ? round(($muertes / $total) * 100, 2) : 0.0,
+                'alto_riesgo' => $altoRiesgo,
+                'super_inmediata_vencida' => $superInmediataVencida,
+            ],
+            'filtro_periodo' => [
+                'desde' => $desde?->toDateString(),
+                'hasta' => $hasta?->toDateString(),
+            ],
+            'causas_agrupadas' => $this->toTopList($causas),
+            'por_ips' => $this->toTopList($ips),
+            'por_eapb' => $this->toTopList($eapb),
+            'por_municipio' => $this->toTopList($municipios),
+            'por_semana' => $this->toTopList($semanas),
+        ]);
     }
 
     public function exportExcel(Request $request)
@@ -327,20 +436,51 @@ class SeguimientosHubController extends Controller
         return Excel::download(new SeguimientosExport($filters, $canSeeAll, $user->id), $filename);
     }
 
-    private function resolveSeguimientoAlertBase(SeguimientMaestrosiv549 $seguimiento, Carbon $fallback): Carbon
+    private function toTopList(array $values, int $limit = 8): array
     {
-        if ($seguimiento->fecha_egreso instanceof Carbon) {
-            return $seguimiento->fecha_egreso->copy()->startOfDay();
+        arsort($values);
+
+        $out = [];
+        foreach (array_slice($values, 0, $limit, true) as $label => $count) {
+            $out[] = ['label' => $label, 'count' => $count];
         }
 
-        if ($seguimiento->fecha_hospitalizacion instanceof Carbon) {
-            return $seguimiento->fecha_hospitalizacion->copy()->startOfDay();
+        return $out;
+    }
+
+    private function tryParseDate($value): ?Carbon
+    {
+        if (empty($value)) {
+            return null;
         }
 
-        if ($seguimiento->created_at instanceof Carbon) {
-            return $seguimiento->created_at->copy();
+        $raw = trim((string) $value);
+        $formats = ['d/m/Y', 'd/m/Y H:i:s', 'Y-m-d', 'Y-m-d H:i:s', 'd-m-Y'];
+
+        foreach ($formats as $format) {
+            try {
+                return Carbon::createFromFormat($format, $raw);
+            } catch (\Throwable $e) {
+            }
         }
 
-        return $fallback->copy();
+        try {
+            return Carbon::parse($raw);
+        } catch (\Throwable $e) {
+            return null;
+        }
+    }
+
+    private function parseDateInput($value): ?Carbon
+    {
+        if (empty($value)) {
+            return null;
+        }
+
+        try {
+            return Carbon::createFromFormat('Y-m-d', trim((string) $value));
+        } catch (\Throwable $e) {
+            return null;
+        }
     }
 }

@@ -12,12 +12,18 @@ class SeguimientoAlerta extends Model
     protected $fillable = [
         'seguimiento_id',
         'hito',
+        'tipo',
+        'nivel_riesgo',
+        'prioridad',
         'sent_at',
+        'due_at',
+        'estado',
     ];
 
     // Casts de fechas como DateTime (no strings)
     protected $casts = [
         'sent_at'    => 'datetime',
+        'due_at'     => 'datetime',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
     ];

@@ -49,6 +49,92 @@
         </div>
     </div>
 
+    <div class="card seg-hub-card mb-4">
+        <div class="card-header border-0 pb-0">
+            <span class="seg-hub-eyebrow">Tablero operativo</span>
+            <h3 class="seg-hub-section-title mb-3">Indicadores del evento 549</h3>
+        </div>
+        <div class="card-body pt-2">
+            <div class="seg-kpi-filters mb-3">
+                <div>
+                    <label class="seg-hub-label mb-1">Desde</label>
+                    <input type="date" id="indFecDesde" class="form-control seg-hub-input">
+                </div>
+                <div>
+                    <label class="seg-hub-label mb-1">Hasta</label>
+                    <input type="date" id="indFecHasta" class="form-control seg-hub-input">
+                </div>
+                <div class="d-flex align-items-end">
+                    <button type="button" id="btnAplicarIndicadores" class="btn seg-hub-btn seg-hub-btn--primary mr-2">
+                        <i class="fas fa-filter mr-1"></i> Aplicar periodo
+                    </button>
+                    <button type="button" id="btnLimpiarIndicadores" class="btn seg-hub-btn seg-hub-btn--ghost">
+                        <i class="fas fa-eraser mr-1"></i> Limpiar
+                    </button>
+                </div>
+                <div class="d-flex align-items-end">
+                    <small class="text-muted" id="indPeriodoAplicado">Periodo: sin filtro</small>
+                </div>
+            </div>
+
+            <div class="seg-kpi-grid mb-3">
+                <div class="seg-kpi-tile">
+                    <span>Oportunidad notificacion</span>
+                    <strong id="indOportunidad">0%</strong>
+                </div>
+                <div class="seg-kpi-tile">
+                    <span>Casos con 3+ criterios</span>
+                    <strong id="indCriterios">0%</strong>
+                </div>
+                <div class="seg-kpi-tile">
+                    <span>Letalidad estimada</span>
+                    <strong id="indLetalidad">0%</strong>
+                </div>
+                <div class="seg-kpi-tile">
+                    <span>Casos alto riesgo</span>
+                    <strong id="indAltoRiesgo">0</strong>
+                </div>
+                <div class="seg-kpi-tile seg-kpi-tile--danger">
+                    <span>Super inmediata vencida</span>
+                    <strong id="indSuperVencida">0</strong>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-md-6 col-xl-4 mb-3">
+                    <div class="seg-mini-card">
+                        <h5>Causas agrupadas</h5>
+                        <ul id="listCausas" class="seg-mini-list"></ul>
+                    </div>
+                </div>
+                <div class="col-md-6 col-xl-4 mb-3">
+                    <div class="seg-mini-card">
+                        <h5>Top IPS</h5>
+                        <ul id="listIps" class="seg-mini-list"></ul>
+                    </div>
+                </div>
+                <div class="col-md-6 col-xl-4 mb-3">
+                    <div class="seg-mini-card">
+                        <h5>Top EAPB</h5>
+                        <ul id="listEapb" class="seg-mini-list"></ul>
+                    </div>
+                </div>
+                <div class="col-md-6 col-xl-6 mb-3 mb-xl-0">
+                    <div class="seg-mini-card">
+                        <h5>Top municipio residencia</h5>
+                        <ul id="listMunicipio" class="seg-mini-list"></ul>
+                    </div>
+                </div>
+                <div class="col-md-6 col-xl-6">
+                    <div class="seg-mini-card">
+                        <h5>Semana epidemiologica</h5>
+                        <ul id="listSemana" class="seg-mini-list"></ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <div class="card seg-hub-card seg-hub-card--filters mb-4">
         <div class="card-body">
             <div class="seg-hub-filter-head">
@@ -194,9 +280,12 @@
                                     <th>Numero ID</th>
                                     <th>Prestador</th>
                                     <th>Vencido</th>
+                                    <th>Riesgo clinico</th>
+                                    <th>Semaforo</th>
+                                    <th>Temporizador</th>
                                     <th>Fecha limite</th>
                                     <th>Dias atraso</th>
-                                    <th style="width:150px;">Acciones</th>
+                                    <th style="width:180px;">Acciones</th>
                                 </tr>
                             </thead>
                         </table>
@@ -513,6 +602,74 @@
     .gap-2{
         gap:.5rem;
     }
+    .seg-kpi-grid{
+        display:grid;
+        gap:.75rem;
+        grid-template-columns:repeat(5,minmax(0,1fr));
+    }
+    .seg-kpi-filters{
+        display:grid;
+        gap:.75rem;
+        grid-template-columns:180px 180px auto 1fr;
+        align-items:end;
+    }
+    .seg-kpi-tile{
+        border:1px solid #deebef;
+        border-radius:16px;
+        padding:.8rem .9rem;
+        background:linear-gradient(180deg,#fff,#f6fbfd);
+    }
+    .seg-kpi-tile--danger{
+        background:linear-gradient(180deg,#fff9f9,#fff1f1);
+        border-color:#f3d7d7;
+    }
+    .seg-kpi-tile span{
+        display:block;
+        font-size:.75rem;
+        color:#6c8791;
+        text-transform:uppercase;
+        letter-spacing:.04em;
+        font-weight:800;
+    }
+    .seg-kpi-tile strong{
+        font-size:1.25rem;
+        color:#173f49;
+    }
+    .seg-mini-card{
+        border:1px solid #e1edf1;
+        border-radius:16px;
+        padding:.9rem;
+        background:#fff;
+        height:100%;
+    }
+    .seg-mini-card h5{
+        font-size:.95rem;
+        font-weight:800;
+        color:#234a54;
+        margin-bottom:.6rem;
+    }
+    .seg-mini-list{
+        list-style:none;
+        padding-left:0;
+        margin:0;
+        max-height:210px;
+        overflow:auto;
+    }
+    .seg-mini-list li{
+        display:flex;
+        justify-content:space-between;
+        gap:.8rem;
+        border-bottom:1px dashed #e3edf1;
+        padding:.35rem 0;
+        font-size:.87rem;
+        color:#49656e;
+    }
+    .seg-mini-list li:last-child{
+        border-bottom:none;
+    }
+    .seg-mini-list .empty{
+        color:#8aa0a8;
+    }
     @media (max-width: 991px){
         .seg-hub-hero,
         .seg-hub-filter-head,
@@ -525,6 +682,12 @@
         .seg-hub-tabs .nav-link{
             min-width:unset;
             width:100%;
+        }
+        .seg-kpi-grid{
+            grid-template-columns:repeat(2,minmax(0,1fr));
+        }
+        .seg-kpi-filters{
+            grid-template-columns:1fr 1fr;
         }
     }
     @media (max-width: 767px){
@@ -539,6 +702,12 @@
         .seg-hub-card .card-header{
             padding-left:1rem;
             padding-right:1rem;
+        }
+        .seg-kpi-grid{
+            grid-template-columns:1fr;
+        }
+        .seg-kpi-filters{
+            grid-template-columns:1fr;
         }
     }
 </style>
@@ -560,6 +729,61 @@ $(function () {
 
         $(kpiSelector).text(total);
         $(tabSelector).text(total + ' ' + suffix);
+    }
+
+    function renderList(listSelector, items) {
+        if (!items || !items.length) {
+            $(listSelector).html('<li class="empty">Sin datos disponibles</li>');
+            return;
+        }
+
+        const html = items.map(function (item) {
+            return '<li><span>' + item.label + '</span><strong>' + item.count + '</strong></li>';
+        }).join('');
+        $(listSelector).html(html);
+    }
+
+    function loadIndicadores() {
+        const desde = $('#indFecDesde').val();
+        const hasta = $('#indFecHasta').val();
+        const params = {};
+        if (desde) {
+            params.fec_desde = desde;
+        }
+        if (hasta) {
+            params.fec_hasta = hasta;
+        }
+
+        $.getJSON('{{ route("seguimientos.indicadores.data") }}', params)
+            .done(function (payload) {
+                const totals = payload.totales || {};
+                const periodo = payload.filtro_periodo || {};
+                $('#indOportunidad').text((totals.oportunidad_notificacion_pct ?? 0) + '%');
+                $('#indCriterios').text((totals.casos_3_criterios_pct ?? 0) + '%');
+                $('#indLetalidad').text((totals.letalidad_pct ?? 0) + '%');
+                $('#indAltoRiesgo').text(totals.alto_riesgo ?? 0);
+                $('#indSuperVencida').text(totals.super_inmediata_vencida ?? 0);
+
+                if (periodo.desde || periodo.hasta) {
+                    $('#indPeriodoAplicado').text('Periodo: ' + (periodo.desde || '...') + ' a ' + (periodo.hasta || '...'));
+                } else {
+                    $('#indPeriodoAplicado').text('Periodo: sin filtro');
+                }
+
+                renderList('#listCausas', payload.causas_agrupadas || []);
+                renderList('#listIps', payload.por_ips || []);
+                renderList('#listEapb', payload.por_eapb || []);
+                renderList('#listMunicipio', payload.por_municipio || []);
+                renderList('#listSemana', payload.por_semana || []);
+            })
+            .fail(function () {
+                $('#indPeriodoAplicado').text('Periodo: sin filtro');
+                renderList('#listCausas', []);
+                renderList('#listIps', []);
+                renderList('#listEapb', []);
+                renderList('#listMunicipio', []);
+                renderList('#listSemana', []);
+            });
     }
 
     const commonLanguage = {
@@ -636,14 +860,29 @@ $(function () {
             { data: 'num_ide_', name: 'num_ide_', title: 'Numero ID' },
             { data: 'prestador', name: 'prestador', title: 'Prestador' },
             { data: 'hito', name: 'hito', title: 'Vencido' },
+            { data: 'riesgo', name: 'riesgo', title: 'Riesgo clinico', orderable:false, searchable:false },
+            { data: 'semaforo', name: 'semaforo', title: 'Semaforo', orderable:false, searchable:false },
+            { data: 'temporizador', name: 'temporizador', title: 'Temporizador', orderable:false, searchable:false },
             { data: 'fecha_limite', name: 'fecha_limite', title: 'Fecha limite' },
             { data: 'dias_atraso', name: 'dias_atraso', title: 'Dias atraso' },
             { data: 'acciones', name: 'acciones', orderable:false, searchable:false, title: 'Acciones' }
         ],
-        order: [[8, 'desc']],
+        order: [[10, 'desc']],
         drawCallback: function () {
             updateCounter(dtAlertas, '#kpiAlertas', '#tabCountAlertas', 'activas');
         }
+    });
+
+    loadIndicadores();
+
+    $('#btnAplicarIndicadores').on('click', function () {
+        loadIndicadores();
+    });
+
+    $('#btnLimpiarIndicadores').on('click', function () {
+        $('#indFecDesde').val('');
+        $('#indFecHasta').val('');
+        loadIndicadores();
     });
 });
 </script>

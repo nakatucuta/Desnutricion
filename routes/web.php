@@ -471,6 +471,7 @@ Route::prefix('seguimientos1ges')->name('seguimientos.')->group(function () {
     Route::get('/realizados/data', [SeguimientosHubController::class, 'dataRealizados'])->name('realizados.data');
     // NUEVO: alertas
     Route::get('/alertas/data', [SeguimientosHubController::class, 'dataAlertas'])->name('alertas.data');
+    Route::get('/indicadores/data', [SeguimientosHubController::class, 'dataIndicadores'])->name('indicadores.data');
 });
 
 // === CRUD de seguimientos anidado a la asignaciÃ³n (para crear/editar) ===

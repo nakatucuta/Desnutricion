@@ -56,6 +56,12 @@
             <td><div class="kpi-l">Precon alto riesgo</div><div class="kpi-v">{{ number_format($k['precon_alto_riesgo'] ?? 0) }}</div></td>
             <td><div class="kpi-l">SIV notificados hoy</div><div class="kpi-v">{{ number_format($k['siv_notificados_hoy'] ?? 0) }}</div></td>
         </tr>
+        <tr>
+            <td><div class="kpi-l">Calidad promedio</div><div class="kpi-v">{{ number_format($k['calidad_promedio'] ?? 0, 1) }}%</div></td>
+            <td><div class="kpi-l">Alertas abiertas</div><div class="kpi-v">{{ number_format($k['alertas_abiertas'] ?? 0) }}</div></td>
+            <td><div class="kpi-l">Cobertura contacto</div><div class="kpi-v">{{ number_format($k['cobertura_contacto_pct'] ?? 0, 1) }}%</div></td>
+            <td><div class="kpi-l">Integracion ruta</div><div class="kpi-v">{{ number_format($k['integracion_ruta_pct'] ?? 0, 1) }}%</div></td>
+        </tr>
     </table>
 
     <div class="section">Alertas de gestion</div>
@@ -90,6 +96,10 @@
         @if(!empty($chartImages['chartTipo1']))<img src="{{ $chartImages['chartTipo1'] }}" alt="Estado FPP Tipo 1">@endif
         @if(!empty($chartImages['chartTipo3']))<img src="{{ $chartImages['chartTipo3'] }}" alt="Riesgo Tipo 3">@endif
         @if(!empty($chartImages['chartSiv']))<img src="{{ $chartImages['chartSiv'] }}" alt="SIV por semana">@endif
+        @if(!empty($chartImages['chartQuality']))<img src="{{ $chartImages['chartQuality'] }}" alt="Calidad por submodulo">@endif
+        @if(!empty($chartImages['chartGrowth']))<img src="{{ $chartImages['chartGrowth'] }}" alt="Crecimiento por submodulo">@endif
+        @if(!empty($chartImages['chartHotspots']))<img src="{{ $chartImages['chartHotspots'] }}" alt="Hotspots territoriales">@endif
+        @if(!empty($chartImages['chartAlertMix']))<img src="{{ $chartImages['chartAlertMix'] }}" alt="Presion de alertas">@endif
     </div>
 
     <div class="section">Resumen por modulo</div>

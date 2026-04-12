@@ -324,6 +324,55 @@ class GestantesStatsController extends Controller
         ];
     }
 
+    private function pct($num, $den, int $decimals = 1): float
+    {
+        $den = (float) $den;
+        if ($den <= 0) {
+            return 0.0;
+        }
+
+        return round(((float) $num / $den) * 100, $decimals);
+    }
+
+    private function growthFromSeries(array $values): float
+    {
+        $n = count($values);
+        if ($n < 2) {
+            return 0.0;
+        }
+
+        $last = (float) ($values[$n - 1] ?? 0);
+        $prev = (float) ($values[$n - 2] ?? 0);
+        if ($prev <= 0) {
+            return $last > 0 ? 100.0 : 0.0;
+        }
+
+        return round((($last - $prev) / $prev) * 100, 1);
+    }
+
+    private function topMunicipiosConsolidados(array $modules, int $limit = 12): array
+    {
+        $pool = [];
+        foreach (['preconcepcional', 'tipo1', 'siv549'] as $mod) {
+            foreach (($modules[$mod]['tables']['a'] ?? []) as $row) {
+                $municipio = trim((string) ($row['municipio'] ?? 'SIN MUNICIPIO'));
+                if ($municipio === '') {
+                    $municipio = 'SIN MUNICIPIO';
+                }
+                $pool[$municipio] = ($pool[$municipio] ?? 0) + (int) ($row['total'] ?? 0);
+            }
+        }
+
+        arsort($pool);
+        $out = ['labels' => [], 'values' => []];
+        foreach (array_slice($pool, 0, $limit, true) as $label => $count) {
+            $out['labels'][] = $label;
+            $out['values'][] = (int) $count;
+        }
+
+        return $out;
+    }
+
     private function tipo1AlertRows(array $f, ?callable $extra = null, int $limit = 200): array
     {
         $rows = [];
@@ -668,6 +717,86 @@ class GestantesStatsController extends Controller
             $insights[] = ['key' => 'precon_alto_riesgo', 'indicador' => 'Precon alto riesgo', 'valor' => "$a/$pr ($p%)", 'prioridad' => $p >= 25 ? 'Alta' : ($p >= 12 ? 'Media' : 'Baja'), 'accion' => 'Intervencion prioritaria'];
         }
 
+        $preconTotal = (int) ($modules['preconcepcional']['summary']['total'] ?? 0);
+        $preconPhoneCov = $this->pct(
+            max($preconTotal - (int) ($modules['preconcepcional']['summary']['sin_telefono'] ?? 0), 0),
+            $preconTotal
+        );
+        $preconImcCov = $this->pct(
+            max($preconTotal - (int) ($modules['preconcepcional']['summary']['sin_imc'] ?? 0), 0),
+            $preconTotal
+        );
+        $preconQuality = round(($preconPhoneCov + $preconImcCov) / 2, 1);
+
+        $tipo1Total = (int) ($modules['tipo1']['summary']['total'] ?? 0);
+        $tipo1FppCov = $this->pct(
+            max($tipo1Total - (int) ($modules['tipo1']['summary']['sin_fpp'] ?? 0), 0),
+            $tipo1Total
+        );
+        $tipo1ControlFpp = $this->pct(
+            max($tipo1Total - (int) ($modules['tipo1']['summary']['fpp_vencidas'] ?? 0), 0),
+            $tipo1Total
+        );
+        $tipo1Quality = round(($tipo1FppCov + $tipo1ControlFpp) / 2, 1);
+
+        $tipo3Total = (int) ($modules['tipo3']['summary']['total'] ?? 0);
+        $tipo3CupsCov = $this->pct((int) ($modules['tipo3']['summary']['con_cups'] ?? 0), $tipo3Total);
+        $tipo3RiesgoCov = $this->pct((int) ($modules['tipo3']['summary']['con_riesgo_gestacional'] ?? 0), $tipo3Total);
+        $tipo3Quality = round(($tipo3CupsCov + $tipo3RiesgoCov) / 2, 1);
+
+        $sivTotal = (int) ($modules['siv549']['summary']['total'] ?? 0);
+        $sivPhoneCov = $this->pct((int) ($modules['siv549']['summary']['con_telefono'] ?? 0), $sivTotal);
+        $sivQuality = $sivPhoneCov;
+
+        $qualityLabels = ['Preconcepcional', 'Tipo 2', 'Atencion y Seguimiento', 'SIV549'];
+        $qualityValues = [$preconQuality, $tipo1Quality, $tipo3Quality, $sivQuality];
+
+        $growthValues = [
+            $this->growthFromSeries($modules['preconcepcional']['chart_monthly']['values'] ?? []),
+            $this->growthFromSeries($modules['tipo1']['chart_monthly']['values'] ?? []),
+            $this->growthFromSeries($modules['tipo3']['chart_monthly']['values'] ?? []),
+            $this->growthFromSeries($modules['siv549']['chart_monthly']['values'] ?? []),
+        ];
+
+        $hotspots = $this->topMunicipiosConsolidados($modules);
+        $alertMix = [
+            'labels' => ['FPP vencidas', 'Precon alto riesgo', 'Tipo3 sin riesgo clasif.', 'SIV sin telefono'],
+            'values' => [
+                (int) ($modules['tipo1']['summary']['fpp_vencidas'] ?? 0),
+                (int) ($modules['preconcepcional']['summary']['alto_riesgo'] ?? 0),
+                max($tipo3Total - (int) ($modules['tipo3']['summary']['con_riesgo_gestacional'] ?? 0), 0),
+                (int) ($modules['siv549']['summary']['sin_telefono'] ?? 0),
+            ],
+        ];
+
+        $totalGeneral = array_sum($totals);
+        $pipelineConv = [
+            'precon_to_tipo2_pct' => $this->pct($totals['Tipo 1'], $totals['Preconcepcional']),
+            'tipo2_to_seguimiento_pct' => $this->pct($totals['Tipo 3'], $totals['Tipo 1']),
+            'seguimiento_to_siv_pct' => $this->pct($totals['SIV549'], $totals['Tipo 3']),
+            'indice_integracion_pct' => $this->pct($totals['Tipo 3'] + $totals['SIV549'], $totalGeneral),
+        ];
+
+        if ($preconQuality < 70) {
+            $insights[] = [
+                'key' => null,
+                'indicador' => 'Calidad de datos Preconcepcional',
+                'valor' => $preconQuality.'%',
+                'prioridad' => 'Alta',
+                'accion' => 'Fortalecer registro de telefono e IMC en captacion inicial',
+            ];
+        }
+
+        if ($tipo1Quality < 70) {
+            $insights[] = [
+                'key' => null,
+                'indicador' => 'Calidad de datos Tipo 2',
+                'valor' => $tipo1Quality.'%',
+                'prioridad' => 'Alta',
+                'accion' => 'Completar FPP y depurar casos vencidos',
+            ];
+        }
+
         return [
             'generated_at' => now()->format('Y-m-d H:i:s'),
             'filters' => $f,
@@ -681,6 +810,10 @@ class GestantesStatsController extends Controller
                 'precon_alto_riesgo' => $modules['preconcepcional']['summary']['alto_riesgo'] ?? 0,
                 'tipo3_con_riesgo' => $modules['tipo3']['summary']['con_riesgo_gestacional'] ?? 0,
                 'siv_notificados_hoy' => $modules['siv549']['summary']['notificados_hoy'] ?? 0,
+                'calidad_promedio' => round(($preconQuality + $tipo1Quality + $tipo3Quality + $sivQuality) / 4, 1),
+                'alertas_abiertas' => array_sum($alertMix['values']),
+                'cobertura_contacto_pct' => round(($preconPhoneCov + $sivPhoneCov) / 2, 1),
+                'integracion_ruta_pct' => $pipelineConv['indice_integracion_pct'],
             ],
             'charts' => [
                 'modules' => ['labels' => array_keys($totals), 'values' => array_values($totals)],
@@ -697,9 +830,22 @@ class GestantesStatsController extends Controller
                 'tipo1_fpp' => $modules['tipo1']['chart_main'] ?? ['labels' => [], 'values' => []],
                 'tipo3_riesgo' => $modules['tipo3']['chart_main'] ?? ['labels' => [], 'values' => []],
                 'siv_semana' => $modules['siv549']['chart_main'] ?? ['labels' => [], 'values' => []],
+                'quality_by_module' => ['labels' => $qualityLabels, 'values' => $qualityValues],
+                'growth_by_module' => ['labels' => $qualityLabels, 'values' => $growthValues],
+                'municipio_hotspots' => $hotspots,
+                'alert_mix' => $alertMix,
             ],
             'insights' => $insights,
             'modules' => $modules,
+            'advanced' => [
+                'quality' => [
+                    'precon' => $preconQuality,
+                    'tipo2' => $tipo1Quality,
+                    'tipo3' => $tipo3Quality,
+                    'siv549' => $sivQuality,
+                ],
+                'conversion' => $pipelineConv,
+            ],
         ];
     }
 

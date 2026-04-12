@@ -4,11 +4,12 @@ namespace App\Http\Controllers;
 
 use App\Models\AsignacionesMaestrosiv549;
 use App\Models\SeguimientMaestrosiv549;
+use App\Services\Seguimiento549AlertService;
 use Illuminate\Http\Request;
 
 class SeguimientMaestrosiv549Controller extends Controller
 {
-    public function __construct()
+    public function __construct(private readonly Seguimiento549AlertService $alertService)
     {
         $this->middleware('auth');
     }
@@ -30,7 +31,9 @@ class SeguimientMaestrosiv549Controller extends Controller
 
         $data['asignacion_id'] = $asignacion->id;
 
-        SeguimientMaestrosiv549::create($data);
+        $seguimiento = SeguimientMaestrosiv549::create($data);
+        $seguimiento->load('asignacion.user');
+        $this->alertService->syncSuperImmediateAlert($seguimiento);
 
         return redirect()->route('seguimientos.index')
             ->with('success', 'Seguimiento creado correctamente.');
@@ -58,6 +61,9 @@ class SeguimientMaestrosiv549Controller extends Controller
         $data = $this->normalizeBooleans($request, $data);
 
         $seguimiento->update($data);
+        $seguimiento->refresh();
+        $seguimiento->load('asignacion.user');
+        $this->alertService->syncSuperImmediateAlert($seguimiento);
 
         return redirect()->route('seguimientos.index')
             ->with('success', 'Seguimiento actualizado correctamente.');

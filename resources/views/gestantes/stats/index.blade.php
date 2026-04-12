@@ -113,6 +113,7 @@
 </div>
 
 <div class="row" id="kpisRow"></div>
+<div class="row" id="advancedRow"></div>
 
 <div class="card card-outline card-warning">
     <div class="card-header"><h3 class="card-title"><i class="fas fa-lightbulb mr-1"></i> Alertas para toma de decisiones</h3></div>
@@ -155,6 +156,36 @@
     <div class="col-md-3"><div class="card card-outline card-danger"><div class="card-header"><h3 class="card-title">SIV549 por semana</h3></div><div class="card-body"><canvas id="chartSiv"></canvas></div></div></div>
 </div>
 
+<div class="row">
+    <div class="col-md-6">
+        <div class="card card-outline card-primary">
+            <div class="card-header"><h3 class="card-title">Indice de calidad por submodulo</h3></div>
+            <div class="card-body"><canvas id="chartQuality" height="170"></canvas></div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card card-outline card-info">
+            <div class="card-header"><h3 class="card-title">Crecimiento ultimo mes vs mes previo</h3></div>
+            <div class="card-body"><canvas id="chartGrowth" height="170"></canvas></div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-6">
+        <div class="card card-outline card-warning">
+            <div class="card-header"><h3 class="card-title">Hotspots territoriales consolidados</h3></div>
+            <div class="card-body"><canvas id="chartHotspots" height="220"></canvas></div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card card-outline card-danger">
+            <div class="card-header"><h3 class="card-title">Presion de alertas por tipo</h3></div>
+            <div class="card-body"><canvas id="chartAlertMix" height="220"></canvas></div>
+        </div>
+    </div>
+</div>
+
 <div class="row" id="moduleCards"></div>
 
 <div class="modal fade" id="statsModal" tabindex="-1" role="dialog" aria-hidden="true">
@@ -183,6 +214,10 @@
 <style>
 .kpi-card{border-radius:14px;overflow:hidden;box-shadow:0 10px 20px rgba(16,24,40,.08)}
 .kpi-card .small-box-footer{background:rgba(255,255,255,.2)!important}
+.advanced-pill{border-radius:12px;padding:.85rem 1rem;background:linear-gradient(135deg,#f8fafc,#eef2ff);border:1px solid #e2e8f0;box-shadow:0 8px 14px rgba(15,23,42,.05)}
+.advanced-pill .title{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:#64748b;font-weight:700}
+.advanced-pill .value{font-size:22px;font-weight:800;color:#0f172a;line-height:1.1}
+.advanced-pill .hint{font-size:11px;color:#475569}
 .module-click{cursor:pointer;transition:transform .15s ease,box-shadow .2s ease}
 .module-click:hover{transform:translateY(-2px);box-shadow:0 10px 20px rgba(16,24,40,.12)}
 .insight-row-click{cursor:pointer;transition:background-color .15s ease}
@@ -232,6 +267,25 @@
             kpiBox('FPP Vencidas', k.fpp_vencidas, 'fas fa-exclamation-triangle', 'bg-danger'),
             kpiBox('Precon Alto Riesgo', k.precon_alto_riesgo, 'fas fa-heartbeat', 'bg-warning'),
             kpiBox('SIV Notificados Hoy', k.siv_notificados_hoy, 'fas fa-bell', 'bg-info'),
+            kpiBox('Calidad promedio (%)', k.calidad_promedio, 'fas fa-shield-alt', 'bg-success'),
+            kpiBox('Alertas abiertas', k.alertas_abiertas, 'fas fa-triangle-exclamation', 'bg-danger'),
+            kpiBox('Cobertura contacto (%)', k.cobertura_contacto_pct, 'fas fa-phone-volume', 'bg-info'),
+            kpiBox('Integracion ruta (%)', k.integracion_ruta_pct, 'fas fa-project-diagram', 'bg-primary'),
+        ].join('');
+    }
+
+    function advBox(title, value, hint){
+        return `<div class="col-md-3 col-sm-6 mb-2"><div class="advanced-pill"><div class="title">${esc(title)}</div><div class="value">${esc(value)}</div><div class="hint">${esc(hint||'')}</div></div></div>`;
+    }
+
+    function renderAdvanced(data){
+        const a = data.advanced || {};
+        const c = a.conversion || {};
+        document.getElementById('advancedRow').innerHTML = [
+            advBox('Precon -> Tipo 2', (c.precon_to_tipo2_pct ?? 0) + '%', 'Continuidad de captacion'),
+            advBox('Tipo 2 -> Seguimiento', (c.tipo2_to_seguimiento_pct ?? 0) + '%', 'Paso a monitoreo'),
+            advBox('Seguimiento -> SIV549', (c.seguimiento_to_siv_pct ?? 0) + '%', 'Integracion con notificacion'),
+            advBox('Indice Integracion', (c.indice_integracion_pct ?? 0) + '%', 'Cobertura total de ruta'),
         ].join('');
     }
 
@@ -258,9 +312,17 @@
 
     function buildChart(id, type, labels, valuesOrDatasets, opts={}){
         const ctx = document.getElementById(id).getContext('2d');
-        const data = Array.isArray(valuesOrDatasets)
-            ? { labels, datasets: [{ label:'Total', data: valuesOrDatasets, backgroundColor: chartColors, borderColor: chartColors }] }
-            : { labels, datasets: valuesOrDatasets };
+        const isDatasetArray = Array.isArray(valuesOrDatasets)
+            && valuesOrDatasets.length > 0
+            && typeof valuesOrDatasets[0] === 'object'
+            && valuesOrDatasets[0] !== null
+            && Object.prototype.hasOwnProperty.call(valuesOrDatasets[0], 'data');
+
+        const data = isDatasetArray
+            ? { labels, datasets: valuesOrDatasets }
+            : Array.isArray(valuesOrDatasets)
+                ? { labels, datasets: [{ label:'Total', data: valuesOrDatasets, backgroundColor: chartColors, borderColor: chartColors }] }
+                : { labels, datasets: valuesOrDatasets };
         state.charts[id] = new Chart(ctx, { type, data, options: Object.assign({ responsive:true, maintainAspectRatio:false }, opts) });
     }
 
@@ -285,6 +347,24 @@
         buildChart('chartTipo1','pie', c.tipo1_fpp?.labels || [], c.tipo1_fpp?.values || []);
         buildChart('chartTipo3','bar', c.tipo3_riesgo?.labels || [], c.tipo3_riesgo?.values || [], { plugins:{legend:{display:false}} });
         buildChart('chartSiv','line', c.siv_semana?.labels || [], [{ label:'Casos', data:c.siv_semana?.values || [], borderColor:'#ef4444', backgroundColor:'#ef4444', fill:false, tension:.2 }]);
+
+        buildChart('chartQuality','bar', c.quality_by_module?.labels || [], c.quality_by_module?.values || [], {
+            plugins:{legend:{display:false}},
+            scales:{ y:{ beginAtZero:true, max:100 } }
+        });
+
+        buildChart('chartGrowth','bar', c.growth_by_module?.labels || [], [{
+            label:'Crecimiento %',
+            data:c.growth_by_module?.values || [],
+            backgroundColor:(c.growth_by_module?.values || []).map(v => Number(v) >= 0 ? '#22c55e' : '#ef4444')
+        }], { plugins:{legend:{display:false}} });
+
+        buildChart('chartHotspots','bar', c.municipio_hotspots?.labels || [], c.municipio_hotspots?.values || [], {
+            indexAxis:'y',
+            plugins:{legend:{display:false}}
+        });
+
+        buildChart('chartAlertMix','doughnut', c.alert_mix?.labels || [], c.alert_mix?.values || []);
     }
 
     function moduleCard(key, title, total, subtitle, color, icon){
@@ -380,6 +460,7 @@
 
     function renderAll(){
         renderKpis(state.payload);
+        renderAdvanced(state.payload);
         renderInsights(state.payload);
         renderCharts(state.payload);
         renderModuleCards(state.payload);
