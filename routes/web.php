@@ -56,6 +56,10 @@ Route::get('/afiliado/data', [AfiliadoController::class, 'dataTable'])->name('af
 ->middleware('auth');
 Route::get('/afiliado/load-state', [AfiliadoController::class, 'paiLoadState'])->name('afiliado.load-state')
 ->middleware('auth');
+Route::get('/afiliado/stats-dashboard', [AfiliadoController::class, 'statsDashboard'])->name('afiliado.stats.dashboard')
+->middleware('auth');
+Route::get('/afiliado/estadisticas', [AfiliadoController::class, 'statsView'])->name('afiliado.stats.view')
+->middleware('auth');
 
 
 // Rutas para el cargue de la informaciÃ³n
@@ -73,6 +77,20 @@ Route::get('/vacunas/{id}/{numeroCarnet?}', [AfiliadoController::class, 'getVacu
 Route::get('/vacunas/{id}/{numeroCarnet?}/pdf', [AfiliadoController::class, 'getVacunasPdf'])
     ->whereNumber('id')
     ->name('getVacunasPdf');
+Route::get('/vacunas/{id}/{numeroCarnet?}/faltantes-mvp', [AfiliadoController::class, 'getVacunasMissingMvp'])
+    ->whereNumber('id')
+    ->name('getVacunasMissingMvp')
+    ->middleware('auth');
+Route::get('/vacunas/{id}/{numeroCarnet?}/faltantes-normativo', [AfiliadoController::class, 'getVacunasMissingMvp'])
+    ->whereNumber('id')
+    ->name('getVacunasMissingNormativo')
+    ->middleware('auth');
+Route::get('/vacunas/faltantes/mvp', [AfiliadoController::class, 'missingVaccinesIndex'])
+    ->name('vacunas.faltantes.mvp')
+    ->middleware('auth');
+Route::get('/vacunas/faltantes/normativo', [AfiliadoController::class, 'missingVaccinesIndex'])
+    ->name('vacunas.faltantes.normativo')
+    ->middleware('auth');
 
 
 // // Ruta para el reporte Excel

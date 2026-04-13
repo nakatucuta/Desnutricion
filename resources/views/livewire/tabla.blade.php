@@ -59,6 +59,7 @@
                     <th style="width:240px;">Documento</th>
                     <th>Paciente</th>
                     <th style="width:170px;">{{ auth()->user()->usertype == 1 ? 'Lote' : 'Carnet' }}</th>
+                    <th style="width:150px;" class="text-center">Esquema</th>
                     <th style="width:240px;" class="text-right">Acciones</th>
                 </tr>
             </thead>
@@ -237,7 +238,7 @@
   width:100%;
   border-collapse:separate;
   border-spacing:0;
-  min-width:940px;
+  min-width:1080px;
   font-size:1rem;
   color:var(--pai-text);
 }
@@ -261,6 +262,37 @@
 }
 .pai-table tbody tr:hover td{
   background:rgba(234,242,255,.55);
+}
+
+.pai-esquema-badge{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  min-width:102px;
+  padding:6px 10px;
+  border-radius:999px;
+  font-size:.82rem;
+  font-weight:900;
+  letter-spacing:.2px;
+  border:1px solid transparent;
+}
+.pai-esquema-badge--ok{
+  background:#ecfdf3;
+  color:#166534;
+  border-color:#c8f1d9;
+}
+.pai-esquema-badge--bad{
+  background:#fff1f2;
+  color:#9f1239;
+  border-color:#ffd3d8;
+}
+.pai-esquema-open{
+  text-decoration:none !important;
+}
+.pai-esquema-open:focus .pai-esquema-badge,
+.pai-esquema-open:hover .pai-esquema-badge{
+  filter:brightness(.98);
+  box-shadow:0 2px 10px rgba(2,6,23,.10);
 }
 #sivigila.dataTable{
   margin:0 !important;

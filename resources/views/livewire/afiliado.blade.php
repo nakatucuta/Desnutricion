@@ -17,6 +17,12 @@
     </div>
 
     <div class="pai-topbar__right">
+        <a href="{{ route('afiliado.stats.view') }}" class="btn btn-pai btn-pai-secondary mr-2">
+            <i class="fas fa-chart-pie mr-2"></i> Estadisticas PAI
+        </a>
+        <a href="{{ route('vacunas.faltantes.normativo') }}" class="btn btn-pai btn-pai-secondary mr-2">
+            <i class="fas fa-clipboard-list mr-2"></i> Faltantes poblacionales (Normativo)
+        </a>
         <a href="{{ route('download.excel') }}" class="btn btn-pai btn-pai-secondary">
             <i class="fas fa-file-download mr-2"></i> Descargar formato
         </a>
@@ -1000,7 +1006,6 @@ html, body{font-family:'Manrope', sans-serif; color:var(--pai-text);}
   background: rgba(2,6,23,.50);
 }
 
-
 </style>
 @stop
 
@@ -1088,6 +1093,12 @@ window.PAI_INITIAL_LOAD_STATE = @json($paiLoadState ?? ['busy' => false]);
   const STATUS_URL = (token) => window.IMPORT_ENDPOINTS.statusBase + '/' + encodeURIComponent(token);
   const VACUNAS_PDF_URL = (id, carnet) => {
       let url = "{{ route('getVacunasPdf', ['id' => ':id', 'numeroCarnet' => ':carnet']) }}";
+      url = url.replace(':id', encodeURIComponent(id));
+      url = url.replace(':carnet', encodeURIComponent(carnet ?? 0));
+      return url;
+  };
+  const VACUNAS_MISSING_MVP_URL = (id, carnet) => {
+      let url = "{{ route('getVacunasMissingNormativo', ['id' => ':id', 'numeroCarnet' => ':carnet']) }}";
       url = url.replace(':id', encodeURIComponent(id));
       url = url.replace(':carnet', encodeURIComponent(carnet ?? 0));
       return url;
@@ -1679,6 +1690,7 @@ window.PAI_INITIAL_LOAD_STATE = @json($paiLoadState ?? ['busy' => false]);
               { data: 'documento', orderable: false, searchable: false },
               { data: 'paciente', orderable: false, searchable: false },
               { data: 'lote_carnet', orderable: false, searchable: false },
+              { data: 'esquema_estado', orderable: false, searchable: false, className: 'text-center' },
               { data: 'acciones', orderable: false, searchable: false, className: 'text-right' }
           ],
           order: [[0, 'desc']],
@@ -1821,11 +1833,10 @@ window.PAI_INITIAL_LOAD_STATE = @json($paiLoadState ?? ['busy' => false]);
       }, 250);
   });
 
-  $(document).on('click', '.numero-identificacion', function(e){
-      e.preventDefault();
-
-      const id = $(this).data('id');
-      let carnet = $(this).data('carnet');
+  function openVacunaDetalle(id, carnet){
+      if(id === undefined || id === null || id === ''){
+          return;
+      }
 
       if(carnet === undefined || carnet === null || carnet === ''){
           carnet = 0;
@@ -1836,6 +1847,8 @@ window.PAI_INITIAL_LOAD_STATE = @json($paiLoadState ?? ['busy' => false]);
           pdfBtn.setAttribute('href', VACUNAS_PDF_URL(id, carnet));
           pdfBtn.setAttribute('aria-disabled', 'false');
       }
+
+      loadMvpMissing(id, carnet);
 
       let url = "{{ route('getVacunas', ['id' => ':id', 'numeroCarnet' => ':carnet']) }}";
       url = url.replace(':id', encodeURIComponent(id));
@@ -1910,6 +1923,14 @@ window.PAI_INITIAL_LOAD_STATE = @json($paiLoadState ?? ['busy' => false]);
               });
           }
       });
+  }
+
+  $(document).on('click', '.numero-identificacion, .pai-esquema-open', function(e){
+      e.preventDefault();
+
+      const id = $(this).data('id');
+      const carnet = $(this).data('carnet');
+      openVacunaDetalle(id, carnet);
   });
 
   $(document).on('click', '.send-email', function(){
@@ -2142,6 +2163,58 @@ window.PAI_INITIAL_LOAD_STATE = @json($paiLoadState ?? ['busy' => false]);
       $('#loadFilterOnlyWithout').prop('checked', !!serverFilters.only_without_load);
 
       renderLoadReportByFilters();
+  }
+
+  function resetMvpMissingUI(){
+      $('#mvpMissingCount').text('0');
+      $('#mvpDoneCount').text('0');
+      $('#mvpNoAplicaCount').text('0');
+      $('#mvpMissingList').html('<tr><td colspan="6" class="text-center text-muted">Cargando estado normativo...</td></tr>');
+  }
+
+  function loadMvpMissing(id, carnet){
+      resetMvpMissingUI();
+
+      $.ajax({
+          url: VACUNAS_MISSING_MVP_URL(id, carnet),
+          method: 'GET',
+          timeout: 15000,
+          success: function(resp){
+              const ok = !!(resp && resp.ok);
+              if (!ok) {
+                  $('#mvpMissingList').html('<tr><td colspan="6" class="text-center text-danger">No fue posible calcular faltantes normativos.</td></tr>');
+                  return;
+              }
+
+              const faltantes = Array.isArray(resp.faltantes) ? resp.faltantes : [];
+              const stats = resp.stats || {};
+
+              $('#mvpMissingCount').text(Number(stats.faltantes_count || 0));
+              $('#mvpDoneCount').text(Number(stats.cumplidas_count || 0));
+              $('#mvpNoAplicaCount').text(Number(stats.no_aplica_count || 0));
+
+              if (!faltantes.length) {
+                  $('#mvpMissingList').html('<tr><td colspan="6" class="text-center text-success">Sin faltantes en reglas normativas para este afiliado.</td></tr>');
+                  return;
+              }
+
+              let html = '';
+              faltantes.forEach(function(f){
+                  html += '<tr>'
+                      + '<td>' + (f.nombre || '') + '</td>'
+                      + '<td class="text-center">' + Number(f.aplicadas || 0) + '</td>'
+                      + '<td class="text-center">' + Number(f.requeridas || 0) + '</td>'
+                      + '<td class="text-center"><span class="badge badge-danger">' + Number(f.faltan || 0) + '</span></td>'
+                      + '<td>' + ((f.edad_actual || '') + (f.criterio_edad ? ' | ' + f.criterio_edad : '')) + '</td>'
+                      + '<td>' + (f.motivo || '') + '</td>'
+                      + '</tr>';
+              });
+              $('#mvpMissingList').html(html);
+          },
+          error: function(){
+              $('#mvpMissingList').html('<tr><td colspan="6" class="text-center text-danger">Error consultando faltantes normativos.</td></tr>');
+          }
+      });
   }
 
   function formatExportMetric(value){
@@ -2452,6 +2525,10 @@ window.PAI_INITIAL_LOAD_STATE = @json($paiLoadState ?? ['busy' => false]);
   });
 
 })();
+</script>
+
+<script>
+// analytics moved to dedicated view /afiliado/estadisticas
 </script>
 @stop
 

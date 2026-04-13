@@ -59,6 +59,40 @@
                         </tbody>
                     </table>
                 </div>
+
+                <hr>
+
+                <div class="d-flex justify-content-between align-items-center flex-wrap mb-2">
+                    <h6 class="mb-1 mb-md-0">
+                        <i class="fas fa-clipboard-check mr-1 text-primary"></i>
+                        Estado esquema normativo (Fase 2)
+                    </h6>
+                    <div>
+                        <span class="badge badge-danger mr-1">Faltantes: <span id="mvpMissingCount">0</span></span>
+                        <span class="badge badge-success mr-1">Cumplidas: <span id="mvpDoneCount">0</span></span>
+                        <span class="badge badge-secondary">No aplica: <span id="mvpNoAplicaCount">0</span></span>
+                    </div>
+                </div>
+
+                <div class="table-responsive">
+                    <table class="table table-sm table-bordered mb-0">
+                        <thead class="thead-light">
+                            <tr>
+                                <th>Regla</th>
+                                <th class="text-center" style="width:120px;">Aplicadas</th>
+                                <th class="text-center" style="width:120px;">Requeridas</th>
+                                <th class="text-center" style="width:120px;">Faltan</th>
+                                <th style="width:180px;">Edad/Criterio</th>
+                                <th>Motivo</th>
+                            </tr>
+                        </thead>
+                        <tbody id="mvpMissingList">
+                            <tr>
+                                <td colspan="6" class="text-center text-muted">Cargando estado normativo...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
             </div>
 
             <div class="modal-footer pai-vac-foot d-flex justify-content-between">

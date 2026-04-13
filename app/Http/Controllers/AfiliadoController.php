@@ -28,6 +28,7 @@ use Barryvdh\DomPDF\Facade\Pdf;
 use Yajra\DataTables\Facades\DataTables;
 use PhpOffice\PhpSpreadsheet\IOFactory;
 use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
+use App\Services\PaiMvpCoverageService;
 
 
 class AfiliadoController extends Controller
@@ -342,6 +343,227 @@ class AfiliadoController extends Controller
         return view('livewire.afiliado', compact('kpiVacunas', 'kpiAfiliados', 'paiLoadState'));
     }
 
+    public function statsDashboard(Request $request)
+    {
+        $this->applyReadOptimizations();
+
+        $startDate = trim((string) $request->input('start_date', ''));
+        $endDate = trim((string) $request->input('end_date', ''));
+        $prestadorId = (int) $request->input('prestador_id', 0);
+        $municipio = trim((string) $request->input('municipio', ''));
+        $vacunaId = (int) $request->input('vacuna_id', 0);
+        $regimen = trim((string) $request->input('regimen', ''));
+        $mode = trim((string) $request->input('mode', 'normative'));
+        if ($mode != 'mvp') {
+            $mode = 'normative';
+        }
+
+        $base = DB::table('vacunas as v')
+            ->join('afiliados as a', 'a.id', '=', 'v.afiliado_id')
+            ->leftJoin('users as u', 'u.id', '=', 'v.user_id')
+            ->leftJoin('referencia_vacunas as rv', 'rv.id', '=', 'v.vacunas_id');
+
+        if ($startDate != '' && $endDate != '') {
+            $base->whereBetween('v.fecha_vacuna', [$startDate, $endDate]);
+        }
+        if ($prestadorId > 0) {
+            $base->where('v.user_id', $prestadorId);
+        }
+        if ($municipio != '') {
+            $base->where('a.municipio_residencia', $municipio);
+        }
+        if ($vacunaId > 0) {
+            $base->where('v.vacunas_id', $vacunaId);
+        }
+        if ($regimen != '') {
+            $base->where('v.regimen', $regimen);
+        }
+
+        $baseWithoutDate = DB::table('vacunas as v')
+            ->join('afiliados as a', 'a.id', '=', 'v.afiliado_id')
+            ->leftJoin('users as u', 'u.id', '=', 'v.user_id')
+            ->leftJoin('referencia_vacunas as rv', 'rv.id', '=', 'v.vacunas_id');
+
+        if ($prestadorId > 0) {
+            $baseWithoutDate->where('v.user_id', $prestadorId);
+        }
+        if ($municipio != '') {
+            $baseWithoutDate->where('a.municipio_residencia', $municipio);
+        }
+        if ($vacunaId > 0) {
+            $baseWithoutDate->where('v.vacunas_id', $vacunaId);
+        }
+        if ($regimen != '') {
+            $baseWithoutDate->where('v.regimen', $regimen);
+        }
+
+        $availableMinDate = (clone $baseWithoutDate)->min('v.fecha_vacuna');
+        $availableMaxDate = (clone $baseWithoutDate)->max('v.fecha_vacuna');
+
+        $totalVacunas = (clone $base)->count('v.id');
+        $totalAfiliados = (clone $base)->distinct()->count('a.id');
+        $totalPrestadores = (clone $base)->whereNotNull('v.user_id')->distinct()->count('v.user_id');
+        $totalMunicipios = (clone $base)->whereNotNull('a.municipio_residencia')->distinct()->count('a.municipio_residencia');
+
+        // Modo liviano para no tumbar la pagina.
+        $afiliadoScope = (clone $base)
+            ->select([
+                'a.id',
+                'a.esquema_completo',
+            ])
+            ->distinct();
+
+        $agg = DB::query()
+            ->fromSub($afiliadoScope, 'x')
+            ->selectRaw("
+                SUM(CASE WHEN UPPER(LTRIM(RTRIM(ISNULL(x.esquema_completo, '')))) IN ('SI','S?','YES','Y','1','TRUE','COMPLETO','COMPLETE') THEN 1 ELSE 0 END) as completos,
+                SUM(CASE WHEN UPPER(LTRIM(RTRIM(ISNULL(x.esquema_completo, '')))) IN ('SI','S?','YES','Y','1','TRUE','COMPLETO','COMPLETE') THEN 0 ELSE 1 END) as incompletos
+            ")
+            ->first();
+
+        $completos = (int) ($agg->completos ?? 0);
+        $incompletos = (int) ($agg->incompletos ?? 0);
+        $evalSource = 'fast_esquema_completo';
+
+        $porMunicipio = (clone $base)
+            ->select([
+                DB::raw("UPPER(LTRIM(RTRIM(ISNULL(a.municipio_residencia, 'SIN MUNICIPIO')))) as label"),
+                DB::raw('COUNT(v.id) as total'),
+            ])
+            ->groupBy(DB::raw("UPPER(LTRIM(RTRIM(ISNULL(a.municipio_residencia, 'SIN MUNICIPIO'))))"))
+            ->orderByDesc('total')
+            ->limit(10)
+            ->get();
+
+        $porPrestador = (clone $base)
+            ->select([
+                DB::raw("COALESCE(NULLIF(u.name, ''), 'SIN PRESTADOR') as label"),
+                DB::raw('COUNT(v.id) as total'),
+            ])
+            ->groupBy(DB::raw("COALESCE(NULLIF(u.name, ''), 'SIN PRESTADOR')"))
+            ->orderByDesc('total')
+            ->limit(8)
+            ->get();
+
+        $topBiologicos = (clone $base)
+            ->select([
+                DB::raw("COALESCE(NULLIF(rv.nombre, ''), CONCAT('VACUNA #', CAST(v.vacunas_id as varchar(20)))) as label"),
+                DB::raw('COUNT(v.id) as total'),
+            ])
+            ->groupBy(DB::raw("COALESCE(NULLIF(rv.nombre, ''), CONCAT('VACUNA #', CAST(v.vacunas_id as varchar(20))))"))
+            ->orderByDesc('total')
+            ->limit(6)
+            ->get();
+
+        $porRegimen = (clone $base)
+            ->select([
+                DB::raw("COALESCE(NULLIF(v.regimen, ''), 'SIN REGIMEN') as label"),
+                DB::raw('COUNT(v.id) as total'),
+            ])
+            ->groupBy(DB::raw("COALESCE(NULLIF(v.regimen, ''), 'SIN REGIMEN')"))
+            ->orderByDesc('total')
+            ->limit(6)
+            ->get();
+
+        $trendBase = (clone $base);
+        if ($startDate == '' or $endDate == '') {
+            $trendBase->whereDate('v.fecha_vacuna', '>=', now()->subMonths(18)->format('Y-m-d'));
+        }
+
+        $trendMensual = $trendBase
+            ->select([
+                DB::raw("CONVERT(varchar(7), v.fecha_vacuna, 120) as label"),
+                DB::raw('COUNT(v.id) as total'),
+            ])
+            ->whereNotNull('v.fecha_vacuna')
+            ->groupBy(DB::raw("CONVERT(varchar(7), v.fecha_vacuna, 120)"))
+            ->orderBy('label', 'asc')
+            ->limit(18)
+            ->get();
+
+        $catalogPrestadores = DB::table('users as u')
+            ->join('vacunas as v', 'v.user_id', '=', 'u.id')
+            ->select('u.id', 'u.name')
+            ->groupBy('u.id', 'u.name')
+            ->orderBy('u.name')
+            ->limit(300)
+            ->get();
+
+        $catalogMunicipios = DB::table('afiliados')
+            ->whereNotNull('municipio_residencia')
+            ->whereRaw("LTRIM(RTRIM(municipio_residencia)) <> ''")
+            ->select('municipio_residencia')
+            ->groupBy('municipio_residencia')
+            ->orderBy('municipio_residencia')
+            ->limit(300)
+            ->pluck('municipio_residencia')
+            ->values();
+
+        $catalogVacunas = DB::table('referencia_vacunas')
+            ->select('id', 'nombre')
+            ->orderBy('nombre')
+            ->limit(300)
+            ->get();
+
+        $catalogRegimenes = DB::table('vacunas')
+            ->whereNotNull('regimen')
+            ->whereRaw("LTRIM(RTRIM(regimen)) <> ''")
+            ->select('regimen')
+            ->groupBy('regimen')
+            ->orderBy('regimen')
+            ->limit(100)
+            ->pluck('regimen')
+            ->values();
+
+        return response()->json([
+            'ok' => true,
+            'filters' => [
+                'start_date' => $startDate,
+                'end_date' => $endDate,
+                'prestador_id' => $prestadorId,
+                'municipio' => $municipio,
+                'vacuna_id' => $vacunaId,
+                'regimen' => $regimen,
+                'mode' => $mode,
+            ],
+            'kpis' => [
+                'total_vacunas' => (int) $totalVacunas,
+                'total_afiliados' => (int) $totalAfiliados,
+                'total_prestadores' => (int) $totalPrestadores,
+                'total_municipios' => (int) $totalMunicipios,
+                'esquema_completo' => (int) $completos,
+                'esquema_incompleto' => (int) $incompletos,
+                'evaluation_source' => $evalSource,
+            ],
+            'charts' => [
+                'municipios' => $porMunicipio,
+                'prestadores' => $porPrestador,
+                'biologicos' => $topBiologicos,
+                'regimenes' => $porRegimen,
+                'trend' => $trendMensual,
+            ],
+            'catalogs' => [
+                'prestadores' => $catalogPrestadores,
+                'municipios' => $catalogMunicipios,
+                'vacunas' => $catalogVacunas,
+                'regimenes' => $catalogRegimenes,
+            ],
+            'range_info' => [
+                'requested_start' => $startDate != '' ? $startDate : null,
+                'requested_end' => $endDate != '' ? $endDate : null,
+                'available_min' => $availableMinDate,
+                'available_max' => $availableMaxDate,
+                'has_data_for_requested_range' => (int) $totalVacunas > 0,
+            ],
+            'generated_at' => now()->format('Y-m-d H:i:s'),
+        ]);
+    }
+
+    public function statsView()
+    {
+        return view('livewire.afiliado_stats');
+    }
+
 
     
     
@@ -477,6 +699,7 @@ class AfiliadoController extends Controller
                     'b.segundo_apellido',
                     'b.numero_identificacion',
                     'b.numero_carnet',
+                    'b.esquema_completo',
                     'va.batch_verifications_id',
                 ]);
         } else {
@@ -493,11 +716,14 @@ class AfiliadoController extends Controller
                     'b.segundo_apellido',
                     'b.numero_identificacion',
                     'b.numero_carnet',
+                    'b.esquema_completo',
                     DB::raw('CASE WHEN ce.patient_id IS NULL THEN 0 ELSE 1 END AS correo_enviado'),
                 ]);
         }
 
         try {
+            $coverageService = $this->paiMvpCoverage();
+
             return DataTables::of($query)
             ->filter(function ($builder) use ($request) {
                 $search = trim((string) data_get($request->input('search'), 'value', ''));
@@ -552,6 +778,41 @@ class AfiliadoController extends Controller
                 $value = $isAdmin ? ($row->batch_verifications_id ?? '') : ($row->numero_carnet ?? '');
                 return '<span class="pai-pill">' . e($value) . '</span>';
             })
+            ->addColumn('esquema_estado', function ($row) use ($coverageService) {
+                static $evalCache = [];
+                $afiliadoId = (int) ($row->id ?? 0);
+
+                if ($afiliadoId <= 0) {
+                    return '<span class="pai-esquema-badge pai-esquema-badge--bad">Incompleto</span>';
+                }
+
+                if (!array_key_exists($afiliadoId, $evalCache)) {
+                    try {
+                        $evalCache[$afiliadoId] = $coverageService->evaluateForAfiliado($afiliadoId, 'normative');
+                    } catch (\Throwable $e) {
+                        $evalCache[$afiliadoId] = ['ok' => false];
+                    }
+                }
+
+                $eval = $evalCache[$afiliadoId] ?? ['ok' => false];
+                $faltantes = (int) data_get($eval, 'stats.faltantes_count', 0);
+                $hasBirthDate = !empty(data_get($eval, 'afiliado.fecha_nacimiento'));
+                $ok = (bool) data_get($eval, 'ok', false);
+
+                $isComplete = $ok && $hasBirthDate && $faltantes === 0;
+                $carnet = e((string) ($row->numero_carnet ?? ''));
+                $id = e((string) $afiliadoId);
+
+                if ($isComplete) {
+                    return '<a href="#" class="pai-esquema-open" data-id="' . $id . '" data-carnet="' . $carnet . '">'
+                        . '<span class="pai-esquema-badge pai-esquema-badge--ok">Completo</span>'
+                        . '</a>';
+                }
+
+                return '<a href="#" class="pai-esquema-open" data-id="' . $id . '" data-carnet="' . $carnet . '">'
+                    . '<span class="pai-esquema-badge pai-esquema-badge--bad">Incompleto</span>'
+                    . '</a>';
+            })
             ->addColumn('acciones', function ($row) use ($isAdmin) {
                 if ($isAdmin) {
                     return '<span class="text-muted font-weight-bold">Gestion desde Lotes</span>';
@@ -575,7 +836,7 @@ class AfiliadoController extends Controller
                     . ' data-name="' . e($fullName) . '">'
                     . '<i class="fas fa-envelope mr-1"></i> Solicitud</a></div>';
             })
-            ->rawColumns(['id_badge', 'documento', 'paciente', 'lote_carnet', 'acciones'])
+            ->rawColumns(['id_badge', 'documento', 'paciente', 'lote_carnet', 'esquema_estado', 'acciones'])
             ->toJson();
         } catch (\Throwable $e) {
             Log::warning('PAI dataTable saturado o con bloqueo', [
@@ -1967,6 +2228,152 @@ public function exportVacunas(Request $request)
     return response()->stream($callback, 200, $headers);
 }
 
+public function getVacunasMissingMvp($id, $numeroCarnet = null)
+{
+    if ($this->paiIsBusy()) {
+        return response()->json([
+            'ok' => false,
+            'message' => 'Ingresa mas tarde hay muchos usuarios cargando',
+        ], 503);
+    }
+
+    try {
+        return response()->json($this->paiMvpCoverage()->evaluateForAfiliado((int) $id, 'normative'));
+    } catch (\Throwable $e) {
+        Log::warning('PAI getVacunasMissingMvp error', [
+            'id' => $id,
+            'carnet' => $numeroCarnet,
+            'error' => $e->getMessage(),
+        ]);
+
+        return response()->json([
+            'ok' => false,
+            'message' => 'No se pudo calcular faltantes en este momento.',
+        ], 500);
+    }
+}
+
+public function missingVaccinesIndex(Request $request)
+{
+    $this->applyReadOptimizations();
+
+    $search = trim((string) $request->input('search', ''));
+    $prestadorId = (int) $request->input('prestador_id', 0);
+    $perPage = (int) $request->input('per_page', 25);
+    if (!in_array($perPage, [10, 25, 50, 100], true)) {
+        $perPage = 25;
+    }
+
+    $query = DB::table('afiliados as a')
+        ->leftJoin('users as u', 'u.id', '=', 'a.user_id')
+        ->select([
+            'a.id',
+            'a.tipo_identificacion',
+            'a.numero_identificacion',
+            'a.numero_carnet',
+            'a.primer_nombre',
+            'a.segundo_nombre',
+            'a.primer_apellido',
+            'a.segundo_apellido',
+            'a.fecha_nacimiento',
+            'a.sexo',
+            'a.condicion_usuaria',
+            'a.semanas_gestacion',
+            'u.name as prestador',
+        ]);
+
+    if ($prestadorId > 0) {
+        $query->where('a.user_id', $prestadorId);
+    }
+
+    if ($search !== '') {
+        $query->where(function ($q) use ($search) {
+            $q->where('a.numero_identificacion', 'LIKE', "%{$search}%")
+                ->orWhere('a.numero_carnet', 'LIKE', "%{$search}%")
+                ->orWhere('a.primer_nombre', 'LIKE', "%{$search}%")
+                ->orWhere('a.segundo_nombre', 'LIKE', "%{$search}%")
+                ->orWhere('a.primer_apellido', 'LIKE', "%{$search}%")
+                ->orWhere('a.segundo_apellido', 'LIKE', "%{$search}%");
+        });
+    }
+
+    $afiliados = $query
+        ->orderBy('a.id', 'desc')
+        ->paginate($perPage)
+        ->appends($request->query());
+
+    $summaries = $this->paiMvpCoverage()->evaluateForCollection(collect($afiliados->items()), 'normative');
+
+    $rows = collect($afiliados->items())->map(function ($row) use ($summaries) {
+        $summary = $summaries[(int) $row->id] ?? null;
+        $stats = $summary['stats'] ?? ['faltantes_count' => 0, 'cumplidas_count' => 0];
+        $faltantes = $summary['faltantes'] ?? [];
+
+        $nombre = trim(implode(' ', array_filter([
+            $row->primer_nombre ?? '',
+            $row->segundo_nombre ?? '',
+            $row->primer_apellido ?? '',
+            $row->segundo_apellido ?? '',
+        ])));
+
+        $edadAnios = isset($summary['afiliado']['edad_anios']) ? (int) $summary['afiliado']['edad_anios'] : null;
+        $edadMesesTotal = isset($summary['afiliado']['edad_meses']) ? (int) $summary['afiliado']['edad_meses'] : null;
+        $edadMesesRestantes = $edadMesesTotal !== null ? ($edadMesesTotal % 12) : null;
+
+        return [
+            'id' => (int) $row->id,
+            'nombre' => $nombre,
+            'tipo_identificacion' => $row->tipo_identificacion ?? '',
+            'numero_identificacion' => $row->numero_identificacion ?? '',
+            'numero_carnet' => $row->numero_carnet ?? '',
+            'prestador' => $row->prestador ?? 'Sin prestador',
+            'edad_texto' => (string) (
+                ($edadAnios !== null ? $edadAnios : 'N/A')
+                . ' años / '
+                . ($edadMesesRestantes !== null ? $edadMesesRestantes : 'N/A')
+                . ' meses'
+            ),
+            'faltantes_count' => (int) ($stats['faltantes_count'] ?? 0),
+            'cumplidas_count' => (int) ($stats['cumplidas_count'] ?? 0),
+            'faltantes_preview' => collect($faltantes)->pluck('nombre')->take(3)->values()->all(),
+            'faltantes_text' => collect($faltantes)->map(function ($f) {
+                return ($f['nombre'] ?? 'Regla') . ' (faltan ' . (int) ($f['faltan'] ?? 0) . ')';
+            })->values()->all(),
+            'faltantes_detail' => collect($faltantes)->map(function ($f) {
+                return [
+                    'nombre' => $f['nombre'] ?? 'Regla',
+                    'aplicadas' => (int) ($f['aplicadas'] ?? 0),
+                    'requeridas' => (int) ($f['requeridas'] ?? 0),
+                    'faltan' => (int) ($f['faltan'] ?? 0),
+                    'edad_actual' => $f['edad_actual'] ?? '',
+                    'criterio_edad' => $f['criterio_edad'] ?? '',
+                    'motivo' => $f['motivo'] ?? '',
+                    'fuente' => $f['fuente'] ?? '',
+                ];
+            })->values()->all(),
+        ];
+    })->values();
+
+    $prestadores = DB::table('users')
+        ->whereIn('id', function ($sub) {
+            $sub->select('user_id')->from('afiliados')->whereNotNull('user_id');
+        })
+        ->orderBy('name')
+        ->get(['id', 'name']);
+
+    return view('livewire.vacunas_faltantes', [
+        'rows' => $rows,
+        'paginator' => $afiliados,
+        'prestadores' => $prestadores,
+        'coverageMode' => 'normative',
+        'filters' => [
+            'search' => $search,
+            'prestador_id' => $prestadorId,
+            'per_page' => $perPage,
+        ],
+    ]);
+}
+
 private function buildVacunasExportQuery(string $startDate, string $endDate, array $selects)
 {
     return DB::table('vacunas as a')
@@ -3003,5 +3410,9 @@ private function buildLoadSummaryReport(string $startDate, string $endDate, arra
     });
 }
 
+    private function paiMvpCoverage(): PaiMvpCoverageService
+    {
+        return app(PaiMvpCoverageService::class);
+    }
 
 }
