@@ -529,7 +529,12 @@ class GesTipo3Import implements OnEachRow, WithStartRow, WithChunkReading, Skips
 
             $gesTipo1Id = $this->getParentGestanteId($tipoIdent, $noId);
             if ($gesTipo1Id === null) {
-                $this->addError($excelRow, 'Relacion ges_tipo1', 'no existe registro padre para tipo/no identificacion', $tipoIdent . ' - ' . $noId);
+                $this->addError(
+                    $excelRow,
+                    'Relacion tipo 2',
+                    'no hay registro asociado al tipo 2. Favor realizar primero el cargue tipo 2 para continuar',
+                    $tipoIdent . ' - ' . $noId
+                );
             }
         }
 
