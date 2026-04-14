@@ -136,6 +136,43 @@
 @stop
 
 @section('content')
+@php
+    $formatPeso = function ($value) {
+        if ($value === null || $value === '') {
+            return 'N/D';
+        }
+
+        if (!is_numeric($value)) {
+            return $value;
+        }
+
+        return number_format((float) $value, 1, '.', '');
+    };
+
+    $formatPuntajeZ = function ($value) {
+        if ($value === null || $value === '') {
+            return 'N/D';
+        }
+
+        if (!is_numeric($value)) {
+            return $value;
+        }
+
+        return number_format((float) $value, 2, '.', '');
+    };
+
+    $formatTalla = function ($value) {
+        if ($value === null || $value === '') {
+            return 'N/D';
+        }
+
+        if (!is_numeric($value)) {
+            return $value;
+        }
+
+        return number_format((float) $value, 1, '.', '');
+    };
+@endphp
 <div class="container-fluid rvd-page">
     <section class="rvd-hero">
         <div class="rvd-brand">
@@ -156,9 +193,9 @@
                 <div class="rvd-item"><span class="rvd-item__label">Identificacion</span><span class="rvd-item__value">{{ $latest->num_ide_ }}</span></div>
                 <div class="rvd-item"><span class="rvd-item__label">Paciente</span><span class="rvd-item__value">{{ trim(($latest->pri_nom_ ?? '').' '.($latest->seg_nom_ ?? '').' '.($latest->pri_ape_ ?? '').' '.($latest->seg_ape_ ?? '')) }}</span></div>
                 <div class="rvd-item"><span class="rvd-item__label">Fecha consulta</span><span class="rvd-item__value">{{ $latest->fecha_consulta }}</span></div>
-                <div class="rvd-item"><span class="rvd-item__label">Peso (kg)</span><span class="rvd-item__value">{{ $latest->peso_kilos }}</span></div>
-                <div class="rvd-item"><span class="rvd-item__label">Talla (cm)</span><span class="rvd-item__value">{{ $latest->talla_cm }}</span></div>
-                <div class="rvd-item"><span class="rvd-item__label">Puntaje Z</span><span class="rvd-item__value">{{ $latest->puntajez }}</span></div>
+                <div class="rvd-item"><span class="rvd-item__label">Peso (kg)</span><span class="rvd-item__value">{{ $formatPeso($latest->peso_kilos) }}</span></div>
+                <div class="rvd-item"><span class="rvd-item__label">Talla (cm)</span><span class="rvd-item__value">{{ $formatTalla($latest->talla_cm) }}</span></div>
+                <div class="rvd-item"><span class="rvd-item__label">Puntaje Z</span><span class="rvd-item__value">{{ $formatPuntajeZ($latest->puntajez) }}</span></div>
                 <div class="rvd-item"><span class="rvd-item__label">Clasificacion</span><span class="rvd-item__value">{{ $latest->clasificacion }}</span></div>
                 <div class="rvd-item"><span class="rvd-item__label">Perimetro braquial</span><span class="rvd-item__value">{{ $latest->perimetro_braqueal }}</span></div>
                 <div class="rvd-item"><span class="rvd-item__label">Energia FTLC</span><span class="rvd-item__value">{{ $latest->requerimiento_energia_ftlc }}</span></div>
@@ -198,9 +235,9 @@
                             <tr>
                                 <td>{{ $item->id }}</td>
                                 <td>{{ $item->fecha_consulta }}</td>
-                                <td>{{ $item->peso_kilos }}</td>
-                                <td>{{ $item->talla_cm }}</td>
-                                <td>{{ $item->puntajez }}</td>
+                                <td>{{ $formatPeso($item->peso_kilos) }}</td>
+                                <td>{{ $formatTalla($item->talla_cm) }}</td>
+                                <td>{{ $formatPuntajeZ($item->puntajez) }}</td>
                                 <td>{{ $item->clasificacion }}</td>
                                 <td>{{ $item->est_act_menor }}</td>
                                 <td>{{ $item->fecha_proximo_control }}</td>
