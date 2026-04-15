@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 class SeguimientMaestrosiv549 extends Model
 {
     protected $table = 'seguimient_maestrosiv549';
+    protected $dateFormat = 'Ymd H:i:s';
 
     protected $fillable = [
         'asignacion_id',

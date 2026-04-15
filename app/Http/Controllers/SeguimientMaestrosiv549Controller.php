@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\AsignacionesMaestrosiv549;
 use App\Models\SeguimientMaestrosiv549;
 use App\Services\Seguimiento549AlertService;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 
 class SeguimientMaestrosiv549Controller extends Controller
@@ -112,7 +113,7 @@ class SeguimientMaestrosiv549Controller extends Controller
      */
     private function rules(Request $request): array
     {
-        return $request->validate([
+        $data = $request->validate([
             'fecha_hospitalizacion' => 'nullable|date',
             'fecha_egreso' => 'nullable|date',
             'institucion_egreso_paciente' => 'nullable|string|max:255',
@@ -200,6 +201,33 @@ class SeguimientMaestrosiv549Controller extends Controller
             'fecha_consulta_6_meses' => 'nullable|date',
             'fecha_consulta_1_ano' => 'nullable|date',
         ]);
+
+        $this->normalizeDateFields($data, [
+            'fecha_hospitalizacion',
+            'fecha_egreso',
+            'fecha_control_rn_inmediato',
+            'fecha_seguimiento_1',
+            'fecha_control_1',
+            'fecha_consulta_rn_1',
+            'fecha_seguimiento_2',
+            'fecha_control_2',
+            'fecha_consulta_rn_2',
+            'fecha_seguimiento_3',
+            'fecha_control_3',
+            'fecha_consulta_rn_3',
+            'fecha_seguimiento_4',
+            'fecha_control_4',
+            'fecha_consulta_rn_4',
+            'fecha_seguimiento_5',
+            'fecha_control_5',
+            'fecha_consulta_rn_5',
+            'fecha_consulta_lactancia',
+            'fecha_control_metodo',
+            'fecha_consulta_6_meses',
+            'fecha_consulta_1_ano',
+        ]);
+
+        return $data;
     }
 
     /**
@@ -258,5 +286,22 @@ class SeguimientMaestrosiv549Controller extends Controller
         }
 
         return $data;
+    }
+
+    private function normalizeDateFields(array &$data, array $fields): void
+    {
+        foreach ($fields as $field) {
+            $value = $data[$field] ?? null;
+            if ($value === null || $value === '') {
+                $data[$field] = null;
+                continue;
+            }
+
+            try {
+                $data[$field] = Carbon::parse((string) $value)->format('Y-m-d');
+            } catch (\Throwable $e) {
+                $data[$field] = null;
+            }
+        }
     }
 }

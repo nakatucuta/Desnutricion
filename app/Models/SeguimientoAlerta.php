@@ -29,7 +29,7 @@ class SeguimientoAlerta extends Model
     ];
 
     // Formato estable para escritura de fechas en SQL Server
-    protected $dateFormat = 'Y-m-d H:i:s';
+    protected $dateFormat = 'Ymd H:i:s';
 
     public function seguimiento()
     {
