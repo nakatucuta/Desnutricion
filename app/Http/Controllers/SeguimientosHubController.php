@@ -8,6 +8,7 @@ use App\Models\SeguimientMaestrosiv549;
 use App\Services\Seguimiento549AlertService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Maatwebsite\Excel\Facades\Excel;
 use Yajra\DataTables\Facades\DataTables;
 
@@ -28,6 +29,19 @@ class SeguimientosHubController extends Controller
 
         $user = auth()->user();
         $muestraTodo = (int) ($user->usertype ?? 0) === 1;
+
+        $idsUnicos = DB::table('asignaciones_maestrosiv549 as a2')
+            ->selectRaw('MAX(a2.id) as id')
+            ->when(!$muestraTodo, function ($sq) use ($user) {
+                $sq->where('a2.user_id', $user->id);
+            })
+            ->groupBy(
+                'a2.user_id',
+                DB::raw("LTRIM(RTRIM(COALESCE(a2.tip_ide_, '')))"),
+                DB::raw("LTRIM(RTRIM(COALESCE(a2.num_ide_, '')))"),
+                DB::raw('CAST(a2.fec_not as date)'),
+                DB::raw("LTRIM(RTRIM(COALESCE(a2.nom_eve, '')))")
+            );
 
         $subUltimo = SeguimientMaestrosiv549::select('id')
             ->whereColumn('asignacion_id', 'asignaciones_maestrosiv549.id')
@@ -51,6 +65,7 @@ class SeguimientosHubController extends Controller
                 'fec_not',
                 'nom_eve',
             ])
+            ->whereIn('id', $idsUnicos)
             ->addSelect(['ultimo_seguimiento_id' => $subUltimo]);
 
         if (!$muestraTodo) {

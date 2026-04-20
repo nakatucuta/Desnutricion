@@ -74,6 +74,19 @@
         </div>
     @endif
 
+    @if(session('asig_duplicate'))
+        <div id="duplicateToast549" class="asig-toast asig-toast--danger" role="alert" aria-live="assertive" aria-atomic="true">
+            <div class="asig-toast__icon"><i class="fas fa-ban"></i></div>
+            <div class="asig-toast__body">
+                <strong>Caso ya asignado</strong>
+                <span>No puedes registrar una segunda asignacion para este caso.</span>
+            </div>
+            <button type="button" class="asig-toast__close" id="closeDuplicateToast549" aria-label="Cerrar">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+    @endif
+
     <form action="{{ route('asignaciones_maestrosiv549.store') }}" method="POST" id="assignmentForm549">
         @csrf
 
@@ -98,19 +111,19 @@
                         <div class="form-group mb-3" id="select-usuario-group">
                             <label for="user_ids" class="asig-label">
                                 Prestador primario
-                                <span class="badge badge-warning ml-2" id="badge-select">Selecciona aqui</span>
+                                <span class="badge badge-warning ml-2" id="badge-select">Selecciona 1 usuario</span>
                             </label>
 
                             <select
                                 name="user_ids[]"
                                 id="user_ids"
-                                class="form-control select2-user"
-                                multiple
+                                class="form-control select2-user-single"
                             >
+                                <option value="">-- Selecciona un usuario --</option>
                                 @if(($usuariosSugeridos ?? collect())->isNotEmpty())
                                     <optgroup label="Sugeridos modulo gestante por IPS">
                                         @foreach($usuariosSugeridos as $user)
-                                            <option value="{{ $user->id }}" selected>
+                                            <option value="{{ $user->id }}" {{ $loop->first ? 'selected' : '' }}>
                                                 {{ $user->name }} ({{ $user->email }}) - {{ $user->codigohabilitacion }}
                                             </option>
                                         @endforeach
@@ -120,7 +133,8 @@
                                 <optgroup label="{{ ($usuariosSugeridos ?? collect())->isEmpty() ? 'Usuarios disponibles' : 'Otros usuarios disponibles' }}">
                                     @foreach($usuarios as $user)
                                         @php
-                                            $isPreselected = in_array($user->id, $usuarios_prestador_primario ?? [], true);
+                                            $isPreselected = in_array($user->id, $usuarios_prestador_primario ?? [], true)
+                                                && (($usuariosSugeridos ?? collect())->isEmpty());
                                         @endphp
                                         <option value="{{ $user->id }}" {{ $isPreselected ? 'selected' : '' }}>
                                             {{ $user->name }} ({{ $user->email }}) - {{ $user->codigohabilitacion }}
@@ -218,6 +232,30 @@
         <i class="fas fa-arrow-down"></i>
     </button>
 </div>
+
+@if(session('asig_duplicate'))
+<div class="modal fade" id="duplicateCaseModal549" tabindex="-1" role="dialog" aria-labelledby="duplicateCaseModalLabel549" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered" role="document">
+        <div class="modal-content asig-dup-modal">
+            <div class="modal-header border-0 pb-1">
+                <h5 class="modal-title" id="duplicateCaseModalLabel549">
+                    <i class="fas fa-exclamation-circle mr-1"></i> Asignacion duplicada
+                </h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Cerrar">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body pt-2">
+                <p class="mb-2">Este caso ya tiene una asignacion registrada en el sistema.</p>
+                <p class="mb-0 text-muted">No se permite crear una segunda asignacion para el mismo caso.</p>
+            </div>
+            <div class="modal-footer border-0 pt-0">
+                <button type="button" class="btn btn-asig-primary px-4" data-dismiss="modal">Entendido</button>
+            </div>
+        </div>
+    </div>
+</div>
+@endif
 @stop
 
 @section('css')
@@ -369,23 +407,27 @@
     .asig-sticky-actions{
         padding-top:.5rem;
     }
-    .select2-container--default .select2-selection--multiple{
+    .select2-container--default .select2-selection--single{
         min-height:48px;
         border:1px solid #d7e8eb;
         border-radius:14px;
-        padding:.35rem .45rem;
         background:#fbfeff;
+        padding:.45rem .6rem;
+        display:flex;
+        align-items:center;
     }
-    .select2-container--default.select2-container--focus .select2-selection--multiple{
+    .select2-container--default.select2-container--focus .select2-selection--single{
         border-color:#1b9aaa;
         box-shadow:0 0 0 .2rem rgba(27,154,170,.15);
     }
-    .select2-container--default .select2-selection--multiple .select2-selection__choice{
-        background:#e8f7f3;
-        border:1px solid #b9e0d4;
-        color:#175a4d;
-        border-radius:999px;
-        padding:2px 10px;
+    .select2-container--default .select2-selection--single .select2-selection__rendered{
+        color:#1f3942;
+        line-height:1.2;
+        padding-left:.25rem;
+    }
+    .select2-container--default .select2-selection--single .select2-selection__arrow{
+        top:8px;
+        right:8px;
     }
     #badge-select{
         font-size:.8rem;
@@ -547,6 +589,70 @@
             bottom:18px;
         }
     }
+    .asig-toast{
+        position:fixed;
+        right:22px;
+        top:92px;
+        z-index:3090;
+        width:min(420px, calc(100vw - 30px));
+        border-radius:16px;
+        padding:.85rem .9rem;
+        display:flex;
+        align-items:flex-start;
+        gap:.75rem;
+        border:1px solid rgba(255,255,255,.22);
+        box-shadow:0 14px 34px rgba(15, 23, 42, .26);
+        color:#fff;
+        animation:asigToastIn .35s ease-out;
+    }
+    .asig-toast--danger{
+        background:linear-gradient(135deg, #8f1f2d, #b91c1c);
+    }
+    .asig-toast__icon{
+        width:34px;
+        height:34px;
+        border-radius:10px;
+        background:rgba(255,255,255,.15);
+        display:flex;
+        align-items:center;
+        justify-content:center;
+        font-size:1rem;
+        flex-shrink:0;
+    }
+    .asig-toast__body{
+        display:flex;
+        flex-direction:column;
+        gap:.1rem;
+        line-height:1.25;
+    }
+    .asig-toast__body strong{ font-size:.98rem; }
+    .asig-toast__body span{ font-size:.87rem; opacity:.95; }
+    .asig-toast__close{
+        margin-left:auto;
+        border:none;
+        background:transparent;
+        color:#fff;
+        opacity:.9;
+        cursor:pointer;
+    }
+    .asig-toast__close:hover{ opacity:1; }
+    .asig-dup-modal{
+        border:none;
+        border-radius:18px;
+        overflow:hidden;
+        box-shadow:0 20px 50px rgba(15,23,42,.26);
+    }
+    .asig-dup-modal .modal-header{
+        background:linear-gradient(135deg, #fff3f3, #ffe8e8);
+    }
+    .asig-dup-modal .modal-title{
+        color:#8b1e2b;
+        font-weight:800;
+    }
+    @keyframes asigToastIn{
+        from{ transform:translateY(-12px); opacity:0; }
+        to{ transform:translateY(0); opacity:1; }
+    }
 </style>
 @stop
 
@@ -556,14 +662,14 @@
 $(function () {
     let assignmentSubmitting = false;
 
-    $('.select2-user').select2({
-        placeholder: '-- Selecciona uno o varios usuarios --',
+    $('.select2-user-single').select2({
+        placeholder: '-- Selecciona un usuario --',
         width: '100%',
         allowClear: true
     });
 
     $('#user_ids').on('change', function () {
-        if ($(this).val() && $(this).val().length > 0) {
+        if ($(this).val()) {
             $('#badge-select').fadeOut(200);
             $('#btn-asignar-guardar').addClass('btn-pop');
             setTimeout(function () {
@@ -605,6 +711,20 @@ $(function () {
             .html('<i class="fas fa-spinner fa-spin mr-1"></i> Guardando...');
         showAssignmentLoading('Registrando asignacion y redirigiendo...');
     });
+
+    @if(session('asig_duplicate'))
+        $('#duplicateCaseModal549').modal('show');
+        setTimeout(function () {
+            const $t = $('#duplicateToast549');
+            if ($t.length) {
+                $t.fadeOut(400, function () { $(this).remove(); });
+            }
+        }, 6500);
+
+        $('#closeDuplicateToast549').on('click', function () {
+            $('#duplicateToast549').fadeOut(200, function () { $(this).remove(); });
+        });
+    @endif
 });
 </script>
 <style>
