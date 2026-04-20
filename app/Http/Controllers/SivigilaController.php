@@ -674,6 +674,14 @@ public function reportExport(Request $request)
         $newUserId = $sivigila->user_id ? (int) $sivigila->user_id : null;
         $oldAssigned = $oldUserId ? User::find($oldUserId) : null;
         $newAssigned = $newUserId ? User::find($newUserId) : null;
+        $auditFecNot = null;
+        try {
+            $auditFecNot = !empty($sivigila->fec_not)
+                ? Carbon::parse($sivigila->fec_not)->toDateString()
+                : null;
+        } catch (\Throwable $e) {
+            $auditFecNot = null;
+        }
 
         if ($newUserId !== null) {
             $actionType = 'sin_cambio';
@@ -683,34 +691,43 @@ public function reportExport(Request $request)
                 $actionType = 'reasignacion';
             }
 
-            SivigilaAssignmentAudit::create([
-                'sivigila_id' => (int) $sivigila->id,
-                'performed_by_user_id' => Auth::id(),
-                'old_assigned_user_id' => $oldUserId,
-                'new_assigned_user_id' => $newUserId,
-                'action_type' => $actionType,
-                'num_ide_' => $sivigila->num_ide_,
-                'paciente_nombre' => trim(implode(' ', array_filter([
-                    $sivigila->pri_nom_,
-                    $sivigila->seg_nom_,
-                    $sivigila->pri_ape_,
-                    $sivigila->seg_ape_,
-                ]))),
-                'fec_not' => $sivigila->fec_not,
-                'nom_upgd' => (string) $request->input('nom_upgd', ''),
-                'old_assigned_name' => $oldAssigned?->name,
-                'new_assigned_name' => $newAssigned?->name,
-                'old_assigned_email' => $oldAssigned?->email,
-                'new_assigned_email' => $newAssigned?->email,
-                'old_assigned_code' => $oldAssigned?->codigohabilitacion,
-                'new_assigned_code' => $newAssigned?->codigohabilitacion,
-                'ip_address' => $request->ip(),
-                'user_agent' => (string) $request->userAgent(),
-                'changes' => [
-                    'old_user_id' => $oldUserId,
-                    'new_user_id' => $newUserId,
-                ],
-            ]);
+            try {
+                DB::connection('sqlsrv')->table('dbo.sivigila_assignment_audits')->insert([
+                    'sivigila_id' => (int) $sivigila->id,
+                    'performed_by_user_id' => Auth::id(),
+                    'old_assigned_user_id' => $oldUserId,
+                    'new_assigned_user_id' => $newUserId,
+                    'action_type' => $actionType,
+                    'num_ide_' => $sivigila->num_ide_,
+                    'paciente_nombre' => trim(implode(' ', array_filter([
+                        $sivigila->pri_nom_,
+                        $sivigila->seg_nom_,
+                        $sivigila->pri_ape_,
+                        $sivigila->seg_ape_,
+                    ]))),
+                    'fec_not' => $auditFecNot,
+                    'nom_upgd' => (string) $request->input('nom_upgd', ''),
+                    'old_assigned_name' => $oldAssigned?->name,
+                    'new_assigned_name' => $newAssigned?->name,
+                    'old_assigned_email' => $oldAssigned?->email,
+                    'new_assigned_email' => $newAssigned?->email,
+                    'old_assigned_code' => $oldAssigned?->codigohabilitacion,
+                    'new_assigned_code' => $newAssigned?->codigohabilitacion,
+                    'ip_address' => $request->ip(),
+                    'user_agent' => (string) $request->userAgent(),
+                    'changes' => json_encode([
+                        'old_user_id' => $oldUserId,
+                        'new_user_id' => $newUserId,
+                    ], JSON_UNESCAPED_UNICODE),
+                    'created_at' => DB::raw('GETDATE()'),
+                    'updated_at' => DB::raw('GETDATE()'),
+                ]);
+            } catch (\Throwable $e) {
+                Log::warning('No se pudo registrar auditoria de asignacion Sivigila (store): ' . $e->getMessage(), [
+                    'sivigila_id' => (int) $sivigila->id,
+                    'num_ide_' => $sivigila->num_ide_,
+                ]);
+            }
         }
 
         // 3) Construir el body del mail
@@ -857,6 +874,14 @@ public function reportExport(Request $request)
         $oldAssigned = $oldUserId ? User::find($oldUserId) : null;
         $newAssigned = User::find($newUserId);
         $actionType = $oldUserId === $newUserId ? 'sin_cambio' : 'reasignacion';
+        $auditFecNot = null;
+        try {
+            $auditFecNot = !empty($sivigila->fec_not)
+                ? Carbon::parse($sivigila->fec_not)->toDateString()
+                : null;
+        } catch (\Throwable $e) {
+            $auditFecNot = null;
+        }
 
         $sivigila->fill([
             'user_id' => $newUserId,
@@ -868,35 +893,44 @@ public function reportExport(Request $request)
         ]);
         $sivigila->save();
 
-        SivigilaAssignmentAudit::create([
-            'sivigila_id' => (int) $sivigila->id,
-            'performed_by_user_id' => Auth::id(),
-            'old_assigned_user_id' => $oldUserId ?: null,
-            'new_assigned_user_id' => $newUserId ?: null,
-            'action_type' => $actionType,
-            'num_ide_' => $sivigila->num_ide_,
-            'paciente_nombre' => trim(implode(' ', array_filter([
-                $sivigila->pri_nom_,
-                $sivigila->seg_nom_,
-                $sivigila->pri_ape_,
-                $sivigila->seg_ape_,
-            ]))),
-            'fec_not' => $sivigila->fec_not,
-            'nom_upgd' => '',
-            'old_assigned_name' => $oldAssigned?->name,
-            'new_assigned_name' => $newAssigned?->name,
-            'old_assigned_email' => $oldAssigned?->email,
-            'new_assigned_email' => $newAssigned?->email,
-            'old_assigned_code' => $oldAssigned?->codigohabilitacion,
-            'new_assigned_code' => $newAssigned?->codigohabilitacion,
-            'ip_address' => $request->ip(),
-            'user_agent' => (string) $request->userAgent(),
-            'changes' => [
-                'old_user_id' => $oldUserId,
-                'new_user_id' => $newUserId,
-                'estado' => (int) $request->input('estado'),
-            ],
-        ]);
+        try {
+            DB::connection('sqlsrv')->table('dbo.sivigila_assignment_audits')->insert([
+                'sivigila_id' => (int) $sivigila->id,
+                'performed_by_user_id' => Auth::id(),
+                'old_assigned_user_id' => $oldUserId ?: null,
+                'new_assigned_user_id' => $newUserId ?: null,
+                'action_type' => $actionType,
+                'num_ide_' => $sivigila->num_ide_,
+                'paciente_nombre' => trim(implode(' ', array_filter([
+                    $sivigila->pri_nom_,
+                    $sivigila->seg_nom_,
+                    $sivigila->pri_ape_,
+                    $sivigila->seg_ape_,
+                ]))),
+                'fec_not' => $auditFecNot,
+                'nom_upgd' => '',
+                'old_assigned_name' => $oldAssigned?->name,
+                'new_assigned_name' => $newAssigned?->name,
+                'old_assigned_email' => $oldAssigned?->email,
+                'new_assigned_email' => $newAssigned?->email,
+                'old_assigned_code' => $oldAssigned?->codigohabilitacion,
+                'new_assigned_code' => $newAssigned?->codigohabilitacion,
+                'ip_address' => $request->ip(),
+                'user_agent' => (string) $request->userAgent(),
+                'changes' => json_encode([
+                    'old_user_id' => $oldUserId,
+                    'new_user_id' => $newUserId,
+                    'estado' => (int) $request->input('estado'),
+                ], JSON_UNESCAPED_UNICODE),
+                'created_at' => DB::raw('GETDATE()'),
+                'updated_at' => DB::raw('GETDATE()'),
+            ]);
+        } catch (\Throwable $e) {
+            Log::warning('No se pudo registrar auditoria de asignacion Sivigila (update): ' . $e->getMessage(), [
+                'sivigila_id' => (int) $sivigila->id,
+                'num_ide_' => $sivigila->num_ide_,
+            ]);
+        }
 
         return redirect()
             ->route('sivigila.index')
