@@ -14,6 +14,9 @@
     ];
 
     $hiddenFields = ['created_at', 'updated_at'];
+    $elegiblesCount = (int) (($usuariosElegibles ?? collect())->count());
+    $asignadosCount = (int) (($asignacionesExistentes ?? collect())->count());
+    $sinElegibles = $elegiblesCount === 0;
 
     $prettyLabel = function ($field) {
         return ucwords(str_replace('_', ' ', trim($field, '_')));
@@ -79,7 +82,7 @@
             <div class="asig-toast__icon"><i class="fas fa-ban"></i></div>
             <div class="asig-toast__body">
                 <strong>Caso ya asignado</strong>
-                <span>No puedes registrar una segunda asignacion para este caso.</span>
+                <span>Ya existen asignaciones para el periodo seleccionado en algunos usuarios.</span>
             </div>
             <button type="button" class="asig-toast__close" id="closeDuplicateToast549" aria-label="Cerrar">
                 <i class="fas fa-times"></i>
@@ -111,58 +114,80 @@
                         <div class="form-group mb-3" id="select-usuario-group">
                             <label for="user_ids" class="asig-label">
                                 Prestador primario
-                                <span class="badge badge-warning ml-2" id="badge-select">Selecciona 1 usuario</span>
+                                <span class="badge badge-warning ml-2" id="badge-select">Selecciona usuarios _ges</span>
                             </label>
 
                             <select
                                 name="user_ids[]"
                                 id="user_ids"
-                                class="form-control select2-user-single"
+                                class="form-control select2-user"
+                                multiple
                             >
-                                <option value="">-- Selecciona un usuario --</option>
-                                @if(($usuariosSugeridos ?? collect())->isNotEmpty())
-                                    <optgroup label="Sugeridos modulo gestante por IPS">
-                                        @foreach($usuariosSugeridos as $user)
-                                            <option value="{{ $user->id }}" {{ $loop->first ? 'selected' : '' }}>
-                                                {{ $user->name }} ({{ $user->email }}) - {{ $user->codigohabilitacion }}
-                                            </option>
-                                        @endforeach
-                                    </optgroup>
-                                @endif
-
-                                <optgroup label="{{ ($usuariosSugeridos ?? collect())->isEmpty() ? 'Usuarios disponibles' : 'Otros usuarios disponibles' }}">
-                                    @foreach($usuarios as $user)
-                                        @php
-                                            $isPreselected = in_array($user->id, $usuarios_prestador_primario ?? [], true)
-                                                && (($usuariosSugeridos ?? collect())->isEmpty());
-                                        @endphp
-                                        <option value="{{ $user->id }}" {{ $isPreselected ? 'selected' : '' }}>
-                                            {{ $user->name }} ({{ $user->email }}) - {{ $user->codigohabilitacion }}
-                                        </option>
-                                    @endforeach
-                                </optgroup>
+                                @foreach(($usuariosElegibles ?? collect()) as $user)
+                                    @php
+                                        $isPreselected = in_array($user->id, $usuarios_prestador_primario ?? [], true);
+                                    @endphp
+                                    <option value="{{ $user->id }}" {{ $isPreselected ? 'selected' : '' }}>
+                                        {{ $user->name }} ({{ $user->email }}) - {{ $user->codigohabilitacion }}
+                                    </option>
+                                @endforeach
                             </select>
+
+                            @if(($asignacionesExistentes ?? collect())->isNotEmpty())
+                                <div class="asig-assigned mt-3">
+                                    <div class="asig-assigned__title">
+                                        <i class="fas fa-users mr-1"></i>
+                                        Ya asignado en {{ $periodYear ?? '----' }}-SE{{ $periodSemana ?? '--' }} a:
+                                    </div>
+                                    <ul class="asig-assigned__list mb-0">
+                                        @foreach($asignacionesExistentes as $asig)
+                                            <li>
+                                                <strong>{{ optional($asig->user)->name ?? 'Usuario eliminado' }}</strong>
+                                                <span>{{ optional($asig->user)->email ?? 'sin correo' }}</span>
+                                            </li>
+                                        @endforeach
+                                    </ul>
+                                </div>
+                            @endif
+
+                            @if(($usuariosElegibles ?? collect())->isEmpty())
+                                <div class="alert alert-danger mb-0 mt-3">
+                                    <div class="font-weight-bold mb-1">No hay usuarios elegibles para agregar en este caso</div>
+                                    @if(($asignacionesExistentes ?? collect())->isNotEmpty())
+                                        <small>
+                                            Ya hay usuario(s) asignado(s) en {{ $periodYear ?? '----' }}-SE{{ $periodSemana ?? '--' }} y
+                                            no existen mas usuarios <strong>_ges</strong> con el codigo <strong>{{ $codigo_habilitacion ?? 'N/D' }}</strong>
+                                            para adicionar.
+                                        </small>
+                                    @else
+                                        <small>Se requiere usuario con sufijo <strong>_ges</strong> y mismo codigo de habilitacion.</small>
+                                    @endif
+                                </div>
+                            @else
+                                <div class="asig-helper mt-3 mb-0">
+                                    <i class="fas fa-shield-alt mr-1"></i>
+                                    Solo se permiten usuarios <strong>_ges</strong> con codigo de habilitacion <strong>{{ $codigo_habilitacion }}</strong>.
+                                </div>
+                            @endif
 
                             @error('user_ids')
                                 <div class="text-danger mt-2">{{ $message }}</div>
                             @enderror
                         </div>
 
-                        @if(!empty($sin_usuario_gestante_por_codigo) && $sin_usuario_gestante_por_codigo)
+                        @if(!empty($sin_usuario_gestante_por_codigo) && $sin_usuario_gestante_por_codigo && $asignadosCount === 0)
                             <div class="alert alert-warning mb-3">
                                 <div class="font-weight-bold mb-1">No hay usuario del modulo gestante para este codigo</div>
                                 <div>Codigo de habilitacion: <strong>{{ $codigo_habilitacion ?? 'N/D' }}</strong></div>
-                                <small>Puedes asignar manualmente mientras se crea el usuario correspondiente.</small>
-                            </div>
-                        @else
-                            <div class="asig-helper mb-3">
-                                <i class="fas fa-lightbulb mr-1"></i> Se priorizan usuarios del modulo gestante segun el codigo de habilitacion encontrado.
+                                <small>Debes crear usuarios _ges con ese codigo para poder asignar.</small>
                             </div>
                         @endif
 
                         <div class="asig-sticky-actions">
-                            <button type="submit" class="btn btn-asig-primary btn-block mb-2" id="btn-asignar-guardar">
-                                <i class="fas fa-user-check mr-1"></i> Asignar y guardar
+                            <button type="submit" class="btn btn-asig-primary btn-block mb-2" id="btn-asignar-guardar"
+                                    {{ $sinElegibles ? 'disabled title=No hay usuarios elegibles para asignar' : '' }}>
+                                <i class="fas fa-user-check mr-1"></i>
+                                {{ $sinElegibles ? 'Sin usuarios para asignar' : 'Asignar y guardar' }}
                             </button>
                             <a href="{{ route('maestrosiv549.index') }}" class="btn btn-outline-secondary btn-block">
                                 Cancelar
@@ -246,8 +271,8 @@
                 </button>
             </div>
             <div class="modal-body pt-2">
-                <p class="mb-2">Este caso ya tiene una asignacion registrada en el sistema.</p>
-                <p class="mb-0 text-muted">No se permite crear una segunda asignacion para el mismo caso.</p>
+                <p class="mb-2">Este caso ya tiene asignaciones para el mismo periodo epidemiologico.</p>
+                <p class="mb-0 text-muted">Se omitieron los usuarios duplicados y solo se permiten usuarios _ges del mismo codigo de habilitacion.</p>
             </div>
             <div class="modal-footer border-0 pt-0">
                 <button type="button" class="btn btn-asig-primary px-4" data-dismiss="modal">Entendido</button>
@@ -407,27 +432,47 @@
     .asig-sticky-actions{
         padding-top:.5rem;
     }
-    .select2-container--default .select2-selection--single{
+    .select2-container--default .select2-selection--multiple{
         min-height:48px;
         border:1px solid #d7e8eb;
         border-radius:14px;
         background:#fbfeff;
-        padding:.45rem .6rem;
-        display:flex;
-        align-items:center;
+        padding:.35rem .45rem;
     }
-    .select2-container--default.select2-container--focus .select2-selection--single{
+    .select2-container--default.select2-container--focus .select2-selection--multiple{
         border-color:#1b9aaa;
         box-shadow:0 0 0 .2rem rgba(27,154,170,.15);
     }
-    .select2-container--default .select2-selection--single .select2-selection__rendered{
-        color:#1f3942;
-        line-height:1.2;
-        padding-left:.25rem;
+    .select2-container--default .select2-selection--multiple .select2-selection__choice{
+        background:#e8f7f3;
+        border:1px solid #b9e0d4;
+        color:#175a4d;
+        border-radius:999px;
+        padding:2px 10px;
     }
-    .select2-container--default .select2-selection--single .select2-selection__arrow{
-        top:8px;
-        right:8px;
+    .asig-assigned{
+        border:1px solid #d5e8ed;
+        background:#f7fcff;
+        border-radius:14px;
+        padding:.8rem .9rem;
+    }
+    .asig-assigned__title{
+        font-weight:700;
+        color:#215c67;
+        margin-bottom:.45rem;
+        font-size:.92rem;
+    }
+    .asig-assigned__list{
+        padding-left:1.1rem;
+    }
+    .asig-assigned__list li{
+        margin-bottom:.22rem;
+        color:#355862;
+        font-size:.88rem;
+    }
+    .asig-assigned__list li span{
+        color:#64818a;
+        margin-left:.35rem;
     }
     #badge-select{
         font-size:.8rem;
@@ -662,14 +707,14 @@
 $(function () {
     let assignmentSubmitting = false;
 
-    $('.select2-user-single').select2({
-        placeholder: '-- Selecciona un usuario --',
+    $('.select2-user').select2({
+        placeholder: '-- Selecciona usuarios _ges --',
         width: '100%',
         allowClear: true
     });
 
     $('#user_ids').on('change', function () {
-        if ($(this).val()) {
+        if ($(this).val() && $(this).val().length > 0) {
             $('#badge-select').fadeOut(200);
             $('#btn-asignar-guardar').addClass('btn-pop');
             setTimeout(function () {

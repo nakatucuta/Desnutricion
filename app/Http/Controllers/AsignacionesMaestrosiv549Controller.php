@@ -55,31 +55,41 @@ class AsignacionesMaestrosiv549Controller extends Controller
             ->orderBy('name')
             ->get();
 
-        // 3) Todos los usuarios (fallback manual)
-        $usuarios = \App\Models\User::select('id', 'name', 'email', 'codigohabilitacion')
-            ->orderBy('name')
-            ->get();
-
-        // 4) Sugeridos solo dentro de modulo gestante por codigo habilitacion
-        $usuariosSugeridos = collect();
+        // 3) Elegibles: solo _ges y mismo codigo de habilitacion
+        $usuariosElegibles = collect();
         if (!empty($codigo_habilitacion)) {
-            $usuariosSugeridos = $usuariosGestante
+            $usuariosElegibles = $usuariosGestante
                 ->where('codigohabilitacion', (string) $codigo_habilitacion)
                 ->values();
         }
 
-        $usuarios_prestador_primario = $usuariosSugeridos->pluck('id')->toArray();
-        $sin_usuario_gestante_por_codigo = !empty($codigo_habilitacion) && $usuariosSugeridos->isEmpty();
+        $fecNotNorm = $this->normalizeDate($caso->fec_not ?? null);
+        [$periodYear, $periodSemana] = $this->resolvePeriodo($caso->year ?? null, $caso->semana ?? null, $fecNotNorm);
+
+        $asignacionesExistentes = \App\Models\AsignacionesMaestrosiv549::query()
+            ->with('user:id,name,email,codigohabilitacion')
+            ->whereRaw("LTRIM(RTRIM(COALESCE(tip_ide_, ''))) = ?", [trim((string) ($caso->tip_ide_ ?? ''))])
+            ->whereRaw("LTRIM(RTRIM(COALESCE(num_ide_, ''))) = ?", [trim((string) ($caso->num_ide_ ?? ''))])
+            ->whereRaw("LTRIM(RTRIM(COALESCE(nom_eve, ''))) = ?", [trim((string) ($caso->nom_eve ?? ''))])
+            ->whereRaw("COALESCE(NULLIF(LTRIM(RTRIM(COALESCE([year], ''))), ''), CONVERT(varchar(4), YEAR(fec_not)), '0000') = ?", [$periodYear])
+            ->whereRaw("COALESCE(NULLIF(RIGHT('00' + LTRIM(RTRIM(COALESCE(semana, ''))), 2), ''), RIGHT('00' + CONVERT(varchar(2), DATEPART(ISO_WEEK, fec_not)), 2), '00') = ?", [$periodSemana])
+            ->orderByDesc('id')
+            ->get();
+
+        $usuarios_prestador_primario = $usuariosElegibles->pluck('id')->toArray();
+        $sin_usuario_gestante_por_codigo = !empty($codigo_habilitacion) && $usuariosElegibles->isEmpty();
 
         return view('asignaciones_maestrosiv549.create', compact(
             'datosCaso',
-            'usuarios',
             'usuariosGestante',
-            'usuariosSugeridos',
+            'usuariosElegibles',
             'codigo_habilitacion',
             'nombre_ips_primaria',
             'usuarios_prestador_primario',
-            'sin_usuario_gestante_por_codigo'
+            'sin_usuario_gestante_por_codigo',
+            'asignacionesExistentes',
+            'periodYear',
+            'periodSemana'
         ));
     }
 
@@ -88,7 +98,7 @@ class AsignacionesMaestrosiv549Controller extends Controller
         $this->ensureAdmin();
 
         $validated = $request->validate([
-            'user_ids'   => 'required|array|min:1|max:1',
+            'user_ids'   => 'required|array|min:1',
             'user_ids.*' => 'exists:users,id',
 
             'tip_ide_' => 'required',
@@ -99,18 +109,11 @@ class AsignacionesMaestrosiv549Controller extends Controller
             'user_ids.required' => 'Debes seleccionar un prestador para la asignacion.',
             'user_ids.array' => 'El formato de prestador seleccionado no es valido.',
             'user_ids.min' => 'Debes seleccionar un prestador para la asignacion.',
-            'user_ids.max' => 'Solo puedes seleccionar un prestador por caso.',
             'user_ids.*.exists' => 'El prestador seleccionado no existe.',
         ]);
 
         $usuarioAsignador = auth()->user();
         $selectedUsers = array_values(array_unique(array_map('intval', (array) ($validated['user_ids'] ?? []))));
-
-        if (count($selectedUsers) > 1) {
-            throw ValidationException::withMessages([
-                'user_ids' => 'Este modulo permite solo una asignacion por caso. Selecciona un unico prestador.',
-            ]);
-        }
 
         if (count($selectedUsers) === 0) {
             throw ValidationException::withMessages([
@@ -132,39 +135,75 @@ class AsignacionesMaestrosiv549Controller extends Controller
         $baseData['year'] = $periodYear;
         $baseData['semana'] = $periodSemana;
 
-        $existeCasoAsignado = \App\Models\AsignacionesMaestrosiv549::query()
-            ->whereRaw("LTRIM(RTRIM(COALESCE(tip_ide_, ''))) = ?", [$baseData['tip_ide_']])
-            ->whereRaw("LTRIM(RTRIM(COALESCE(num_ide_, ''))) = ?", [$baseData['num_ide_']])
-            ->whereRaw("LTRIM(RTRIM(COALESCE(nom_eve, ''))) = ?", [$baseData['nom_eve']])
-            ->whereRaw("COALESCE(NULLIF(LTRIM(RTRIM(COALESCE([year], ''))), ''), CONVERT(varchar(4), YEAR(fec_not)), '0000') = ?", [$periodYear])
-            ->whereRaw("COALESCE(NULLIF(RIGHT('00' + LTRIM(RTRIM(COALESCE(semana, ''))), 2), ''), RIGHT('00' + CONVERT(varchar(2), DATEPART(ISO_WEEK, fec_not)), 2), '00') = ?", [$periodSemana])
-            ->exists();
+        $codigoHabilitacion = $this->resolveCodigoHabilitacionByNumIde($baseData['num_ide_']);
 
-        if ($existeCasoAsignado) {
-            return back()
-                ->withInput()
-                ->with('asig_duplicate', true)
-                ->withErrors([
-                    'user_ids' => "Este caso ya tiene una asignacion en el periodo {$periodYear}-SE{$periodSemana}.",
-                ]);
+        if (empty($codigoHabilitacion)) {
+            throw ValidationException::withMessages([
+                'user_ids' => 'No se encontro codigo de habilitacion del caso. No es posible asignar sin este dato.',
+            ]);
         }
 
-        $usuarioAsignado = \App\Models\User::findOrFail($selectedUsers[0]);
-        $data = $baseData;
-        $data['user_id'] = $usuarioAsignado->id;
+        $usuariosValidos = \App\Models\User::query()
+            ->whereIn('id', $selectedUsers)
+            ->where('usertype', 2)
+            ->whereRaw("LOWER(name) LIKE ?", ['%_ges'])
+            ->where('codigohabilitacion', (string) $codigoHabilitacion)
+            ->get(['id', 'name', 'email']);
+
+        if ($usuariosValidos->count() !== count($selectedUsers)) {
+            throw ValidationException::withMessages([
+                'user_ids' => 'Solo puedes asignar a usuarios del modulo gestantes (_ges) con el mismo codigo de habilitacion del caso.',
+            ]);
+        }
 
         try {
             DB::beginTransaction();
+            $creadas = 0;
+            $omitidas = 0;
 
-            $asignacion = \App\Models\AsignacionesMaestrosiv549::create($data);
+            foreach ($usuariosValidos as $usuarioAsignado) {
+                $existeParaUsuario = \App\Models\AsignacionesMaestrosiv549::query()
+                    ->where('user_id', $usuarioAsignado->id)
+                    ->whereRaw("LTRIM(RTRIM(COALESCE(tip_ide_, ''))) = ?", [$baseData['tip_ide_']])
+                    ->whereRaw("LTRIM(RTRIM(COALESCE(num_ide_, ''))) = ?", [$baseData['num_ide_']])
+                    ->whereRaw("LTRIM(RTRIM(COALESCE(nom_eve, ''))) = ?", [$baseData['nom_eve']])
+                    ->whereRaw("COALESCE(NULLIF(LTRIM(RTRIM(COALESCE([year], ''))), ''), CONVERT(varchar(4), YEAR(fec_not)), '0000') = ?", [$periodYear])
+                    ->whereRaw("COALESCE(NULLIF(RIGHT('00' + LTRIM(RTRIM(COALESCE(semana, ''))), 2), ''), RIGHT('00' + CONVERT(varchar(2), DATEPART(ISO_WEEK, fec_not)), 2), '00') = ?", [$periodSemana])
+                    ->exists();
 
-            \Mail::to($usuarioAsignado->email)
-                ->send(new \App\Mail\CasoAsignadoMail($asignacion, $usuarioAsignado, $usuarioAsignador));
+                if ($existeParaUsuario) {
+                    $omitidas++;
+                    continue;
+                }
 
-            \Mail::to($usuarioAsignador->email)
-                ->send(new \App\Mail\AsignacionRealizadaMail($asignacion, $usuarioAsignado, $usuarioAsignador));
+                $data = $baseData;
+                $data['user_id'] = $usuarioAsignado->id;
+
+                $asignacion = \App\Models\AsignacionesMaestrosiv549::create($data);
+                $creadas++;
+
+                \Mail::to($usuarioAsignado->email)
+                    ->send(new \App\Mail\CasoAsignadoMail($asignacion, $usuarioAsignado, $usuarioAsignador));
+
+                \Mail::to($usuarioAsignador->email)
+                    ->send(new \App\Mail\AsignacionRealizadaMail($asignacion, $usuarioAsignado, $usuarioAsignador));
+            }
 
             DB::commit();
+
+            if ($creadas === 0 && $omitidas > 0) {
+                return back()
+                    ->withInput()
+                    ->with('asig_duplicate', true)
+                    ->withErrors([
+                        'user_ids' => "Ya existian asignaciones para todos los usuarios seleccionados en {$periodYear}-SE{$periodSemana}.",
+                    ]);
+            }
+
+            if ($omitidas > 0) {
+                return redirect()->route('maestrosiv549.index')
+                    ->with('success', "Caso asignado. Nuevas: {$creadas}. Omitidas por duplicado: {$omitidas}.");
+            }
         } catch (\Illuminate\Database\QueryException $e) {
             DB::rollBack();
             $sqlState = (string) ($e->errorInfo[0] ?? '');
@@ -238,5 +277,26 @@ class AsignacionesMaestrosiv549Controller extends Controller
         $semanaNorm = str_pad(preg_replace('/\D+/', '', $semanaNorm) ?: '00', 2, '0', STR_PAD_LEFT);
 
         return [$yearNorm, $semanaNorm];
+    }
+
+    private function resolveCodigoHabilitacionByNumIde(?string $numIde): ?string
+    {
+        $numIde = trim((string) ($numIde ?? ''));
+        if ($numIde === '') {
+            return null;
+        }
+
+        $afiliado = \DB::connection('sqlsrv_1')->table('maestroAfiliados as a')
+            ->join('maestroips as b', 'a.numeroCarnet', '=', 'b.numeroCarnet')
+            ->join('maestroIpsGru as c', 'b.idGrupoIps', '=', 'c.id')
+            ->join('maestroIpsGruDet as d', function ($join) {
+                $join->on('c.id', '=', 'd.idd')->where('d.servicio', '=', 1);
+            })
+            ->join('refIps as e', 'd.idIps', '=', 'e.idIps')
+            ->select(\DB::raw('CAST(e.codigo AS BIGINT) as codigo_habilitacion'))
+            ->where('a.identificacion', $numIde)
+            ->first();
+
+        return $afiliado ? (string) $afiliado->codigo_habilitacion : null;
     }
 }

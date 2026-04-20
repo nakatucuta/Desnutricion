@@ -65,7 +65,7 @@ class Cargue412Controller extends Controller
             ->orderBy('seguimientos.created_at', 'desc')
             ->join('seguimientos', 'sivigilas.id', '=', 'seguimientos.sivigilas_id')
             ->where('seguimientos.user_id', Auth::user()->id)
-            ->whereYear('seguimientos.created_at', '>', 2023) // Agregar la condición para el año
+            ->whereYear('seguimientos.created_at', '>', 2023) // Agregar la condiciÃ³n para el aÃ±o
             ->paginate(3000);
         
         } else {  
@@ -163,28 +163,35 @@ class Cargue412Controller extends Controller
             ->join('refIps as e', 'd.idIps', '=', 'e.idIps')
             ->select(DB::raw('CAST(e.codigo AS BIGINT) as codigo_habilitacion'))
             ->where('a.identificacion', $numero_identificacion)
-            ->first(); // Obtener el primer registro de la consulta
-        
+            ->first();
+
+        $income12 = collect();
         if ($incomeedit14 !== null) {
             $income12 = DB::table('users')
-                ->select('name', 'id', 'codigohabilitacion')
+                ->select('id', 'name', 'email', 'codigohabilitacion', 'usertype')
                 ->where('codigohabilitacion', $incomeedit14->codigo_habilitacion)
+                ->orderBy('name')
                 ->get();
-        } else {
-            $income12 = collect();
         }
-    
-        // Obtener los IDs de los usuarios que ya están en income12
-        $idsEnIncome12 = collect($income12)->pluck('id')->toArray();
-    
-        // Filtrar incomeedit15 para que no incluya los IDs que ya están en income12
-        $incomeedit15 = DB::table('users')
-            ->select('name', 'id', 'codigohabilitacion')
-            ->where('usertype', 1)
-            ->whereNotIn('id', $idsEnIncome12) // Evitar duplicados
+
+        // Siempre habilitar asignación manual con todos los usuarios.
+        $allUsers = DB::table('users')
+            ->select('id', 'name', 'email', 'codigohabilitacion', 'usertype')
+            ->whereNotNull('name')
+            ->orderBy('name')
             ->get();
-        
-        return view('new_412.edit', compact('edit_cargue', 'incomeedit15', 'income12', 'incomeedit14'));
+
+        // Variables legacy para compatibilidad.
+        $incomeedit15 = $allUsers->whereNotIn('id', $income12->pluck('id'))->values();
+
+        return view('new_412.edit', [
+            'edit_cargue' => $edit_cargue,
+            'income12' => $income12,
+            'incomeedit15' => $incomeedit15,
+            'incomeedit14' => $incomeedit14,
+            'allUsers' => $allUsers,
+            'ipsMatched' => $income12->isNotEmpty(),
+        ]);
     }
     
 
@@ -194,158 +201,149 @@ class Cargue412Controller extends Controller
   
     
      public function update(Request $request, $id)
-{
-    // 1) Validar los datos entrantes
-    $request->validate([
-        'numero_identificacion' => 'required',
-        'fecha_captacion'       => 'required|date',
-        'primer_nombre'         => 'required',
-        'segundo_nombre'        => 'nullable',
-        'primer_apellido'       => 'required',
-        'segundo_apellido'      => 'nullable',
-        'user_id'               => 'required|exists:users,id',
-    ], [
-        'required' => 'El campo :attribute es obligatorio.',
-    ]);
+    {
+        $request->validate([
+            'numero_identificacion' => 'required',
+            'fecha_captacion'       => 'required|date',
+            'primer_nombre'         => 'required',
+            'segundo_nombre'        => 'nullable',
+            'primer_apellido'       => 'required',
+            'segundo_apellido'      => 'nullable',
+            'user_id'               => 'required|exists:users,id',
+        ], [
+            'required' => 'El campo :attribute es obligatorio.',
+        ]);
 
-    $before = Cargue412::findOrFail($id);
-    $oldAssigned = $before->user_id ? User::find($before->user_id) : null;
+        $before = Cargue412::findOrFail($id);
+        $oldAssigned = $before->user_id ? User::find($before->user_id) : null;
+        $registro = null;
 
-    // 2) Preparar datos para la actualización
-    $datosEmpleado = $request->except(['_token', '_method']);
+        $fillable = (new Cargue412())->getFillable();
+        $data = $request->only($fillable);
+        $data['estado'] = 1;
 
-    // 3) Ejecutar la transacción y obtener el registro actualizado
-    $registro = null;
+        foreach (['fecha_captacion', 'fecha_nacimieto_nino'] as $dateField) {
+            if (!empty($data[$dateField])) {
+                try {
+                    $data[$dateField] = Carbon::parse($data[$dateField])->toDateString();
+                } catch (\Throwable $e) {
+                    $data[$dateField] = null;
+                }
+            }
+        }
 
-    DB::transaction(function () use ($id, $datosEmpleado, &$registro) {
-        // Actualizar datos
-        $seg = Cargue412::where('id', $id)->update($datosEmpleado);
+        DB::transaction(function () use ($id, $data, &$registro) {
+            DB::connection('sqlsrv')->statement('SET DATEFORMAT ymd');
 
-        if ($seg) {
+            Cargue412::where('id', $id)->update($data);
+
             DB::connection('sqlsrv')->table('dbo.cargue412s')
                 ->where('id', $id)
                 ->update(['estado' => 1]);
+
+            $registro = Cargue412::find($id);
+        });
+
+        if (!$registro) {
+            return redirect()
+                ->route('import-excel-form')
+                ->with('error', 'No fue posible actualizar el registro 412.');
         }
 
-        // Obtener el registro actualizado
-        $registro = Cargue412::find($id);
-    });
+        $newAssigned = $registro->user_id ? User::find($registro->user_id) : null;
+        $oldUserId = $before->user_id ? (int) $before->user_id : null;
+        $newUserId = $registro->user_id ? (int) $registro->user_id : null;
 
-    $newAssigned = $registro && $registro->user_id ? User::find($registro->user_id) : null;
-    $oldUserId = $before->user_id ? (int) $before->user_id : null;
-    $newUserId = $registro && $registro->user_id ? (int) $registro->user_id : null;
-
-    if (!$registro) {
-        return redirect()
-            ->route('import-excel-form')
-            ->with('error', 'No fue posible actualizar el registro 412.');
-    }
-
-    if ($newUserId !== null) {
-        $actionType = 'sin_cambio';
-        if ($oldUserId === null && $newUserId !== null) {
-            $actionType = 'asignacion';
-        } elseif ($oldUserId !== null && $oldUserId !== $newUserId) {
-            $actionType = 'reasignacion';
-        }
-
-        try {
-            $auditNow = now()->format('Y-m-d H:i:s');
-            $auditFechaCaptacion = null;
-
-            if (!empty($registro->fecha_captacion)) {
-                $auditFechaCaptacion = Carbon::parse($registro->fecha_captacion)->format('Y-m-d');
+        if ($newUserId !== null) {
+            $actionType = 'sin_cambio';
+            if ($oldUserId === null) {
+                $actionType = 'asignacion';
+            } elseif ($oldUserId !== $newUserId) {
+                $actionType = 'reasignacion';
             }
 
-            Cargue412AssignmentAudit::create([
-                'cargue412_id' => (int) $registro->id,
-                'performed_by_user_id' => Auth::id(),
-                'old_assigned_user_id' => $oldUserId,
-                'new_assigned_user_id' => $newUserId,
-                'action_type' => $actionType,
-                'numero_identificacion' => $registro->numero_identificacion,
-                'paciente_nombre' => trim(implode(' ', array_filter([
-                    $registro->primer_nombre,
-                    $registro->segundo_nombre,
-                    $registro->primer_apellido,
-                    $registro->segundo_apellido,
-                ]))),
-                'municipio' => $registro->municipio,
-                'fecha_captacion' => $auditFechaCaptacion,
-                'old_assigned_name' => $oldAssigned?->name,
-                'new_assigned_name' => $newAssigned?->name,
-                'old_assigned_email' => $oldAssigned?->email,
-                'new_assigned_email' => $newAssigned?->email,
-                'old_assigned_code' => $oldAssigned?->codigohabilitacion,
-                'new_assigned_code' => $newAssigned?->codigohabilitacion,
-                'ip_address' => $request->ip(),
-                'user_agent' => (string) $request->userAgent(),
-                'changes' => [
+            try {
+                DB::connection('sqlsrv')->table('dbo.cargue412_assignment_audits')->insert([
+                    'cargue412_id' => (int) $registro->id,
+                    'performed_by_user_id' => Auth::id(),
+                    'old_assigned_user_id' => $oldUserId,
+                    'new_assigned_user_id' => $newUserId,
+                    'action_type' => $actionType,
+                    'numero_identificacion' => $registro->numero_identificacion,
+                    'paciente_nombre' => trim(implode(' ', array_filter([
+                        $registro->primer_nombre,
+                        $registro->segundo_nombre,
+                        $registro->primer_apellido,
+                        $registro->segundo_apellido,
+                    ]))),
+                    'municipio' => $registro->municipio,
+                    'fecha_captacion' => !empty($registro->fecha_captacion)
+                        ? Carbon::parse($registro->fecha_captacion)->toDateString()
+                        : null,
+                    'old_assigned_name' => $oldAssigned?->name,
+                    'new_assigned_name' => $newAssigned?->name,
+                    'old_assigned_email' => $oldAssigned?->email,
+                    'new_assigned_email' => $newAssigned?->email,
+                    'old_assigned_code' => $oldAssigned?->codigohabilitacion,
+                    'new_assigned_code' => $newAssigned?->codigohabilitacion,
+                    'ip_address' => $request->ip(),
+                    'user_agent' => (string) $request->userAgent(),
+                    'changes' => json_encode([
+                        'old_user_id' => $oldUserId,
+                        'new_user_id' => $newUserId,
+                    ], JSON_UNESCAPED_UNICODE),
+                    'created_at' => DB::raw('GETDATE()'),
+                    'updated_at' => DB::raw('GETDATE()'),
+                ]);
+            } catch (\Throwable $e) {
+                Log::warning('No se pudo registrar la auditoria de asignación 412: ' . $e->getMessage(), [
+                    'cargue412_id' => $registro->id,
                     'old_user_id' => $oldUserId,
                     'new_user_id' => $newUserId,
-                ],
-                'created_at' => $auditNow,
-                'updated_at' => $auditNow,
-            ]);
-        } catch (\Throwable $e) {
-            Log::warning('No se pudo registrar la auditoria de asignacion 412: ' . $e->getMessage(), [
-                'cargue412_id' => $registro->id,
-                'old_user_id' => $oldUserId,
-                'new_user_id' => $newUserId,
-            ]);
+                ]);
+            }
         }
-    }
 
-    // 4) Preparar datos para el correo
-    $datosCorreo = [
-        'id'                     => $registro->id,
-        'fecha_captacion'        => $registro->fecha_captacion,
-        'numero_identificacion'  => $registro->numero_identificacion,
-        'primer_nombre'          => $registro->primer_nombre,
-        'segundo_nombre'         => $registro->segundo_nombre,
-        'primer_apellido'        => $registro->primer_apellido,
-        'segundo_apellido'       => $registro->segundo_apellido,
-    ];
+        $datosCorreo = [
+            'id'                     => $registro->id,
+            'fecha_captacion'        => $registro->fecha_captacion,
+            'numero_identificacion'  => $registro->numero_identificacion,
+            'primer_nombre'          => $registro->primer_nombre,
+            'segundo_nombre'         => $registro->segundo_nombre,
+            'primer_apellido'        => $registro->primer_apellido,
+            'segundo_apellido'       => $registro->segundo_apellido,
+        ];
 
-    // 5) Construir el cuerpo del correo (sin duplicar)
-    $r = $registro;
+        $bodyText = '<br>';
+        $bodyText .= "Fecha de notificación: <strong>{$registro->fecha_captacion}</strong><br>";
+        $bodyText .= "Identificación: <strong>{$registro->numero_identificacion}</strong><br>";
+        $bodyText .= "Primer Nombre: <strong>{$registro->primer_nombre}</strong><br>";
+        $bodyText .= "Segundo Nombre: <strong>{$registro->segundo_nombre}</strong><br>";
+        $bodyText .= "Primer Apellido: <strong>{$registro->primer_apellido}</strong><br>";
+        $bodyText .= "Segundo Apellido: <strong>{$registro->segundo_apellido}</strong><br>";
 
-    $bodyText = '<br>';
-    $bodyText .= "Fecha de notificación: <strong>{$r->fecha_captacion}</strong><br>";
-    $bodyText .= "Identificación: <strong>{$r->numero_identificacion}</strong><br>";
-    $bodyText .= "Primer Nombre: <strong>{$r->primer_nombre}</strong><br>";
-    $bodyText .= "Segundo Nombre: <strong>{$r->segundo_nombre}</strong><br>";
-    $bodyText .= "Primer Apellido: <strong>{$r->primer_apellido}</strong><br>";
-    $bodyText .= "Segundo Apellido: <strong>{$r->segundo_apellido}</strong><br>";
-
-    // 6) Enviar el correo
-    $mailSent = false;
-    $user = User::find($request->user_id);
-
-    if ($user && $user->email) {
-        try {
-            Mail::to($user->email)
-                ->send(new RecordatorioControl($datosCorreo, $bodyText));
-            $mailSent = true;
-        } catch (\Throwable $e) {
-            Log::error('Error al enviar correo: '.$e->getMessage());
+        $mailSent = false;
+        $user = User::find($request->user_id);
+        if ($user && $user->email) {
+            try {
+                Mail::to($user->email)->send(new RecordatorioControl($datosCorreo, $bodyText));
+                $mailSent = true;
+            } catch (\Throwable $e) {
+                Log::error('Error al enviar correo: ' . $e->getMessage());
+            }
+        } else {
+            Log::warning("Usuario ID {$request->user_id} sin email válido.");
         }
-    } else {
-        Log::warning("Usuario ID {$request->user_id} sin email válido.");
+
+        $flashKey = $mailSent ? 'success' : 'warning';
+        $flashMsg = $mailSent
+            ? 'Registro actualizado y correo enviado correctamente.'
+            : 'Registro actualizado, pero no se pudo enviar el correo.';
+
+        return redirect()
+            ->route('import-excel-form')
+            ->with($flashKey, $flashMsg);
     }
-
-    // 7) Redirigir con mensaje flash
-    $flashKey = $mailSent ? 'success' : 'warning';
-    $flashMsg = $mailSent
-        ? 'Registro actualizado y correo enviado correctamente.'
-        : 'Registro actualizado, pero no se pudo enviar el correo.';
-
-    return redirect()
-        ->route('import-excel-form')
-        ->with($flashKey, $flashMsg);
-}
-
-     
 
 
 
@@ -418,7 +416,7 @@ class Cargue412Controller extends Controller
     }
 
     /**
-     * Genera el HTML de las acciones según procesado y user_id.
+     * Genera el HTML de las acciones segÃºn procesado y user_id.
      */
     private function build412Query(Request $request)
     {
@@ -658,7 +656,7 @@ HTML;
         if (is_null($row->user_id)) {
             return <<<HTML
 <a href="{$delUrl}" class="btn btn-sm aw-btn-delete"
-   onclick="event.preventDefault(); if(confirm('¿Eliminar registro?')) document.getElementById('{$formId}').submit();">
+   onclick="event.preventDefault(); if(confirm('Â¿Eliminar registro?')) document.getElementById('{$formId}').submit();">
   <i class="fas fa-trash"></i>
 </a>
 {$deleteForm}
@@ -677,7 +675,7 @@ HTML;
   <i class="fas fa-tools"></i>
 </a>
 <a href="{$delUrl}" class="btn btn-sm aw-btn-delete"
-   onclick="event.preventDefault(); if(confirm('¿Eliminar registro?')) document.getElementById('{$formId}').submit();">
+   onclick="event.preventDefault(); if(confirm('Â¿Eliminar registro?')) document.getElementById('{$formId}').submit();">
   <i class="fas fa-trash"></i>
 </a>
 {$deleteForm}
@@ -869,6 +867,7 @@ public function reporte1cargue412()
 }
 
 }
+
 
 
 
