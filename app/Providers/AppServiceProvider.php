@@ -2,11 +2,13 @@
 
 namespace App\Providers;
 
+use App\Models\PersonalAccessToken;
 use Illuminate\Database\Events\ConnectionEstablished;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Pagination\Paginator; 
+use Laravel\Sanctum\Sanctum;
 class AppServiceProvider extends ServiceProvider
 {
     /**
@@ -27,6 +29,22 @@ class AppServiceProvider extends ServiceProvider
     public function boot()
     {
         Paginator::useBootstrap();
+        Sanctum::usePersonalAccessTokenModel(PersonalAccessToken::class);
+        Sanctum::getAccessTokenFromRequestUsing(function ($request) {
+            $header = (string) $request->header('Authorization', '');
+
+            if ($header === '') {
+                return null;
+            }
+
+            if (preg_match('/Bearer\s+(.+)/i', $header, $matches)) {
+                return trim((string) $matches[1]);
+            }
+
+            $token = $request->bearerToken();
+
+            return $token !== null ? trim($token) : null;
+        });
 
         Event::listen(ConnectionEstablished::class, function (ConnectionEstablished $event) {
             if (($event->connection->getDriverName() ?? null) !== 'sqlsrv') {
