@@ -19,6 +19,13 @@ class SeguimientMaestrosiv549Controller extends Controller
     {
         $this->authorizeAsignacionAccess($asignacion);
 
+        $seguimientoExistente = $this->findSharedSeguimiento($asignacion);
+        if ($seguimientoExistente) {
+            return redirect()
+                ->route('asignaciones.seguimientmaestrosiv549.edit', [$asignacion->id, $seguimientoExistente->id])
+                ->with('success', 'Este caso ya tiene seguimiento activo. Puedes continuarlo y actualizarlo.');
+        }
+
         $seguimiento = null;
         return view('seguimientmaestrosiv549.create', compact('asignacion','seguimiento'));
     }
@@ -27,10 +34,17 @@ class SeguimientMaestrosiv549Controller extends Controller
     {
         $this->authorizeAsignacionAccess($asignacion);
 
+        $seguimientoExistente = $this->findSharedSeguimiento($asignacion);
+        if ($seguimientoExistente) {
+            return redirect()
+                ->route('asignaciones.seguimientmaestrosiv549.edit', [$asignacion->id, $seguimientoExistente->id])
+                ->with('success', 'Ya existe un seguimiento activo para este caso/período. Puedes editarlo.');
+        }
+
         $data = $this->rules($request);
         $data = $this->normalizeBooleans($request, $data);
 
-        $data['asignacion_id'] = $asignacion->id;
+        $data['asignacion_id'] = $this->resolveCanonicalAsignacionId($asignacion);
 
         $seguimiento = SeguimientMaestrosiv549::create($data);
         $seguimiento->load('asignacion.user');
@@ -86,18 +100,27 @@ class SeguimientMaestrosiv549Controller extends Controller
         abort_if(!auth()->check(), 401, 'No autenticado');
 
         $user = auth()->user();
-        $canSeeAll = (int) ($user->usertype ?? 0) === 1;
+        $usertype = (int) ($user->usertype ?? 0);
+        $canSeeAll = $usertype === 1;
+        $isPrestador = $usertype === 2;
 
         if ($canSeeAll) {
             return;
         }
 
-        abort_unless((int) $asignacion->user_id === (int) $user->id, 403, 'No autorizado para acceder a esta asignacion.');
+        abort_unless($isPrestador, 403, 'Solo administradores (tipo 1) y prestadores (tipo 2) pueden acceder al modulo 549.');
+
+        $puedeAcceder = $this->sameCasePeriodAssignmentsQuery($asignacion)
+            ->where('user_id', $user->id)
+            ->exists();
+
+        abort_unless($puedeAcceder, 403, 'No autorizado para acceder a esta asignacion.');
     }
 
     private function authorizeSeguimientoAccess(AsignacionesMaestrosiv549 $asignacion, SeguimientMaestrosiv549 $seguimiento): void
     {
-        abort_if((int) $seguimiento->asignacion_id !== (int) $asignacion->id, 404, 'Seguimiento no asociado al caso solicitado.');
+        $grupoIds = $this->sameCasePeriodAssignmentsQuery($asignacion)->pluck('id');
+        abort_unless($grupoIds->contains((int) $seguimiento->asignacion_id), 404, 'Seguimiento no asociado al caso solicitado.');
         $this->authorizeAsignacionAccess($asignacion);
     }
 
@@ -303,5 +326,39 @@ class SeguimientMaestrosiv549Controller extends Controller
                 $data[$field] = null;
             }
         }
+    }
+
+    private function sameCasePeriodAssignmentsQuery(AsignacionesMaestrosiv549 $asignacion)
+    {
+        return AsignacionesMaestrosiv549::query()
+            ->whereRaw("LTRIM(RTRIM(COALESCE(tip_ide_, ''))) = ?", [trim((string) ($asignacion->tip_ide_ ?? ''))])
+            ->whereRaw("LTRIM(RTRIM(COALESCE(num_ide_, ''))) = ?", [trim((string) ($asignacion->num_ide_ ?? ''))])
+            ->whereRaw("LTRIM(RTRIM(COALESCE(nom_eve, ''))) = ?", [trim((string) ($asignacion->nom_eve ?? ''))])
+            ->whereRaw(
+                "COALESCE(NULLIF(LTRIM(RTRIM(COALESCE([year], ''))), ''), CONVERT(varchar(4), YEAR(fec_not)), '0000') = COALESCE(NULLIF(LTRIM(RTRIM(COALESCE(?, ''))), ''), CONVERT(varchar(4), YEAR(?)), '0000')",
+                [trim((string) ($asignacion->year ?? '')), $asignacion->fec_not]
+            )
+            ->whereRaw(
+                "COALESCE(NULLIF(RIGHT('00' + LTRIM(RTRIM(COALESCE(semana, ''))), 2), ''), RIGHT('00' + CONVERT(varchar(2), DATEPART(ISO_WEEK, fec_not)), 2), '00') = COALESCE(NULLIF(RIGHT('00' + LTRIM(RTRIM(COALESCE(?, ''))), 2), ''), RIGHT('00' + CONVERT(varchar(2), DATEPART(ISO_WEEK, ?)), 2), '00')",
+                [trim((string) ($asignacion->semana ?? '')), $asignacion->fec_not]
+            );
+    }
+
+    private function findSharedSeguimiento(AsignacionesMaestrosiv549 $asignacion): ?SeguimientMaestrosiv549
+    {
+        $groupIds = $this->sameCasePeriodAssignmentsQuery($asignacion)->pluck('id');
+        if ($groupIds->isEmpty()) {
+            return null;
+        }
+
+        return SeguimientMaestrosiv549::query()
+            ->whereIn('asignacion_id', $groupIds)
+            ->orderByDesc('id')
+            ->first();
+    }
+
+    private function resolveCanonicalAsignacionId(AsignacionesMaestrosiv549 $asignacion): int
+    {
+        return (int) $this->sameCasePeriodAssignmentsQuery($asignacion)->min('id');
     }
 }

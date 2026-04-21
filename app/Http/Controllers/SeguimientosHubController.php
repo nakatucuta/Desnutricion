@@ -20,31 +20,56 @@ class SeguimientosHubController extends Controller
 
     public function index()
     {
+        $this->authorizeHubAccess();
         return view('seguimientos1ges.index');
     }
 
     public function dataAsignados(Request $request)
     {
-        abort_if(!auth()->check(), 401, 'No autenticado');
-
-        $user = auth()->user();
-        $muestraTodo = (int) ($user->usertype ?? 0) === 1;
-
-        $idsUnicos = DB::table('asignaciones_maestrosiv549 as a2')
-            ->selectRaw('MAX(a2.id) as id')
-            ->when(!$muestraTodo, function ($sq) use ($user) {
-                $sq->where('a2.user_id', $user->id);
-            })
-            ->groupBy(
-                'a2.user_id',
-                DB::raw("LTRIM(RTRIM(COALESCE(a2.tip_ide_, '')))"),
-                DB::raw("LTRIM(RTRIM(COALESCE(a2.num_ide_, '')))"),
-                DB::raw('CAST(a2.fec_not as date)'),
-                DB::raw("LTRIM(RTRIM(COALESCE(a2.nom_eve, '')))")
-            );
+        [$user, $muestraTodo] = $this->authorizeHubAccess();
+        $userFilterSql = $muestraTodo ? '' : 'WHERE a2.user_id = '.(int) $user->id;
+        $idsUnicosSql = "
+            SELECT d.id
+            FROM (
+                SELECT
+                    a2.id,
+                    ROW_NUMBER() OVER (
+                        PARTITION BY
+                            a2.user_id,
+                            LTRIM(RTRIM(COALESCE(a2.tip_ide_, ''))),
+                            LTRIM(RTRIM(COALESCE(a2.num_ide_, ''))),
+                            LTRIM(RTRIM(COALESCE(a2.nom_eve, ''))),
+                            COALESCE(NULLIF(LTRIM(RTRIM(COALESCE(a2.[year], ''))), ''), CONVERT(varchar(4), YEAR(a2.fec_not)), '0000'),
+                            COALESCE(NULLIF(RIGHT('00' + LTRIM(RTRIM(COALESCE(a2.semana, ''))), 2), ''), RIGHT('00' + CONVERT(varchar(2), DATEPART(ISO_WEEK, a2.fec_not)), 2), '00')
+                        ORDER BY
+                            CASE
+                                WHEN EXISTS (
+                                    SELECT 1
+                                    FROM seguimient_maestrosiv549 s
+                                    WHERE s.asignacion_id = a2.id
+                                      AND s.fecha_consulta_1_ano IS NOT NULL
+                                ) THEN 1
+                                ELSE 0
+                            END ASC,
+                            a2.id DESC
+                    ) AS rn
+                FROM asignaciones_maestrosiv549 a2
+                {$userFilterSql}
+            ) d
+            WHERE d.rn = 1
+        ";
+        $idsUnicos = DB::table(DB::raw("({$idsUnicosSql}) as dd"))->select('dd.id');
 
         $subUltimo = SeguimientMaestrosiv549::select('id')
-            ->whereColumn('asignacion_id', 'asignaciones_maestrosiv549.id')
+            ->whereIn('asignacion_id', function ($sq) {
+                $sq->from('asignaciones_maestrosiv549 as ag')
+                    ->select('ag.id')
+                    ->whereRaw("LTRIM(RTRIM(COALESCE(ag.tip_ide_, ''))) = LTRIM(RTRIM(COALESCE(asignaciones_maestrosiv549.tip_ide_, '')))")
+                    ->whereRaw("LTRIM(RTRIM(COALESCE(ag.num_ide_, ''))) = LTRIM(RTRIM(COALESCE(asignaciones_maestrosiv549.num_ide_, '')))")
+                    ->whereRaw("LTRIM(RTRIM(COALESCE(ag.nom_eve, ''))) = LTRIM(RTRIM(COALESCE(asignaciones_maestrosiv549.nom_eve, '')))")
+                    ->whereRaw("COALESCE(NULLIF(LTRIM(RTRIM(COALESCE(ag.[year], ''))), ''), CONVERT(varchar(4), YEAR(ag.fec_not)), '0000') = COALESCE(NULLIF(LTRIM(RTRIM(COALESCE(asignaciones_maestrosiv549.[year], ''))), ''), CONVERT(varchar(4), YEAR(asignaciones_maestrosiv549.fec_not)), '0000')")
+                    ->whereRaw("COALESCE(NULLIF(RIGHT('00' + LTRIM(RTRIM(COALESCE(ag.semana, ''))), 2), ''), RIGHT('00' + CONVERT(varchar(2), DATEPART(ISO_WEEK, ag.fec_not)), 2), '00') = COALESCE(NULLIF(RIGHT('00' + LTRIM(RTRIM(COALESCE(asignaciones_maestrosiv549.semana, ''))), 2), ''), RIGHT('00' + CONVERT(varchar(2), DATEPART(ISO_WEEK, asignaciones_maestrosiv549.fec_not)), 2), '00')");
+            })
             ->orderByDesc('id')
             ->limit(1);
 
@@ -119,10 +144,7 @@ class SeguimientosHubController extends Controller
 
     public function dataRealizados(Request $request)
     {
-        abort_if(!auth()->check(), 401, 'No autenticado');
-
-        $user = auth()->user();
-        $muestraTodo = (int) ($user->usertype ?? 0) === 1;
+        [$user, $muestraTodo] = $this->authorizeHubAccess();
         $canDelete = (int) ($user->usertype ?? 0) === 1;
 
         $q = SeguimientMaestrosiv549::with(['asignacion.user'])
@@ -140,9 +162,7 @@ class SeguimientosHubController extends Controller
             ]);
 
         if (!$muestraTodo) {
-            $q->whereHas('asignacion', function ($qa) use ($user) {
-                $qa->where('user_id', $user->id);
-            });
+            $q->whereIn('asignacion_id', $this->visibleAsignacionesSubquery((int) $user->id));
         }
 
         return DataTables::of($q)
@@ -213,10 +233,7 @@ class SeguimientosHubController extends Controller
 
     public function dataAlertas(Request $request)
     {
-        abort_if(!auth()->check(), 401, 'No autenticado');
-
-        $user = auth()->user();
-        $muestraTodo = (int) ($user->usertype ?? 0) === 1;
+        [$user, $muestraTodo] = $this->authorizeHubAccess();
 
         $query = SeguimientMaestrosiv549::with(['asignacion.user'])
             ->select([
@@ -237,9 +254,7 @@ class SeguimientosHubController extends Controller
             ]);
 
         if (!$muestraTodo) {
-            $query->whereHas('asignacion', function ($qa) use ($user) {
-                $qa->where('user_id', $user->id);
-            });
+            $query->whereIn('asignacion_id', $this->visibleAsignacionesSubquery((int) $user->id));
         }
 
         $now = Carbon::now();
@@ -311,10 +326,7 @@ class SeguimientosHubController extends Controller
 
     public function dataIndicadores(Request $request)
     {
-        abort_if(!auth()->check(), 401, 'No autenticado');
-
-        $user = auth()->user();
-        $muestraTodo = (int) ($user->usertype ?? 0) === 1;
+        [$user, $muestraTodo] = $this->authorizeHubAccess();
         $desde = $this->parseDateInput($request->get('fec_desde'));
         $hasta = $this->parseDateInput($request->get('fec_hasta'));
 
@@ -339,9 +351,7 @@ class SeguimientosHubController extends Controller
             ]);
 
         if (!$muestraTodo) {
-            $query->whereHas('asignacion', function ($qa) use ($user) {
-                $qa->where('user_id', $user->id);
-            });
+            $query->whereIn('asignacion_id', $this->visibleAsignacionesSubquery((int) $user->id));
         }
 
         $now = Carbon::now();
@@ -440,10 +450,7 @@ class SeguimientosHubController extends Controller
 
     public function exportExcel(Request $request)
     {
-        abort_if(!auth()->check(), 401, 'No autenticado');
-
-        $user = auth()->user();
-        $canSeeAll = (int) ($user->usertype ?? 0) === 1;
+        [$user, $canSeeAll] = $this->authorizeHubAccess();
         $filters = $request->only(['tip_ide_', 'num_ide_', 'fec_desde', 'fec_hasta']);
 
         $filename = 'seguimientos_'.now()->format('Ymd_His').'.xlsx';
@@ -497,5 +504,41 @@ class SeguimientosHubController extends Controller
         } catch (\Throwable $e) {
             return null;
         }
+    }
+
+    private function visibleAsignacionesSubquery(int $userId)
+    {
+        return DB::table('asignaciones_maestrosiv549 as target')
+            ->join('asignaciones_maestrosiv549 as own', function ($join) use ($userId) {
+                $join->on(DB::raw("LTRIM(RTRIM(COALESCE(target.tip_ide_, '')))"), '=', DB::raw("LTRIM(RTRIM(COALESCE(own.tip_ide_, '')))"))
+                    ->on(DB::raw("LTRIM(RTRIM(COALESCE(target.num_ide_, '')))"), '=', DB::raw("LTRIM(RTRIM(COALESCE(own.num_ide_, '')))"))
+                    ->on(DB::raw("LTRIM(RTRIM(COALESCE(target.nom_eve, '')))"), '=', DB::raw("LTRIM(RTRIM(COALESCE(own.nom_eve, '')))"))
+                    ->on(
+                        DB::raw("COALESCE(NULLIF(LTRIM(RTRIM(COALESCE(target.[year], ''))), ''), CONVERT(varchar(4), YEAR(target.fec_not)), '0000')"),
+                        '=',
+                        DB::raw("COALESCE(NULLIF(LTRIM(RTRIM(COALESCE(own.[year], ''))), ''), CONVERT(varchar(4), YEAR(own.fec_not)), '0000')")
+                    )
+                    ->on(
+                        DB::raw("COALESCE(NULLIF(RIGHT('00' + LTRIM(RTRIM(COALESCE(target.semana, ''))), 2), ''), RIGHT('00' + CONVERT(varchar(2), DATEPART(ISO_WEEK, target.fec_not)), 2), '00')"),
+                        '=',
+                        DB::raw("COALESCE(NULLIF(RIGHT('00' + LTRIM(RTRIM(COALESCE(own.semana, ''))), 2), ''), RIGHT('00' + CONVERT(varchar(2), DATEPART(ISO_WEEK, own.fec_not)), 2), '00')")
+                    );
+            })
+            ->where('own.user_id', $userId)
+            ->selectRaw('DISTINCT target.id');
+    }
+
+    private function authorizeHubAccess(): array
+    {
+        abort_if(!auth()->check(), 401, 'No autenticado');
+
+        $user = auth()->user();
+        $usertype = (int) ($user->usertype ?? 0);
+        $isAdmin = $usertype === 1;
+        $isPrestador = $usertype === 2;
+
+        abort_unless($isAdmin || $isPrestador, 403, 'Solo administradores (tipo 1) y prestadores (tipo 2) pueden acceder al modulo 549.');
+
+        return [$user, $isAdmin];
     }
 }
