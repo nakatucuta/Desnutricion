@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Validation\ValidationException;
 
 class AsignacionesMaestrosiv549Controller extends Controller
@@ -75,17 +76,31 @@ class AsignacionesMaestrosiv549Controller extends Controller
         $fecNotNorm = $this->normalizeDate($caso->fec_not ?? null);
         [$periodYear, $periodSemana] = $this->resolvePeriodo($caso->year ?? null, $caso->semana ?? null, $fecNotNorm);
 
-        $asignacionesExistentes = \App\Models\AsignacionesMaestrosiv549::query()
-            ->with('user:id,name,email,codigohabilitacion')
+        $asignacionExistente = \App\Models\AsignacionesMaestrosiv549::query()
+            ->with('colaboradores:id,name,email,codigohabilitacion')
             ->whereRaw("LTRIM(RTRIM(COALESCE(tip_ide_, ''))) = ?", [trim((string) ($caso->tip_ide_ ?? ''))])
             ->whereRaw("LTRIM(RTRIM(COALESCE(num_ide_, ''))) = ?", [trim((string) ($caso->num_ide_ ?? ''))])
             ->whereRaw("LTRIM(RTRIM(COALESCE(nom_eve, ''))) = ?", [trim((string) ($caso->nom_eve ?? ''))])
             ->whereRaw("COALESCE(NULLIF(LTRIM(RTRIM(COALESCE([year], ''))), ''), CONVERT(varchar(4), YEAR(fec_not)), '0000') = ?", [$periodYear])
             ->whereRaw("COALESCE(NULLIF(RIGHT('00' + LTRIM(RTRIM(COALESCE(semana, ''))), 2), ''), RIGHT('00' + CONVERT(varchar(2), DATEPART(ISO_WEEK, fec_not)), 2), '00') = ?", [$periodSemana])
-            ->orderByDesc('id')
-            ->get();
+            ->orderBy('id')
+            ->first();
 
-        $usuarios_prestador_primario = $usuariosElegibles->pluck('id')->toArray();
+        $asignacionesExistentes = collect();
+        $assignedIds = collect();
+        if ($asignacionExistente) {
+            $asignacionesExistentes = $asignacionExistente->colaboradores->map(function ($u) {
+                return (object) ['user' => $u];
+            })->values();
+            $assignedIds = $asignacionExistente->colaboradores->pluck('id')->map(fn ($v) => (int) $v);
+        }
+
+        $usuarios_prestador_primario = $usuariosElegibles
+            ->pluck('id')
+            ->map(fn ($v) => (int) $v)
+            ->diff($assignedIds)
+            ->values()
+            ->toArray();
         return view('asignaciones_maestrosiv549.create', compact(
             'datosCaso',
             'usuariosGestante',
@@ -97,7 +112,8 @@ class AsignacionesMaestrosiv549Controller extends Controller
             'asignacionesExistentes',
             'periodYear',
             'periodSemana',
-            'usaFallbackGes'
+            'usaFallbackGes',
+            'asignacionExistente'
         ));
     }
 
@@ -179,35 +195,40 @@ class AsignacionesMaestrosiv549Controller extends Controller
 
         try {
             DB::beginTransaction();
-            $creadas = 0;
-            $omitidas = 0;
+            $asignacion = \App\Models\AsignacionesMaestrosiv549::query()
+                ->whereRaw("LTRIM(RTRIM(COALESCE(tip_ide_, ''))) = ?", [$baseData['tip_ide_']])
+                ->whereRaw("LTRIM(RTRIM(COALESCE(num_ide_, ''))) = ?", [$baseData['num_ide_']])
+                ->whereRaw("LTRIM(RTRIM(COALESCE(nom_eve, ''))) = ?", [$baseData['nom_eve']])
+                ->whereRaw("COALESCE(NULLIF(LTRIM(RTRIM(COALESCE([year], ''))), ''), CONVERT(varchar(4), YEAR(fec_not)), '0000') = ?", [$periodYear])
+                ->whereRaw("COALESCE(NULLIF(RIGHT('00' + LTRIM(RTRIM(COALESCE(semana, ''))), 2), ''), RIGHT('00' + CONVERT(varchar(2), DATEPART(ISO_WEEK, fec_not)), 2), '00') = ?", [$periodSemana])
+                ->orderBy('id')
+                ->first();
 
-            foreach ($usuariosValidos as $usuarioAsignado) {
-                $existeParaUsuario = \App\Models\AsignacionesMaestrosiv549::query()
-                    ->where('user_id', $usuarioAsignado->id)
-                    ->whereRaw("LTRIM(RTRIM(COALESCE(tip_ide_, ''))) = ?", [$baseData['tip_ide_']])
-                    ->whereRaw("LTRIM(RTRIM(COALESCE(num_ide_, ''))) = ?", [$baseData['num_ide_']])
-                    ->whereRaw("LTRIM(RTRIM(COALESCE(nom_eve, ''))) = ?", [$baseData['nom_eve']])
-                    ->whereRaw("COALESCE(NULLIF(LTRIM(RTRIM(COALESCE([year], ''))), ''), CONVERT(varchar(4), YEAR(fec_not)), '0000') = ?", [$periodYear])
-                    ->whereRaw("COALESCE(NULLIF(RIGHT('00' + LTRIM(RTRIM(COALESCE(semana, ''))), 2), ''), RIGHT('00' + CONVERT(varchar(2), DATEPART(ISO_WEEK, fec_not)), 2), '00') = ?", [$periodSemana])
-                    ->exists();
-
-                if ($existeParaUsuario) {
-                    $omitidas++;
-                    continue;
-                }
-
+            if (!$asignacion) {
                 $data = $baseData;
-                $data['user_id'] = $usuarioAsignado->id;
-
+                $data['user_id'] = (int) $usuariosValidos->first()->id;
                 $asignacion = \App\Models\AsignacionesMaestrosiv549::create($data);
-                $creadas++;
+            }
 
-                \Mail::to($usuarioAsignado->email)
-                    ->send(new \App\Mail\CasoAsignadoMail($asignacion, $usuarioAsignado, $usuarioAsignador));
+            $existingIds = $asignacion->colaboradores()->pluck('users.id')->map(fn ($v) => (int) $v)->toArray();
+            $targetIds = $usuariosValidos->pluck('id')->map(fn ($v) => (int) $v)->toArray();
+            $newIds = array_values(array_diff($targetIds, $existingIds));
+            $omitidas = count($targetIds) - count($newIds);
 
-                \Mail::to($usuarioAsignador->email)
-                    ->send(new \App\Mail\AsignacionRealizadaMail($asignacion, $usuarioAsignado, $usuarioAsignador));
+            if (!empty($newIds)) {
+                $asignacion->colaboradores()->syncWithoutDetaching($newIds);
+            }
+
+            $creadas = count($newIds);
+            if ($creadas > 0) {
+                $nuevosUsuarios = $usuariosValidos->whereIn('id', $newIds);
+                foreach ($nuevosUsuarios as $usuarioAsignado) {
+                    \Mail::to($usuarioAsignado->email)
+                        ->send(new \App\Mail\CasoAsignadoMail($asignacion, $usuarioAsignado, $usuarioAsignador));
+
+                    \Mail::to($usuarioAsignador->email)
+                        ->send(new \App\Mail\AsignacionRealizadaMail($asignacion, $usuarioAsignado, $usuarioAsignador));
+                }
             }
 
             DB::commit();
@@ -223,7 +244,7 @@ class AsignacionesMaestrosiv549Controller extends Controller
 
             if ($omitidas > 0) {
                 return redirect()->route('maestrosiv549.index')
-                    ->with('success', "Caso asignado. Nuevas: {$creadas}. Omitidas por duplicado: {$omitidas}.");
+                    ->with('success', "Equipo actualizado. Prestadores agregados: {$creadas}. Ya asignados (omitidos): {$omitidas}.");
             }
         } catch (\Illuminate\Database\QueryException $e) {
             DB::rollBack();
@@ -244,7 +265,53 @@ class AsignacionesMaestrosiv549Controller extends Controller
         }
 
         return redirect()->route('maestrosiv549.index')
-            ->with('success', 'Caso asignado correctamente y correos enviados.');
+            ->with('success', 'Caso asignado correctamente y equipo de prestadores actualizado.');
+    }
+
+    public function destroyByAdmin(\App\Models\AsignacionesMaestrosiv549 $asignacion)
+    {
+        $this->ensureAdmin();
+
+        $asignacion->load('colaboradores:id,name,email');
+        $colaboradores = $asignacion->colaboradores
+            ->filter(fn ($u) => !empty($u->email))
+            ->values();
+
+        if ($colaboradores->isEmpty()) {
+            $owner = \App\Models\User::find($asignacion->user_id, ['id', 'name', 'email']);
+            if ($owner && !empty($owner->email)) {
+                $colaboradores = collect([$owner]);
+            }
+        }
+
+        $tipIde = trim((string) ($asignacion->tip_ide_ ?? 'N/D'));
+        $numIde = trim((string) ($asignacion->num_ide_ ?? 'N/D'));
+        $evento = trim((string) ($asignacion->nom_eve ?? 'N/D'));
+        $periodoYear = trim((string) ($asignacion->year ?? '')) ?: (string) optional($asignacion->fec_not)->format('Y');
+        $periodoSemana = trim((string) ($asignacion->semana ?? ''));
+        $periodo = $periodoYear !== '' ? ($periodoYear.'-SE'.str_pad($periodoSemana !== '' ? $periodoSemana : '00', 2, '0', STR_PAD_LEFT)) : 'N/D';
+        $adminName = (string) (auth()->user()->name ?? 'Administrador');
+
+        foreach ($colaboradores as $u) {
+            Mail::raw(
+                "Hola {$u->name},\n\n".
+                "Se eliminó una asignación del evento 549 por ajuste administrativo.\n\n".
+                "Caso: {$tipIde} {$numIde}\n".
+                "Evento: {$evento}\n".
+                "Periodo: {$periodo}\n".
+                "Acción realizada por: {$adminName}\n\n".
+                "Si necesitas más información, por favor contacta al administrador.",
+                function ($message) use ($u) {
+                    $message->to($u->email)
+                        ->subject('Aviso: asignación 549 eliminada');
+                }
+            );
+        }
+
+        $asignacion->delete();
+
+        return redirect()->route('seguimientos.index')
+            ->with('success', 'Asignación eliminada y correo enviado a los prestadores asignados.');
     }
 
     private function normalizeDate($value): ?string

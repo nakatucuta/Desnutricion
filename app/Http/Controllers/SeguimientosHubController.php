@@ -27,7 +27,15 @@ class SeguimientosHubController extends Controller
     public function dataAsignados(Request $request)
     {
         [$user, $muestraTodo] = $this->authorizeHubAccess();
-        $userFilterSql = $muestraTodo ? '' : 'WHERE a2.user_id = '.(int) $user->id;
+        $canDelete = $muestraTodo;
+        $userFilterSql = $muestraTodo ? '' : "
+            WHERE EXISTS (
+                SELECT 1
+                FROM asignaciones_maestrosiv549_colaboradores c2
+                WHERE c2.asignacion_id = a2.id
+                  AND c2.user_id = ".(int) $user->id."
+            )
+        ";
         $idsUnicosSql = "
             SELECT d.id
             FROM (
@@ -35,7 +43,6 @@ class SeguimientosHubController extends Controller
                     a2.id,
                     ROW_NUMBER() OVER (
                         PARTITION BY
-                            a2.user_id,
                             LTRIM(RTRIM(COALESCE(a2.tip_ide_, ''))),
                             LTRIM(RTRIM(COALESCE(a2.num_ide_, ''))),
                             LTRIM(RTRIM(COALESCE(a2.nom_eve, ''))),
@@ -91,10 +98,20 @@ class SeguimientosHubController extends Controller
                 'nom_eve',
             ])
             ->whereIn('id', $idsUnicos)
+            ->addSelect([
+                'asignados_count' => DB::table('asignaciones_maestrosiv549 as agc')
+                    ->join('asignaciones_maestrosiv549_colaboradores as col', 'col.asignacion_id', '=', 'agc.id')
+                    ->selectRaw('COUNT(DISTINCT col.user_id)')
+                    ->whereRaw("LTRIM(RTRIM(COALESCE(agc.tip_ide_, ''))) = LTRIM(RTRIM(COALESCE(asignaciones_maestrosiv549.tip_ide_, '')))")
+                    ->whereRaw("LTRIM(RTRIM(COALESCE(agc.num_ide_, ''))) = LTRIM(RTRIM(COALESCE(asignaciones_maestrosiv549.num_ide_, '')))")
+                    ->whereRaw("LTRIM(RTRIM(COALESCE(agc.nom_eve, ''))) = LTRIM(RTRIM(COALESCE(asignaciones_maestrosiv549.nom_eve, '')))")
+                    ->whereRaw("COALESCE(NULLIF(LTRIM(RTRIM(COALESCE(agc.[year], ''))), ''), CONVERT(varchar(4), YEAR(agc.fec_not)), '0000') = COALESCE(NULLIF(LTRIM(RTRIM(COALESCE(asignaciones_maestrosiv549.[year], ''))), ''), CONVERT(varchar(4), YEAR(asignaciones_maestrosiv549.fec_not)), '0000')")
+                    ->whereRaw("COALESCE(NULLIF(RIGHT('00' + LTRIM(RTRIM(COALESCE(agc.semana, ''))), 2), ''), RIGHT('00' + CONVERT(varchar(2), DATEPART(ISO_WEEK, agc.fec_not)), 2), '00') = COALESCE(NULLIF(RIGHT('00' + LTRIM(RTRIM(COALESCE(asignaciones_maestrosiv549.semana, ''))), 2), ''), RIGHT('00' + CONVERT(varchar(2), DATEPART(ISO_WEEK, asignaciones_maestrosiv549.fec_not)), 2), '00')")
+            ])
             ->addSelect(['ultimo_seguimiento_id' => $subUltimo]);
 
         if (!$muestraTodo) {
-            $q->where('user_id', $user->id);
+            $q->whereIn('id', $this->visibleAsignacionesSubquery((int) $user->id));
         }
 
         return DataTables::of($q)
@@ -108,10 +125,15 @@ class SeguimientosHubController extends Controller
             ->editColumn('num_ide_', function ($row) {
                 return trim((string) $row->num_ide_);
             })
-            ->addColumn('prestador', function ($row) {
+            ->addColumn('prestador', function ($row) use ($muestraTodo) {
+                $count = (int) ($row->asignados_count ?? 1);
+                if ($muestraTodo && $count > 1) {
+                    return $count.' prestadores asignados';
+                }
+
                 return optional($row->user)->name ?? 'N/D';
             })
-            ->addColumn('acciones', function ($row) {
+            ->addColumn('acciones', function ($row) use ($canDelete) {
                 if (!empty($row->ultimo_seguimiento_id)) {
                     $url = route('asignaciones.seguimientmaestrosiv549.edit', [$row->id, $row->ultimo_seguimiento_id]);
                     $showUrl = route('asignaciones.seguimientmaestrosiv549.show', [$row->id, $row->ultimo_seguimiento_id]);
@@ -119,7 +141,7 @@ class SeguimientosHubController extends Controller
                     $cls = 'btn-warning';
                     $icon = 'fa-edit';
 
-                    return '
+                    $html = '
                         <a href="'.$showUrl.'" class="btn btn-sm btn-info mr-1" title="Ver detalle ultimo seguimiento">
                             <i class="fas fa-eye"></i>
                         </a>
@@ -127,15 +149,45 @@ class SeguimientosHubController extends Controller
                             <i class="fas '.$icon.'"></i>
                         </a>
                     ';
+
+                    if ($canDelete) {
+                        $delUrl = route('asignaciones-maestrosiv549.destroy', $row->id);
+                        $csrf = csrf_field();
+                        $method = method_field('DELETE');
+                        $html .= '
+                            <form action="'.$delUrl.'" method="POST" style="display:inline-block" onsubmit="return confirm(\'Eliminar asignación? Se notificará por correo a los asignados.\')">
+                                '.$csrf.$method.'
+                                <button type="submit" class="btn btn-sm btn-danger ml-1" title="Eliminar asignación">
+                                    <i class="fas fa-trash-alt"></i>
+                                </button>
+                            </form>
+                        ';
+                    }
+
+                    return $html;
                 } else {
                     $url = route('asignaciones.seguimientmaestrosiv549.create', $row->id);
                     $title = 'Iniciar seguimiento';
                     $cls = 'btn-primary';
                     $icon = 'fa-notes-medical';
-
-                    return '<a href="'.$url.'" class="btn btn-sm '.$cls.'" title="'.$title.'">
+                    $html = '<a href="'.$url.'" class="btn btn-sm '.$cls.'" title="'.$title.'">
                                 <i class="fas '.$icon.'"></i>
                             </a>';
+                    if ($canDelete) {
+                        $delUrl = route('asignaciones-maestrosiv549.destroy', $row->id);
+                        $csrf = csrf_field();
+                        $method = method_field('DELETE');
+                        $html .= '
+                            <form action="'.$delUrl.'" method="POST" style="display:inline-block" onsubmit="return confirm(\'Eliminar asignación? Se notificará por correo a los asignados.\')">
+                                '.$csrf.$method.'
+                                <button type="submit" class="btn btn-sm btn-danger ml-1" title="Eliminar asignación">
+                                    <i class="fas fa-trash-alt"></i>
+                                </button>
+                            </form>
+                        ';
+                    }
+
+                    return $html;
                 }
             })
             ->rawColumns(['acciones'])
@@ -508,24 +560,9 @@ class SeguimientosHubController extends Controller
 
     private function visibleAsignacionesSubquery(int $userId)
     {
-        return DB::table('asignaciones_maestrosiv549 as target')
-            ->join('asignaciones_maestrosiv549 as own', function ($join) use ($userId) {
-                $join->on(DB::raw("LTRIM(RTRIM(COALESCE(target.tip_ide_, '')))"), '=', DB::raw("LTRIM(RTRIM(COALESCE(own.tip_ide_, '')))"))
-                    ->on(DB::raw("LTRIM(RTRIM(COALESCE(target.num_ide_, '')))"), '=', DB::raw("LTRIM(RTRIM(COALESCE(own.num_ide_, '')))"))
-                    ->on(DB::raw("LTRIM(RTRIM(COALESCE(target.nom_eve, '')))"), '=', DB::raw("LTRIM(RTRIM(COALESCE(own.nom_eve, '')))"))
-                    ->on(
-                        DB::raw("COALESCE(NULLIF(LTRIM(RTRIM(COALESCE(target.[year], ''))), ''), CONVERT(varchar(4), YEAR(target.fec_not)), '0000')"),
-                        '=',
-                        DB::raw("COALESCE(NULLIF(LTRIM(RTRIM(COALESCE(own.[year], ''))), ''), CONVERT(varchar(4), YEAR(own.fec_not)), '0000')")
-                    )
-                    ->on(
-                        DB::raw("COALESCE(NULLIF(RIGHT('00' + LTRIM(RTRIM(COALESCE(target.semana, ''))), 2), ''), RIGHT('00' + CONVERT(varchar(2), DATEPART(ISO_WEEK, target.fec_not)), 2), '00')"),
-                        '=',
-                        DB::raw("COALESCE(NULLIF(RIGHT('00' + LTRIM(RTRIM(COALESCE(own.semana, ''))), 2), ''), RIGHT('00' + CONVERT(varchar(2), DATEPART(ISO_WEEK, own.fec_not)), 2), '00')")
-                    );
-            })
-            ->where('own.user_id', $userId)
-            ->selectRaw('DISTINCT target.id');
+        return DB::table('asignaciones_maestrosiv549_colaboradores as c')
+            ->where('c.user_id', $userId)
+            ->selectRaw('DISTINCT c.asignacion_id');
     }
 
     private function authorizeHubAccess(): array

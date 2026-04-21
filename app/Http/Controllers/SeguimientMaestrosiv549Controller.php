@@ -110,8 +110,10 @@ class SeguimientMaestrosiv549Controller extends Controller
 
         abort_unless($isPrestador, 403, 'Solo administradores (tipo 1) y prestadores (tipo 2) pueden acceder al modulo 549.');
 
-        $puedeAcceder = $this->sameCasePeriodAssignmentsQuery($asignacion)
-            ->where('user_id', $user->id)
+        $grupoIds = $this->sameCasePeriodAssignmentsQuery($asignacion)->pluck('id');
+        $puedeAcceder = !empty($grupoIds) && \DB::table('asignaciones_maestrosiv549_colaboradores')
+            ->whereIn('asignacion_id', $grupoIds)
+            ->where('user_id', (int) $user->id)
             ->exists();
 
         abort_unless($puedeAcceder, 403, 'No autorizado para acceder a esta asignacion.');

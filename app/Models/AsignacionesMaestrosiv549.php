@@ -53,4 +53,14 @@ class AsignacionesMaestrosiv549 extends Model
 {
     return $this->hasMany(\App\Models\SeguimientMaestrosiv549::class, 'asignacion_id');
 }
+
+    public function colaboradores()
+    {
+        return $this->belongsToMany(
+            User::class,
+            'asignaciones_maestrosiv549_colaboradores',
+            'asignacion_id',
+            'user_id'
+        )->withTimestamps();
+    }
 }

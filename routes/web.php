@@ -477,6 +477,9 @@ Route::post('/maestrosiv549/report-export', [MaestroSiv549Controller::class, 're
 Route::resource('asignaciones_maestrosiv549', AsignacionesMaestrosiv549Controller::class)->only([
     'create', 'store'
 ]);
+Route::delete('/asignaciones-maestrosiv549/{asignacion}', [AsignacionesMaestrosiv549Controller::class, 'destroyByAdmin'])
+    ->name('asignaciones-maestrosiv549.destroy')
+    ->middleware('auth');
 //RUTAS PARA EL REPORTE EN EXCEL DE LA  549
 Route::get('/reportes/maestro-siv549/export', [MaestroSiv549Controller::class, 'export'])
     ->name('reportes.maestrosiv549.export')
