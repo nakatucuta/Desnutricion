@@ -57,10 +57,19 @@ class AsignacionesMaestrosiv549Controller extends Controller
 
         // 3) Elegibles: solo _ges y mismo codigo de habilitacion
         $usuariosElegibles = collect();
+        $usaFallbackGes = false;
+        $sin_usuario_gestante_por_codigo = false;
         if (!empty($codigo_habilitacion)) {
             $usuariosElegibles = $usuariosGestante
                 ->where('codigohabilitacion', (string) $codigo_habilitacion)
                 ->values();
+            $sin_usuario_gestante_por_codigo = $usuariosElegibles->isEmpty();
+        }
+
+        // Si no hay coincidencias por codigo (o no hay codigo), mostrar _ges como respaldo
+        if ($usuariosElegibles->isEmpty()) {
+            $usuariosElegibles = $usuariosGestante->values();
+            $usaFallbackGes = true;
         }
 
         $fecNotNorm = $this->normalizeDate($caso->fec_not ?? null);
@@ -77,8 +86,6 @@ class AsignacionesMaestrosiv549Controller extends Controller
             ->get();
 
         $usuarios_prestador_primario = $usuariosElegibles->pluck('id')->toArray();
-        $sin_usuario_gestante_por_codigo = !empty($codigo_habilitacion) && $usuariosElegibles->isEmpty();
-
         return view('asignaciones_maestrosiv549.create', compact(
             'datosCaso',
             'usuariosGestante',
@@ -89,7 +96,8 @@ class AsignacionesMaestrosiv549Controller extends Controller
             'sin_usuario_gestante_por_codigo',
             'asignacionesExistentes',
             'periodYear',
-            'periodSemana'
+            'periodSemana',
+            'usaFallbackGes'
         ));
     }
 
@@ -137,22 +145,35 @@ class AsignacionesMaestrosiv549Controller extends Controller
 
         $codigoHabilitacion = $this->resolveCodigoHabilitacionByNumIde($baseData['num_ide_']);
 
-        if (empty($codigoHabilitacion)) {
-            throw ValidationException::withMessages([
-                'user_ids' => 'No se encontro codigo de habilitacion del caso. No es posible asignar sin este dato.',
-            ]);
+        $usuariosGesBase = \App\Models\User::query()
+            ->where('usertype', 2)
+            ->whereRaw("LOWER(name) LIKE ?", ['%_ges']);
+
+        $usaFiltroPorCodigo = false;
+        if (!empty($codigoHabilitacion)) {
+            $coincidenPorCodigo = (clone $usuariosGesBase)
+                ->where('codigohabilitacion', (string) $codigoHabilitacion)
+                ->exists();
+
+            $usaFiltroPorCodigo = $coincidenPorCodigo;
         }
 
-        $usuariosValidos = \App\Models\User::query()
+        $usuariosValidosQuery = \App\Models\User::query()
             ->whereIn('id', $selectedUsers)
             ->where('usertype', 2)
-            ->whereRaw("LOWER(name) LIKE ?", ['%_ges'])
-            ->where('codigohabilitacion', (string) $codigoHabilitacion)
-            ->get(['id', 'name', 'email']);
+            ->whereRaw("LOWER(name) LIKE ?", ['%_ges']);
+
+        if ($usaFiltroPorCodigo) {
+            $usuariosValidosQuery->where('codigohabilitacion', (string) $codigoHabilitacion);
+        }
+
+        $usuariosValidos = $usuariosValidosQuery->get(['id', 'name', 'email']);
 
         if ($usuariosValidos->count() !== count($selectedUsers)) {
             throw ValidationException::withMessages([
-                'user_ids' => 'Solo puedes asignar a usuarios del modulo gestantes (_ges) con el mismo codigo de habilitacion del caso.',
+                'user_ids' => $usaFiltroPorCodigo
+                    ? 'Solo puedes asignar a usuarios _ges con el mismo codigo de habilitacion del caso.'
+                    : 'Solo puedes asignar a usuarios del modulo gestantes que terminen en _ges.',
             ]);
         }
 

@@ -133,6 +133,23 @@
                                 @endforeach
                             </select>
 
+                            @if(($usuariosElegibles ?? collect())->isNotEmpty())
+                                <div class="d-flex flex-wrap align-items-center mt-2" style="gap:.5rem;">
+                                    <button type="button" class="btn btn-sm btn-outline-info" id="btnSelectAllGes">
+                                        <i class="fas fa-check-double mr-1"></i> Seleccionar todos los elegibles
+                                    </button>
+                                    <button type="button" class="btn btn-sm btn-outline-secondary" id="btnClearGes">
+                                        <i class="fas fa-times mr-1"></i> Limpiar seleccion
+                                    </button>
+                                </div>
+                                <div class="custom-control custom-switch mt-2">
+                                    <input type="checkbox" class="custom-control-input" id="autoSelectGesOnSave" checked>
+                                    <label class="custom-control-label" for="autoSelectGesOnSave">
+                                        Al guardar, asignar automaticamente a todos los _ges elegibles
+                                    </label>
+                                </div>
+                            @endif
+
                             @if(($asignacionesExistentes ?? collect())->isNotEmpty())
                                 <div class="asig-assigned mt-3">
                                     <div class="asig-assigned__title">
@@ -165,8 +182,14 @@
                                 </div>
                             @else
                                 <div class="asig-helper mt-3 mb-0">
-                                    <i class="fas fa-shield-alt mr-1"></i>
-                                    Solo se permiten usuarios <strong>_ges</strong> con codigo de habilitacion <strong>{{ $codigo_habilitacion }}</strong>.
+                                    @if(!empty($usaFallbackGes) && $usaFallbackGes)
+                                        <i class="fas fa-exclamation-triangle mr-1"></i>
+                                        No se encontraron usuarios <strong>_ges</strong> con el codigo de habilitacion del caso.
+                                        Se muestra el listado general de usuarios <strong>_ges</strong> para asignacion manual.
+                                    @else
+                                        <i class="fas fa-shield-alt mr-1"></i>
+                                        Solo se muestran usuarios <strong>_ges</strong> con codigo de habilitacion <strong>{{ $codigo_habilitacion }}</strong>.
+                                    @endif
                                 </div>
                             @endif
 
@@ -177,9 +200,9 @@
 
                         @if(!empty($sin_usuario_gestante_por_codigo) && $sin_usuario_gestante_por_codigo && $asignadosCount === 0)
                             <div class="alert alert-warning mb-3">
-                                <div class="font-weight-bold mb-1">No hay usuario del modulo gestante para este codigo</div>
+                                <div class="font-weight-bold mb-1">No hay usuarios _ges con este codigo de habilitacion</div>
                                 <div>Codigo de habilitacion: <strong>{{ $codigo_habilitacion ?? 'N/D' }}</strong></div>
-                                <small>Debes crear usuarios _ges con ese codigo para poder asignar.</small>
+                                <small>Por ahora puedes asignar desde la lista general _ges. Recomendado: crear usuarios _ges con ese codigo para asignacion automatica exacta.</small>
                             </div>
                         @endif
 
@@ -713,6 +736,24 @@ $(function () {
         allowClear: true
     });
 
+    function selectAllElegibles() {
+        const allValues = $('#user_ids option').map(function () { return $(this).val(); }).get();
+        $('#user_ids').val(allValues).trigger('change');
+    }
+
+    $('#btnSelectAllGes').on('click', function () {
+        selectAllElegibles();
+    });
+
+    $('#btnClearGes').on('click', function () {
+        $('#user_ids').val(null).trigger('change');
+    });
+
+    @if(($usuariosElegibles ?? collect())->isNotEmpty())
+        // Carga inicial: preselecciona elegibles
+        selectAllElegibles();
+    @endif
+
     $('#user_ids').on('change', function () {
         if ($(this).val() && $(this).val().length > 0) {
             $('#badge-select').fadeOut(200);
@@ -747,6 +788,17 @@ $(function () {
     $('#assignmentForm549').on('submit', function (e) {
         if (assignmentSubmitting) {
             e.preventDefault();
+            return false;
+        }
+
+        if ($('#autoSelectGesOnSave').is(':checked')) {
+            selectAllElegibles();
+        }
+
+        const selected = $('#user_ids').val() || [];
+        if (selected.length === 0) {
+            e.preventDefault();
+            $('#badge-select').show();
             return false;
         }
 
