@@ -81,7 +81,7 @@ class SeguimientosHubController extends Controller
             ->limit(1);
 
         $q = AsignacionesMaestrosiv549::query()
-            ->with('user')
+            ->with(['user', 'colaboradores:id,name,email'])
             ->whereDoesntHave('seguimientosMaestrosiv549', function ($sq) {
                 $sq->completos();
             })
@@ -128,7 +128,19 @@ class SeguimientosHubController extends Controller
             ->addColumn('prestador', function ($row) use ($muestraTodo) {
                 $count = (int) ($row->asignados_count ?? 1);
                 if ($muestraTodo && $count > 1) {
-                    return $count.' prestadores asignados';
+                    $prestadores = $row->colaboradores
+                        ->map(function ($u) {
+                            return [
+                                'name' => trim((string) ($u->name ?? 'N/D')),
+                                'email' => trim((string) ($u->email ?? 'Sin correo')),
+                            ];
+                        })
+                        ->values()
+                        ->all();
+
+                    $payload = e(json_encode($prestadores, JSON_UNESCAPED_UNICODE));
+
+                    return '<button type="button" class="btn btn-link p-0 align-baseline seg-prestadores-link" data-prestadores="'.$payload.'">'.$count.' prestadores asignados</button>';
                 }
 
                 return optional($row->user)->name ?? 'N/D';
@@ -190,7 +202,7 @@ class SeguimientosHubController extends Controller
                     return $html;
                 }
             })
-            ->rawColumns(['acciones'])
+            ->rawColumns(['acciones', 'prestador'])
             ->make(true);
     }
 

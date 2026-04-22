@@ -23,6 +23,36 @@
         <span class="seg-hub-chip seg-hub-chip--strong">Operacion activa</span>
     </div>
 </div>
+
+<div class="modal fade" id="modalPrestadoresCaso" tabindex="-1" role="dialog" aria-labelledby="modalPrestadoresCasoLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="modalPrestadoresCasoLabel">Prestadores asignados</h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Cerrar">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="table-responsive">
+                    <table class="table table-sm table-striped mb-0">
+                        <thead>
+                            <tr>
+                                <th>Nombre</th>
+                                <th>Correo</th>
+                            </tr>
+                        </thead>
+                        <tbody id="modalPrestadoresCasoBody">
+                            <tr>
+                                <td colspan="2" class="text-center text-muted">Sin datos</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
 @stop
 
 @section('content')
@@ -670,6 +700,15 @@
     .seg-mini-list .empty{
         color:#8aa0a8;
     }
+    .seg-prestadores-link{
+        font-weight:700;
+        color:#0f7c8a;
+        text-decoration:none;
+    }
+    .seg-prestadores-link:hover{
+        color:#0c5f6a;
+        text-decoration:underline;
+    }
     @media (max-width: 991px){
         .seg-hub-hero,
         .seg-hub-filter-head,
@@ -883,6 +922,34 @@ $(function () {
         $('#indFecDesde').val('');
         $('#indFecHasta').val('');
         loadIndicadores();
+    });
+
+    $(document).on('click', '.seg-prestadores-link', function () {
+        let prestadores = [];
+        const raw = $(this).attr('data-prestadores') || '[]';
+        try {
+            prestadores = JSON.parse(raw);
+        } catch (e) {
+            prestadores = [];
+        }
+
+        const total = Array.isArray(prestadores) ? prestadores.length : 0;
+        $('#modalPrestadoresCasoLabel').text('Prestadores asignados (' + total + ')');
+
+        if (!total) {
+            $('#modalPrestadoresCasoBody').html('<tr><td colspan="2" class="text-center text-muted">No hay prestadores para mostrar</td></tr>');
+            $('#modalPrestadoresCaso').modal('show');
+            return;
+        }
+
+        const rows = prestadores.map(function (p) {
+            const name = (p && p.name) ? p.name : 'N/D';
+            const email = (p && p.email) ? p.email : 'Sin correo';
+            return '<tr><td>' + name + '</td><td>' + email + '</td></tr>';
+        }).join('');
+
+        $('#modalPrestadoresCasoBody').html(rows);
+        $('#modalPrestadoresCaso').modal('show');
     });
 });
 </script>
