@@ -17,6 +17,7 @@
     $elegiblesCount = (int) (($usuariosElegibles ?? collect())->count());
     $asignadosCount = (int) (($asignacionesExistentes ?? collect())->count());
     $sinElegibles = $elegiblesCount === 0;
+    $autoSelectGesDefault = empty($usaFallbackGes) && !empty($codigo_habilitacion);
 
     $prettyLabel = function ($field) {
         return ucwords(str_replace('_', ' ', trim($field, '_')));
@@ -143,7 +144,7 @@
                                     </button>
                                 </div>
                                 <div class="custom-control custom-switch mt-2">
-                                    <input type="checkbox" class="custom-control-input" id="autoSelectGesOnSave" checked>
+                                    <input type="checkbox" class="custom-control-input" id="autoSelectGesOnSave" {{ $autoSelectGesDefault ? 'checked' : '' }}>
                                     <label class="custom-control-label" for="autoSelectGesOnSave">
                                         Al guardar, asignar automaticamente a todos los _ges elegibles
                                     </label>
@@ -749,8 +750,8 @@ $(function () {
         $('#user_ids').val(null).trigger('change');
     });
 
-    @if(($usuariosElegibles ?? collect())->isNotEmpty())
-        // Carga inicial: preselecciona elegibles
+    @if(($usuariosElegibles ?? collect())->isNotEmpty() && !empty($autoSelectGesDefault))
+        // Carga inicial solo cuando hay coincidencia exacta por codigo de habilitacion
         selectAllElegibles();
     @endif
 

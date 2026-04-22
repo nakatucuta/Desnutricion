@@ -110,12 +110,15 @@ class AsignacionesMaestrosiv549Controller extends Controller
             $assignedIds = $asignacionExistente->colaboradores->pluck('id')->map(fn ($v) => (int) $v);
         }
 
-        $usuarios_prestador_primario = $usuariosElegibles
-            ->pluck('id')
-            ->map(fn ($v) => (int) $v)
-            ->diff($assignedIds)
-            ->values()
-            ->toArray();
+        $usuarios_prestador_primario = [];
+        if (!$usaFallbackGes && !empty($codigo_habilitacion)) {
+            $usuarios_prestador_primario = $usuariosElegibles
+                ->pluck('id')
+                ->map(fn ($v) => (int) $v)
+                ->diff($assignedIds)
+                ->values()
+                ->toArray();
+        }
         return view('asignaciones_maestrosiv549.create', compact(
             'datosCaso',
             'usuariosGestante',
