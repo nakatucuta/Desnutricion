@@ -47,8 +47,29 @@ return new class extends Migration
                   AND object_id = OBJECT_ID('asignaciones_maestrosiv549')
             )
             BEGIN
-                CREATE UNIQUE INDEX ux_asig549_case_unique
-                ON asignaciones_maestrosiv549 (tip_ide_norm, num_ide_norm, fec_not_norm, nom_eve_norm);
+                IF NOT EXISTS (
+                    SELECT 1
+                    FROM asignaciones_maestrosiv549
+                    GROUP BY tip_ide_norm, num_ide_norm, fec_not_norm, nom_eve_norm
+                    HAVING COUNT(*) > 1
+                )
+                BEGIN
+                    CREATE UNIQUE INDEX ux_asig549_case_unique
+                    ON asignaciones_maestrosiv549 (tip_ide_norm, num_ide_norm, fec_not_norm, nom_eve_norm);
+                END
+                ELSE
+                BEGIN
+                    IF NOT EXISTS (
+                        SELECT 1
+                        FROM sys.indexes
+                        WHERE name = 'ix_asig549_case_lookup'
+                          AND object_id = OBJECT_ID('asignaciones_maestrosiv549')
+                    )
+                    BEGIN
+                        CREATE INDEX ix_asig549_case_lookup
+                        ON asignaciones_maestrosiv549 (tip_ide_norm, num_ide_norm, fec_not_norm, nom_eve_norm);
+                    END
+                END
             END
         ");
     }
@@ -96,4 +117,3 @@ return new class extends Migration
         ");
     }
 };
-

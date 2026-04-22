@@ -20,10 +20,25 @@ class AsignacionesMaestrosiv549Controller extends Controller
     {
         $this->ensureAdmin();
 
-        $caso = \App\Models\MaestroSiv549::where('tip_ide_', $request->tip_ide_)
-            ->where('num_ide_', $request->num_ide_)
-            ->where('fec_not', $request->fec_not)
-            ->firstOrFail();
+        $tipIde = trim((string) $request->tip_ide_);
+        $numIde = trim((string) $request->num_ide_);
+        $nomEve = trim((string) $request->nom_eve);
+        $fecNotNorm = $this->normalizeDate($request->fec_not);
+
+        $casoQuery = \App\Models\MaestroSiv549::query()
+            ->where('tip_ide_', $tipIde)
+            ->where('num_ide_', $numIde);
+
+        if ($nomEve !== '') {
+            $casoQuery->where('nom_eve', $nomEve);
+        }
+
+        if ($fecNotNorm !== null) {
+            $fecNotSql = $this->toSqlServerDateLiteral($fecNotNorm);
+            $casoQuery->whereRaw("CONVERT(date, fec_not) = CONVERT(date, ?, 112)", [$fecNotSql]);
+        }
+
+        $caso = $casoQuery->firstOrFail();
 
         $datosCaso = $caso->toArray();
 
@@ -73,8 +88,8 @@ class AsignacionesMaestrosiv549Controller extends Controller
             $usaFallbackGes = true;
         }
 
-        $fecNotNorm = $this->normalizeDate($caso->fec_not ?? null);
-        [$periodYear, $periodSemana] = $this->resolvePeriodo($caso->year ?? null, $caso->semana ?? null, $fecNotNorm);
+        $fecNotCasoNorm = $this->normalizeDate($caso->fec_not ?? null);
+        [$periodYear, $periodSemana] = $this->resolvePeriodo($caso->year ?? null, $caso->semana ?? null, $fecNotCasoNorm);
 
         $asignacionExistente = \App\Models\AsignacionesMaestrosiv549::query()
             ->with('colaboradores:id,name,email,codigohabilitacion')
@@ -151,6 +166,11 @@ class AsignacionesMaestrosiv549Controller extends Controller
         $baseData['num_ide_'] = trim((string) ($baseData['num_ide_'] ?? ''));
         $baseData['nom_eve'] = trim((string) ($baseData['nom_eve'] ?? ''));
         $baseData['fec_not'] = $this->normalizeDate($baseData['fec_not'] ?? null);
+        if ($baseData['fec_not'] === null) {
+            throw ValidationException::withMessages([
+                'fec_not' => 'La fecha de notificacion es invalida. Usa formato DD/MM/AAAA o AAAA-MM-DD.',
+            ]);
+        }
         [$periodYear, $periodSemana] = $this->resolvePeriodo(
             $baseData['year'] ?? null,
             $baseData['semana'] ?? null,
@@ -206,6 +226,7 @@ class AsignacionesMaestrosiv549Controller extends Controller
 
             if (!$asignacion) {
                 $data = $baseData;
+                $data['fec_not'] = $this->toSqlServerDateLiteral($data['fec_not']);
                 $data['user_id'] = (int) $usuariosValidos->first()->id;
                 $asignacion = \App\Models\AsignacionesMaestrosiv549::create($data);
             }
@@ -386,5 +407,18 @@ class AsignacionesMaestrosiv549Controller extends Controller
             ->first();
 
         return $afiliado ? (string) $afiliado->codigo_habilitacion : null;
+    }
+
+    private function toSqlServerDateLiteral(?string $value): ?string
+    {
+        if ($value === null || trim($value) === '') {
+            return null;
+        }
+
+        try {
+            return Carbon::parse($value)->format('Ymd');
+        } catch (\Throwable $e) {
+            return null;
+        }
     }
 }

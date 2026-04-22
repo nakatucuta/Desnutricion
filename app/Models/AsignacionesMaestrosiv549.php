@@ -4,11 +4,12 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use App\Models\User;
+use App\Models\AsignacionesMaestrosiv549Colaborador;
 class AsignacionesMaestrosiv549 extends Model
 {
 
      public function getDateFormat(){
-        return 'Y-d-m h:m:s';
+        return 'Ymd H:i:s';
         }
     protected $table = 'asignaciones_maestrosiv549';
     protected $fillable = [
@@ -61,6 +62,7 @@ class AsignacionesMaestrosiv549 extends Model
             'asignaciones_maestrosiv549_colaboradores',
             'asignacion_id',
             'user_id'
-        )->withTimestamps();
+        )->using(AsignacionesMaestrosiv549Colaborador::class)
+            ->withTimestamps();
     }
 }
