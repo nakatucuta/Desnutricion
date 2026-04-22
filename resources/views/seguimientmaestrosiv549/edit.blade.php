@@ -186,7 +186,7 @@
             </h3>
         </div>
         <div class="card-body">
-            <form action="{{ route('asignaciones.seguimientmaestrosiv549.update', [$asignacion, $seguimiento]) }}" method="POST" id="seguimiento549Form">
+            <form action="{{ route('asignaciones.seguimientmaestrosiv549.update', [$asignacion, $seguimiento]) }}" method="POST" id="seguimiento549Form" enctype="multipart/form-data">
                 @csrf
                 @method('PUT')
 
@@ -197,6 +197,10 @@
                             <h4 class="seg-orbit__title mb-1">Secuencia de seguimientos</h4>
                             <p class="seg-orbit__subtitle mb-0">Cada bloque se desbloquea visualmente cuando diligencias el paso anterior, para facilitar un orden claro de trabajo.</p>
                         </div>
+                    </div>
+                    <div class="seg-form-note mt-3" role="status" aria-live="polite">
+                        <i class="fas fa-info-circle mr-2"></i>
+                        Bloque no iniciado: se guardara como <strong>no efectivo (0)</strong>. Solo se exige "seguimiento efectivo" cuando realmente inicias ese bloque.
                     </div>
                     <div class="seg-tracker">
                         @foreach($trackerSteps as $step)
@@ -308,11 +312,22 @@
                         </div>
                         <div class="form-group col-md-2">
                             <label class="seg-label">Seguimiento efectivo</label>
-                            @php $sei = (string) old('seguimiento_efectivo_inmediato', '0'); @endphp
+                            @php $sei = (string) old('seguimiento_efectivo_inmediato', ''); @endphp
                             <select name="seguimiento_efectivo_inmediato" class="form-control seg-input">
+                                <option value="" {{ $sei===''?'selected':'' }}>--</option>
                                 <option value="1" {{ $sei==='1'?'selected':'' }}>Si</option>
                                 <option value="0" {{ $sei==='0'?'selected':'' }}>No</option>
                             </select>
+                        </div>
+                        <div class="form-group col-md-12">
+                            <label class="seg-label">Soporte PDF historia clinica (max 5 MB)</label>
+                            <input type="file" name="soporte_inmediato_pdf" class="form-control seg-input" accept="application/pdf">
+                            @if(!empty($seguimiento->soporte_inmediato_pdf))
+                                <a href="{{ asset('storage/'.$seguimiento->soporte_inmediato_pdf) }}" target="_blank" class="btn btn-sm btn-outline-info mt-2">
+                                    <i class="fas fa-file-pdf mr-1"></i> Ver PDF actual
+                                </a>
+                            @endif
+                            <small class="text-muted d-block mt-1">Si adjuntas uno nuevo, reemplaza el soporte actual.</small>
                         </div>
                     </div>
                     </div>
@@ -399,8 +414,9 @@
                             @if($cfg['efectivo'])
                                 <div class="form-group col-md-4">
                                     <label class="seg-label">Seguimiento efectivo</label>
-                                    @php $se = (string) old('seguimiento_efectivo_'.$idx, '0'); @endphp
+                                    @php $se = (string) old('seguimiento_efectivo_'.$idx, ''); @endphp
                                     <select name="seguimiento_efectivo_{{ $idx }}" class="form-control seg-input">
+                                        <option value="" {{ $se===''?'selected':'' }}>--</option>
                                         <option value="1" {{ $se==='1'?'selected':'' }}>Si</option>
                                         <option value="0" {{ $se==='0'?'selected':'' }}>No</option>
                                     </select>
@@ -435,6 +451,19 @@
                                 </div>
                             </div>
                         @endif
+                        <div class="row mt-2">
+                            <div class="form-group col-md-12 mb-0">
+                                <label class="seg-label">Soporte PDF historia clinica {{ $cfg['titulo'] }} (max 5 MB)</label>
+                                <input type="file" name="soporte_seguimiento_{{ $idx }}_pdf" class="form-control seg-input" accept="application/pdf">
+                                @php $supportField = 'soporte_seguimiento_'.$idx.'_pdf'; @endphp
+                                @if(!empty($seguimiento->{$supportField}))
+                                    <a href="{{ asset('storage/'.$seguimiento->{$supportField}) }}" target="_blank" class="btn btn-sm btn-outline-info mt-2">
+                                        <i class="fas fa-file-pdf mr-1"></i> Ver PDF actual
+                                    </a>
+                                @endif
+                                <small class="text-muted d-block mt-1">Si adjuntas uno nuevo, reemplaza el soporte actual.</small>
+                            </div>
+                        </div>
                     </div>
                     </div>
                 @endforeach
@@ -634,6 +663,22 @@
         grid-template-columns:repeat(auto-fit, minmax(150px, 1fr));
         gap:.9rem;
         margin-top:1rem;
+    }
+    .seg-form-note{
+        display:flex;
+        align-items:flex-start;
+        gap:.35rem;
+        padding:.75rem .9rem;
+        border-radius:12px;
+        border:1px solid #cfe8ef;
+        background:linear-gradient(180deg, #f7fcff, #eef9ff);
+        color:#2f5f6a;
+        font-size:.88rem;
+        line-height:1.4;
+    }
+    .seg-form-note i{
+        color:#1b8fa1;
+        margin-top:.1rem;
     }
     .seg-step{
         position:relative;

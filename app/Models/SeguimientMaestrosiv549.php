@@ -94,6 +94,14 @@ class SeguimientMaestrosiv549 extends Model
         // Largo plazo
         'fecha_consulta_6_meses',
         'fecha_consulta_1_ano',
+
+        // Soportes PDF
+        'soporte_inmediato_pdf',
+        'soporte_seguimiento_1_pdf',
+        'soporte_seguimiento_2_pdf',
+        'soporte_seguimiento_3_pdf',
+        'soporte_seguimiento_4_pdf',
+        'soporte_seguimiento_5_pdf',
     ];
 
     protected $casts = [

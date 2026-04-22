@@ -7,6 +7,8 @@ use App\Models\SeguimientMaestrosiv549;
 use App\Services\Seguimiento549AlertService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\ValidationException;
 
 class SeguimientMaestrosiv549Controller extends Controller
 {
@@ -43,6 +45,8 @@ class SeguimientMaestrosiv549Controller extends Controller
 
         $data = $this->rules($request);
         $data = $this->normalizeBooleans($request, $data);
+        $this->validateConditionalBlocks($request);
+        $data = $this->persistSupportFiles($request, $data);
 
         $data['asignacion_id'] = $this->resolveCanonicalAsignacionId($asignacion);
 
@@ -74,6 +78,8 @@ class SeguimientMaestrosiv549Controller extends Controller
 
         $data = $this->rules($request);
         $data = $this->normalizeBooleans($request, $data);
+        $this->validateConditionalBlocks($request);
+        $data = $this->persistSupportFiles($request, $data, $seguimiento);
 
         $seguimiento->update($data);
         $seguimiento->refresh();
@@ -88,6 +94,13 @@ class SeguimientMaestrosiv549Controller extends Controller
     {
         $this->authorizeSeguimientoAccess($asignacion, $seguimiento);
         $this->authorizeDelete();
+
+        foreach ($this->supportFields() as $field) {
+            $path = (string) ($seguimiento->{$field} ?? '');
+            if ($path !== '') {
+                Storage::disk('public')->delete($path);
+            }
+        }
 
         $seguimiento->delete();
 
@@ -166,7 +179,7 @@ class SeguimientMaestrosiv549Controller extends Controller
             'fecha_control_rn_inmediato' => 'nullable|date',
 
             // ✅ SELECT 0/1
-            'seguimiento_efectivo_inmediato' => 'required|in:0,1',
+            'seguimiento_efectivo_inmediato' => 'nullable|in:0,1',
 
             'fecha_seguimiento_1' => 'nullable|date',
             'tipo_seguimiento_1' => 'nullable|integer',
@@ -185,7 +198,7 @@ class SeguimientMaestrosiv549Controller extends Controller
             'gestion_primera_semana' => 'nullable|string',
 
             // ✅ SELECT 0/1
-            'seguimiento_efectivo_2' => 'required|in:0,1',
+            'seguimiento_efectivo_2' => 'nullable|in:0,1',
 
             'fecha_seguimiento_3' => 'nullable|date',
             'tipo_seguimiento_3' => 'nullable|integer',
@@ -196,7 +209,7 @@ class SeguimientMaestrosiv549Controller extends Controller
             'gestion_segunda_semana' => 'nullable|string',
 
             // ✅ SELECT 0/1
-            'seguimiento_efectivo_3' => 'required|in:0,1',
+            'seguimiento_efectivo_3' => 'nullable|in:0,1',
 
             'fecha_seguimiento_4' => 'nullable|date',
             'tipo_seguimiento_4' => 'nullable|integer',
@@ -207,7 +220,7 @@ class SeguimientMaestrosiv549Controller extends Controller
             'gestion_tercera_semana' => 'nullable|string',
 
             // ✅ SELECT 0/1
-            'seguimiento_efectivo_4' => 'required|in:0,1',
+            'seguimiento_efectivo_4' => 'nullable|in:0,1',
 
             'fecha_seguimiento_5' => 'nullable|date',
             'tipo_seguimiento_5' => 'nullable|integer',
@@ -217,7 +230,7 @@ class SeguimientMaestrosiv549Controller extends Controller
             'entrega_medicamentos_labs_5' => 'nullable|string',
 
             // ✅ SELECT 0/1
-            'seguimiento_efectivo_5' => 'required|in:0,1',
+            'seguimiento_efectivo_5' => 'nullable|in:0,1',
 
             'fecha_consulta_lactancia' => 'nullable|date',
             'fecha_control_metodo' => 'nullable|date',
@@ -225,6 +238,27 @@ class SeguimientMaestrosiv549Controller extends Controller
 
             'fecha_consulta_6_meses' => 'nullable|date',
             'fecha_consulta_1_ano' => 'nullable|date',
+
+            // Soportes PDF (historia clinica por seguimiento)
+            'soporte_inmediato_pdf' => 'nullable|file|mimetypes:application/pdf|max:5120',
+            'soporte_seguimiento_1_pdf' => 'nullable|file|mimetypes:application/pdf|max:5120',
+            'soporte_seguimiento_2_pdf' => 'nullable|file|mimetypes:application/pdf|max:5120',
+            'soporte_seguimiento_3_pdf' => 'nullable|file|mimetypes:application/pdf|max:5120',
+            'soporte_seguimiento_4_pdf' => 'nullable|file|mimetypes:application/pdf|max:5120',
+            'soporte_seguimiento_5_pdf' => 'nullable|file|mimetypes:application/pdf|max:5120',
+        ], [
+            'soporte_inmediato_pdf.mimetypes' => 'Los soportes deben estar en formato PDF.',
+            'soporte_seguimiento_1_pdf.mimetypes' => 'Los soportes deben estar en formato PDF.',
+            'soporte_seguimiento_2_pdf.mimetypes' => 'Los soportes deben estar en formato PDF.',
+            'soporte_seguimiento_3_pdf.mimetypes' => 'Los soportes deben estar en formato PDF.',
+            'soporte_seguimiento_4_pdf.mimetypes' => 'Los soportes deben estar en formato PDF.',
+            'soporte_seguimiento_5_pdf.mimetypes' => 'Los soportes deben estar en formato PDF.',
+            'soporte_inmediato_pdf.max' => 'El archivo de historia clinica no puede superar 5 MB.',
+            'soporte_seguimiento_1_pdf.max' => 'El archivo de historia clinica no puede superar 5 MB.',
+            'soporte_seguimiento_2_pdf.max' => 'El archivo de historia clinica no puede superar 5 MB.',
+            'soporte_seguimiento_3_pdf.max' => 'El archivo de historia clinica no puede superar 5 MB.',
+            'soporte_seguimiento_4_pdf.max' => 'El archivo de historia clinica no puede superar 5 MB.',
+            'soporte_seguimiento_5_pdf.max' => 'El archivo de historia clinica no puede superar 5 MB.',
         ]);
 
         $this->normalizeDateFields($data, [
@@ -253,6 +287,49 @@ class SeguimientMaestrosiv549Controller extends Controller
         ]);
 
         return $data;
+    }
+
+    private function persistSupportFiles(Request $request, array $data, ?SeguimientMaestrosiv549 $seguimiento = null): array
+    {
+        foreach ($this->supportFields() as $field) {
+            if (!$request->hasFile($field)) {
+                unset($data[$field]);
+                continue;
+            }
+
+            $file = $request->file($field);
+            if (!$file || !$file->isValid()) {
+                unset($data[$field]);
+                continue;
+            }
+
+            $newPath = $file->store('seguimiento549/soportes', 'public');
+            if (!$newPath) {
+                unset($data[$field]);
+                continue;
+            }
+
+            $oldPath = (string) ($seguimiento?->{$field} ?? '');
+            if ($oldPath !== '' && $oldPath !== $newPath) {
+                Storage::disk('public')->delete($oldPath);
+            }
+
+            $data[$field] = $newPath;
+        }
+
+        return $data;
+    }
+
+    private function supportFields(): array
+    {
+        return [
+            'soporte_inmediato_pdf',
+            'soporte_seguimiento_1_pdf',
+            'soporte_seguimiento_2_pdf',
+            'soporte_seguimiento_3_pdf',
+            'soporte_seguimiento_4_pdf',
+            'soporte_seguimiento_5_pdf',
+        ];
     }
 
     /**
@@ -292,7 +369,8 @@ class SeguimientMaestrosiv549Controller extends Controller
         ];
 
         foreach ($selects as $f) {
-            $data[$f] = (int) $request->input($f, 0);
+            $val = $request->input($f, null);
+            $data[$f] = ($val === null || $val === '') ? 0 : (int) $val;
         }
 
         // ✅ paciente_sigue_embarazo_* también viene del select 0/1 (si lo dejas así)
@@ -328,6 +406,81 @@ class SeguimientMaestrosiv549Controller extends Controller
                 $data[$field] = null;
             }
         }
+    }
+
+    private function validateConditionalBlocks(Request $request): void
+    {
+        $errors = [];
+
+        // Si se inicia el bloque inmediato, exige seguimiento efectivo inmediato.
+        if ($this->hasAnyInput($request, [
+            'descripcion_seguimiento_inmediato',
+            'fecha_control_rn_inmediato',
+            'soporte_inmediato_pdf',
+        ]) && $request->input('seguimiento_efectivo_inmediato', '') === '') {
+            $errors['seguimiento_efectivo_inmediato'] = 'Debes seleccionar si el seguimiento inmediato fue efectivo.';
+        }
+
+        // Para seguimientos 2..5: si se inicia el bloque, exige fecha y efectivo.
+        foreach ([2, 3, 4, 5] as $idx) {
+            $touchFields = [
+                'fecha_seguimiento_'.$idx,
+                'paciente_sigue_embarazo_'.$idx,
+                'fecha_control_'.$idx,
+                'fecha_consulta_rn_'.$idx,
+                'entrega_medicamentos_labs_'.$idx,
+                'soporte_seguimiento_'.$idx.'_pdf',
+            ];
+
+            if ($idx === 3) {
+                $touchFields[] = 'gestion_segunda_semana';
+                $touchFields[] = 'tipo_seguimiento_3';
+            } elseif ($idx === 4) {
+                $touchFields[] = 'gestion_tercera_semana';
+                $touchFields[] = 'tipo_seguimiento_4';
+            } elseif ($idx === 2) {
+                $touchFields[] = 'gestion_primera_semana';
+            } elseif ($idx === 5) {
+                $touchFields[] = 'tipo_seguimiento_5';
+            }
+
+            if ($this->hasAnyInput($request, $touchFields)) {
+                if (trim((string) $request->input('fecha_seguimiento_'.$idx, '')) === '') {
+                    $errors['fecha_seguimiento_'.$idx] = 'Debes registrar la fecha del Seguimiento '.$idx.'.';
+                }
+                if (trim((string) $request->input('seguimiento_efectivo_'.$idx, '')) === '') {
+                    $errors['seguimiento_efectivo_'.$idx] = 'Debes seleccionar si el Seguimiento '.$idx.' fue efectivo.';
+                }
+            }
+        }
+
+        if (!empty($errors)) {
+            throw ValidationException::withMessages($errors);
+        }
+    }
+
+    private function hasAnyInput(Request $request, array $fields): bool
+    {
+        foreach ($fields as $field) {
+            if ($request->hasFile($field)) {
+                return true;
+            }
+
+            $value = $request->input($field, null);
+            if ($value === null) {
+                continue;
+            }
+
+            if (is_array($value) && !empty($value)) {
+                return true;
+            }
+
+            if (is_scalar($value) && trim((string) $value) !== '') {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private function sameCasePeriodAssignmentsQuery(AsignacionesMaestrosiv549 $asignacion)

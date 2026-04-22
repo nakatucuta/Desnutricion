@@ -48,6 +48,15 @@
         'falla_coagulacion' => 'Falla coagulacion',
         'cirugia_adicional' => 'Cirugia adicional',
     ];
+
+    $soportes = [
+        'soporte_inmediato_pdf' => 'Seguimiento inmediato (48-72h)',
+        'soporte_seguimiento_1_pdf' => 'Seguimiento 1',
+        'soporte_seguimiento_2_pdf' => 'Seguimiento 2',
+        'soporte_seguimiento_3_pdf' => 'Seguimiento 3',
+        'soporte_seguimiento_4_pdf' => 'Seguimiento 4',
+        'soporte_seguimiento_5_pdf' => 'Seguimiento 5',
+    ];
 @endphp
 
 @section('content_header')
@@ -132,6 +141,26 @@
                 <div class="col-md-8 mb-2"><strong>Descripcion:</strong> {{ $valor($seguimiento->descripcion_seguimiento_inmediato) }}</div>
                 <div class="col-md-2 mb-2"><strong>Control RN:</strong> {{ $fecha($seguimiento->fecha_control_rn_inmediato) }}</div>
                 <div class="col-md-2 mb-2"><strong>Efectivo:</strong> {{ $siNo($seguimiento->seguimiento_efectivo_inmediato) }}</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card seg-detail-card mb-4">
+        <div class="card-header seg-detail-card__head">Soportes PDF historia clinica</div>
+        <div class="card-body">
+            <div class="row">
+                @foreach($soportes as $campo => $titulo)
+                    <div class="col-md-6 mb-2">
+                        <strong>{{ $titulo }}:</strong>
+                        @if(!empty($seguimiento->{$campo}))
+                            <a href="{{ asset('storage/'.$seguimiento->{$campo}) }}" target="_blank" class="btn btn-sm btn-outline-info ml-2">
+                                <i class="fas fa-file-pdf mr-1"></i> Ver PDF
+                            </a>
+                        @else
+                            <span class="text-muted ml-1">Sin soporte</span>
+                        @endif
+                    </div>
+                @endforeach
             </div>
         </div>
     </div>
