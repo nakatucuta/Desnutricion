@@ -151,7 +151,8 @@ Route::middleware('auth')->group(function () {
     Route::get('/workspace', [HomeController::class, 'workspace'])->name('workspace.index');
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::put('/profile', [ProfileController::class, 'updateProfile'])->name('profile.update');
-    Route::put('/profile/password', [ProfileController::class, 'updatePassword'])->name('profile.password.update');
+    Route::put('/profile/password', [ProfileController::class, 'updatePassword'])->middleware('throttle:6,1')->name('profile.password.update');
+    Route::get('/profile/email/confirm/{token}', [ProfileController::class, 'confirmEmailChange'])->name('profile.email.confirm');
     Route::get('/profile/audit', [ProfileController::class, 'auditIndex'])->name('profile.audit');
     Route::get('/novedades', [NovedadController::class, 'index'])->name('novedades.index');
     Route::post('/novedades', [NovedadController::class, 'store'])->name('novedades.store');

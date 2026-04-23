@@ -25,6 +25,7 @@ class ProfileUpdateTest extends TestCase
         DB::reconnect('sqlite');
 
         Schema::dropIfExists('profile_change_audits');
+        Schema::dropIfExists('profile_email_changes');
         Schema::dropIfExists('users');
 
         Schema::create('users', function (Blueprint $table): void {
@@ -50,6 +51,19 @@ class ProfileUpdateTest extends TestCase
             $table->string('ip', 45)->nullable();
             $table->string('user_agent', 255)->nullable();
             $table->timestamp('changed_at');
+            $table->timestamps();
+        });
+
+        Schema::create('profile_email_changes', function (Blueprint $table): void {
+            $table->id();
+            $table->unsignedInteger('user_id');
+            $table->string('new_email', 150);
+            $table->string('token_hash', 64)->unique();
+            $table->timestamp('requested_at');
+            $table->timestamp('expires_at')->nullable();
+            $table->timestamp('confirmed_at')->nullable();
+            $table->string('requested_ip', 45)->nullable();
+            $table->string('requested_user_agent', 255)->nullable();
             $table->timestamps();
         });
 
@@ -130,7 +144,7 @@ class ProfileUpdateTest extends TestCase
         ]);
     }
 
-    public function test_profile_update_normalizes_email_and_updates_successfully(): void
+    public function test_profile_update_creates_pending_email_change_request(): void
     {
         $user = User::create([
             'name' => 'Usuario Normaliza',
@@ -147,12 +161,16 @@ class ProfileUpdateTest extends TestCase
         ]);
 
         $response->assertRedirect(route('profile.edit'));
-        $response->assertSessionHas('status', 'Perfil actualizado correctamente.');
+        $response->assertSessionHas('status', 'Te enviamos un enlace al nuevo correo para confirmar el cambio de correo.');
 
         $this->assertDatabaseHas('users', [
             'id' => $user->id,
-            'email' => 'nuevo.correo@gmail.com',
+            'email' => 'usuario.normaliza@gmail.com',
+        ]);
+
+        $this->assertDatabaseHas('profile_email_changes', [
+            'user_id' => $user->id,
+            'new_email' => 'nuevo.correo@gmail.com',
         ]);
     }
 }
-

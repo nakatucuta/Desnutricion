@@ -20,6 +20,21 @@
     @if (session('status'))
         <div class="alert alert-success">{{ session('status') }}</div>
     @endif
+    @if ($errors->any())
+        <div class="alert alert-danger">
+            <ul class="mb-0 pl-3">
+                @foreach ($errors->all() as $error)
+                    <li>{{ $error }}</li>
+                @endforeach
+            </ul>
+        </div>
+    @endif
+    @if(!empty($pendingEmailChange))
+        <div class="alert alert-warning">
+            Tienes un cambio de correo pendiente para <strong>{{ $pendingEmailChange->new_email }}</strong>.
+            Revisa tu bandeja y confirma antes de <strong>{{ optional($pendingEmailChange->expires_at)->format('Y-m-d H:i') ?? 'sin limite' }}</strong>.
+        </div>
+    @endif
 
     <div class="row">
         <div class="col-lg-7">
@@ -47,6 +62,9 @@
                             <label for="email">Correo</label>
                             <input id="email" name="email" type="email" class="form-control @error('email') is-invalid @enderror" value="{{ old('email', $user->email) }}" required>
                             <small id="email-live-feedback" class="form-text d-none"></small>
+                            @if(!empty($pendingEmailChange))
+                                <small class="form-text text-warning">Hay una solicitud pendiente para cambiar este correo.</small>
+                            @endif
                             @error('email') <span class="invalid-feedback d-block">{{ $message }}</span> @enderror
                         </div>
 
@@ -79,24 +97,46 @@
 
                         <div class="form-group">
                             <label for="current_password">Contrasena Actual</label>
-                            <input id="current_password" name="current_password" type="password" class="form-control @error('current_password') is-invalid @enderror" required>
+                            <div class="input-group">
+                                <input id="current_password" name="current_password" type="password" class="form-control @error('current_password') is-invalid @enderror" required>
+                                <div class="input-group-append">
+                                    <button class="btn btn-outline-secondary toggle-password-btn" type="button" data-target="#current_password" aria-label="Mostrar u ocultar contrasena actual">
+                                        <i class="fas fa-eye"></i>
+                                    </button>
+                                </div>
+                            </div>
                             @error('current_password') <span class="invalid-feedback d-block">{{ $message }}</span> @enderror
                         </div>
 
                         <div class="form-group">
                             <label for="password">Nueva Contrasena</label>
-                            <input id="password" name="password" type="password" class="form-control @error('password') is-invalid @enderror" required>
+                            <div class="input-group">
+                                <input id="password" name="password" type="password" class="form-control @error('password') is-invalid @enderror" required>
+                                <div class="input-group-append">
+                                    <button class="btn btn-outline-secondary toggle-password-btn" type="button" data-target="#password" aria-label="Mostrar u ocultar nueva contrasena">
+                                        <i class="fas fa-eye"></i>
+                                    </button>
+                                </div>
+                            </div>
                             <small class="text-muted">Minimo 10 caracteres, con mayuscula, minuscula, numero y simbolo.</small>
                             <div class="password-strength mt-2" aria-hidden="true">
                                 <div id="password-strength-bar" class="password-strength__bar"></div>
                             </div>
+                            <small id="password-strength-label" class="form-text text-muted">Fortaleza: sin evaluar</small>
                             <small id="password-live-feedback" class="form-text d-none"></small>
                             @error('password') <span class="invalid-feedback d-block">{{ $message }}</span> @enderror
                         </div>
 
                         <div class="form-group">
                             <label for="password_confirmation">Confirmar Nueva Contrasena</label>
-                            <input id="password_confirmation" name="password_confirmation" type="password" class="form-control" required>
+                            <div class="input-group">
+                                <input id="password_confirmation" name="password_confirmation" type="password" class="form-control" required>
+                                <div class="input-group-append">
+                                    <button class="btn btn-outline-secondary toggle-password-btn" type="button" data-target="#password_confirmation" aria-label="Mostrar u ocultar confirmacion de contrasena">
+                                        <i class="fas fa-eye"></i>
+                                    </button>
+                                </div>
+                            </div>
                         </div>
 
                         <ul class="password-checklist mb-3" id="password-checklist">
@@ -121,6 +161,28 @@
                     <a href="{{ route('profile.audit') }}" class="btn btn-outline-primary">Ver Auditoria de Cambios de Perfil</a>
                 </div>
             @endif
+
+            <div class="card card-outline card-primary profile-card mt-3">
+                <div class="card-header profile-card__header"><h3 class="card-title mb-0"><i class="fas fa-history mr-2"></i>Tu Actividad Reciente</h3></div>
+                <div class="card-body p-0">
+                    <ul class="list-group list-group-flush profile-history">
+                        @forelse($recentAudits as $audit)
+                            <li class="list-group-item">
+                                <div class="d-flex justify-content-between align-items-start">
+                                    <div>
+                                        <strong>{{ implode(', ', (array) $audit->changed_fields) }}</strong>
+                                        <div class="text-muted small">{{ optional($audit->changed_at)->format('Y-m-d H:i:s') ?? '-' }}</div>
+                                        <div class="text-muted small">IP: {{ $audit->ip ?? 'N/D' }}</div>
+                                    </div>
+                                    <span class="badge badge-light">{{ $loop->iteration }}</span>
+                                </div>
+                            </li>
+                        @empty
+                            <li class="list-group-item text-muted">Aun no tienes actividad registrada.</li>
+                        @endforelse
+                    </ul>
+                </div>
+            </div>
         </div>
     </div>
 @stop
@@ -185,6 +247,8 @@
     .password-checklist li.is-valid i{color:#1f7a4a}
     .password-checklist li.is-invalid{color:#a43b45}
     .password-checklist li.is-invalid i{color:#a43b45}
+    .toggle-password-btn{border-left:0}
+    .profile-history .list-group-item{border-left:0;border-right:0}
     @media (max-width: 767.98px){
         .profile-hero__brand{align-items:flex-start}
         .profile-hero__logo-wrap{width:64px;height:64px}
@@ -341,6 +405,8 @@ document.addEventListener('DOMContentLoaded', function () {
     const passwordForm = document.getElementById('password-form');
     const passwordFeedback = document.getElementById('password-live-feedback');
     const passwordStrengthBar = document.getElementById('password-strength-bar');
+    const passwordStrengthLabel = document.getElementById('password-strength-label');
+    const togglePasswordButtons = document.querySelectorAll('.toggle-password-btn');
 
     const ruleElements = {
         length: document.getElementById('rule-length'),
@@ -356,10 +422,25 @@ document.addEventListener('DOMContentLoaded', function () {
 
     if (
         !currentPasswordInput || !newPasswordInput || !passwordConfirmationInput ||
-        !passwordSaveButton || !passwordForm || !passwordFeedback || !passwordStrengthBar
+        !passwordSaveButton || !passwordForm || !passwordFeedback || !passwordStrengthBar || !passwordStrengthLabel
     ) {
         return;
     }
+
+    togglePasswordButtons.forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            const target = document.querySelector(btn.getAttribute('data-target') || '');
+            if (!target) {
+                return;
+            }
+            const show = target.type === 'password';
+            target.type = show ? 'text' : 'password';
+            const icon = btn.querySelector('i');
+            if (icon) {
+                icon.className = show ? 'fas fa-eye-slash' : 'fas fa-eye';
+            }
+        });
+    });
 
     const setRuleState = function (element, isValid, touched) {
         if (!element) {
@@ -434,10 +515,13 @@ document.addEventListener('DOMContentLoaded', function () {
 
         if (score < 40) {
             passwordStrengthBar.style.backgroundColor = '#dc3545';
+            passwordStrengthLabel.textContent = 'Fortaleza: debil';
         } else if (score < 75) {
             passwordStrengthBar.style.backgroundColor = '#fd7e14';
+            passwordStrengthLabel.textContent = 'Fortaleza: media';
         } else {
             passwordStrengthBar.style.backgroundColor = '#28a745';
+            passwordStrengthLabel.textContent = 'Fortaleza: fuerte';
         }
 
         const isStrongAndValid = Object.values(rules).every(Boolean);
@@ -445,6 +529,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
         if (!touched) {
             setPasswordFeedback('', 'ok');
+            passwordStrengthLabel.textContent = 'Fortaleza: sin evaluar';
             return false;
         }
 

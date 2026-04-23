@@ -3,11 +3,15 @@
 namespace App\Http\Controllers;
 
 use App\Models\ProfileChangeAudit;
+use App\Models\ProfileEmailChange;
+use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Password;
 
@@ -16,10 +20,23 @@ class ProfileController extends Controller
     public function edit()
     {
         $user = Auth::user();
+        $recentAudits = ProfileChangeAudit::where('user_id', (int) $user->id)
+            ->orderByDesc('id')
+            ->limit(8)
+            ->get();
+        $pendingEmailChange = ProfileEmailChange::activeForUser((int) $user->id)
+            ->orderByDesc('id')
+            ->first();
+        if ($pendingEmailChange && $pendingEmailChange->expires_at !== null && now()->greaterThan($pendingEmailChange->expires_at)) {
+            $pendingEmailChange->delete();
+            $pendingEmailChange = null;
+        }
 
         return view('profile.edit', [
             'user' => $user,
             'canViewAudit' => $this->isAdmin($user),
+            'recentAudits' => $recentAudits,
+            'pendingEmailChange' => $pendingEmailChange,
         ]);
     }
 
@@ -104,44 +121,66 @@ class ProfileController extends Controller
             'email.unique' => 'Este correo ya esta siendo usado por otro usuario.',
         ]);
 
+        $currentEmail = mb_strtolower(trim((string) ($user->email ?? '')));
+        $newEmail = mb_strtolower(trim((string) $validated['email']));
+
         $old = [
             'name' => (string) $user->name,
-            'email' => (string) $user->email,
+            'email' => $currentEmail,
             'codigohabilitacion' => (string) ($user->codigohabilitacion ?? ''),
             'profile_photo_path' => (string) ($user->profile_photo_path ?? ''),
         ];
 
         $user->name = (string) $validated['name'];
-        $user->email = (string) $validated['email'];
         $user->codigohabilitacion = (string) ($validated['codigohabilitacion'] ?? '');
+        $emailChanged = $newEmail !== $currentEmail;
 
         if ($request->hasFile('profile_photo')) {
             $previousPhoto = (string) ($user->profile_photo_path ?? '');
-            $user->profile_photo_path = $request->file('profile_photo')->store('profile-photos', 'public');
+            $user->profile_photo_path = $this->storeOptimizedProfilePhoto($request->file('profile_photo'));
 
             if ($previousPhoto !== '' && $previousPhoto !== $user->profile_photo_path) {
                 Storage::disk('public')->delete($previousPhoto);
             }
         }
 
-        if (!$user->isDirty(['name', 'email', 'codigohabilitacion', 'profile_photo_path'])) {
+        $hasDataChanges = $user->isDirty(['name', 'codigohabilitacion', 'profile_photo_path']);
+        if (!$hasDataChanges && !$emailChanged) {
             return back()->with('status', 'No se detectaron cambios en tu perfil.');
         }
 
-        $changedFields = array_keys($user->getDirty());
-        $new = [
-            'name' => (string) $user->name,
-            'email' => (string) $user->email,
-            'codigohabilitacion' => (string) ($user->codigohabilitacion ?? ''),
-            'profile_photo_path' => (string) ($user->profile_photo_path ?? ''),
-        ];
+        $statusMessages = [];
 
-        $user->save();
+        if ($hasDataChanges) {
+            $changedFields = array_keys($user->getDirty());
+            $new = [
+                'name' => (string) $user->name,
+                'email' => $currentEmail,
+                'codigohabilitacion' => (string) ($user->codigohabilitacion ?? ''),
+                'profile_photo_path' => (string) ($user->profile_photo_path ?? ''),
+            ];
 
-        $this->createAudit($user->id, $changedFields, $old, $new, $request);
-        $this->sendProfileChangeMail($user->id, $old['email'], $new['email'], 'Actualizacion de datos del perfil', $changedFields);
+            $user->save();
+            $this->createAudit((int) $user->id, $changedFields, $old, $new, $request);
+            $this->sendProfileChangeMail((int) $user->id, $old['email'], $old['email'], 'Actualizacion de datos del perfil', $changedFields);
+            $statusMessages[] = 'Perfil actualizado correctamente.';
+        }
 
-        return back()->with('status', 'Perfil actualizado correctamente.');
+        if ($emailChanged) {
+            [$pendingChange, $rawToken] = $this->createEmailChangeRequest($user, $newEmail, $request);
+            $this->sendEmailChangeConfirmationMail($user, $newEmail, $rawToken, $pendingChange->expires_at?->format('Y-m-d H:i:s'));
+
+            $this->createAudit((int) $user->id, ['email_pending_confirmation'], [
+                'email' => $currentEmail,
+            ], [
+                'email' => $newEmail,
+                'status' => 'pendiente_confirmacion',
+            ], $request);
+
+            $statusMessages[] = 'Te enviamos un enlace al nuevo correo para confirmar el cambio de correo.';
+        }
+
+        return back()->with('status', implode(' ', $statusMessages));
     }
 
     public function updatePassword(Request $request)
@@ -167,11 +206,81 @@ class ProfileController extends Controller
 
         $user->password = Hash::make((string) $request->input('password'));
         $user->save();
+        try {
+            Auth::logoutOtherDevices((string) $request->input('password'));
+        } catch (\Throwable $e) {
+            report($e);
+        }
 
         $this->createAudit($user->id, ['password'], ['password' => '***'], ['password' => '***actualizada***'], $request);
         $this->sendProfileChangeMail($user->id, (string) $user->email, (string) $user->email, 'Cambio de contrasena del perfil', ['password']);
 
-        return back()->with('status', 'Contrasena actualizada de forma segura.');
+        return back()->with('status', 'Contrasena actualizada de forma segura. Se cerraron otras sesiones activas.');
+    }
+
+    public function confirmEmailChange(Request $request, string $token)
+    {
+        $tokenHash = hash('sha256', $token);
+
+        $pending = ProfileEmailChange::where('token_hash', $tokenHash)
+            ->whereNull('confirmed_at')
+            ->orderByDesc('id')
+            ->first();
+
+        if (!$pending) {
+            return redirect()->route('profile.edit')
+                ->withErrors(['email' => 'El enlace de confirmacion no es valido o ya fue usado.']);
+        }
+
+        if ((int) Auth::id() !== (int) $pending->user_id) {
+            abort(403);
+        }
+
+        if ($pending->expires_at !== null && now()->greaterThan($pending->expires_at)) {
+            $pending->delete();
+
+            return redirect()->route('profile.edit')
+                ->withErrors(['email' => 'El enlace de confirmacion ya vencio. Solicita el cambio de correo nuevamente.']);
+        }
+
+        $user = User::find((int) $pending->user_id);
+        if (!$user) {
+            return redirect()->route('profile.edit')
+                ->withErrors(['email' => 'No fue posible completar la confirmacion de correo.']);
+        }
+
+        $newEmail = mb_strtolower(trim((string) $pending->new_email));
+
+        $emailTaken = User::where('email', $newEmail)
+            ->where('id', '!=', (int) $user->id)
+            ->exists();
+
+        if ($emailTaken) {
+            $pending->delete();
+
+            return redirect()->route('profile.edit')
+                ->withErrors(['email' => 'No se pudo confirmar el correo porque ya esta en uso por otro usuario.']);
+        }
+
+        $oldEmail = (string) $user->email;
+        $user->email = $newEmail;
+        $user->email_verified_at = null;
+        $user->save();
+
+        $pending->confirmed_at = now();
+        $pending->save();
+
+        $this->createAudit((int) $user->id, ['email'], [
+            'email' => $oldEmail,
+        ], [
+            'email' => $newEmail,
+            'confirmed_from_ip' => (string) ($request->ip() ?? ''),
+        ], $request);
+
+        $this->sendProfileChangeMail((int) $user->id, $oldEmail, $newEmail, 'Confirmacion de cambio de correo del perfil', ['email']);
+
+        return redirect()->route('profile.edit')
+            ->with('status', 'Correo actualizado y confirmado correctamente.');
     }
 
     public function auditIndex()
@@ -221,6 +330,122 @@ class ProfileController extends Controller
             } catch (\Throwable $e) {
                 report($e);
             }
+        }
+    }
+
+    private function createEmailChangeRequest(User $user, string $newEmail, Request $request): array
+    {
+        ProfileEmailChange::where('user_id', (int) $user->id)
+            ->whereNull('confirmed_at')
+            ->delete();
+
+        $rawToken = Str::random(64);
+        $pending = ProfileEmailChange::create([
+            'user_id' => (int) $user->id,
+            'new_email' => $newEmail,
+            'token_hash' => hash('sha256', $rawToken),
+            'requested_at' => now(),
+            'expires_at' => now()->addHours(24),
+            'requested_ip' => (string) ($request->ip() ?? ''),
+            'requested_user_agent' => substr((string) $request->userAgent(), 0, 255),
+        ]);
+
+        return [$pending, $rawToken];
+    }
+
+    private function sendEmailChangeConfirmationMail(User $user, string $newEmail, string $rawToken, ?string $expiresAt): void
+    {
+        try {
+            Mail::send('emails.profile_email_confirm', [
+                'userName' => (string) $user->name,
+                'newEmail' => $newEmail,
+                'confirmUrl' => route('profile.email.confirm', ['token' => $rawToken]),
+                'expiresAt' => $expiresAt,
+            ], function ($message) use ($newEmail) {
+                $message->to($newEmail)->subject('[ANAS WAYUU] Confirma el cambio de correo');
+            });
+        } catch (\Throwable $e) {
+            report($e);
+        }
+    }
+
+    private function storeOptimizedProfilePhoto(UploadedFile $file): string
+    {
+        if (!extension_loaded('gd') || !function_exists('imagecreatefromstring')) {
+            return $file->store('profile-photos', 'public');
+        }
+
+        try {
+            $raw = @file_get_contents($file->getRealPath());
+            if ($raw === false) {
+                return $file->store('profile-photos', 'public');
+            }
+
+            $source = @imagecreatefromstring($raw);
+            if ($source === false) {
+                return $file->store('profile-photos', 'public');
+            }
+
+            $width = imagesx($source);
+            $height = imagesy($source);
+            if ($width < 1 || $height < 1) {
+                imagedestroy($source);
+                return $file->store('profile-photos', 'public');
+            }
+
+            $cropSize = min($width, $height);
+            $srcX = (int) floor(($width - $cropSize) / 2);
+            $srcY = (int) floor(($height - $cropSize) / 2);
+
+            $targetSize = 512;
+            $canvas = imagecreatetruecolor($targetSize, $targetSize);
+            imagealphablending($canvas, false);
+            imagesavealpha($canvas, true);
+
+            $copied = imagecopyresampled(
+                $canvas,
+                $source,
+                0,
+                0,
+                $srcX,
+                $srcY,
+                $targetSize,
+                $targetSize,
+                $cropSize,
+                $cropSize
+            );
+
+            if (!$copied) {
+                imagedestroy($source);
+                imagedestroy($canvas);
+                return $file->store('profile-photos', 'public');
+            }
+
+            ob_start();
+            $extension = 'webp';
+            $ok = function_exists('imagewebp')
+                ? imagewebp($canvas, null, 82)
+                : imagejpeg($canvas, null, 85);
+
+            if (!function_exists('imagewebp')) {
+                $extension = 'jpg';
+            }
+
+            $binary = ob_get_clean();
+            imagedestroy($source);
+            imagedestroy($canvas);
+
+            if (!$ok || !is_string($binary) || $binary === '') {
+                return $file->store('profile-photos', 'public');
+            }
+
+            $path = 'profile-photos/' . Str::uuid() . '.' . $extension;
+            Storage::disk('public')->put($path, $binary);
+
+            return $path;
+        } catch (\Throwable $e) {
+            report($e);
+            return $file->store('profile-photos', 'public');
         }
     }
 
