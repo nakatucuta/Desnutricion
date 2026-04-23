@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Password;
 
 class ProfileController extends Controller
@@ -26,11 +27,81 @@ class ProfileController extends Controller
     {
         $user = Auth::user();
 
+        $normalizedName = trim((string) $request->input('name', ''));
+        $normalizedEmail = mb_strtolower(trim((string) $request->input('email', '')));
+        $normalizedCodigo = trim((string) $request->input('codigohabilitacion', ''));
+
+        $request->merge([
+            'name' => $normalizedName,
+            'email' => $normalizedEmail,
+            'codigohabilitacion' => $normalizedCodigo,
+        ]);
+
+        $emailValidation = extension_loaded('intl')
+            ? 'email:rfc,dns,spoof,filter'
+            : 'email:rfc,dns,filter';
+
         $validated = $request->validate([
             'name' => 'required|string|max:120',
-            'email' => 'required|email:rfc|max:150|unique:users,email,' . $user->id,
+            'email' => [
+                'bail',
+                'required',
+                $emailValidation,
+                'max:150',
+                Rule::unique('users', 'email')->ignore($user->id),
+                function (string $attribute, mixed $value, \Closure $fail): void {
+                    $email = (string) $value;
+
+                    if (preg_match('/\s/', $email)) {
+                        $fail('El correo no puede contener espacios.');
+                        return;
+                    }
+
+                    if (substr_count($email, '@') !== 1) {
+                        $fail('El correo debe contener un solo simbolo @.');
+                        return;
+                    }
+
+                    [$local, $domain] = explode('@', $email, 2);
+
+                    if ($local === '' || $domain === '') {
+                        $fail('El correo debe tener el formato usuario@dominio.com.');
+                        return;
+                    }
+
+                    if (str_contains($local, '..') || str_contains($domain, '..')) {
+                        $fail('El correo no puede tener puntos consecutivos.');
+                        return;
+                    }
+
+                    if (str_starts_with($local, '.') || str_ends_with($local, '.')) {
+                        $fail('La parte antes de @ no puede iniciar ni terminar con punto.');
+                        return;
+                    }
+
+                    if (!str_contains($domain, '.')) {
+                        $fail('El dominio del correo debe incluir una extension valida, por ejemplo .com.');
+                        return;
+                    }
+
+                    if (preg_match('/[^a-z0-9.-]/i', $domain)) {
+                        $fail('El dominio del correo tiene caracteres no permitidos.');
+                        return;
+                    }
+
+                    $suggestedDomain = $this->suggestEmailDomainTypo($domain);
+                    if ($suggestedDomain !== null) {
+                        $fail('Parece que el dominio del correo esta mal escrito. Quiza quisiste escribir ' . $suggestedDomain . '.');
+                    }
+                },
+            ],
             'codigohabilitacion' => 'nullable|string|max:80',
             'profile_photo' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:2048',
+        ], [
+            'email.required' => 'El correo es obligatorio.',
+            'email.email' => 'Correo invalido. Usa el formato usuario@dominio.com y verifica que el dominio exista.',
+            'email.max' => 'El correo no puede superar 150 caracteres.',
+            'email.unique' => 'Este correo ya esta siendo usado por otro usuario.',
         ]);
 
         $old = [
@@ -40,9 +111,9 @@ class ProfileController extends Controller
             'profile_photo_path' => (string) ($user->profile_photo_path ?? ''),
         ];
 
-        $user->name = trim((string) $validated['name']);
-        $user->email = mb_strtolower(trim((string) $validated['email']));
-        $user->codigohabilitacion = trim((string) ($validated['codigohabilitacion'] ?? ''));
+        $user->name = (string) $validated['name'];
+        $user->email = (string) $validated['email'];
+        $user->codigohabilitacion = (string) ($validated['codigohabilitacion'] ?? '');
 
         if ($request->hasFile('profile_photo')) {
             $previousPhoto = (string) ($user->profile_photo_path ?? '');
@@ -156,5 +227,40 @@ class ProfileController extends Controller
     private function isAdmin($user): bool
     {
         return in_array((string) $user->usertype, ['1', '3'], true);
+    }
+
+    private function suggestEmailDomainTypo(string $domain): ?string
+    {
+        $domain = mb_strtolower(trim($domain));
+        if ($domain === '') {
+            return null;
+        }
+
+        $knownDomains = [
+            'gmail.com',
+            'hotmail.com',
+            'outlook.com',
+            'yahoo.com',
+            'icloud.com',
+            'live.com',
+            'epsianaswayuu.com',
+        ];
+
+        if (in_array($domain, $knownDomains, true)) {
+            return null;
+        }
+
+        $closest = null;
+        $closestDistance = 99;
+
+        foreach ($knownDomains as $knownDomain) {
+            $distance = levenshtein($domain, $knownDomain);
+            if ($distance < $closestDistance) {
+                $closestDistance = $distance;
+                $closest = $knownDomain;
+            }
+        }
+
+        return $closestDistance <= 2 ? $closest : null;
     }
 }
