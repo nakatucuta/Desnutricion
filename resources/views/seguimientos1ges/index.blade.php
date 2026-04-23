@@ -53,6 +53,8 @@
         </div>
     </div>
 </div>
+
+<div id="segHubToastWrap" class="seg-hub-toast-wrap" aria-live="polite" aria-atomic="true"></div>
 @stop
 
 @section('content')
@@ -594,6 +596,59 @@
     .seg-hub-table.table-hover tbody tr:hover{
         background:#f2fbfd;
     }
+    .seg-hub-table td:last-child{
+        white-space:nowrap;
+    }
+    .seg-hub-table .btn.btn-sm{
+        min-width:34px;
+        height:32px;
+        border-radius:10px;
+        border:none;
+        display:inline-flex;
+        align-items:center;
+        justify-content:center;
+        box-shadow:0 8px 16px rgba(19, 78, 90, .14);
+        transition:transform .16s ease, box-shadow .16s ease, filter .16s ease;
+    }
+    .seg-hub-table .btn.btn-sm:hover{
+        transform:translateY(-1px);
+        box-shadow:0 10px 20px rgba(19, 78, 90, .22);
+        filter:brightness(1.02);
+    }
+    .seg-hub-table .btn.btn-info{
+        background:linear-gradient(135deg, #1f9fb5, #1f78b5);
+    }
+    .seg-hub-table .btn.btn-warning{
+        color:#24323b;
+        background:linear-gradient(135deg, #f4cd3b, #f0ab2e);
+    }
+    .seg-hub-table .btn.btn-danger{
+        background:linear-gradient(135deg, #f35d66, #de2f4c);
+    }
+    .seg-hub-table .js-delete-async{
+        position:relative;
+    }
+    .seg-hub-table tr.seg-row-deleting{
+        background:linear-gradient(90deg, rgba(23,163,107,.08), rgba(15,124,138,.05));
+    }
+    .seg-hub-table tr.seg-row-deleting td{
+        position:relative;
+    }
+    .seg-hub-table tr.seg-row-deleting td:last-child::after{
+        content:'Eliminando...';
+        display:inline-flex;
+        align-items:center;
+        gap:.45rem;
+        margin-left:.5rem;
+        padding:.35rem .65rem;
+        border-radius:999px;
+        font-size:.74rem;
+        font-weight:800;
+        letter-spacing:.03em;
+        color:#fff;
+        background:linear-gradient(135deg, #0f7c8a, #1e9d5f);
+        box-shadow:0 8px 16px rgba(15, 124, 138, .26);
+    }
     .seg-hub-alert-banner{
         display:flex;
         align-items:flex-start;
@@ -709,6 +764,53 @@
         color:#0c5f6a;
         text-decoration:underline;
     }
+    .seg-hub-toast-wrap{
+        position:fixed;
+        top:1rem;
+        right:1rem;
+        z-index:2100;
+        display:flex;
+        flex-direction:column;
+        gap:.65rem;
+    }
+    .seg-hub-toast{
+        min-width:280px;
+        max-width:420px;
+        border-radius:14px;
+        box-shadow:0 14px 30px rgba(17, 63, 73, .22);
+        border:1px solid transparent;
+        padding:.75rem .9rem;
+        color:#113f49;
+        background:#eef8fb;
+    }
+    .seg-hub-toast--success{
+        background:#e9f9ef;
+        border-color:#bfe9cb;
+        color:#0f6b4d;
+    }
+    .seg-hub-toast--error{
+        background:#fff0f0;
+        border-color:#f0c8c8;
+        color:#9f2d2d;
+    }
+    .seg-hub-toast__title{
+        font-size:.85rem;
+        font-weight:800;
+        text-transform:uppercase;
+        letter-spacing:.04em;
+        margin-bottom:.15rem;
+    }
+    .seg-hub-toast__text{
+        font-size:.92rem;
+        font-weight:600;
+        line-height:1.35;
+    }
+    .js-delete-async .btn[disabled]{
+        opacity:.88;
+        cursor:progress;
+        transform:none;
+        box-shadow:0 6px 12px rgba(19, 78, 90, .18);
+    }
     @media (max-width: 991px){
         .seg-hub-hero,
         .seg-hub-filter-head,
@@ -758,6 +860,23 @@
 
 <script>
 $(function () {
+    function showHubToast(type, title, message) {
+        const wrap = $('#segHubToastWrap');
+        if (!wrap.length) {
+            return;
+        }
+        const safeType = type === 'error' ? 'error' : 'success';
+        const $toast = $('<div class="seg-hub-toast seg-hub-toast--' + safeType + '" role="status"></div>');
+        $toast.append('<div class="seg-hub-toast__title">' + (title || '') + '</div>');
+        $toast.append('<div class="seg-hub-toast__text">' + (message || '') + '</div>');
+        wrap.append($toast);
+        setTimeout(function () {
+            $toast.fadeOut(260, function () {
+                $(this).remove();
+            });
+        }, 3400);
+    }
+
     function updateCounter(table, kpiSelector, tabSelector, suffix) {
         if (!table) {
             return;
@@ -922,6 +1041,54 @@ $(function () {
         $('#indFecDesde').val('');
         $('#indFecHasta').val('');
         loadIndicadores();
+    });
+
+    $(document).on('submit', '.js-delete-async', function (e) {
+        e.preventDefault();
+
+        const $form = $(this);
+        if ($form.data('busy')) {
+            return;
+        }
+
+        const confirmMsg = $form.data('confirm') || 'Confirmar eliminacion?';
+        if (!window.confirm(confirmMsg)) {
+            return;
+        }
+
+        const $btn = $form.find('button[type="submit"]').first();
+        const $row = $form.closest('tr');
+        const originalHtml = $btn.html();
+        const originalTitle = $btn.attr('title') || '';
+        $form.data('busy', true);
+        $row.addClass('seg-row-deleting');
+        $btn.prop('disabled', true).attr('title', 'Eliminando...').html('<i class="fas fa-spinner fa-spin"></i>');
+
+        $.ajax({
+            url: $form.attr('action'),
+            method: 'POST',
+            data: $form.serialize(),
+            dataType: 'json',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'Accept': 'application/json'
+            }
+        }).done(function (response) {
+            showHubToast('success', 'Proceso completado', (response && response.message) ? response.message : 'Registro eliminado correctamente.');
+            dtAsignados.ajax.reload(null, false);
+            dtRealizados.ajax.reload(null, false);
+            dtAlertas.ajax.reload(null, false);
+            loadIndicadores();
+        }).fail(function (xhr) {
+            let message = 'No fue posible eliminar en este momento.';
+            if (xhr && xhr.responseJSON && xhr.responseJSON.message) {
+                message = xhr.responseJSON.message;
+            }
+            showHubToast('error', 'Error al eliminar', message);
+            $row.removeClass('seg-row-deleting');
+            $form.data('busy', false);
+            $btn.prop('disabled', false).attr('title', originalTitle).html(originalHtml);
+        });
     });
 
     $(document).on('click', '.seg-prestadores-link', function () {

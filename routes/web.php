@@ -150,8 +150,10 @@ Route::middleware('auth')->group(function () {
     Route::post('/ui/mode-tabs', [HomeController::class, 'toggleIframeMode'])->name('ui.iframe.toggle');
     Route::get('/workspace', [HomeController::class, 'workspace'])->name('workspace.index');
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
-    Route::put('/profile', [ProfileController::class, 'updateProfile'])->name('profile.update');
+    Route::put('/profile', [ProfileController::class, 'updateProfile'])->middleware('throttle:20,1')->name('profile.update');
     Route::put('/profile/password', [ProfileController::class, 'updatePassword'])->middleware('throttle:6,1')->name('profile.password.update');
+    Route::post('/profile/email/resend', [ProfileController::class, 'resendEmailChangeConfirmation'])->middleware('throttle:3,1')->name('profile.email.resend');
+    Route::post('/profile/email/cancel', [ProfileController::class, 'cancelEmailChangeRequest'])->middleware('throttle:10,1')->name('profile.email.cancel');
     Route::get('/profile/email/confirm/{token}', [ProfileController::class, 'confirmEmailChange'])->name('profile.email.confirm');
     Route::get('/profile/audit', [ProfileController::class, 'auditIndex'])->name('profile.audit');
     Route::get('/novedades', [NovedadController::class, 'index'])->name('novedades.index');

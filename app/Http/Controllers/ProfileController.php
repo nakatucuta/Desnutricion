@@ -10,6 +10,7 @@ use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
@@ -24,13 +25,7 @@ class ProfileController extends Controller
             ->orderByDesc('id')
             ->limit(8)
             ->get();
-        $pendingEmailChange = ProfileEmailChange::activeForUser((int) $user->id)
-            ->orderByDesc('id')
-            ->first();
-        if ($pendingEmailChange && $pendingEmailChange->expires_at !== null && now()->greaterThan($pendingEmailChange->expires_at)) {
-            $pendingEmailChange->delete();
-            $pendingEmailChange = null;
-        }
+        $pendingEmailChange = $this->getActivePendingEmailChange((int) $user->id);
 
         return view('profile.edit', [
             'user' => $user,
@@ -167,8 +162,18 @@ class ProfileController extends Controller
         }
 
         if ($emailChanged) {
+            $emailChangeThrottleKey = $this->emailChangeThrottleKey((int) $user->id, (string) $request->ip());
+            if (RateLimiter::tooManyAttempts($emailChangeThrottleKey, 5)) {
+                $retryIn = RateLimiter::availableIn($emailChangeThrottleKey);
+
+                return back()->withErrors([
+                    'email' => 'Has superado el limite de solicitudes de cambio de correo. Intenta de nuevo en ' . $retryIn . ' segundos.',
+                ])->withInput();
+            }
+
             [$pendingChange, $rawToken] = $this->createEmailChangeRequest($user, $newEmail, $request);
             $this->sendEmailChangeConfirmationMail($user, $newEmail, $rawToken, $pendingChange->expires_at?->format('Y-m-d H:i:s'));
+            RateLimiter::hit($emailChangeThrottleKey, 3600);
 
             $this->createAudit((int) $user->id, ['email_pending_confirmation'], [
                 'email' => $currentEmail,
@@ -181,6 +186,63 @@ class ProfileController extends Controller
         }
 
         return back()->with('status', implode(' ', $statusMessages));
+    }
+
+    public function resendEmailChangeConfirmation(Request $request)
+    {
+        $user = Auth::user();
+        $pending = $this->getActivePendingEmailChange((int) $user->id);
+        if (!$pending) {
+            return back()->withErrors(['email' => 'No tienes una solicitud pendiente para reenviar.']);
+        }
+
+        $throttleKey = 'profile-email-change-resend:' . (int) $user->id . ':' . (string) $request->ip();
+        if (RateLimiter::tooManyAttempts($throttleKey, 3)) {
+            $retryIn = RateLimiter::availableIn($throttleKey);
+
+            return back()->withErrors([
+                'email' => 'Ya reenviaste demasiadas veces. Intenta de nuevo en ' . $retryIn . ' segundos.',
+            ]);
+        }
+
+        $rawToken = Str::random(64);
+        $pending->token_hash = hash('sha256', $rawToken);
+        $pending->requested_at = now();
+        $pending->expires_at = now()->addHours(24);
+        $pending->requested_ip = (string) ($request->ip() ?? '');
+        $pending->requested_user_agent = substr((string) $request->userAgent(), 0, 255);
+        $pending->save();
+
+        $this->sendEmailChangeConfirmationMail(
+            $user,
+            (string) $pending->new_email,
+            $rawToken,
+            $pending->expires_at?->format('Y-m-d H:i:s')
+        );
+        RateLimiter::hit($throttleKey, 3600);
+
+        return back()->with('status', 'Enlace de confirmacion reenviado correctamente.');
+    }
+
+    public function cancelEmailChangeRequest(Request $request)
+    {
+        $user = Auth::user();
+        $pending = $this->getActivePendingEmailChange((int) $user->id);
+        if (!$pending) {
+            return back()->withErrors(['email' => 'No tienes una solicitud pendiente para cancelar.']);
+        }
+
+        $newEmail = (string) $pending->new_email;
+        $pending->delete();
+        RateLimiter::clear($this->emailChangeThrottleKey((int) $user->id, (string) $request->ip()));
+
+        $this->createAudit((int) $user->id, ['email_change_cancelled'], [
+            'email' => (string) $user->email,
+        ], [
+            'cancelled_new_email' => $newEmail,
+        ], $request);
+
+        return back()->with('status', 'Solicitud de cambio de correo cancelada.');
     }
 
     public function updatePassword(Request $request)
@@ -278,6 +340,7 @@ class ProfileController extends Controller
         ], $request);
 
         $this->sendProfileChangeMail((int) $user->id, $oldEmail, $newEmail, 'Confirmacion de cambio de correo del perfil', ['email']);
+        RateLimiter::clear($this->emailChangeThrottleKey((int) $user->id, (string) $request->ip()));
 
         return redirect()->route('profile.edit')
             ->with('status', 'Correo actualizado y confirmado correctamente.');
@@ -367,6 +430,25 @@ class ProfileController extends Controller
         } catch (\Throwable $e) {
             report($e);
         }
+    }
+
+    private function getActivePendingEmailChange(int $userId): ?ProfileEmailChange
+    {
+        $pending = ProfileEmailChange::activeForUser($userId)
+            ->orderByDesc('id')
+            ->first();
+
+        if ($pending && $pending->expires_at !== null && now()->greaterThan($pending->expires_at)) {
+            $pending->delete();
+            return null;
+        }
+
+        return $pending;
+    }
+
+    private function emailChangeThrottleKey(int $userId, string $ip): string
+    {
+        return 'profile-email-change:' . $userId . ':' . $ip;
     }
 
     private function storeOptimizedProfilePhoto(UploadedFile $file): string

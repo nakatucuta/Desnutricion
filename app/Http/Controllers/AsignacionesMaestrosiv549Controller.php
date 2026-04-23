@@ -292,7 +292,7 @@ class AsignacionesMaestrosiv549Controller extends Controller
             ->with('success', 'Caso asignado correctamente y equipo de prestadores actualizado.');
     }
 
-    public function destroyByAdmin(\App\Models\AsignacionesMaestrosiv549 $asignacion)
+    public function destroyByAdmin(Request $request, \App\Models\AsignacionesMaestrosiv549 $asignacion)
     {
         $this->ensureAdmin();
 
@@ -334,8 +334,15 @@ class AsignacionesMaestrosiv549Controller extends Controller
 
         $asignacion->delete();
 
-        return redirect()->route('seguimientos.index')
-            ->with('success', 'Asignación eliminada y correo enviado a los prestadores asignados.');
+        $message = 'Asignación eliminada y correo enviado a los prestadores asignados.';
+        if ($request->expectsJson() || $request->ajax()) {
+            return response()->json([
+                'ok' => true,
+                'message' => $message,
+            ]);
+        }
+
+        return redirect()->route('seguimientos.index')->with('success', $message);
     }
 
     private function normalizeDate($value): ?string

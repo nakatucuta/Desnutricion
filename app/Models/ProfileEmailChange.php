@@ -9,6 +9,11 @@ class ProfileEmailChange extends Model
 {
     use HasFactory;
 
+    public function getDateFormat()
+    {
+        return 'Ymd H:i:s';
+    }
+
     protected $fillable = [
         'user_id',
         'new_email',

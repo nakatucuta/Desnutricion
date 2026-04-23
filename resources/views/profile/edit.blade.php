@@ -31,8 +31,22 @@
     @endif
     @if(!empty($pendingEmailChange))
         <div class="alert alert-warning">
-            Tienes un cambio de correo pendiente para <strong>{{ $pendingEmailChange->new_email }}</strong>.
-            Revisa tu bandeja y confirma antes de <strong>{{ optional($pendingEmailChange->expires_at)->format('Y-m-d H:i') ?? 'sin limite' }}</strong>.
+            <div class="d-flex flex-wrap align-items-center justify-content-between">
+                <div class="mr-3">
+                    Tienes un cambio de correo pendiente para <strong>{{ $pendingEmailChange->new_email }}</strong>.
+                    Revisa tu bandeja y confirma antes de <strong>{{ optional($pendingEmailChange->expires_at)->format('Y-m-d H:i') ?? 'sin limite' }}</strong>.
+                </div>
+                <div class="d-flex align-items-center mt-2 mt-md-0">
+                    <form method="POST" action="{{ route('profile.email.resend') }}" class="mr-2">
+                        @csrf
+                        <button type="submit" class="btn btn-sm btn-outline-warning">Reenviar enlace</button>
+                    </form>
+                    <form method="POST" action="{{ route('profile.email.cancel') }}" onsubmit="return confirm('Cancelar solicitud pendiente de cambio de correo?');">
+                        @csrf
+                        <button type="submit" class="btn btn-sm btn-outline-danger">Cancelar solicitud</button>
+                    </form>
+                </div>
+            </div>
         </div>
     @endif
 

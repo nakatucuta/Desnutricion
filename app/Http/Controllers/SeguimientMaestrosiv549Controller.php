@@ -90,7 +90,7 @@ class SeguimientMaestrosiv549Controller extends Controller
             ->with('success', 'Seguimiento actualizado correctamente.');
     }
 
-    public function destroy(AsignacionesMaestrosiv549 $asignacion, SeguimientMaestrosiv549 $seguimiento)
+    public function destroy(Request $request, AsignacionesMaestrosiv549 $asignacion, SeguimientMaestrosiv549 $seguimiento)
     {
         $this->authorizeSeguimientoAccess($asignacion, $seguimiento);
         $this->authorizeDelete();
@@ -104,8 +104,15 @@ class SeguimientMaestrosiv549Controller extends Controller
 
         $seguimiento->delete();
 
-        return redirect()->route('seguimientos.index')
-            ->with('success', 'Seguimiento eliminado.');
+        $message = 'Seguimiento eliminado.';
+        if ($request->expectsJson() || $request->ajax()) {
+            return response()->json([
+                'ok' => true,
+                'message' => $message,
+            ]);
+        }
+
+        return redirect()->route('seguimientos.index')->with('success', $message);
     }
 
     private function authorizeAsignacionAccess(AsignacionesMaestrosiv549 $asignacion): void

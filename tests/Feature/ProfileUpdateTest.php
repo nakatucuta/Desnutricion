@@ -173,4 +173,51 @@ class ProfileUpdateTest extends TestCase
             'new_email' => 'nuevo.correo@gmail.com',
         ]);
     }
+
+    public function test_user_can_resend_pending_email_change_confirmation(): void
+    {
+        $user = User::create([
+            'name' => 'Usuario Reenvio',
+            'email' => 'usuario.reenvio@gmail.com',
+            'password' => bcrypt('Secret123!'),
+            'usertype' => 2,
+            'codigohabilitacion' => 'USR006',
+        ]);
+
+        $this->actingAs($user)->put(route('profile.update'), [
+            'name' => 'Usuario Reenvio',
+            'email' => 'nuevo.reenvio@gmail.com',
+            'codigohabilitacion' => 'USR006',
+        ]);
+
+        $response = $this->actingAs($user)->from(route('profile.edit'))->post(route('profile.email.resend'));
+        $response->assertRedirect(route('profile.edit'));
+        $response->assertSessionHas('status', 'Enlace de confirmacion reenviado correctamente.');
+    }
+
+    public function test_user_can_cancel_pending_email_change_request(): void
+    {
+        $user = User::create([
+            'name' => 'Usuario Cancelar',
+            'email' => 'usuario.cancelar@gmail.com',
+            'password' => bcrypt('Secret123!'),
+            'usertype' => 2,
+            'codigohabilitacion' => 'USR007',
+        ]);
+
+        $this->actingAs($user)->put(route('profile.update'), [
+            'name' => 'Usuario Cancelar',
+            'email' => 'nuevo.cancelar@gmail.com',
+            'codigohabilitacion' => 'USR007',
+        ]);
+
+        $response = $this->actingAs($user)->from(route('profile.edit'))->post(route('profile.email.cancel'));
+        $response->assertRedirect(route('profile.edit'));
+        $response->assertSessionHas('status', 'Solicitud de cambio de correo cancelada.');
+
+        $this->assertDatabaseMissing('profile_email_changes', [
+            'user_id' => $user->id,
+            'new_email' => 'nuevo.cancelar@gmail.com',
+        ]);
+    }
 }

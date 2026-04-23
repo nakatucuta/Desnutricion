@@ -167,7 +167,7 @@ class SeguimientosHubController extends Controller
                         $csrf = csrf_field();
                         $method = method_field('DELETE');
                         $html .= '
-                            <form action="'.$delUrl.'" method="POST" style="display:inline-block" onsubmit="return confirm(\'Eliminar asignación? Se notificará por correo a los asignados.\')">
+                            <form action="'.$delUrl.'" method="POST" class="js-delete-async" data-confirm="Eliminar asignacion? Se notificara por correo a los asignados." style="display:inline-block">
                                 '.$csrf.$method.'
                                 <button type="submit" class="btn btn-sm btn-danger ml-1" title="Eliminar asignación">
                                     <i class="fas fa-trash-alt"></i>
@@ -190,7 +190,7 @@ class SeguimientosHubController extends Controller
                         $csrf = csrf_field();
                         $method = method_field('DELETE');
                         $html .= '
-                            <form action="'.$delUrl.'" method="POST" style="display:inline-block" onsubmit="return confirm(\'Eliminar asignación? Se notificará por correo a los asignados.\')">
+                            <form action="'.$delUrl.'" method="POST" class="js-delete-async" data-confirm="Eliminar asignacion? Se notificara por correo a los asignados." style="display:inline-block">
                                 '.$csrf.$method.'
                                 <button type="submit" class="btn btn-sm btn-danger ml-1" title="Eliminar asignación">
                                     <i class="fas fa-trash-alt"></i>
@@ -280,7 +280,7 @@ class SeguimientosHubController extends Controller
                     $csrf = csrf_field();
                     $method = method_field('DELETE');
                     $html .= '
-                        <form action="'.$delUrl.'" method="POST" style="display:inline-block" onsubmit="return confirm(\'Eliminar seguimiento?\')">
+                        <form action="'.$delUrl.'" method="POST" class="js-delete-async" data-confirm="Eliminar seguimiento?" style="display:inline-block">
                             '.$csrf.$method.'
                             <button type="submit" class="btn btn-sm btn-danger" title="Eliminar">
                                 <i class="fas fa-trash-alt"></i>
