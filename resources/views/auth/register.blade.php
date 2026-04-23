@@ -232,6 +232,39 @@
         }
         .invalid{border-color:var(--danger)!important;box-shadow:0 0 0 4px rgba(255,125,141,.18)!important}
         .error{margin-top:6px;color:#ffc2ca;font-size:.79rem}
+        .password-strength{
+            width:100%;
+            height:8px;
+            border-radius:999px;
+            background:rgba(233,243,255,.24);
+            overflow:hidden;
+            margin-top:8px;
+        }
+        .password-strength__bar{
+            width:0%;
+            height:100%;
+            border-radius:999px;
+            transition:width .2s ease, background-color .2s ease;
+            background:#dc3545;
+        }
+        .hint{
+            margin-top:6px;
+            font-size:.79rem;
+            color:#c6d8ea;
+        }
+        .password-checklist{
+            list-style:none;
+            margin:10px 0 14px;
+            padding:0;
+        }
+        .password-checklist li{
+            font-size:.8rem;
+            color:#c3d7ea;
+            margin-bottom:4px;
+        }
+        .password-checklist li i{margin-right:6px}
+        .password-checklist li.is-valid{color:#7ff0b5}
+        .password-checklist li.is-invalid{color:#ffb1bb}
         .btn{
             position:relative;
             width:100%;
@@ -294,7 +327,7 @@
                 <h2>Crear cuenta</h2>
                 <p class="sub">Completa la informacion para registrar un nuevo usuario.</p>
 
-                <form method="POST" action="{{ route('register') }}">
+                <form id="register-form" method="POST" action="{{ route('register') }}">
                     @csrf
 
                     <div class="field">
@@ -329,6 +362,11 @@
                     <div class="field">
                         <label for="password">Contrasena</label>
                         <input id="password" type="password" class="control @error('password') invalid @enderror" name="password" required autocomplete="new-password" placeholder="Crea una contrasena segura">
+                        <div class="password-strength" aria-hidden="true">
+                            <div id="password-strength-bar" class="password-strength__bar"></div>
+                        </div>
+                        <div id="password-strength-label" class="hint">Fortaleza: sin evaluar</div>
+                        <div id="password-live-feedback" class="hint">La contrasena debe cumplir todos los criterios para habilitar el registro.</div>
                         @error('password') <div class="error">{{ $message }}</div> @enderror
                     </div>
 
@@ -338,13 +376,143 @@
                         @error('password_confirmation') <div class="error">{{ $message }}</div> @enderror
                     </div>
 
-                    <button type="submit" class="btn">Registrar usuario</button>
+                    <ul class="password-checklist" id="password-checklist">
+                        <li id="rule-length"><i class="far fa-circle"></i> Minimo 10 caracteres</li>
+                        <li id="rule-upper"><i class="far fa-circle"></i> Al menos una mayuscula</li>
+                        <li id="rule-lower"><i class="far fa-circle"></i> Al menos una minuscula</li>
+                        <li id="rule-number"><i class="far fa-circle"></i> Al menos un numero</li>
+                        <li id="rule-symbol"><i class="far fa-circle"></i> Al menos un simbolo</li>
+                        <li id="rule-space"><i class="far fa-circle"></i> Sin espacios</li>
+                        <li id="rule-match"><i class="far fa-circle"></i> Confirmacion coincide</li>
+                        <li id="rule-code"><i class="far fa-circle"></i> Diferente al codigo de habilitacion</li>
+                    </ul>
+
+                    <button id="register-submit-btn" type="submit" class="btn" disabled aria-disabled="true">Registrar usuario</button>
                 </form>
 
                 <a class="link" href="{{ route('login') }}">Ya tengo cuenta, ir al ingreso</a>
-                <div class="footer">EPS IANAS WAYUU · Rutas Integrales</div>
+                <div class="footer">EPS IANAS WAYUU - Rutas Integrales</div>
             </section>
         </section>
     </main>
+    <script>
+        (function () {
+            const form = document.getElementById('register-form');
+            const passwordInput = document.getElementById('password');
+            const passwordConfirmationInput = document.getElementById('password_confirmation');
+            const codeInput = document.getElementById('codigohabilitacion');
+            const submitBtn = document.getElementById('register-submit-btn');
+            const feedback = document.getElementById('password-live-feedback');
+            const strengthBar = document.getElementById('password-strength-bar');
+            const strengthLabel = document.getElementById('password-strength-label');
+
+            const ruleElements = {
+                length: document.getElementById('rule-length'),
+                upper: document.getElementById('rule-upper'),
+                lower: document.getElementById('rule-lower'),
+                number: document.getElementById('rule-number'),
+                symbol: document.getElementById('rule-symbol'),
+                space: document.getElementById('rule-space'),
+                match: document.getElementById('rule-match'),
+                code: document.getElementById('rule-code')
+            };
+
+            if (!form || !passwordInput || !passwordConfirmationInput || !codeInput || !submitBtn || !feedback || !strengthBar || !strengthLabel) {
+                return;
+            }
+
+            const setRuleState = function (element, isValid, touched) {
+                if (!element) return;
+                element.classList.remove('is-valid', 'is-invalid');
+                const icon = element.querySelector('i');
+
+                if (!touched) {
+                    if (icon) icon.className = 'far fa-circle';
+                    return;
+                }
+
+                if (isValid) {
+                    element.classList.add('is-valid');
+                    if (icon) icon.className = 'fas fa-check-circle';
+                } else {
+                    element.classList.add('is-invalid');
+                    if (icon) icon.className = 'fas fa-times-circle';
+                }
+            };
+
+            const setButtonState = function (isValid) {
+                submitBtn.disabled = !isValid;
+                submitBtn.setAttribute('aria-disabled', !isValid ? 'true' : 'false');
+                submitBtn.style.opacity = isValid ? '1' : '.65';
+                submitBtn.style.cursor = isValid ? 'pointer' : 'not-allowed';
+            };
+
+            const evaluatePassword = function () {
+                const password = passwordInput.value || '';
+                const confirmation = passwordConfirmationInput.value || '';
+                const code = codeInput.value || '';
+                const touched = password.length > 0 || confirmation.length > 0;
+
+                const rules = {
+                    length: password.length >= 10,
+                    upper: /[A-Z]/.test(password),
+                    lower: /[a-z]/.test(password),
+                    number: /\d/.test(password),
+                    symbol: /[^A-Za-z0-9\s]/.test(password),
+                    space: !/\s/.test(password) && password.length > 0,
+                    match: confirmation.length > 0 && password === confirmation,
+                    code: code.length > 0 && password.length > 0 && password !== code
+                };
+
+                Object.keys(rules).forEach(function (key) {
+                    setRuleState(ruleElements[key], rules[key], touched);
+                });
+
+                const passed = Object.values(rules).filter(Boolean).length;
+                const score = Math.round((passed / 8) * 100);
+                strengthBar.style.width = score + '%';
+
+                if (!touched) {
+                    strengthBar.style.backgroundColor = '#dc3545';
+                    strengthLabel.textContent = 'Fortaleza: sin evaluar';
+                    feedback.textContent = 'La contrasena debe cumplir todos los criterios para habilitar el registro.';
+                    setButtonState(false);
+                    return false;
+                }
+
+                if (score < 40) {
+                    strengthBar.style.backgroundColor = '#dc3545';
+                    strengthLabel.textContent = 'Fortaleza: debil';
+                } else if (score < 75) {
+                    strengthBar.style.backgroundColor = '#fd7e14';
+                    strengthLabel.textContent = 'Fortaleza: media';
+                } else {
+                    strengthBar.style.backgroundColor = '#28a745';
+                    strengthLabel.textContent = 'Fortaleza: fuerte';
+                }
+
+                const valid = Object.values(rules).every(Boolean);
+                setButtonState(valid);
+                feedback.textContent = valid
+                    ? 'Contrasena segura. Ya puedes registrar el usuario.'
+                    : 'Aun faltan criterios de seguridad por cumplir.';
+
+                return valid;
+            };
+
+            form.addEventListener('submit', function (event) {
+                if (!evaluatePassword()) {
+                    event.preventDefault();
+                    passwordInput.focus();
+                }
+            });
+
+            passwordInput.addEventListener('input', evaluatePassword);
+            passwordConfirmationInput.addEventListener('input', evaluatePassword);
+            codeInput.addEventListener('input', evaluatePassword);
+            evaluatePassword();
+        })();
+    </script>
 </body>
 </html>
+

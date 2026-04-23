@@ -8,6 +8,7 @@ use App\Models\User;
 use Illuminate\Foundation\Auth\RegistersUsers;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\Rules\Password;
 
 class RegisterController extends Controller
 {
@@ -52,10 +53,27 @@ class RegisterController extends Controller
     {
         return Validator::make($data, [
             'name' => ['required', 'string', 'max:255'],
-            'email' => ['required', 'string', 'email', 'max:255', 'unique:users'],
-            'password' => ['required', 'string', 'min:8', 'confirmed'],
-            'usertype' => ['required'],
-            'codigohabilitacion' => ['required'],
+            'email' => ['required', 'string', 'email:rfc,dns', 'max:255', 'unique:users,email'],
+            'password' => [
+                'required',
+                'string',
+                'confirmed',
+                Password::min(10)->letters()->mixedCase()->numbers()->symbols(),
+                'different:codigohabilitacion',
+            ],
+            'usertype' => ['required', 'in:1,2,3'],
+            'codigohabilitacion' => ['required', 'string', 'max:80'],
+        ], [
+            'name.required' => 'El nombre es obligatorio.',
+            'email.required' => 'El correo es obligatorio.',
+            'email.email' => 'Ingresa un correo valido.',
+            'email.unique' => 'Este correo ya esta en uso.',
+            'password.required' => 'La contrasena es obligatoria.',
+            'password.confirmed' => 'La confirmacion de contrasena no coincide.',
+            'password.different' => 'La contrasena no puede ser igual al codigo de habilitacion.',
+            'usertype.required' => 'Selecciona un tipo de usuario.',
+            'usertype.in' => 'El tipo de usuario seleccionado no es valido.',
+            'codigohabilitacion.required' => 'El codigo de habilitacion es obligatorio.',
         ]);
     }
 
