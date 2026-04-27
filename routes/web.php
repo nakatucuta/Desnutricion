@@ -10,7 +10,7 @@ use App\Http\Controllers\Seguimiento412Controller;
 use App\Http\Controllers\Cargue412Controller;
 use App\Http\Controllers\AfiliadoController;
 use App\Http\Controllers\EmailController;
-use App\Exports\vacunaExport;
+use App\Exports\VacunaExport;
 use Illuminate\Http\Request;
 use App\Http\Controllers\TamizajeController;
 use App\Http\Controllers\TamizajePdfController;
@@ -51,9 +51,7 @@ use App\Http\Controllers\Auth\VerificationController;
 |
 */
 
-Route::get('/', function () {
-    return view('auth/login');
-});
+Route::redirect('/', '/login');
 
 //OJO AQUI COMIENZAN LAS RUTAS  DE PAI
 Route::get('/afiliado', [AfiliadoController::class, 'index'])->name('afiliado')

@@ -10,6 +10,13 @@
     RewriteCond %{HTTP:Authorization} .
     RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
 
+    # Production subdirectory entrypoint fallback.
+    RewriteCond %{REQUEST_URI} ^/rutasintegrales/?$
+    RewriteRule ^$ /rutasintegrales/login [L,R=302]
+
+    # Ensure the application root URL resolves through Laravel front controller.
+    RewriteRule ^$ index.php [L]
+
     # Redirect Trailing Slashes If Not A Folder...
     RewriteCond %{REQUEST_FILENAME} !-d
     RewriteCond %{REQUEST_URI} (.+)/$

@@ -24,14 +24,24 @@ class TamizajeController extends Controller
 
     public function __construct()
     {
-        // Creando una única instancia de Batch_verification al inicio de la importación
+        // Se inicializa de forma diferida para evitar escrituras en DB fuera de la importacion.
+        $this->batch_verifications_id = null;
+    }
+
+    private function ensureBatchVerificationId(): int
+    {
+        if (!empty($this->batch_verifications_id)) {
+            return (int) $this->batch_verifications_id;
+        }
+
         $verificacion = new batch_verifications([
             'fecha_cargue' => Carbon::now(),
         ]);
         $verificacion->save();
 
-        // Almacenar el ID para su uso posterior
-        $this->batch_verifications_id = $verificacion->id;
+        $this->batch_verifications_id = (int) $verificacion->id;
+
+        return $this->batch_verifications_id;
     }
     
     /**
@@ -370,6 +380,8 @@ public function import(Request $request)
         DB::beginTransaction();
 
         try {
+            $this->ensureBatchVerificationId();
+
             foreach (array_slice($rows, $startRow) as $rowIndex => $row) {
                 // Esperamos al menos 6 columnas
                 if (count($row) < 5) {

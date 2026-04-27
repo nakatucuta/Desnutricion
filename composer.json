@@ -33,7 +33,11 @@
             "App\\": "app/",
             "Database\\Factories\\": "database/factories/",
             "Database\\Seeders\\": "database/seeders/"
-        }
+        },
+        "exclude-from-classmap": [
+            "app/Imports/AfiliadoImport - copia.php",
+            "app/Imports/ALTERNATIVA.php"
+        ]
     },
     "autoload-dev": {
         "psr-4": {
