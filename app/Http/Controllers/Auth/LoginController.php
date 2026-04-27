@@ -4,21 +4,24 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Providers\RouteServiceProvider;
-use Illuminate\Foundation\Auth\AuthenticatesUsers;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
 class LoginController extends Controller
 {
-    use AuthenticatesUsers;
-
-    protected $redirectTo = RouteServiceProvider::HOME;
-
     public function username()
     {
         return request()->filled('email') ? 'email' : 'codigohabilitacion';
+    }
+
+    public function showLoginForm()
+    {
+        return view('auth.login');
     }
 
     /**
@@ -69,16 +72,16 @@ class LoginController extends Controller
         $remember = $request->boolean('remember');
 
         if ($request->filled('email')) {
-            return $this->guard()->attempt($this->credentials($request), $remember);
+            return Auth::guard()->attempt($this->credentials($request), $remember);
         }
 
         $loginValue = trim((string) $request->input('codigohabilitacion'));
         $password = (string) $request->input('password');
 
-        return $this->guard()->attempt([
+        return Auth::guard()->attempt([
             'codigohabilitacion' => $loginValue,
             'password' => $password,
-        ], $remember) || $this->guard()->attempt([
+        ], $remember) || Auth::guard()->attempt([
             'name' => $loginValue,
             'password' => $password,
         ], $remember);
@@ -87,18 +90,25 @@ class LoginController extends Controller
     /**
      * Error generico para no revelar si existe o no la cuenta.
      */
-    protected function sendFailedLoginResponse(Request $request)
+    public function login(Request $request): RedirectResponse
     {
-        $this->logAuthEvent('login_failed', $request);
+        $this->validateLogin($request);
 
-        $field = $request->filled('email') ? 'email' : 'codigohabilitacion';
-        $attempts = (int) $this->limiter()->attempts($this->throttleKey($request));
-        $max = (int) $this->maxAttempts();
-        $remaining = max(0, $max - $attempts);
+        if (RateLimiter::tooManyAttempts($this->throttleKey($request), $this->maxAttempts())) {
+            return $this->sendLockoutResponse($request);
+        }
 
-        throw ValidationException::withMessages([
-            $field => [trans('auth.failed') . " Intento {$attempts} de {$max}. Te quedan {$remaining} intento(s) antes del bloqueo."],
-        ]);
+        if ($this->attemptLogin($request)) {
+            $request->session()->regenerate();
+            RateLimiter::clear($this->throttleKey($request));
+            $this->authenticated($request, Auth::user());
+
+            return redirect()->intended(RouteServiceProvider::HOME);
+        }
+
+        RateLimiter::hit($this->throttleKey($request), $this->decayMinutes() * 60);
+
+        return $this->sendFailedLoginResponse($request);
     }
 
     /**
@@ -133,7 +143,7 @@ class LoginController extends Controller
     {
         $this->logAuthEvent('login_lockout', $request);
 
-        $seconds = $this->limiter()->availableIn($this->throttleKey($request));
+        $seconds = RateLimiter::availableIn($this->throttleKey($request));
         $minutes = (int) ceil($seconds / 60);
         $max = (int) $this->maxAttempts();
 
@@ -165,5 +175,28 @@ class LoginController extends Controller
     public function __construct()
     {
         $this->middleware('guest')->except('logout');
+    }
+
+    public function logout(Request $request): RedirectResponse
+    {
+        Auth::guard()->logout();
+        $request->session()->invalidate();
+        $request->session()->regenerateToken();
+
+        return redirect('/');
+    }
+
+    protected function sendFailedLoginResponse(Request $request)
+    {
+        $this->logAuthEvent('login_failed', $request);
+
+        $field = $request->filled('email') ? 'email' : 'codigohabilitacion';
+        $attempts = (int) RateLimiter::attempts($this->throttleKey($request));
+        $max = (int) $this->maxAttempts();
+        $remaining = max(0, $max - $attempts);
+
+        throw ValidationException::withMessages([
+            $field => [trans('auth.failed') . " Intento {$attempts} de {$max}. Te quedan {$remaining} intento(s) antes del bloqueo."],
+        ]);
     }
 }

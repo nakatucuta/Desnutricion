@@ -4,9 +4,12 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Providers\RouteServiceProvider;
-use Illuminate\Foundation\Auth\ResetsPasswords;
+use Illuminate\Auth\Events\PasswordReset;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Password as PasswordFacade;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rules\Password;
 
 class ResetPasswordController extends Controller
@@ -21,16 +24,6 @@ class ResetPasswordController extends Controller
     | explore this trait and override any methods you wish to tweak.
     |
     */
-
-    use ResetsPasswords;
-
-    /**
-     * Where to redirect users after resetting their password.
-     *
-     * @var string
-     */
-    protected $redirectTo = RouteServiceProvider::HOME;
-
     /**
      * Reglas de contrasena fortalecidas para estandar moderno.
      */
@@ -68,5 +61,36 @@ class ResetPasswordController extends Controller
         return back()
             ->withInput($request->only('email'))
             ->withErrors(['email' => [trans($response)]]);
+    }
+
+    public function showResetForm(Request $request, ?string $token = null)
+    {
+        return view('auth.passwords.reset', [
+            'token' => $token,
+            'email' => $request->email,
+        ]);
+    }
+
+    public function reset(Request $request)
+    {
+        $request->validate($this->rules());
+
+        $status = PasswordFacade::broker()->reset(
+            $request->only('email', 'password', 'password_confirmation', 'token'),
+            function ($user, $password) {
+                $user->forceFill([
+                    'password' => Hash::make($password),
+                    'remember_token' => Str::random(60),
+                ])->save();
+
+                event(new PasswordReset($user));
+            }
+        );
+
+        if ($status === PasswordFacade::PASSWORD_RESET) {
+            return $this->sendResetResponse($request, $status);
+        }
+
+        return $this->sendResetFailedResponse($request, $status);
     }
 }
