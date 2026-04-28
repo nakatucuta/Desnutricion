@@ -27,3 +27,20 @@
     RewriteCond %{REQUEST_FILENAME} !-f
     RewriteRule ^ index.php [L]
 </IfModule>
+
+<IfModule mod_setenvif.c>
+    # Vite assets are content-hashed, safe for immutable long-term caching.
+    SetEnvIfNoCase Request_URI "^/rutasintegrales/build/assets/" IS_VITE_ASSET=1
+</IfModule>
+
+<IfModule mod_headers.c>
+    Header append Vary Accept-Encoding
+    Header set Cache-Control "public, max-age=31536000, immutable" env=IS_VITE_ASSET
+</IfModule>
+
+<IfModule mod_deflate.c>
+    <FilesMatch "\\.(?:txt|html?|xml|css|js|json|svg)$">
+        SetOutputFilter DEFLATE
+    </FilesMatch>
+    SetEnvIfNoCase Request_URI "\\.(?:gif|jpe?g|png|webp|avif|ico|woff2?|ttf|otf|eot|zip|gz|mp4|mp3)$" no-gzip
+</IfModule>

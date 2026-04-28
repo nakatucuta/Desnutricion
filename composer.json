@@ -15,6 +15,7 @@
         "maatwebsite/excel": "4.x-dev",
         "nesbot/carbon": "^3.8.4",
         "phpoffice/phpspreadsheet": "^5.3",
+        "predis/predis": "2.3",
         "psr/simple-cache": "^3.0",
         "symfony/mailer": "^7.0",
         "yajra/laravel-datatables-oracle": "^13.0"

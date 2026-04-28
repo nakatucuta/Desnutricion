@@ -24,6 +24,10 @@ class Kernel extends ConsoleKernel
             ->dailyAt('01:20')
             ->timezone($timezone)
             ->withoutOverlapping(60);
+        $schedule->command('redis:health-check')
+            ->everyFiveMinutes()
+            ->timezone($timezone)
+            ->withoutOverlapping(4);
 
         // Ejecuta refresh recientes dos veces al dia y los deja escalonados para no saturar la base.
         $this->scheduleCicloVidaRefresh($schedule, 'primera_infancia', 2, 14, 15, $timezone);
