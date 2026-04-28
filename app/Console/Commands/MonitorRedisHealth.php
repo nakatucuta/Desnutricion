@@ -125,10 +125,10 @@ class MonitorRedisHealth extends Command
         $details['redis_client'] = $redisClient;
 
         if ($cacheDefault !== 'redis') {
-            $issues[] = "cache.default={$cacheDefault} (expected redis)";
+            $issues[] = "cache.default={$cacheDefault} (se esperaba redis)";
         }
         if ($sessionDriver !== 'redis') {
-            $issues[] = "session.driver={$sessionDriver} (expected redis)";
+            $issues[] = "session.driver={$sessionDriver} (se esperaba redis)";
         }
 
         try {
@@ -141,11 +141,11 @@ class MonitorRedisHealth extends Command
                 $normalized = strtoupper(trim((string) $pong, "+ \t\n\r\0\x0B"));
                 $details['redis_ping_ok'] = $normalized === 'PONG';
                 if (!$details['redis_ping_ok']) {
-                    $issues[] = "redis ping unexpected response: {$details['redis_ping_raw']}";
+                    $issues[] = "respuesta inesperada en redis ping: {$details['redis_ping_raw']}";
                 }
             }
         } catch (\Throwable $e) {
-            $issues[] = 'redis ping exception: '.$e->getMessage();
+            $issues[] = 'excepcion en redis ping: '.$e->getMessage();
             $details['redis_ping_ok'] = false;
         }
 
@@ -160,10 +160,10 @@ class MonitorRedisHealth extends Command
             $details['cache_probe_read_match'] = hash_equals($probeValue, $read);
 
             if (!$details['cache_probe_read_match']) {
-                $issues[] = 'cache probe mismatch';
+                $issues[] = 'la verificacion de cache no coincide';
             }
         } catch (\Throwable $e) {
-            $issues[] = 'cache probe exception: '.$e->getMessage();
+            $issues[] = 'excepcion en verificacion de cache: '.$e->getMessage();
             $details['cache_probe_write'] = false;
             $details['cache_probe_read_match'] = false;
         }
@@ -206,21 +206,28 @@ class MonitorRedisHealth extends Command
             'forced_ok', 'forced_failed' => '[PRUEBA]',
             default => '[INFO]',
         };
-        $subject = "{$subjectPrefix} Redis healthcheck - ".config('app.name');
+        $subject = "{$subjectPrefix} Monitoreo Redis - ".config('app.name');
 
-        $issueText = $issues === [] ? 'No issues' : implode(PHP_EOL.'- ', array_merge([''], $issues));
-        $detailText = json_encode($details, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+        $issueText = $issues === [] ? 'Sin problemas detectados.' : implode(PHP_EOL, array_map(fn (string $i) => '- '.$i, $issues));
+        $detailRows = [
+            'Cache por defecto: '.($details['cache_default'] ?? 'n/d'),
+            'Driver de sesion: '.($details['session_driver'] ?? 'n/d'),
+            'Cliente Redis: '.($details['redis_client'] ?? 'n/d'),
+            'Ping Redis OK: '.((($details['redis_ping_ok'] ?? false) === true) ? 'SI' : 'NO'),
+            'Lectura/escritura cache OK: '.((($details['cache_probe_read_match'] ?? false) === true) ? 'SI' : 'NO'),
+        ];
+        $detailText = implode(PHP_EOL, array_map(fn (string $row) => '- '.$row, $detailRows));
 
         $body = implode(PHP_EOL, [
-            "Timestamp: {$now->toDateTimeString()}",
-            "App: ".config('app.name'),
-            "App URL: ".config('app.url'),
-            "Alert kind: {$kind}",
+            "Fecha y hora: {$now->toDateTimeString()}",
+            "Aplicacion: ".config('app.name'),
+            "URL: ".config('app.url'),
+            "Tipo de alerta: ".$this->kindToSpanish($kind),
             '',
-            'Issues:',
+            'Problemas:',
             $issueText,
             '',
-            'Details:',
+            'Detalles:',
             $detailText ?: '{}',
         ]);
 
@@ -232,6 +239,18 @@ class MonitorRedisHealth extends Command
         });
 
         return true;
+    }
+
+    protected function kindToSpanish(string $kind): string
+    {
+        return match ($kind) {
+            'failed' => 'Redis con falla',
+            'failed_reminder' => 'Redis con falla (recordatorio)',
+            'recovered' => 'Redis recuperado',
+            'forced_ok' => 'Prueba manual (estado saludable)',
+            'forced_failed' => 'Prueba manual (estado con falla)',
+            default => 'Informativo',
+        };
     }
 
     protected function parseEmails(string $raw): array
