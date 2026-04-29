@@ -169,6 +169,8 @@ class Cargue412Controller extends Controller
         if ($incomeedit14 !== null) {
             $income12 = DB::table('users')
                 ->select('id', 'name', 'email', 'codigohabilitacion', 'usertype')
+                ->whereNotNull('name')
+                ->whereRaw("LOWER(RTRIM(name)) NOT LIKE ?", ['%[_]ges'])
                 ->where('codigohabilitacion', $incomeedit14->codigo_habilitacion)
                 ->orderBy('name')
                 ->get();
@@ -178,6 +180,7 @@ class Cargue412Controller extends Controller
         $allUsers = DB::table('users')
             ->select('id', 'name', 'email', 'codigohabilitacion', 'usertype')
             ->whereNotNull('name')
+            ->whereRaw("LOWER(RTRIM(name)) NOT LIKE ?", ['%[_]ges'])
             ->orderBy('name')
             ->get();
 
@@ -213,6 +216,18 @@ class Cargue412Controller extends Controller
         ], [
             'required' => 'El campo :attribute es obligatorio.',
         ]);
+
+        $selectedUserName = DB::table('users')
+            ->where('id', $request->user_id)
+            ->value('name');
+
+        if ($selectedUserName !== null && preg_match('/_ges\s*$/i', trim((string) $selectedUserName))) {
+            return back()
+                ->withInput()
+                ->withErrors([
+                    'user_id' => 'No se permite asignar usuarios del modulo gestantes (_ges) en el flujo 412.',
+                ]);
+        }
 
         $before = Cargue412::findOrFail($id);
         $oldAssigned = $before->user_id ? User::find($before->user_id) : null;
