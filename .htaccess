@@ -2,12 +2,13 @@ Options -Indexes
 
 <IfModule mod_rewrite.c>
     RewriteEngine On
-    RewriteBase /
 
-    # Redirigir Desnutricion a Desnutricion/public
-    RewriteCond %{REQUEST_URI} ^/Desnutricion(/.*|$)
-    RewriteRule ^Desnutricion(/.*|$) /Desnutricion/public$1 [L,R=301]
-    
+    # Route all app requests through /public without hardcoded project names.
+    RewriteRule ^$ public/ [L]
+    RewriteCond %{REQUEST_URI} !/public/
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteRule ^(.*)$ public/$1 [L]
 </IfModule>
 
 <FilesMatch "^\.">

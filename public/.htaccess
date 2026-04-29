@@ -10,11 +10,13 @@
     RewriteCond %{HTTP:Authorization} .
     RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
 
-    # Production subdirectory entrypoint fallback.
+    # Environment-aware root redirect:
     RewriteCond %{REQUEST_URI} ^/rutasintegrales/?$
     RewriteRule ^$ /rutasintegrales/login [L,R=302]
+    RewriteCond %{REQUEST_URI} ^/Desnutricion/public/?$
+    RewriteRule ^$ /Desnutricion/public/login [L,R=302]
 
-    # Ensure the application root URL resolves through Laravel front controller.
+    # Default root behavior (e.g. virtualhost pointing directly to /public).
     RewriteRule ^$ index.php [L]
 
     # Redirect Trailing Slashes If Not A Folder...
@@ -31,6 +33,8 @@
 <IfModule mod_setenvif.c>
     # Vite assets are content-hashed, safe for immutable long-term caching.
     SetEnvIfNoCase Request_URI "^/rutasintegrales/build/assets/" IS_VITE_ASSET=1
+    SetEnvIfNoCase Request_URI "^/Desnutricion/public/build/assets/" IS_VITE_ASSET=1
+    SetEnvIfNoCase Request_URI "^/build/assets/" IS_VITE_ASSET=1
 </IfModule>
 
 <IfModule mod_headers.c>

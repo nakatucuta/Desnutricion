@@ -1,3 +1,4 @@
 <?php
-header("Location: /Desnutricion/public");
+// Redirect to Laravel's public entrypoint without hardcoding environment-specific paths.
+header('Location: public/');
 exit;
