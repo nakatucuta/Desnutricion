@@ -32,6 +32,7 @@ use App\Http\Controllers\NovedadController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\Cargue412AuditController;
 use App\Http\Controllers\SivigilaAuditController;
+use App\Http\Controllers\Sivigila114Controller;
 use App\Http\Controllers\SeguimientoInteligenciaController;
 use App\Http\Controllers\Auth\ConfirmPasswordController;
 use App\Http\Controllers\Auth\ForgotPasswordController;
@@ -63,6 +64,16 @@ Route::get('/afiliado/load-state', [AfiliadoController::class, 'paiLoadState'])-
 Route::get('/afiliado/stats-dashboard', [AfiliadoController::class, 'statsDashboard'])->name('afiliado.stats.dashboard')
 ->middleware('auth');
 Route::get('/afiliado/estadisticas', [AfiliadoController::class, 'statsView'])->name('afiliado.stats.view')
+->middleware('auth');
+Route::get('/afiliado/estadisticas/indicadores', [AfiliadoController::class, 'paiIndicadoresIndex'])->name('afiliado.stats.indicadores.index')
+->middleware('auth');
+Route::get('/afiliado/estadisticas/indicadores/data', [AfiliadoController::class, 'paiIndicadoresData'])->name('afiliado.stats.indicadores.data')
+->middleware('auth');
+Route::post('/afiliado/estadisticas/indicadores', [AfiliadoController::class, 'paiIndicadoresStore'])->name('afiliado.stats.indicadores.store')
+->middleware('auth');
+Route::put('/afiliado/estadisticas/indicadores/{id}', [AfiliadoController::class, 'paiIndicadoresUpdate'])->name('afiliado.stats.indicadores.update')
+->middleware('auth');
+Route::delete('/afiliado/estadisticas/indicadores/{id}', [AfiliadoController::class, 'paiIndicadoresDestroy'])->name('afiliado.stats.indicadores.destroy')
 ->middleware('auth');
 
 
@@ -218,6 +229,17 @@ Route::middleware(['auth', \App\Http\Middleware\IncreaseExecutionTime::class])->
          ->name('sivigila.audit.export');
 
     Route::resource('sivigila', SivigilaController::class);
+
+    Route::get('sivigila114/data', [Sivigila114Controller::class, 'data'])
+        ->name('sivigila114.data');
+    Route::post('sivigila114/report-preview', [Sivigila114Controller::class, 'reportPreview'])
+        ->name('sivigila114.report.preview');
+    Route::post('sivigila114/report-export', [Sivigila114Controller::class, 'reportExport'])
+        ->name('sivigila114.report.export');
+    Route::get('sivigila114/{num_ide_}/{fec_not}/create', [Sivigila114Controller::class, 'create'])
+        ->name('sivigila114.create');
+    Route::get('sivigila114', [Sivigila114Controller::class, 'index'])
+        ->name('sivigila114.index');
 });
 
 

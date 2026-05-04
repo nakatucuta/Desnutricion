@@ -1,6 +1,7 @@
 @extends('adminlte::page')
 
 @section('title', 'Anas wayuu')
+@php $eventoActivo = (int) request('evento', 113); @endphp
 
 @section('content_header')
 @include('seguimiento.mensajes')
@@ -12,7 +13,7 @@
         </div>
         <div>
             <span class="seg113-eyebrow">Panel operativo</span>
-            <h1 class="seg113-hero__title">Seguimientos evento 113</h1>
+            <h1 class="seg113-hero__title">Seguimientos evento {{ $eventoActivo }}</h1>
             <p class="seg113-hero__subtitle">
                 Consulta casos abiertos, proximos controles y cierres con una vista tecnologica y alineada al diseno actual.
             </p>
@@ -20,7 +21,7 @@
     </div>
     <div class="seg113-hero__chips">
         <span class="seg113-chip">Monitoreo activo</span>
-        <span class="seg113-chip seg113-chip--ok">Ruta 113</span>
+        <span class="seg113-chip seg113-chip--ok">Ruta {{ $eventoActivo }}</span>
         @include('seguimiento.modal_notificaciones', [
             'conteo' => $novedadesPendientesCount ?? 0,
             'notificacionesPendientes' => $notificacionesPendientes ?? collect(),
@@ -29,7 +30,7 @@
 </div>
 
 <div class="seg113-toolbar">
-    <a href="{{ route('Seguimiento.create') }}" title="Nuevo seguimiento" class="btn seg113-btn seg113-btn--primary">
+    <a href="{{ route('Seguimiento.create', ['evento' => $eventoActivo]) }}" title="Nuevo seguimiento" class="btn seg113-btn seg113-btn--primary">
         <i class="fas fa-plus-circle mr-1"></i> Nuevo seguimiento
     </a>
     <a href="{{ route('seguimientos.inteligencia') }}" class="btn seg113-btn seg113-btn--success">
@@ -43,7 +44,7 @@
             <i class="fas fa-file-export mr-1"></i> Exportar reporte
         </button>
         <div class="dropdown-menu dropdown-menu-right" aria-labelledby="dropdownExport">
-            <a class="dropdown-item" href="{{ route('Seguimiento.report-designer') }}">
+            <a class="dropdown-item" href="{{ route('Seguimiento.report-designer', ['evento' => $eventoActivo]) }}">
                 <i class="fas fa-drafting-compass mr-2 text-primary"></i> Disenador de reporte
             </a>
             <div class="dropdown-divider"></div>

@@ -54,6 +54,7 @@ class SeguimientoController extends Controller
     public function data(Request $request)
     {
         $user = Auth::user();
+        $evento = (int) $request->input('evento', 0);
     
         $query = DB::table('vw_seguimientos')
             ->select([
@@ -69,6 +70,16 @@ class SeguimientoController extends Controller
                 'motivo_reapuertura',
                 'user_id',
             ]);
+
+        if (in_array($evento, [113, 114], true)) {
+            $query->whereExists(function ($sub) use ($evento) {
+                $sub->select(DB::raw(1))
+                    ->from('seguimientos as sg')
+                    ->join('sivigilas as sv', 'sv.id', '=', 'sg.sivigilas_id')
+                    ->whereColumn('sg.id', 'vw_seguimientos.id')
+                    ->where('sv.cod_eve', $evento);
+            });
+        }
     
         // ÃƒÂ¢Ã…â€œÃ¢â‚¬Â¦ FILTRADO DE ACCESO
         if (!in_array($user->usertype, [1, 3])) {
@@ -159,11 +170,18 @@ public function index()
     $user = Auth::user();
     $isAdmin = in_array($user->usertype, [1, 3]);
     $today = Carbon::now()->startOfDay();
+    $evento = (int) request()->input('evento', 113);
+    if (!in_array($evento, [113, 114], true)) {
+        $evento = 113;
+    }
 
     // ABIERTO
-    $conteo = Seguimiento::where('estado', 1)
-                ->when(!$isAdmin, fn($q) => $q->where('user_id', $user->id))
-                ->whereYear('created_at', '>', 2023)
+    $conteo = DB::table('seguimientos as seg')
+                ->join('sivigilas as s', 's.id', '=', 'seg.sivigilas_id')
+                ->where('seg.estado', 1)
+                ->where('s.cod_eve', $evento)
+                ->when(!$isAdmin, fn($q) => $q->where('seg.user_id', $user->id))
+                ->whereYear('seg.created_at', '>', 2023)
                 ->count();
 
     // PRÃƒÆ’Ã¢â‚¬Å“XIMOS
@@ -188,6 +206,7 @@ public function index()
 
         ])
         ->where('seguimientos.estado', 1)
+        ->where('sivigilas.cod_eve', $evento)
         ->when(!$isAdmin, fn($q) => $q->where('seguimientos.user_id', $user->id))
         ->orderBy('seguimientos.created_at', 'desc')
         ->get();
@@ -211,14 +230,21 @@ public function index()
     session(['seguimiento_113_novedades_pendientes' => $novedadesPendientesCount]);
 
     // CERRADOS
-    $cerrados = Seguimiento::where('estado', '!=', 1)
-                ->when(!$isAdmin, fn($q) => $q->where('user_id', $user->id))
-                ->whereYear('created_at', '>', 2023)
+    $cerrados = DB::table('seguimientos as seg')
+                ->join('sivigilas as s', 's.id', '=', 'seg.sivigilas_id')
+                ->where('seg.estado', '!=', 1)
+                ->where('s.cod_eve', $evento)
+                ->when(!$isAdmin, fn($q) => $q->where('seg.user_id', $user->id))
+                ->whereYear('seg.created_at', '>', 2023)
                 ->count();
 
     // Para mantener compatibilidad si la vista usa esta colecciÃƒÆ’Ã‚Â³n
-    $seguimientos = Seguimiento::where('estado', 1)
-                      ->when(!$isAdmin, fn($q) => $q->where('user_id', $user->id))
+    $seguimientos = Seguimiento::query()
+                      ->join('sivigilas as s', 's.id', '=', 'seguimientos.sivigilas_id')
+                      ->where('seguimientos.estado', 1)
+                      ->where('s.cod_eve', $evento)
+                      ->when(!$isAdmin, fn($q) => $q->where('seguimientos.user_id', $user->id))
+                      ->select('seguimientos.*')
                       ->get();
 
     return view('seguimiento.index', compact(
@@ -286,6 +312,10 @@ public function viewPDF($id)
     public function create()
     {
         $yearActual = Carbon::now()->year;
+        $evento = (int) request()->input('evento', 113);
+        if (!in_array($evento, [113, 114], true)) {
+            $evento = 113;
+        }
     
         $incomeedit = DB::table('sivigilas')
             ->select(
@@ -299,6 +329,7 @@ public function viewPDF($id)
             )
             ->where('sivigilas.estado', 1)
             ->where('user_id', Auth::id())
+            ->where('sivigilas.cod_eve', $evento)
             ->whereYear('sivigilas.created_at', '>', 2023)
             ->get();
     
@@ -307,7 +338,7 @@ public function viewPDF($id)
             ->where('codigoDepartamento', 44)
             ->get();
     
-        return view('seguimiento.create', compact('incomeedit','income12'));
+        return view('seguimiento.create', compact('incomeedit','income12','evento'));
     }
 
     // AJAX: devuelve JSON con hasta 30 pacientes buscados
@@ -481,7 +512,7 @@ public function viewPDF($id)
             : 'Seguimiento guardado, pero no se pudo enviar correo.';
 
         return redirect()
-            ->route('Seguimiento.index')
+            ->to(route('Seguimiento.index') . '?evento=' . (int) $request->input('evento', 113))
             ->with($key, $msg);
     }
     /**
@@ -631,7 +662,8 @@ public function viewPDF($id)
         }
 
         // 6) Redirigir
-        return redirect()->route('Seguimiento.index')
+        $eventoOut = (int) ($request->input('evento') ?: optional(Sivigila::find($request->sivigilas_id))->cod_eve ?: 113);
+        return redirect()->to(route('Seguimiento.index') . '?evento=' . $eventoOut)
             ->with('success', 'Seguimiento actualizado correctamente.');
     }
 
@@ -1299,18 +1331,22 @@ public function buscarSeguimiento(Request $request)
 
 public function reportDesigner()
 {
+    $evento = (int) request()->input('evento', 113);
+    if (!in_array($evento, [113, 114], true)) {
+        $evento = 113;
+    }
     $year = (int) now()->year;
     $columns = $this->getReportColumns113();
 
     return view('report_designer.index', [
-        'moduleKey' => '113',
-        'moduleLabel' => 'Seguimiento 113',
+        'moduleKey' => (string) $evento,
+        'moduleLabel' => 'Seguimiento ' . $evento,
         'year' => $year,
         'columns' => $columns,
         'lockedColumns' => ['registro_id', 'documento', 'nombre_paciente'],
-        'previewUrl' => route('Seguimiento.report-preview'),
-        'exportUrl' => route('Seguimiento.report-export'),
-        'backUrl' => route('Seguimiento.index'),
+        'previewUrl' => route('Seguimiento.report-preview', ['evento' => $evento]),
+        'exportUrl' => route('Seguimiento.report-export', ['evento' => $evento]),
+        'backUrl' => route('Seguimiento.index', ['evento' => $evento]),
     ]);
 }
 
@@ -1379,6 +1415,10 @@ private function buildReportPayload113(Request $request, bool $preview): array
     $selected = array_values(array_unique(array_merge($locked, $selected)));
 
     $year = (int) $request->input('anio', now()->year);
+    $evento = (int) $request->input('evento', 113);
+    if (!in_array($evento, [113, 114], true)) {
+        $evento = 113;
+    }
     $status = $request->input('estado', 'all');
     $q = trim((string) $request->input('q', ''));
     $user = Auth::user();
@@ -1412,6 +1452,7 @@ private function buildReportPayload113(Request $request, bool $preview): array
             'seg.created_at as fecha_registro',
         ])
         ->whereYear('seg.created_at', $year)
+        ->where('s.cod_eve', $evento)
         ->when(!in_array($user->usertype, [1, 3]), fn($qq) => $qq->where('seg.user_id', $user->id))
         ->when($status === 'abierto', fn($qq) => $qq->where('seg.estado', 1))
         ->when($status === 'cerrado', fn($qq) => $qq->where('seg.estado', '!=', 1))
@@ -1446,6 +1487,7 @@ private function buildReportPayload113(Request $request, bool $preview): array
         'meta' => [
             'total' => count($dataRows),
             'year' => $year,
+            'evento' => $evento,
             'status' => $status,
             'query' => $q,
         ],

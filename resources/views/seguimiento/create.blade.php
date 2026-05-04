@@ -2,6 +2,7 @@
 @extends('adminlte::page')
 
 @section('title', 'Nuevo Seguimiento')
+@php $eventoActivo = (int) ($evento ?? request('evento', 113)); @endphp
 
 @section('css')
 <link rel="stylesheet" href="/css/admin_custom.css">
@@ -444,7 +445,7 @@
             </div>
             <div>
                 <span class="seg-hero__eyebrow">Modulo de seguimiento nutricional</span>
-                <h1 class="seg-hero__title">Nuevo Seguimiento</h1>
+                <h1 class="seg-hero__title">Nuevo Seguimiento Evento {{ $eventoActivo }}</h1>
                 <p class="seg-hero__subtitle">
                     Registra el control del paciente en una vista renovada, con seleccion inteligente y filtro por anio para trabajar historicos sin perder velocidad.
                 </p>
@@ -460,6 +461,7 @@
     <div class="seg-form-shell">
         <form id="update-form" action="{{ url('Seguimiento') }}" method="POST" enctype="multipart/form-data">
             @csrf
+            <input type="hidden" name="evento" value="{{ $eventoActivo }}">
             @include('seguimiento.form', ['modo' => 'Crear'])
         </form>
     </div>

@@ -1,13 +1,17 @@
 @extends('adminlte::page')
 
-@section('title', 'Asignacion Seguimiento 113')
+@section('title', 'Asignacion Seguimiento 114')
 
 @section('content')
 <div class="container-fluid siv-create-wrap">
     <form id="update-form" action="{{ url('/sivigila') }}" method="post" enctype="multipart/form-data">
         @csrf
-        <input type="hidden" name="redirect_route" value="sivigila.index">
-        @include('sivigila.form', ['modo' => 'Crear'])
+        <input type="hidden" name="redirect_route" value="sivigila114.index">
+        @include('sivigila.form', [
+            'modo' => 'Crear',
+            'eventCode' => 114,
+            'moduleBackUrl' => url('sivigila114'),
+        ])
     </form>
 </div>
 @stop

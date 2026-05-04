@@ -2,6 +2,8 @@
 
 @php
     $registro = $incomeedit1 ?? null;
+    $eventCode = (int) ($eventCode ?? (optional($registro)->cod_eve ?? 113));
+    $moduleBackUrl = $moduleBackUrl ?? url('sivigila');
     $preferidos = collect($income12 ?? []);
     $allPrestadores = collect($incomeedit15 ?? []);
     $prestadores = $preferidos->concat($allPrestadores)->unique('id')->values();
@@ -66,7 +68,7 @@
             <img src="{{ asset('img/logo.png') }}" alt="Escudo institucional">
         </div>
         <div>
-            <div style="font-size:.76rem; text-transform:uppercase; letter-spacing:.08em; font-weight:800; opacity:.92;">Evento 113</div>
+            <div style="font-size:.76rem; text-transform:uppercase; letter-spacing:.08em; font-weight:800; opacity:.92;">Evento {{ $eventCode }}</div>
             <h2>Asignacion y verificacion de paciente</h2>
             <p>Valida la informacion, define prestador y confirma el envio al seguimiento.</p>
         </div>
@@ -249,7 +251,7 @@
         <span id="loading-icon" class="spinner-border spinner-border-sm" role="status" aria-hidden="true" style="display:none;"></span>
         <span id="sending-text" style="display:none;">Enviando correo...</span>
     </button>
-    <a class="btn btn-outline-primary" href="{{ url('sivigila') }}">
+    <a class="btn btn-outline-primary" href="{{ $moduleBackUrl }}">
         <i class="fas fa-arrow-left mr-1"></i> Regresar
     </a>
 </div>

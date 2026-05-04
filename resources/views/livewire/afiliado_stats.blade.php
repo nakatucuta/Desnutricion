@@ -3,17 +3,15 @@
 @section('title', 'PAI - Estadisticas')
 
 @section('content_header')
-<div class="pai-topbar">
-    <div class="pai-brand">
-        <div class="pai-brand__logo">
-            <img src="{{ asset('img/logo.png') }}" alt="Escudo EPS IANAS WAYUU" class="pai-brand__logo-img">
-        </div>
-        <div class="pai-brand__text">
-            <div class="pai-brand__title">Estadisticas PAI</div>
-            <div class="pai-brand__subtitle">Analitica detallada para gestion operativa y gerencial</div>
-        </div>
-    </div>
+<div class="pai-head">
     <div>
+        <h1 class="pai-title mb-1">Estadisticas PAI 2026</h1>
+        <div class="text-muted">Replica dinamica del formato de seguimiento de coberturas</div>
+    </div>
+    <div class="d-flex gap-2">
+        <a href="{{ route('afiliado.stats.indicadores.index') }}" class="btn btn-outline-primary mr-2">
+            <i class="fas fa-database mr-1"></i> Administrar Indicadores
+        </a>
         <a href="{{ route('afiliado') }}" class="btn btn-outline-secondary">
             <i class="fas fa-arrow-left mr-1"></i> Volver a Cargue
         </a>
@@ -23,178 +21,261 @@
 
 @section('content')
 <div class="container-fluid pb-4">
-    @include('livewire.pai_stats_dashboard')
+    <div class="card pai-card">
+        <div class="card-body">
+            <div class="row">
+                <div class="col-lg-2 col-md-4 mb-2">
+                    <label class="small text-muted mb-1">Año</label>
+                    <input type="number" min="2000" max="2100" class="form-control form-control-sm" id="paiYear" value="{{ now()->year }}">
+                </div>
+                <div class="col-lg-2 col-md-4 mb-2">
+                    <label class="small text-muted mb-1">Escala</label>
+                    <select class="form-control form-control-sm" id="paiEscala"></select>
+                </div>
+                <div class="col-lg-2 col-md-4 mb-2">
+                    <label class="small text-muted mb-1">Periodo</label>
+                    <select class="form-control form-control-sm" id="paiPeriodo"></select>
+                </div>
+                <div class="col-lg-2 col-md-4 mb-2">
+                    <label class="small text-muted mb-1">Municipio</label>
+                    <select class="form-control form-control-sm" id="paiMunicipio"></select>
+                </div>
+                <div class="col-lg-2 col-md-4 mb-2">
+                    <label class="small text-muted mb-1">IPS Vacunadora</label>
+                    <select class="form-control form-control-sm" id="paiIps"></select>
+                </div>
+                <div class="col-lg-2 col-md-4 mb-2">
+                    <label class="small text-muted mb-1">Regimen</label>
+                    <select class="form-control form-control-sm" id="paiRegimen"></select>
+                </div>
+            </div>
+
+            <div class="d-flex justify-content-between align-items-center mt-2 flex-wrap">
+                <small class="text-muted mb-2" id="paiMeta">Cargando...</small>
+                <div class="mb-2">
+                    <button class="btn btn-sm btn-outline-secondary" id="paiLimpiar">Limpiar</button>
+                    <button class="btn btn-sm btn-primary" id="paiAplicar">Aplicar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mt-2">
+        <div class="col-md-4 mb-2">
+            <div class="pai-mini">
+                <div class="pai-mini__label">Meta</div>
+                <div class="pai-mini__value" id="kpiMeta">0</div>
+            </div>
+        </div>
+        <div class="col-md-4 mb-2">
+            <div class="pai-mini">
+                <div class="pai-mini__label">Dosis aplicadas</div>
+                <div class="pai-mini__value" id="kpiDosis">0</div>
+            </div>
+        </div>
+        <div class="col-md-4 mb-2">
+            <div class="pai-mini">
+                <div class="pai-mini__label">Susceptibles</div>
+                <div class="pai-mini__value" id="kpiSusceptibles">0</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card pai-card mt-2">
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-sm table-striped table-hover mb-0">
+                    <thead class="pai-table-head">
+                        <tr>
+                            <th>INDICADOR</th>
+                            <th>BIOLOGICOS APLICADOS</th>
+                            <th class="text-right">META</th>
+                            <th class="text-right">DOSIS APLICADAS</th>
+                            <th class="text-right">SUSCEPTIBLES</th>
+                            <th class="text-right">COBERTURA ALCANZADA %</th>
+                            <th>ESTADO</th>
+                        </tr>
+                    </thead>
+                    <tbody id="paiBody"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="card pai-card mt-2">
+        <div class="card-body py-2">
+            <div class="small text-muted">Escala de evaluacion</div>
+            <div class="d-flex flex-wrap gap-2 mt-1" id="paiThresholds"></div>
+        </div>
+    </div>
 </div>
 @stop
 
 @section('css')
-<link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
 <style>
-.pai-topbar{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:12px 4px;margin-bottom:10px;}
-.pai-brand{display:flex;align-items:center;gap:12px;}
-.pai-brand__logo{width:52px;height:52px;border-radius:12px;background:#fff;border:1px solid rgba(15,23,42,.08);display:flex;align-items:center;justify-content:center;}
-.pai-brand__logo-img{width:40px;height:40px;object-fit:contain;}
-.pai-brand__title{font-weight:900;color:#0f172a;line-height:1.1;}
-.pai-brand__subtitle{color:#64748b;font-size:.9rem;}
-
-.pai-card{background:#fff;border:1px solid rgba(15,23,42,.08);border-radius:16px;box-shadow:0 10px 24px rgba(2,6,23,.08);}
-.btn-pai{border-radius:12px;padding:8px 12px;font-weight:700;border:1px solid rgba(15,23,42,.1);}
-.btn-pai-pastel-primary{background:#eaf2ff;border-color:#cfe0ff;color:#1e40af;}
-
-.pai-analytics{border:1px solid rgba(15,23,42,.08);}
-.pai-analytics__head{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:14px 16px;border-bottom:1px solid rgba(15,23,42,.08);background:linear-gradient(180deg, rgba(234,242,255,.75), #fff);}
-.pai-analytics__brand{display:flex;align-items:center;gap:12px;}
-.pai-analytics__logo{width:44px;height:44px;border-radius:10px;object-fit:contain;background:#fff;border:1px solid rgba(15,23,42,.12);padding:4px;}
-.pai-analytics__title{font-weight:900;color:#0f172a;line-height:1.1;}
-.pai-analytics__subtitle{color:#64748b;font-size:.86rem;}
-.pai-analytics__filters{padding:12px 16px 8px;border-bottom:1px solid rgba(15,23,42,.08);background:#fbfdff;}
-.pai-stat-box{background:#fff;border:1px solid rgba(15,23,42,.08);border-radius:12px;padding:10px 12px;min-height:78px;}
-.pai-stat-box .label{font-size:.74rem;text-transform:uppercase;letter-spacing:.35px;color:#64748b;font-weight:800;}
-.pai-stat-box .value{font-size:1.25rem;font-weight:900;color:#0f172a;}
-.pai-stat-box--ok{background:#ecfdf3;border-color:#c8f1d9;}
-.pai-stat-box--bad{background:#fff1f2;border-color:#ffd3d8;}
-.pai-chart-card{background:#fff;border:1px solid rgba(15,23,42,.08);border-radius:14px;padding:12px 12px 8px;height:100%;overflow:hidden;}
-.pai-chart-card__title{font-weight:800;color:#0f172a;font-size:.9rem;margin-bottom:8px;}
-.pai-chart-wrap{position:relative;height:260px;min-height:260px;max-height:260px;}
-.pai-chart-wrap canvas{display:block !important;width:100% !important;height:100% !important;}
-@media (max-width: 992px){
-  .pai-chart-wrap{height:220px;min-height:220px;max-height:220px;}
-}
+.pai-head{display:flex;justify-content:space-between;align-items:center;gap:12px}
+.pai-title{font-weight:900;color:#0f172a}
+.pai-card{border:1px solid rgba(15,23,42,.08);border-radius:14px;box-shadow:0 8px 22px rgba(2,6,23,.05)}
+.pai-mini{background:#fff;border:1px solid rgba(15,23,42,.08);border-radius:12px;padding:12px}
+.pai-mini__label{font-size:.76rem;text-transform:uppercase;color:#64748b;font-weight:800}
+.pai-mini__value{font-size:1.3rem;font-weight:900;color:#0f172a}
+.pai-table-head th{font-size:.74rem;text-transform:uppercase;letter-spacing:.02em;background:#f8fbff;border-top:none}
+.pai-chip{display:inline-block;padding:5px 10px;border-radius:999px;font-size:.78rem;font-weight:700}
+.chip-optimo{background:#dcfce7;color:#166534}
+.chip-util{background:#ecfeff;color:#155e75}
+.chip-bajo{background:#eff6ff;color:#1d4ed8}
+.chip-no-util{background:#fff7ed;color:#9a3412}
+.chip-critica{background:#ffedd5;color:#9a3412}
+.chip-muy-critica{background:#fee2e2;color:#991b1b}
+.chip-sin{background:#f1f5f9;color:#475569}
+.gap-2{gap:.5rem}
 </style>
 @stop
 
 @section('js')
-<meta name="csrf-token" content="{{ csrf_token() }}">
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
-<script>
-window.PAI_STATS_DASHBOARD_URL = @json(route('afiliado.stats.dashboard'));
-</script>
 <script>
 (function(){
-  const url = window.PAI_STATS_DASHBOARD_URL;
-  if (!url || typeof Chart === 'undefined') return;
+    const url = @json(route('afiliado.stats.dashboard'));
+    const num = new Intl.NumberFormat('es-CO');
+    let currentCatalogs = null;
 
-  const numFmt = new Intl.NumberFormat('es-CO');
-  const charts = { municipio:null, prestador:null, biologico:null, trend:null };
+    function selectedVal(id){ return (document.getElementById(id)?.value || '').trim(); }
 
-  function colorPalette(n){
-      const base=['#2563eb','#0ea5e9','#14b8a6','#10b981','#22c55e','#84cc16','#f59e0b','#f97316','#ef4444','#ec4899','#8b5cf6','#6366f1'];
-      const out=[]; for(let i=0;i<n;i++) out.push(base[i%base.length]); return out;
-  }
+    function stateClass(estado){
+        const e = (estado || '').toLowerCase();
+        if (e.includes('óptima') || e.includes('optima')) return 'chip-optimo';
+        if (e.includes('útil') || e.includes('util')) return e.includes('no útil') || e.includes('no util') ? 'chip-no-util' : 'chip-util';
+        if (e.includes('bajo riesgo')) return 'chip-bajo';
+        if (e.includes('crítica') || e.includes('critica')) return e.includes('muy') ? 'chip-muy-critica' : 'chip-critica';
+        if (e.includes('sin reporte')) return 'chip-sin';
+        return 'chip-sin';
+    }
 
-  function getFilters(){
-      return {
-          start_date: ($('#statsStartDate').val() || '').trim(),
-          end_date: ($('#statsEndDate').val() || '').trim(),
-          prestador_id: ($('#statsPrestador').val() || '').trim(),
-          municipio: ($('#statsMunicipio').val() || '').trim(),
-          vacuna_id: ($('#statsVacuna').val() || '').trim(),
-          regimen: ($('#statsRegimen').val() || '').trim(),
-          mode: 'normative'
-      };
-  }
+    function fillSelect(id, options, valueKey = null, textKey = null, selected = ''){
+        const el = document.getElementById(id);
+        if (!el) return;
+        el.innerHTML = '';
+        (options || []).forEach(function(item){
+            const value = valueKey ? String(item[valueKey] ?? '') : String(item ?? '');
+            const text = textKey ? String(item[textKey] ?? value) : String(item ?? '');
+            const op = document.createElement('option');
+            op.value = value;
+            op.textContent = text;
+            if (selected !== '' && String(selected) === value) op.selected = true;
+            el.appendChild(op);
+        });
+        if (selected === '' && el.options.length > 0) el.selectedIndex = 0;
+    }
 
-  function setKpis(k){
-      $('#kpiTotalVacunas').text(numFmt.format(Number(k.total_vacunas || 0)));
-      $('#kpiTotalAfiliados').text(numFmt.format(Number(k.total_afiliados || 0)));
-      $('#kpiTotalPrestadores').text(numFmt.format(Number(k.total_prestadores || 0)));
-      $('#kpiTotalMunicipios').text(numFmt.format(Number(k.total_municipios || 0)));
-      $('#kpiCompleto').text(numFmt.format(Number(k.esquema_completo || 0)));
-      $('#kpiIncompleto').text(numFmt.format(Number(k.esquema_incompleto || 0)));
-  }
+    function periodOptionsForEscala(escala){
+        if (!currentCatalogs || !currentCatalogs.periodos) return [];
+        const p = currentCatalogs.periodos[escala] || {};
+        return Object.keys(p);
+    }
 
-  function setMeta(resp){
-      const source = (resp && resp.kpis && resp.kpis.evaluation_source) ? resp.kpis.evaluation_source : 'normative';
-      const generated = (resp && resp.generated_at) ? resp.generated_at : '';
-      const sourceText = source === 'normative' ? 'Evaluación normativa exacta' : 'Evaluación mixta (fallback esquema_completo)';
-      const r = (resp && resp.range_info) ? resp.range_info : {};
-      const reqStart = r.requested_start || '';
-      const reqEnd = r.requested_end || '';
-      const hasRangeData = !!r.has_data_for_requested_range;
-      const availableMin = r.available_min || '';
-      const availableMax = r.available_max || '';
+    function renderRows(rows){
+        const body = document.getElementById('paiBody');
+        if (!body) return;
+        body.innerHTML = '';
+        (rows || []).forEach(function(r){
+            const tr = document.createElement('tr');
+            const pct = Number(r.cobertura || 0) * 100;
+            tr.innerHTML =
+                '<td>' + (r.indicador || '') + '</td>' +
+                '<td>' + (r.biologico || '') + '</td>' +
+                '<td class="text-right">' + num.format(Number(r.meta || 0)) + '</td>' +
+                '<td class="text-right">' + num.format(Number(r.dosis_aplicadas || 0)) + '</td>' +
+                '<td class="text-right">' + num.format(Number(r.susceptibles || 0)) + '</td>' +
+                '<td class="text-right">' + pct.toFixed(1) + '%</td>' +
+                '<td><span class="pai-chip ' + stateClass(r.estado) + '">' + (r.estado || '') + '</span></td>';
+            body.appendChild(tr);
+        });
+    }
 
-      let msg = sourceText + (generated ? ' | Generado: ' + generated : '');
-      if (reqStart && reqEnd && !hasRangeData) {
-          msg += ' | Sin datos en el rango solicitado. Disponible desde ' + (availableMin || 'N/D') + ' hasta ' + (availableMax || 'N/D') + '.';
-      }
-      $('#paiStatsMeta').text(msg);
-  }
+    function renderThresholds(th){
+        const el = document.getElementById('paiThresholds');
+        if (!el) return;
+        const map = [
+            ['chip-optimo', 'Cobertura Óptima', th?.optima || '>100%'],
+            ['chip-util', 'Cobertura útil', th?.util || '95% - 100%'],
+            ['chip-bajo', 'Cobertura bajo riesgo', th?.bajo_riesgo || '90% - 94.9%'],
+            ['chip-no-util', 'Cobertura no útil', th?.no_util || '80% - 89.9%'],
+            ['chip-critica', 'Cobertura Crítica', th?.critica || '50% - 79.9%'],
+            ['chip-muy-critica', 'Cobertura muy crítica', th?.muy_critica || '<=50%']
+        ];
+        el.innerHTML = map.map(x => '<span class="pai-chip ' + x[0] + '">' + x[1] + ': ' + x[2] + '</span>').join('');
+    }
 
-  function fillCatalogs(resp){
-      const c = (resp && resp.catalogs) ? resp.catalogs : {};
-      function fill($el, items, valueKey, textKey, placeholder){
-          const current = $el.val() || '';
-          $el.empty().append('<option value="">'+placeholder+'</option>');
-          (items || []).forEach(function(it){
-              const val = (it && it[valueKey] !== undefined) ? String(it[valueKey]) : '';
-              const txt = (it && it[textKey] !== undefined) ? String(it[textKey]) : val;
-              $el.append('<option value="'+$('<div>').text(val).html()+'">'+$('<div>').text(txt).html()+'</option>');
-          });
-          if (current) $el.val(current);
-      }
-      fill($('#statsPrestador'), c.prestadores || [], 'id', 'name', 'Todos');
-      fill($('#statsVacuna'), c.vacunas || [], 'id', 'nombre', 'Todos');
-      fill($('#statsMunicipio'), (c.municipios || []).map(m => ({value:m,text:m})), 'value', 'text', 'Todos');
-      fill($('#statsRegimen'), (c.regimenes || []).map(m => ({value:m,text:m})), 'value', 'text', 'Todos');
-  }
+    function load(applyCurrent){
+        const qs = new URLSearchParams();
+        qs.set('year', selectedVal('paiYear') || new Date().getFullYear());
+        if (applyCurrent) {
+            qs.set('municipio', selectedVal('paiMunicipio'));
+            qs.set('ips_id', selectedVal('paiIps'));
+            qs.set('regimen', selectedVal('paiRegimen'));
+            qs.set('escala', selectedVal('paiEscala'));
+            qs.set('periodo', selectedVal('paiPeriodo'));
+        }
 
-  function rows(arr){ return (arr||[]).map(r => ({label:String(r.label ?? 'N/D'), total:Number(r.total ?? 0)})); }
+        document.getElementById('paiMeta').textContent = 'Cargando reporte...';
+        document.getElementById('paiAplicar').disabled = true;
 
-  function upsert(key, type, canvasId, labels, data, extra){
-      const el = document.getElementById(canvasId); if(!el) return;
-      if (charts[key]) { charts[key].data.labels=labels; charts[key].data.datasets[0].data=data; charts[key].update(); return; }
-      charts[key] = new Chart(el, {
-          type: type,
-          data: { labels, datasets:[{ data, backgroundColor: colorPalette(Math.max(data.length,4)), borderColor:'rgba(255,255,255,.8)', borderWidth:1.5, fill:type==='line' }]},
-          options: Object.assign({
-              responsive:true, maintainAspectRatio:false,
-              animation: false,
-              normalized: true,
-              resizeDelay: 120,
-              plugins:{ legend:{display:type==='doughnut'}, tooltip:{callbacks:{label:(ctx)=>' '+numFmt.format(Number(ctx.parsed?.y ?? ctx.parsed ?? 0))}}},
-              scales: type==='doughnut' ? {} : {
-                y:{beginAtZero:true,ticks:{callback:(v)=>numFmt.format(v), maxTicksLimit:6}},
-                x:{ticks:{maxRotation:30,minRotation:0,autoSkip:true,maxTicksLimit:8}}
-              }
-          }, extra || {})
-      });
-  }
+        fetch(url + '?' + qs.toString(), { headers: { 'Accept': 'application/json' } })
+            .then(r => r.json())
+            .then(function(resp){
+                if (!resp || !resp.ok) throw new Error('No se pudo cargar');
 
-  function render(ch){
-      const m=rows(ch.municipios), p=rows(ch.prestadores), b=rows(ch.biologicos), t=rows(ch.trend);
-      upsert('municipio','bar','paiChartMunicipio',m.map(x=>x.label),m.map(x=>x.total));
-      upsert('prestador','bar','paiChartPrestador',p.map(x=>x.label),p.map(x=>x.total));
-      upsert('biologico','bar','paiChartBiologico',b.map(x=>x.label),b.map(x=>x.total));
-      upsert('trend','line','paiChartTrend',t.map(x=>x.label),t.map(x=>x.total),{elements:{line:{tension:.28},point:{radius:3}}});
-  }
+                currentCatalogs = resp.catalogs || null;
+                fillSelect('paiEscala', currentCatalogs?.escalas || [], null, null, resp.filters?.escala || '');
+                const escalaVal = selectedVal('paiEscala');
+                fillSelect('paiPeriodo', periodOptionsForEscala(escalaVal), null, null, resp.filters?.periodo || '');
+                fillSelect('paiMunicipio', currentCatalogs?.municipios || [], null, null, resp.filters?.municipio || '');
+                fillSelect('paiIps', currentCatalogs?.ips || [], 'id', 'name', String(resp.filters?.ips_id || ''));
+                fillSelect('paiRegimen', currentCatalogs?.regimenes || [], null, null, resp.filters?.regimen || '');
 
-  function load(){
-      $('#paiStatsApplyBtn, #paiStatsRefreshBtn').prop('disabled', true);
-      $('#paiStatsMeta').text('Cargando estadísticas...');
-      $.ajax({
-          url, method:'GET', dataType:'json', timeout:20000, data:getFilters(),
-          success:function(resp){
-              if (!resp || !resp.ok) { $('#paiStatsMeta').text('No se pudieron cargar las estadísticas.'); return; }
-              setKpis(resp.kpis || {}); setMeta(resp); fillCatalogs(resp); render(resp.charts || {});
-          },
-          error:function(){ $('#paiStatsMeta').text('Error consultando estadísticas. Intenta de nuevo.'); },
-          complete:function(){ $('#paiStatsApplyBtn, #paiStatsRefreshBtn').prop('disabled', false); }
-      });
-  }
+                const months = (resp.period?.month_labels || []).join(', ');
+                document.getElementById('paiMeta').textContent =
+                    'Periodo: ' + (resp.filters?.periodo || '') +
+                    ' (' + months + ') | Rango: ' + (resp.period?.start_date || '-') + ' a ' + (resp.period?.end_date || '-') +
+                    ' | Meta: ' + (resp.flags?.meta_source || 'N/D') +
+                    ' | Generado: ' + (resp.generated_at || '-');
 
-  $('#paiStatsApplyBtn, #paiStatsRefreshBtn').on('click', function(e){ e.preventDefault(); load(); });
-  $('#paiStatsResetBtn').on('click', function(e){
-      e.preventDefault();
-      $('#statsStartDate,#statsEndDate,#statsPrestador,#statsMunicipio,#statsVacuna,#statsRegimen').val('');
-      load();
-  });
+                if (resp.flags && resp.flags.combo_has_data === false) {
+                    document.getElementById('paiMeta').textContent +=
+                        ' | Sin registros para esta combinacion de Municipio + IPS + Regimen.';
+                }
 
-  $(document).ready(load);
+                document.getElementById('kpiMeta').textContent = num.format(Number(resp.totals?.meta || 0));
+                document.getElementById('kpiDosis').textContent = num.format(Number(resp.totals?.dosis_aplicadas || 0));
+                document.getElementById('kpiSusceptibles').textContent = num.format(Number(resp.totals?.susceptibles || 0));
 
-  // Evita confusión por autocompletado del navegador con fechas sin datos.
-  // El usuario puede elegir fechas manualmente y luego aplicar filtros.
-  $('#statsStartDate, #statsEndDate').attr('autocomplete', 'off');
+                renderRows(resp.rows || []);
+                renderThresholds(resp.thresholds || {});
+            })
+            .catch(function(){
+                document.getElementById('paiMeta').textContent = 'Error consultando las estadisticas PAI.';
+            })
+            .finally(function(){
+                document.getElementById('paiAplicar').disabled = false;
+            });
+    }
+
+    document.getElementById('paiEscala').addEventListener('change', function(){
+        fillSelect('paiPeriodo', periodOptionsForEscala(selectedVal('paiEscala')));
+    });
+
+    document.getElementById('paiAplicar').addEventListener('click', function(e){
+        e.preventDefault();
+        load(true);
+    });
+
+    document.getElementById('paiLimpiar').addEventListener('click', function(e){
+        e.preventDefault();
+        document.getElementById('paiYear').value = new Date().getFullYear();
+        load(false);
+    });
+
+    load(false);
 })();
 </script>
 @stop

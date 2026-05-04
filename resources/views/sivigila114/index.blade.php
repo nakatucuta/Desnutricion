@@ -1,6 +1,6 @@
 @extends('adminlte::page')
 
-@section('title', 'Sivigila 113')
+@section('title', 'Sivigila 114')
 
 @section('content_header')
 @include('sivigila.mensajes')
@@ -8,28 +8,17 @@
     <div class="d-flex align-items-center mb-2">
         <img src="{{ asset('img/logo.png') }}" alt="Escudo empresa" class="aw-logo mr-2">
         <div>
-            <h1 class="m-0 aw-title">Sivigila 113</h1>
+            <h1 class="m-0 aw-title">Sivigila 114</h1>
             <small class="text-muted">Gestion operativa, seguimiento y reportes dinamicos</small>
         </div>
     </div>
     <div class="mb-2 d-flex flex-wrap">
-        <a href="{{ route('sivigila.audit.index') }}" class="btn btn-outline-dark btn-sm mr-2 mb-1">
-            <i class="fas fa-history mr-1"></i> Auditoria
+        <a href="{{ route('sivigila114.index') }}" class="btn btn-outline-dark btn-sm mr-2 mb-1">
+            <i class="fas fa-sync-alt mr-1"></i> Recargar
         </a>
         <button class="btn btn-outline-primary btn-sm mr-2 mb-1" id="btnOpenReportDesigner" data-toggle="modal" data-target="#reportDesignerModalSivigila" onclick="window.openSivigilaReportDesigner && window.openSivigilaReportDesigner(); return false;">
             <i class="fas fa-sliders-h mr-1"></i> Diseñar reporte
         </button>
-        <div class="dropdown mr-2 mb-1">
-            <button class="btn btn-outline-success btn-sm dropdown-toggle" type="button" id="dropdownExportesSivigila" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-                <i class="fas fa-file-export mr-1"></i> Exportar reportes
-            </button>
-            <div class="dropdown-menu dropdown-menu-right shadow-sm" aria-labelledby="dropdownExportesSivigila">
-                <a class="dropdown-item" href="{{ route('export2') }}"><i class="fas fa-file-csv mr-2 text-success"></i> Exportar base (CSV)</a>
-                <a class="dropdown-item" href="{{ route('export4') }}"><i class="fas fa-file-csv mr-2 text-success"></i> S. publica (CSV)</a>
-                <a class="dropdown-item" href="{{ route('export5') }}"><i class="fas fa-file-csv mr-2 text-success"></i> Sin seguimiento (CSV)</a>
-            </div>
-        </div>
-        <a href="{{ route('create11') }}" class="btn btn-success btn-sm mb-1"><i class="fas fa-plus mr-1"></i> Agregar</a>
     </div>
 </div>
 @stop
@@ -39,22 +28,6 @@
     <div class="aw-overlay-card">
         <i class="fas fa-circle-notch fa-spin mr-2"></i>
         <span id="loadingOverlayTextSivigila">Procesando...</span>
-    </div>
-</div>
-
-<div id="exportLoadingOverlaySivigila" class="aw-export-overlay d-none" aria-live="polite" aria-busy="true">
-    <div class="aw-export-card">
-        <div class="aw-export-head">
-            <i class="fas fa-file-csv aw-export-icon"></i>
-            <div>
-                <div class="aw-export-title">Preparando reporte</div>
-                <div id="exportLoadingTextSivigila" class="aw-export-subtitle">Generando archivo, por favor espera...</div>
-            </div>
-        </div>
-        <div class="aw-export-progress">
-            <span class="aw-export-progress-bar"></span>
-        </div>
-        <div class="aw-export-note">No cierres esta ventana mientras termina la descarga.</div>
     </div>
 </div>
 
@@ -155,6 +128,7 @@
                 <thead>
                     <tr>
                         <th>Fecha Notificacion</th>
+                        <th>Evento</th>
                         <th>Semana</th>
                         <th>Tipo ID</th>
                         <th>Identificacion</th>
@@ -231,16 +205,6 @@
 .aw-overlay-card{background:#fff;padding:14px 18px;border-radius:12px;box-shadow:0 12px 24px rgba(0,0,0,.2)}
 #sivigila-table .dropdown-menu .dropdown-item{font-size:.84rem}
 #sivigila-table .btn-outline-primary{border-radius:10px}
-.aw-export-overlay{position:fixed;inset:0;background:rgba(4,20,34,.46);z-index:2200;display:flex;align-items:center;justify-content:center;padding:1rem}
-.aw-export-card{width:min(520px,95vw);background:#fff;border-radius:16px;padding:1rem 1.1rem;box-shadow:0 20px 46px rgba(0,0,0,.28);border:1px solid #dbe8ef}
-.aw-export-head{display:flex;gap:.75rem;align-items:center}
-.aw-export-icon{width:42px;height:42px;border-radius:10px;display:flex;align-items:center;justify-content:center;background:#e8f7ee;color:#16a34a}
-.aw-export-title{font-weight:800;color:#20435a}
-.aw-export-subtitle{font-size:.9rem;color:#4a6677}
-.aw-export-progress{margin-top:.9rem;height:10px;border-radius:999px;background:#e7f0f6;overflow:hidden}
-.aw-export-progress-bar{display:block;height:100%;width:38%;background:linear-gradient(90deg,#16a34a,#22c55e,#16a34a);border-radius:999px;animation:awExportPulse 1.15s ease-in-out infinite}
-.aw-export-note{margin-top:.6rem;font-size:.82rem;color:#5a7482}
-@keyframes awExportPulse{0%{transform:translateX(-90%)}50%{transform:translateX(95%)}100%{transform:translateX(220%)}}
 </style>
 @stop
 
@@ -261,19 +225,6 @@ $(function() {
         if (text) overlayText.text(text);
         overlay.toggleClass('d-none', !on);
     }
-    const exportOverlay = $('#exportLoadingOverlaySivigila');
-    const exportOverlayText = $('#exportLoadingTextSivigila');
-    function setExportLoading(on, text) {
-        if (text) exportOverlayText.text(text);
-        exportOverlay.toggleClass('d-none', !on);
-    }
-    function readCookie(name) {
-        const match = document.cookie.match(new RegExp('(?:^|; )' + name.replace(/[$()*+./?[\\\]^{|}-]/g, '\\$&') + '=([^;]*)'));
-        return match ? decodeURIComponent(match[1]) : null;
-    }
-    function clearCookie(name) {
-        document.cookie = name + '=; Max-Age=0; path=/';
-    }
 
     const table = $('#sivigila-table').DataTable({
         processing: true,
@@ -284,7 +235,7 @@ $(function() {
         searchDelay: 300,
         pageLength: 15,
         ajax: {
-            url: '{{ route("sivigila.data") }}',
+            url: '{{ route("sivigila114.data") }}',
             data: function(d) { Object.assign(d, getFilters()); }
         },
         order: [[0, 'desc']],
@@ -296,16 +247,17 @@ $(function() {
             paginate: { first:'Primero', last:'Ultimo', next:'Siguiente', previous:'Anterior' }
         },
         columns: [
-            { data: 'fec_noti', name: 'v.fec_noti' },
-            { data: 'semana', name: 'v.semana' },
-            { data: 'tip_ide_', name: 'v.tip_ide_' },
-            { data: 'num_ide_', name: 'v.num_ide_' },
+            { data: 'fec_noti', name: 'm.fec_not' },
+            { data: 'cod_eve', name: 'cod_eve' },
+            { data: 'semana', name: 'm.semana' },
+            { data: 'tip_ide_', name: 'm.tip_ide_' },
+            { data: 'num_ide_', name: 'm.num_ide_' },
             {
                 data: null, orderable: false, searchable: false,
                 render: row => [row.pri_nom_, row.seg_nom_, row.pri_ape_, row.seg_ape_].filter(Boolean).join(' ')
             },
-            { data: 'nom_upgd', name: 'v.nom_upgd' },
-            { data: 'procesado_badge', name: 'v.procesado', orderable: false, searchable: false },
+            { data: 'nom_upgd', name: 'm.nom_upgd' },
+            { data: 'procesado_badge', name: 'procesado', orderable: false, searchable: false },
             { data: 'acciones', orderable: false, searchable: false }
         ]
     });
@@ -410,7 +362,7 @@ $(function() {
         }
         setLoading(true, 'Construyendo vista previa...');
         try {
-            const res = await fetch('{{ route("sivigila.report.preview") }}', {
+            const res = await fetch('{{ route("sivigila114.report.preview") }}', {
                 method: 'POST',
                 headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}', 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8' },
                 body: buildBody(false)
@@ -430,7 +382,7 @@ $(function() {
             Swal.fire({ icon:'warning', title:'Selecciona columnas', text:'Debes elegir al menos una variable.' });
             return;
         }
-        const form = $('<form>', { method:'POST', action:'{{ route("sivigila.report.export") }}' });
+        const form = $('<form>', { method:'POST', action:'{{ route("sivigila114.report.export") }}' });
         form.append($('<input>', { type:'hidden', name:'_token', value:'{{ csrf_token() }}' }));
         const filters = getFilters();
         Object.keys(filters).forEach(k => form.append($('<input>', { type:'hidden', name:k, value:filters[k] || '' })));
@@ -495,41 +447,6 @@ $(function() {
     window.openSivigilaReportDesigner = openDesigner;
     $(document).on('click', '#btnOpenReportDesigner', function(e){ e.preventDefault(); openDesigner(); });
     $('#btnCloseReportDesignerSivigila').on('click', closeDesigner);
-
-    $(document).on('click', '#dropdownExportesSivigila + .dropdown-menu .dropdown-item', function (e) {
-        e.preventDefault();
-        const label = ($(this).text() || 'reporte').trim();
-        const href = $(this).attr('href');
-        const token = Date.now().toString(36) + Math.random().toString(36).slice(2);
-        const url = new URL(href, window.location.origin);
-        url.searchParams.set('download_token', token);
-        clearCookie('sivigila_export_done');
-        setExportLoading(true, 'Generando "' + label + '". Esto puede tardar unos segundos...');
-
-        const iframe = document.createElement('iframe');
-        iframe.style.display = 'none';
-        iframe.src = url.toString();
-        document.body.appendChild(iframe);
-
-        const start = Date.now();
-        const maxWaitMs = 120000;
-        const timer = setInterval(() => {
-            const doneToken = readCookie('sivigila_export_done');
-            if (doneToken === token) {
-                clearInterval(timer);
-                clearCookie('sivigila_export_done');
-                setExportLoading(false);
-                setTimeout(() => { try { iframe.remove(); } catch (_) {} }, 500);
-                return;
-            }
-            if (Date.now() - start > maxWaitMs) {
-                clearInterval(timer);
-                setExportLoading(false, 'La descarga puede seguir en proceso. Verifica tu carpeta de descargas.');
-                setTimeout(() => setExportLoading(false), 2500);
-                setTimeout(() => { try { iframe.remove(); } catch (_) {} }, 500);
-            }
-        }, 500);
-    });
 });
 </script>
 @stop

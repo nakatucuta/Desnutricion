@@ -6,6 +6,7 @@
 $(function () {
     let estadoFilter = '';
     let proximoFilter = '';
+    const eventoFilter = new URLSearchParams(window.location.search).get('evento') || '113';
 
     const table = $('#seguimiento').DataTable({
         processing: true,
@@ -16,6 +17,7 @@ $(function () {
                 d.estado = estadoFilter;
                 d.proximo = proximoFilter;
                 d.anio = $('#filtroAnio').val();
+                d.evento = eventoFilter;
             },
             beforeSend: function () {
                 $('#overlay-spinner').fadeIn(150);

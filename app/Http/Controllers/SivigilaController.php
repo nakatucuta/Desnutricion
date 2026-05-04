@@ -752,8 +752,9 @@ public function reportExport(Request $request)
 
         if ($user && $user->email) {
             $loginUrl = url('login');
+            $eventoAsignado = (string) ($sivigila->cod_eve ?? '113');
             $html = 'FAVOR NO CONTESTAR ESTE MENSAJE<br>'
-                  . 'Hola, te acaban de asignar un paciente de desnutrición (EVENTO 113)por parte de la EPSI Anas Wayuu.<br>'
+                  . 'Hola, te acaban de asignar un paciente de desnutrición (EVENTO ' . $eventoAsignado . ') por parte de la EPSI Anas Wayuu.<br>'
                   . 'Por favor, gestiona lo antes posible ingresando al siguiente enlace:<br>'
                   . "<a href=\"{$loginUrl}\">Ingresar al sistema</a>"
                   . $bodyText;
@@ -791,9 +792,12 @@ public function reportExport(Request $request)
         $msg = $mailSent
             ? 'El dato fue agregado y el correo se envió correctamente.'
             : 'El dato fue agregado, pero no se pudo enviar el correo.';
-        return redirect()
-            ->route('sivigila.index')
-            ->with('mensaje', $msg);
+        $redirectRoute = (string) $request->input('redirect_route', 'sivigila.index');
+        if (!in_array($redirectRoute, ['sivigila.index', 'sivigila114.index'], true)) {
+            $redirectRoute = 'sivigila.index';
+        }
+
+        return redirect()->route($redirectRoute)->with('mensaje', $msg);
     }
 
     /**
@@ -1002,14 +1006,34 @@ public function reportExport(Request $request)
 
     public function reporte1()
     {   
-        return Excel::download(new SivigilaExport, 'sivigila.xls');
+        $response = Excel::download(
+            new SivigilaExport,
+            'sivigila_base.csv',
+            ExcelFormat::CSV,
+            ['Content-Type' => 'text/csv; charset=UTF-8']
+        );
+        if (request()->filled('download_token')) {
+            $token = (string) request()->query('download_token');
+            $response->headers->setCookie(cookie('sivigila_export_done', $token, 2, '/'));
+        }
+        return $response;
 
 
     }
 
     public function reSporte2()
     {   
-        return Excel::download(new sivigilaslpExport, 'sivigila.xls');
+        $response = Excel::download(
+            new sivigilaslpExport,
+            'sivigila_salud_publica.csv',
+            ExcelFormat::CSV,
+            ['Content-Type' => 'text/csv; charset=UTF-8']
+        );
+        if (request()->filled('download_token')) {
+            $token = (string) request()->query('download_token');
+            $response->headers->setCookie(cookie('sivigila_export_done', $token, 2, '/'));
+        }
+        return $response;
 
 
     }
@@ -1017,7 +1041,17 @@ public function reportExport(Request $request)
 
     public function reSporte_sinseguimiento()
     {   
-        return Excel::download(new reportesinseguimientos, 'sin_seguimiento.xls');
+        $response = Excel::download(
+            new reportesinseguimientos,
+            'sivigila_sin_seguimiento.csv',
+            ExcelFormat::CSV,
+            ['Content-Type' => 'text/csv; charset=UTF-8']
+        );
+        if (request()->filled('download_token')) {
+            $token = (string) request()->query('download_token');
+            $response->headers->setCookie(cookie('sivigila_export_done', $token, 2, '/'));
+        }
+        return $response;
 
 
     }

@@ -113,7 +113,7 @@ class RevisionController extends Controller
                 ->join('users as u', 'u.id', '=', 'seg.user_id')
                 ->leftJoin('revisions as r', 'r.seguimientos_id', '=', 'seg.id')
                 ->select([
-                    DB::raw("'113' as modulo"),
+                    DB::raw("CASE WHEN s.cod_eve = 114 THEN '114' ELSE '113' END as modulo"),
                     'seg.id as registro_id',
                     's.id as paciente_id',
                     's.num_ide_ as documento',
@@ -156,7 +156,7 @@ class RevisionController extends Controller
 
             $query = DB::query()->fromSub($baseQuery, 'rev');
 
-            if (in_array($modulo, ['113', '412'], true)) {
+            if (in_array($modulo, ['113', '114', '412'], true)) {
                 $query->where('modulo', $modulo);
             }
 
@@ -176,6 +176,9 @@ class RevisionController extends Controller
                 ->addColumn('modulo_badge', function ($r) {
                     if ($r->modulo === '412') {
                         return '<span class="badge badge-info">Seguimiento 412</span>';
+                    }
+                    if ($r->modulo === '114') {
+                        return '<span class="badge badge-warning">Seguimiento 114</span>';
                     }
                     return '<span class="badge badge-primary">Seguimiento 113</span>';
                 })
@@ -212,7 +215,7 @@ class RevisionController extends Controller
                               ->orWhere('fecha_proximo_control', 'like', "%{$search}%")
                               ->orWhereRaw("CASE WHEN CAST(estado as int)=1 THEN 'abierto' ELSE 'cerrado' END like ?", ["%{$search}%"])
                               ->orWhereRaw("CASE WHEN CAST(revisado_flag as int)=1 THEN 'revisado' ELSE 'pendiente' END like ?", ["%{$search}%"])
-                              ->orWhereRaw("CASE WHEN modulo='113' THEN 'seguimiento 113' WHEN modulo='412' THEN 'seguimiento 412' ELSE modulo END like ?", ["%{$search}%"]);
+                              ->orWhereRaw("CASE WHEN modulo='113' THEN 'seguimiento 113' WHEN modulo='114' THEN 'seguimiento 114' WHEN modulo='412' THEN 'seguimiento 412' ELSE modulo END like ?", ["%{$search}%"]);
                         });
                     }
                 })
