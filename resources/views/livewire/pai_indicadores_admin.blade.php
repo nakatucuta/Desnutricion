@@ -6,9 +6,12 @@
 <div class="d-flex justify-content-between align-items-center">
     <div>
         <h1 class="mb-1">Administrar Indicadores PAI 2026</h1>
-        <div class="text-muted">Fuente administrable para metas del reporte de coberturas</div>
+        <div class="text-muted">Fuente administrable para metas del reporte de coberturas (sincronizable desde PROGRAMACION)</div>
     </div>
     <div class="d-flex align-items-center">
+        <button type="button" class="btn btn-outline-success mr-2" id="btnImportProgramacion">
+            <i class="fas fa-file-import mr-1"></i> Importar Programacion
+        </button>
         <button type="button" class="btn btn-outline-info mr-2" data-toggle="modal" data-target="#paiCalcHelpModal">
             <i class="fas fa-calculator mr-1"></i> Como Se Calcula
         </button>
@@ -159,7 +162,7 @@
 
                 <h6 class="mt-3">1) Fuentes de datos</h6>
                 <p class="mb-1"><strong>Meta:</strong> sale primero de esta tabla administrable <code>pai_indicadores_2026</code> (la que alimentas en esta pantalla).</p>
-                <p class="mb-1"><strong>Dosis aplicadas:</strong> se cuentan desde <code>vacunas</code> (join con <code>afiliados</code>) filtrando por año, periodo, municipio, IPS y regimen.</p>
+                <p class="mb-1"><strong>Dosis aplicadas:</strong> se cuentan desde <code>vacunas</code> (join con <code>afiliados</code>) filtrando por año, periodo, municipio, IPS y regimen, con conteo de afiliados unicos por indicador.</p>
                 <p class="mb-1"><strong>Catalogo de biológicos:</strong> se usa <code>referencia_vacunas</code> para mapear IDs de vacuna por indicador.</p>
 
                 <h6 class="mt-3">2) Filtros que afectan el resultado</h6>
@@ -174,7 +177,7 @@ MetaPeriodo = MetaMes * cantidadMesesDelPeriodo</code></pre>
                 <p class="mb-1">Si no hay registro en tabla administrable, el sistema usa fallback (Excel de indicadores / estimacion) segun configuracion.</p>
 
                 <h6 class="mt-3">4) Calculo de DOSIS APLICADAS</h6>
-                <p class="mb-1">Se hace <code>COUNT(v.id)</code> sobre <code>vacunas v</code> con estos filtros:</p>
+                <p class="mb-1">Se hace <code>COUNT(DISTINCT v.afiliado_id)</code> sobre <code>vacunas v</code> con estos filtros:</p>
                 <pre class="bg-light p-2 rounded"><code>where year(v.fecha_vacuna) = anio
 and month(v.fecha_vacuna) in (meses del periodo)
 and municipio afiliado = municipio seleccionado
@@ -216,6 +219,7 @@ Cobertura &gt; 1.00         -> Cobertura Optima</code></pre>
     const routes = {
         data: @json(route('afiliado.stats.indicadores.data')),
         store: @json(route('afiliado.stats.indicadores.store')),
+        importProgramacion: @json(route('afiliado.stats.indicadores.import.programacion')),
         updateBase: @json(url('/afiliado/estadisticas/indicadores')),
         deleteBase: @json(url('/afiliado/estadisticas/indicadores'))
     };
@@ -397,6 +401,38 @@ Cobertura &gt; 1.00         -> Cobertura Optima</code></pre>
 
     document.getElementById('btnLimpiar').addEventListener('click', function(){ clearForm(); msg.textContent=''; });
     document.getElementById('btnRefrescar').addEventListener('click', function(){ load(); });
+    document.getElementById('btnImportProgramacion').addEventListener('click', function(){
+        const year = Number(v('filterYear') || 2026);
+        if (!confirm('Se importara PROGRAMACION para la vigencia ' + year + '. Esto reemplazara los registros de esa vigencia en esta tabla. ¿Continuar?')) {
+            return;
+        }
+
+        msg.textContent = 'Importando programacion...';
+        fetch(routes.importProgramacion, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': csrf,
+                'Accept': 'application/json'
+            },
+            body: JSON.stringify({
+                vigencia: year,
+                replace_year: true
+            })
+        })
+        .then(async r => {
+            const data = await r.json();
+            if (!r.ok || !data.ok) {
+                throw new Error(data.message || 'No se pudo importar programacion');
+            }
+            const res = data.result || {};
+            msg.textContent = 'Importacion completada. Archivos: ' + (res.files_read || 0) + ', filas: ' + (res.rows_built || 0) + ', IPS sin homologar: ' + (res.unmatched_ips_count || 0);
+            load();
+        })
+        .catch(err => {
+            msg.textContent = err.message || 'Error importando programacion.';
+        });
+    });
     clearForm();
     load();
 })();

@@ -29,6 +29,7 @@ use Barryvdh\DomPDF\Facade\Pdf;
 use Yajra\DataTables\Facades\DataTables;
 use PhpOffice\PhpSpreadsheet\IOFactory;
 use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
+use PhpOffice\PhpSpreadsheet\Reader\IReadFilter;
 use App\Services\PaiMvpCoverageService;
 
 
@@ -511,7 +512,8 @@ class AfiliadoController extends Controller
                 $municipio,
                 $ipsId,
                 $regimen,
-                $vaccineIds
+                $vaccineIds,
+                $cutoffDate
             );
 
             $susceptibles = max($metaPeriodo - $dosisAplicadas, 0);
@@ -751,6 +753,437 @@ class AfiliadoController extends Controller
         return response()->json(['ok' => true, 'message' => 'Indicador eliminado.']);
     }
 
+    public function paiIndicadoresImportProgramacion(Request $request)
+    {
+        $this->ensureAdmin();
+        $this->applyReadOptimizations();
+
+        $year = (int) $request->input('vigencia', 2026);
+        if ($year < 2000 || $year > 2100) {
+            $year = 2026;
+        }
+
+        $replaceYear = filter_var($request->input('replace_year', true), FILTER_VALIDATE_BOOLEAN);
+        $root = trim((string) $request->input('root_path', ''));
+        if ($root === '') {
+            $root = $this->paiProgramacionResolveRoot();
+        }
+
+        if ($root === '' || !is_dir($root)) {
+            return response()->json([
+                'ok' => false,
+                'message' => 'No se encontro la carpeta PROGRAMACION. Configure PAI_PROGRAMACION_ROOT o envie root_path valido.',
+            ], 422);
+        }
+
+        try {
+            $result = $this->syncPaiIndicadoresFromProgramacion($root, $year, $replaceYear);
+            return response()->json([
+                'ok' => true,
+                'message' => 'Sincronizacion de programacion completada.',
+                'result' => $result,
+            ]);
+        } catch (\Throwable $e) {
+            Log::error('Error importando programacion PAI', [
+                'root' => $root,
+                'year' => $year,
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'ok' => false,
+                'message' => 'Fallo la sincronizacion: '.$e->getMessage(),
+            ], 500);
+        }
+    }
+
+    private function paiProgramacionResolveRoot(): string
+    {
+        $candidates = [];
+        $env = trim((string) env('PAI_PROGRAMACION_ROOT', ''));
+        if ($env !== '') {
+            $candidates[] = $env;
+        }
+
+        $candidates[] = 'C:\\Users\\jsuarez\\Documents\\FORMATO PAI\\programacion jefatura\\PROGRAMACION';
+        $candidates[] = storage_path('app/public/PROGRAMACION');
+
+        foreach (array_unique($candidates) as $candidate) {
+            if ($candidate !== '' && is_dir($candidate)) {
+                return $candidate;
+            }
+        }
+
+        return '';
+    }
+
+    private function syncPaiIndicadoresFromProgramacion(string $root, int $year, bool $replaceYear): array
+    {
+        $definitions = collect($this->paiIndicatorsDefinition())->keyBy('key')->all();
+        $users = DB::table('users')
+            ->select('id', 'name')
+            ->get()
+            ->map(function ($u) {
+                $name = trim((string) $u->name);
+                return [
+                    'id' => (int) $u->id,
+                    'name' => $name,
+                    'norm' => $this->paiNormalizeText($name),
+                    'cmp' => $this->paiNormalizeIpsComparable($name),
+                ];
+            })
+            ->values()
+            ->all();
+
+        $rows = [];
+        $filesRead = 0;
+        $ignoredFiles = 0;
+        $unmatchedIps = [];
+
+        $sourceFiles = $this->collectProgramacionSourceFiles($root);
+        foreach ($sourceFiles as $filePath) {
+            $workbookRows = $this->parsePaiProgramacionWorkbook($filePath, $root, $definitions);
+            if (empty($workbookRows)) {
+                $ignoredFiles++;
+                continue;
+            }
+
+            $filesRead++;
+            foreach ($workbookRows as $wr) {
+                $ipsExcel = (string) ($wr['ips_nombre_excel'] ?? '');
+                $ipsUserId = null;
+                $ipsNorm = $this->paiNormalizeText($ipsExcel);
+                $ipsCmp = $this->paiNormalizeIpsComparable($ipsExcel);
+                foreach ($users as $u) {
+                    if ($ipsNorm !== '' && ($u['norm'] === $ipsNorm || Str::contains($u['norm'], $ipsNorm) || Str::contains($ipsNorm, $u['norm']))) {
+                        $ipsUserId = (int) $u['id'];
+                        break;
+                    }
+                    if ($ipsCmp !== '' && ($u['cmp'] === $ipsCmp || Str::contains($u['cmp'], $ipsCmp) || Str::contains($ipsCmp, $u['cmp']))) {
+                        $ipsUserId = (int) $u['id'];
+                        break;
+                    }
+                }
+
+                if ($ipsUserId === null && $ipsExcel !== '') {
+                    $unmatchedIps[$ipsExcel] = ($unmatchedIps[$ipsExcel] ?? 0) + 1;
+                }
+
+                $key = implode('|', [
+                    (int) $year,
+                    $this->paiNormalizeText($wr['municipio']),
+                    (string) ($ipsUserId ?? 'NULL'),
+                    $this->paiNormalizeText($wr['regimen']),
+                    $this->paiNormalizeText($wr['indicador']),
+                    $this->paiNormalizeText($wr['biologico']),
+                ]);
+
+                if (!isset($rows[$key])) {
+                    $rows[$key] = [
+                        'vigencia' => $year,
+                        'municipio' => (string) $wr['municipio'],
+                        'ips_user_id' => $ipsUserId,
+                        'ips_nombre_excel' => $ipsExcel !== '' ? $ipsExcel : null,
+                        'regimen' => (string) $wr['regimen'],
+                        'indicador' => (string) $wr['indicador'],
+                        'biologico' => (string) $wr['biologico'],
+                        'poblacion_programada_anual' => (int) $wr['poblacion_programada_anual'],
+                        'fuente' => 'PROGRAMACION JEFATURA',
+                        'observaciones' => (string) ($wr['observaciones'] ?? ''),
+                        'activo' => true,
+                    ];
+                } else {
+                    $rows[$key]['poblacion_programada_anual'] = max(
+                        (int) $rows[$key]['poblacion_programada_anual'],
+                        (int) $wr['poblacion_programada_anual']
+                    );
+                    if ($rows[$key]['ips_user_id'] === null && $ipsUserId !== null) {
+                        $rows[$key]['ips_user_id'] = $ipsUserId;
+                    }
+                    if (empty($rows[$key]['ips_nombre_excel']) && $ipsExcel !== '') {
+                        $rows[$key]['ips_nombre_excel'] = $ipsExcel;
+                    }
+                    $rows[$key]['observaciones'] = trim($rows[$key]['observaciones'].' | '.($wr['observaciones'] ?? ''), ' |');
+                }
+            }
+        }
+
+        $rows = array_values($rows);
+
+        DB::beginTransaction();
+        try {
+            if ($replaceYear) {
+                PaiIndicador2026::query()->where('vigencia', $year)->delete();
+            } else {
+                PaiIndicador2026::query()
+                    ->where('vigencia', $year)
+                    ->where('fuente', 'PROGRAMACION JEFATURA')
+                    ->delete();
+            }
+
+            $now = now();
+            $batch = [];
+            foreach ($rows as $row) {
+                $row['created_at'] = $now;
+                $row['updated_at'] = $now;
+                $batch[] = $row;
+                if (count($batch) >= 120) {
+                    DB::table('pai_indicadores_2026')->insert($batch);
+                    $batch = [];
+                }
+            }
+            if (!empty($batch)) {
+                DB::table('pai_indicadores_2026')->insert($batch);
+            }
+
+            DB::commit();
+        } catch (\Throwable $e) {
+            DB::rollBack();
+            throw $e;
+        }
+
+        arsort($unmatchedIps);
+        return [
+            'root_path' => $root,
+            'vigencia' => $year,
+            'replace_year' => $replaceYear,
+            'files_read' => $filesRead,
+            'files_ignored' => $ignoredFiles,
+            'rows_built' => count($rows),
+            'rows_inserted' => count($rows),
+            'rows_updated' => 0,
+            'unmatched_ips_count' => count($unmatchedIps),
+            'unmatched_ips_sample' => array_slice(array_keys($unmatchedIps), 0, 15),
+        ];
+    }
+
+    private function collectProgramacionSourceFiles(string $root): array
+    {
+        $all = [];
+        $it = new \RecursiveIteratorIterator(
+            new \RecursiveDirectoryIterator($root, \FilesystemIterator::SKIP_DOTS)
+        );
+
+        foreach ($it as $file) {
+            if (!$file instanceof \SplFileInfo || !$file->isFile()) {
+                continue;
+            }
+            $ext = mb_strtolower((string) $file->getExtension(), 'UTF-8');
+            if (!in_array($ext, ['xlsx', 'xlsm', 'xls'], true)) {
+                continue;
+            }
+            if (Str::startsWith((string) $file->getBasename(), '~$')) {
+                continue;
+            }
+
+            $dir = str_replace('\\', '/', (string) $file->getPath());
+            $name = (string) $file->getBasename('.'.$file->getExtension());
+            $all[$dir][] = [
+                'path' => $file->getPathname(),
+                'name_norm' => $this->paiNormalizeText($name),
+            ];
+        }
+
+        $selected = [];
+        foreach ($all as $dirFiles) {
+            $totals = array_values(array_filter($dirFiles, function ($f) {
+                return Str::contains((string) ($f['name_norm'] ?? ''), 'TOTAL');
+            }));
+            $use = !empty($totals) ? $totals : $dirFiles;
+            foreach ($use as $f) {
+                $selected[] = (string) ($f['path'] ?? '');
+            }
+        }
+
+        $selected = array_values(array_filter(array_unique($selected)));
+        sort($selected);
+        return $selected;
+    }
+
+    private function parsePaiProgramacionWorkbook(string $filePath, string $root, array $definitions): array
+    {
+        $rows = [];
+        $municipio = $this->extractProgramacionMunicipioFromPath($filePath, $root);
+        if ($municipio === '') {
+            $municipio = 'SIN MUNICIPIO';
+        }
+
+        $reader = IOFactory::createReaderForFile($filePath);
+        if (method_exists($reader, 'setReadDataOnly')) {
+            $reader->setReadDataOnly(true);
+        }
+        if (method_exists($reader, 'setReadEmptyCells')) {
+            $reader->setReadEmptyCells(false);
+        }
+        if (method_exists($reader, 'setReadFilter')) {
+            $reader->setReadFilter(new class implements IReadFilter {
+                public function readCell($columnAddress, $row, $worksheetName = ''): bool
+                {
+                    if ($row === 7 && $columnAddress === 'A') {
+                        return true;
+                    }
+                    if ($row >= 10 && $row <= 90 && ($columnAddress === 'B' || $columnAddress === 'C')) {
+                        return true;
+                    }
+                    return false;
+                }
+            });
+        }
+
+        if (method_exists($reader, 'listWorksheetNames') && method_exists($reader, 'setLoadSheetsOnly')) {
+            $targets = [];
+            foreach ($reader->listWorksheetNames($filePath) as $candidate) {
+                $norm = $this->normalizeProgramacionSheetName((string) $candidate);
+                if (in_array($norm, ['SUBSIDIADO', 'CONTRIBUTIVO', 'CONSOLIDADO'], true)) {
+                    $targets[] = (string) $candidate;
+                }
+            }
+            if (!empty($targets)) {
+                $reader->setLoadSheetsOnly(array_values(array_unique($targets)));
+            }
+        }
+        $book = $reader->load($filePath);
+
+        foreach ($book->getWorksheetIterator() as $sheet) {
+            $sheetName = (string) $sheet->getTitle();
+            $regimen = $this->normalizeProgramacionSheetName($sheetName);
+            if (!in_array($regimen, ['SUBSIDIADO', 'CONTRIBUTIVO', 'CONSOLIDADO'], true)) {
+                continue;
+            }
+
+            $ipsExcel = trim((string) $sheet->getCell('A7')->getCalculatedValue());
+            if ($ipsExcel === '') {
+                $ipsExcel = pathinfo($filePath, PATHINFO_FILENAME);
+            }
+
+            $vphPopulation = null;
+            for ($r = 10; $r <= 90; $r++) {
+                $biologicoRaw = trim((string) $sheet->getCell("B{$r}")->getCalculatedValue());
+                if ($biologicoRaw === '') {
+                    continue;
+                }
+
+                $population = $this->toIntNullable($sheet->getCell("C{$r}")->getCalculatedValue());
+                if ($population === null) {
+                    continue;
+                }
+
+                $keys = $this->mapProgramacionBiologicoToIndicatorKeys($biologicoRaw);
+                if (empty($keys)) {
+                    continue;
+                }
+
+                if (in_array('vph_f', $keys, true) || in_array('vph_m', $keys, true)) {
+                    $vphPopulation = max((int) $population, 0);
+                }
+
+                foreach ($keys as $k) {
+                    if (!isset($definitions[$k])) {
+                        continue;
+                    }
+                    $def = $definitions[$k];
+                    $value = (int) $population;
+
+                    if ($k === 'vph_f' || $k === 'vph_m') {
+                        $splitF = (int) floor($vphPopulation / 2);
+                        $splitM = (int) ceil($vphPopulation / 2);
+                        $value = $k === 'vph_f' ? $splitF : $splitM;
+                    }
+
+                    $rows[] = [
+                        'municipio' => $municipio,
+                        'ips_nombre_excel' => $ipsExcel,
+                        'regimen' => $regimen,
+                        'indicador' => (string) $def['indicador'],
+                        'biologico' => (string) $def['biologico'],
+                        'poblacion_programada_anual' => max($value, 0),
+                        'observaciones' => 'Archivo: '.$filePath.' | Hoja: '.$sheetName.' | Fila: '.$r,
+                        'source' => $filePath.'#'.$sheetName.'#'.$r,
+                    ];
+                }
+            }
+        }
+
+        return $rows;
+    }
+
+    private function extractProgramacionMunicipioFromPath(string $filePath, string $root): string
+    {
+        $normRoot = str_replace('\\', '/', rtrim($root, '\\/'));
+        $normPath = str_replace('\\', '/', $filePath);
+        if (!Str::startsWith($normPath, $normRoot)) {
+            return '';
+        }
+
+        $relative = trim(Str::after($normPath, $normRoot), '/');
+        $parts = explode('/', $relative);
+        $first = trim((string) ($parts[0] ?? ''));
+        return mb_strtoupper($first, 'UTF-8');
+    }
+
+    private function normalizeProgramacionSheetName(string $name): string
+    {
+        $n = $this->paiNormalizeText($name);
+        if (Str::contains($n, 'SUBSIDI')) {
+            return 'SUBSIDIADO';
+        }
+        if (Str::contains($n, 'CONTRIBUT')) {
+            return 'CONTRIBUTIVO';
+        }
+        if (Str::contains($n, 'CONSOLID')) {
+            return 'CONSOLIDADO';
+        }
+        return $n;
+    }
+
+    private function mapProgramacionBiologicoToIndicatorKeys(string $biologicoRaw): array
+    {
+        $b = $this->paiNormalizeText($biologicoRaw);
+
+        if (Str::contains($b, 'VACUNA BCG')) {
+            return ['bcg'];
+        }
+        if (Str::contains($b, 'PENTAVALENTE MENOR DE 1 ANO')) {
+            return ['penta_3'];
+        }
+        if (Str::contains($b, 'TRIPLE VIRAL') && Str::contains($b, '1 ANO')) {
+            return ['triple_viral_1'];
+        }
+        if (Str::contains($b, 'TRIPLE VIRAL') && Str::contains($b, '18 MESES')) {
+            return ['triple_viral_ref'];
+        }
+        if (Str::contains($b, 'PENTAVALENTE') && Str::contains($b, '18 MESES')) {
+            return ['penta_ref'];
+        }
+        if (Str::contains($b, 'VACUNA DPT') && Str::contains($b, '5 ANOS')) {
+            return ['dpt_ref2'];
+        }
+        if (Str::contains($b, 'DPT ACELULAR') && Str::contains($b, 'GESTANTE')) {
+            return ['tdap_gestante'];
+        }
+        if (Str::contains($b, 'VPH')) {
+            return ['vph_f', 'vph_m'];
+        }
+
+        return [];
+    }
+
+    private function toIntNullable($value): ?int
+    {
+        if ($value === null) {
+            return null;
+        }
+        $s = trim((string) $value);
+        if ($s === '' || $s === '*') {
+            return null;
+        }
+        $s = str_replace([' ', ','], ['', '.'], $s);
+        if (!is_numeric($s)) {
+            return null;
+        }
+        return (int) round((float) $s);
+    }
+
     private function paiIndicadorValidatedPayload(Request $request): array
     {
         $validated = $request->validate([
@@ -905,7 +1338,7 @@ class AfiliadoController extends Controller
                 'biologico' => 'DOSIS UNICA',
                 'vaccine_key' => 'VPH',
                 'population_rule' => '9_to_17_f',
-                'dose_rule' => 'unique',
+                'dose_rule' => 'first_or_unique',
             ],
             [
                 'key' => 'vph_m',
@@ -913,7 +1346,7 @@ class AfiliadoController extends Controller
                 'biologico' => 'DOSIS UNICA',
                 'vaccine_key' => 'VPH',
                 'population_rule' => '9_to_17_m',
-                'dose_rule' => 'unique',
+                'dose_rule' => 'first_or_unique',
             ],
         ];
     }
@@ -1269,7 +1702,8 @@ class AfiliadoController extends Controller
         string $municipio,
         int $ipsId,
         string $regimen,
-        array $vaccineIdsMap
+        array $vaccineIdsMap,
+        string $cutoffDate
     ): int {
         $ids = $vaccineIdsMap[$indicator['vaccine_key']] ?? [];
         if (empty($ids)) {
@@ -1283,6 +1717,7 @@ class AfiliadoController extends Controller
 
         $this->applyPaiCommonFilters($q, $year, $municipio, $ipsId, $regimen, $months);
         $this->applyPaiDoseRule($q, (string) $indicator['dose_rule']);
+        $this->applyPaiPopulationRule($q, (string) $indicator['population_rule'], $cutoffDate);
 
         if (($indicator['key'] ?? '') === 'vph_f') {
             $q->whereRaw("UPPER(LTRIM(RTRIM(ISNULL(a.sexo, '')))) LIKE 'F%'");
@@ -1290,7 +1725,7 @@ class AfiliadoController extends Controller
             $q->whereRaw("UPPER(LTRIM(RTRIM(ISNULL(a.sexo, '')))) LIKE 'M%'");
         }
 
-        return (int) $q->count('v.id');
+        return (int) $q->distinct('v.afiliado_id')->count('v.afiliado_id');
     }
 
     private function applyPaiPopulationRule($query, string $rule, string $cutoffDate): void

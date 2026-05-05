@@ -51,13 +51,26 @@ class Sivigila114Controller extends Controller
             ? Seguimiento::where('estado', 1)->where('user_id', Auth::id())->count()
             : Seguimiento::where('estado', 1)->count();
 
+        $reportColumns = $this->reportColumnCatalog();
+        $defaultReportColumns = [
+            'fec_noti',
+            'semana',
+            'tip_ide_',
+            'num_ide_',
+            'nombres_completos',
+            'nom_upgd',
+            'procesado',
+        ];
+
         return view('sivigila114.index', compact(
             'years',
             'defaultYear',
             'resultados',
             'sivi2',
             'count123',
-            'conteo'
+            'conteo',
+            'reportColumns',
+            'defaultReportColumns'
         ));
     }
 

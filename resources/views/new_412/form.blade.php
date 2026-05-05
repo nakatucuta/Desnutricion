@@ -281,7 +281,8 @@ $(function() {
             processing: true,
             serverSide: true,
             deferRender: true,
-            stateSave: false,
+            stateSave: true,
+            stateDuration: -1,
             searching: false,
             searchDelay: 350,
             pageLength: 10,
@@ -298,6 +299,17 @@ $(function() {
                     const f = getFilters();
                     Object.assign(d, f);
                 }
+            },
+            stateSaveParams: function (settings, data) {
+                data._customFilters412 = getFilters();
+            },
+            stateLoadParams: function (settings, data) {
+                const f = data && data._customFilters412 ? data._customFilters412 : null;
+                if (!f) return;
+                Object.keys(f).forEach(function (name) {
+                    const $el = $('#filtersForm412 [name="' + name + '"]');
+                    if ($el.length) $el.val(f[name]);
+                });
             },
             order: [[1, 'desc']],
             columns: [

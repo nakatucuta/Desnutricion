@@ -71,6 +71,8 @@ Route::get('/afiliado/estadisticas/indicadores/data', [AfiliadoController::class
 ->middleware('auth');
 Route::post('/afiliado/estadisticas/indicadores', [AfiliadoController::class, 'paiIndicadoresStore'])->name('afiliado.stats.indicadores.store')
 ->middleware('auth');
+Route::post('/afiliado/estadisticas/indicadores/importar-programacion', [AfiliadoController::class, 'paiIndicadoresImportProgramacion'])->name('afiliado.stats.indicadores.import.programacion')
+->middleware('auth');
 Route::put('/afiliado/estadisticas/indicadores/{id}', [AfiliadoController::class, 'paiIndicadoresUpdate'])->name('afiliado.stats.indicadores.update')
 ->middleware('auth');
 Route::delete('/afiliado/estadisticas/indicadores/{id}', [AfiliadoController::class, 'paiIndicadoresDestroy'])->name('afiliado.stats.indicadores.destroy')
