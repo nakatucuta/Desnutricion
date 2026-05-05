@@ -14,6 +14,7 @@ use App\Mail\SolicitudMail;
 use App\Models\CorreoEnviado;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Validation\ValidationException;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Storage;
 use App\Models\referencia_vacuna; // Importa el modelo aquí
@@ -22,6 +23,9 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Str; // ✅ ESTE ES EL FIX
 use App\Models\ImportJob;
 use App\Models\PaiIndicador2026;
+use App\Models\PaiIndicadorCatalogo;
+use App\Models\PaiProgramacionMeta;
+use App\Models\PaiProgramacionImportLote;
 use App\Jobs\ImportAfiliadosExcelJob;
   // ✅ ESTE ES EL JOB (cola)
 use ZipArchive;
@@ -467,9 +471,9 @@ class AfiliadoController extends Controller
         $rows = [];
         $usedExcelMeta = false;
         $usedManagedMeta = false;
-        $metaSource = !empty($indicadoresMeta['path']) ? 'Mixto (Tabla + Excel + estimacion)' : 'Mixto (Tabla + estimacion)';
+        $metaSource = !empty($indicadoresMeta['path']) ? 'Mixto (Programacion BD + Excel + estimacion)' : 'Mixto (Programacion BD + estimacion)';
 
-        foreach ($this->paiIndicatorsDefinition() as $indicator) {
+        foreach ($this->paiIndicadoresCatalogRows() as $indicator) {
             $populationAnnual = $this->paiPopulationAnnualFromManagedTable(
                 $indicator,
                 $year,
@@ -580,7 +584,7 @@ class AfiliadoController extends Controller
             'flags' => [
                 'combo_has_data' => $comboCount > 0,
                 'combo_count' => $comboCount,
-                'meta_source' => $usedManagedMeta ? 'Tabla Administrable PAI 2026' : ($usedExcelMeta ? 'INDICADORES PAI 2026 (Excel)' : $metaSource),
+                'meta_source' => $usedManagedMeta ? 'Tabla Programacion PAI (BD)' : ($usedExcelMeta ? 'INDICADORES PAI 2026 (Excel)' : $metaSource),
                 'meta_source_file' => $indicadoresMeta['path'] ?? null,
             ],
             'generated_at' => now()->format('Y-m-d H:i:s'),
@@ -619,15 +623,12 @@ class AfiliadoController extends Controller
             ->pluck('regimen')
             ->values();
 
-        $indicadoresCatalog = collect($this->paiIndicatorsDefinition())
+        $indicadoresCatalog = $this->paiIndicadoresCatalogRows()
             ->map(function ($i) {
                 return [
-                    'indicador' => $i['indicador'],
-                    'biologico' => $i['biologico'],
+                    'indicador' => (string) $i['indicador'],
+                    'biologico' => (string) $i['biologico'],
                 ];
-            })
-            ->unique(function ($i) {
-                return $i['indicador'].'|'.$i['biologico'];
             })
             ->values();
 
@@ -644,9 +645,10 @@ class AfiliadoController extends Controller
         $this->applyReadOptimizations();
 
         $year = (int) $request->input('year', 2026);
-        $query = PaiIndicador2026::query()
-            ->from('pai_indicadores_2026 as p')
+        $query = PaiProgramacionMeta::query()
+            ->from('pai_programacion_metas as p')
             ->leftJoin('users as u', 'u.id', '=', 'p.ips_user_id')
+            ->join('pai_indicadores_catalogo as c', 'c.id', '=', 'p.indicador_catalogo_id')
             ->where('p.vigencia', $year)
             ->select([
                 'p.id',
@@ -654,20 +656,20 @@ class AfiliadoController extends Controller
                 'p.municipio',
                 'p.ips_user_id',
                 'u.name as ips_name',
-                'p.ips_nombre_excel',
+                'p.ips_nombre_fuente as ips_nombre_excel',
                 'p.regimen',
-                'p.indicador',
-                'p.biologico',
+                'c.indicador',
+                'c.biologico',
                 'p.poblacion_programada_anual',
-                'p.fuente',
+                'p.fuente_tipo as fuente',
                 'p.observaciones',
                 'p.activo',
                 'p.updated_at',
             ])
             ->orderBy('p.municipio')
             ->orderBy('u.name')
-            ->orderBy('p.indicador')
-            ->orderBy('p.biologico');
+            ->orderBy('c.indicador')
+            ->orderBy('c.biologico');
 
         if (trim((string) $request->input('municipio', '')) !== '') {
             $municipio = $this->paiNormalizeText($request->input('municipio'));
@@ -710,12 +712,11 @@ class AfiliadoController extends Controller
     {
         $payload = $this->paiIndicadorValidatedPayload($request);
 
-        $existing = PaiIndicador2026::query()
+        $existing = PaiProgramacionMeta::query()
             ->where('vigencia', $payload['vigencia'])
             ->whereRaw("UPPER(LTRIM(RTRIM(municipio))) = ?", [$this->paiNormalizeText($payload['municipio'])])
             ->whereRaw("UPPER(LTRIM(RTRIM(regimen))) = ?", [$this->paiNormalizeText($payload['regimen'])])
-            ->whereRaw("UPPER(LTRIM(RTRIM(indicador))) = ?", [$this->paiNormalizeText($payload['indicador'])])
-            ->whereRaw("UPPER(LTRIM(RTRIM(biologico))) = ?", [$this->paiNormalizeText($payload['biologico'])])
+            ->where('indicador_catalogo_id', (int) $payload['indicador_catalogo_id'])
             ->where(function ($q) use ($payload) {
                 if (!empty($payload['ips_user_id'])) {
                     $q->where('ips_user_id', (int) $payload['ips_user_id']);
@@ -731,14 +732,14 @@ class AfiliadoController extends Controller
             return response()->json(['ok' => true, 'message' => 'Indicador actualizado.', 'id' => (int) $existing->id]);
         }
 
-        $row = PaiIndicador2026::create($payload);
+        $row = PaiProgramacionMeta::create($payload);
         return response()->json(['ok' => true, 'message' => 'Indicador creado.', 'id' => (int) $row->id]);
     }
 
     public function paiIndicadoresUpdate(Request $request, int $id)
     {
         $payload = $this->paiIndicadorValidatedPayload($request);
-        $row = PaiIndicador2026::findOrFail($id);
+        $row = PaiProgramacionMeta::findOrFail($id);
         $row->fill($payload);
         $row->save();
 
@@ -747,7 +748,7 @@ class AfiliadoController extends Controller
 
     public function paiIndicadoresDestroy(int $id)
     {
-        $row = PaiIndicador2026::findOrFail($id);
+        $row = PaiProgramacionMeta::findOrFail($id);
         $row->delete();
 
         return response()->json(['ok' => true, 'message' => 'Indicador eliminado.']);
@@ -819,7 +820,7 @@ class AfiliadoController extends Controller
 
     private function syncPaiIndicadoresFromProgramacion(string $root, int $year, bool $replaceYear): array
     {
-        $definitions = collect($this->paiIndicatorsDefinition())->keyBy('key')->all();
+        $definitions = $this->paiIndicadoresCatalogRows()->keyBy('key')->all();
         $users = DB::table('users')
             ->select('id', 'name')
             ->get()
@@ -874,8 +875,7 @@ class AfiliadoController extends Controller
                     $this->paiNormalizeText($wr['municipio']),
                     (string) ($ipsUserId ?? 'NULL'),
                     $this->paiNormalizeText($wr['regimen']),
-                    $this->paiNormalizeText($wr['indicador']),
-                    $this->paiNormalizeText($wr['biologico']),
+                    (int) ($wr['indicador_catalogo_id'] ?? 0),
                 ]);
 
                 if (!isset($rows[$key])) {
@@ -883,12 +883,14 @@ class AfiliadoController extends Controller
                         'vigencia' => $year,
                         'municipio' => (string) $wr['municipio'],
                         'ips_user_id' => $ipsUserId,
-                        'ips_nombre_excel' => $ipsExcel !== '' ? $ipsExcel : null,
+                        'ips_nombre_fuente' => $ipsExcel !== '' ? $ipsExcel : null,
                         'regimen' => (string) $wr['regimen'],
-                        'indicador' => (string) $wr['indicador'],
-                        'biologico' => (string) $wr['biologico'],
+                        'indicador_catalogo_id' => (int) $wr['indicador_catalogo_id'],
                         'poblacion_programada_anual' => (int) $wr['poblacion_programada_anual'],
-                        'fuente' => 'PROGRAMACION JEFATURA',
+                        'fuente_tipo' => 'EXCEL_PROGRAMACION',
+                        'fuente_archivo' => (string) ($wr['fuente_archivo'] ?? ''),
+                        'fuente_hoja' => (string) ($wr['fuente_hoja'] ?? ''),
+                        'fuente_fila' => !empty($wr['fuente_fila']) ? (int) $wr['fuente_fila'] : null,
                         'observaciones' => (string) ($wr['observaciones'] ?? ''),
                         'activo' => true,
                     ];
@@ -900,8 +902,8 @@ class AfiliadoController extends Controller
                     if ($rows[$key]['ips_user_id'] === null && $ipsUserId !== null) {
                         $rows[$key]['ips_user_id'] = $ipsUserId;
                     }
-                    if (empty($rows[$key]['ips_nombre_excel']) && $ipsExcel !== '') {
-                        $rows[$key]['ips_nombre_excel'] = $ipsExcel;
+                    if (empty($rows[$key]['ips_nombre_fuente']) && $ipsExcel !== '') {
+                        $rows[$key]['ips_nombre_fuente'] = $ipsExcel;
                     }
                     $rows[$key]['observaciones'] = trim($rows[$key]['observaciones'].' | '.($wr['observaciones'] ?? ''), ' |');
                 }
@@ -913,11 +915,11 @@ class AfiliadoController extends Controller
         DB::beginTransaction();
         try {
             if ($replaceYear) {
-                PaiIndicador2026::query()->where('vigencia', $year)->delete();
+                PaiProgramacionMeta::query()->where('vigencia', $year)->delete();
             } else {
-                PaiIndicador2026::query()
+                PaiProgramacionMeta::query()
                     ->where('vigencia', $year)
-                    ->where('fuente', 'PROGRAMACION JEFATURA')
+                    ->where('fuente_tipo', 'EXCEL_PROGRAMACION')
                     ->delete();
             }
 
@@ -928,13 +930,28 @@ class AfiliadoController extends Controller
                 $row['updated_at'] = $now;
                 $batch[] = $row;
                 if (count($batch) >= 120) {
-                    DB::table('pai_indicadores_2026')->insert($batch);
+                    DB::table('pai_programacion_metas')->insert($batch);
                     $batch = [];
                 }
             }
             if (!empty($batch)) {
-                DB::table('pai_indicadores_2026')->insert($batch);
+                DB::table('pai_programacion_metas')->insert($batch);
             }
+
+            PaiProgramacionImportLote::query()->create([
+                'vigencia' => $year,
+                'root_path' => $root,
+                'archivos_procesados' => $filesRead,
+                'registros_cargados' => count($rows),
+                'estado' => 'ok',
+                'detalle' => json_encode([
+                    'replace_year' => $replaceYear,
+                    'files_ignored' => $ignoredFiles,
+                    'unmatched_ips_count' => count($unmatchedIps),
+                    'unmatched_ips_sample' => array_slice(array_keys($unmatchedIps), 0, 15),
+                ], JSON_UNESCAPED_UNICODE),
+                'created_by' => Auth::id(),
+            ]);
 
             DB::commit();
         } catch (\Throwable $e) {
@@ -1094,11 +1111,12 @@ class AfiliadoController extends Controller
                         'municipio' => $municipio,
                         'ips_nombre_excel' => $ipsExcel,
                         'regimen' => $regimen,
-                        'indicador' => (string) $def['indicador'],
-                        'biologico' => (string) $def['biologico'],
+                        'indicador_catalogo_id' => (int) $def['id'],
                         'poblacion_programada_anual' => max($value, 0),
                         'observaciones' => 'Archivo: '.$filePath.' | Hoja: '.$sheetName.' | Fila: '.$r,
-                        'source' => $filePath.'#'.$sheetName.'#'.$r,
+                        'fuente_archivo' => $filePath,
+                        'fuente_hoja' => $sheetName,
+                        'fuente_fila' => $r,
                     ];
                 }
             }
@@ -1200,19 +1218,77 @@ class AfiliadoController extends Controller
             'activo' => 'nullable',
         ]);
 
+        $indicadorNorm = $this->paiNormalizeText($validated['indicador']);
+        $biologicoNorm = $this->paiNormalizeText($validated['biologico']);
+        $catalogoId = PaiIndicadorCatalogo::query()
+            ->where('activo', true)
+            ->get(['id', 'indicador', 'biologico'])
+            ->first(function ($r) use ($indicadorNorm, $biologicoNorm) {
+                return $this->paiNormalizeText((string) $r->indicador) === $indicadorNorm
+                    && $this->paiNormalizeText((string) $r->biologico) === $biologicoNorm;
+            });
+
+        if (!$catalogoId) {
+            throw ValidationException::withMessages([
+                'indicador' => 'Indicador/Biologico no existe en catalogo PAI.',
+            ]);
+        }
+
         return [
             'vigencia' => (int) $validated['vigencia'],
             'municipio' => trim((string) $validated['municipio']),
             'ips_user_id' => !empty($validated['ips_user_id']) ? (int) $validated['ips_user_id'] : null,
-            'ips_nombre_excel' => trim((string) ($validated['ips_nombre_excel'] ?? '')) ?: null,
+            'ips_nombre_fuente' => trim((string) ($validated['ips_nombre_excel'] ?? '')) ?: null,
             'regimen' => trim((string) $validated['regimen']),
-            'indicador' => trim((string) $validated['indicador']),
-            'biologico' => trim((string) $validated['biologico']),
+            'indicador_catalogo_id' => (int) $catalogoId->id,
             'poblacion_programada_anual' => (int) $validated['poblacion_programada_anual'],
-            'fuente' => trim((string) ($validated['fuente'] ?? '')) ?: null,
+            'fuente_tipo' => trim((string) ($validated['fuente'] ?? '')) ?: null,
             'observaciones' => trim((string) ($validated['observaciones'] ?? '')) ?: null,
             'activo' => filter_var($request->input('activo', true), FILTER_VALIDATE_BOOLEAN),
         ];
+    }
+
+    private function paiIndicadoresCatalogRows()
+    {
+        $fromDb = PaiIndicadorCatalogo::query()
+            ->where('activo', true)
+            ->orderBy('orden')
+            ->orderBy('id')
+            ->get([
+                'id',
+                'codigo_key',
+                'indicador',
+                'biologico',
+                'vaccine_key',
+                'population_rule',
+                'dose_rule',
+            ]);
+
+        if ($fromDb->isNotEmpty()) {
+            return $fromDb->map(function ($r) {
+                return [
+                    'id' => (int) $r->id,
+                    'key' => (string) $r->codigo_key,
+                    'indicador' => (string) $r->indicador,
+                    'biologico' => (string) $r->biologico,
+                    'vaccine_key' => (string) ($r->vaccine_key ?? ''),
+                    'population_rule' => (string) ($r->population_rule ?? ''),
+                    'dose_rule' => (string) ($r->dose_rule ?? ''),
+                ];
+            });
+        }
+
+        return collect($this->paiIndicatorsDefinition())->values()->map(function ($d, $idx) {
+            return [
+                'id' => $idx + 1,
+                'key' => (string) ($d['key'] ?? ('k_'.$idx)),
+                'indicador' => (string) ($d['indicador'] ?? ''),
+                'biologico' => (string) ($d['biologico'] ?? ''),
+                'vaccine_key' => (string) ($d['vaccine_key'] ?? ''),
+                'population_rule' => (string) ($d['population_rule'] ?? ''),
+                'dose_rule' => (string) ($d['dose_rule'] ?? ''),
+            ];
+        });
     }
 
     private function paiPeriodCatalog(): array
@@ -1534,14 +1610,26 @@ class AfiliadoController extends Controller
         int $ipsId,
         string $regimen
     ): ?int {
-        $indicador = $this->paiNormalizeText($indicator['indicador'] ?? '');
-        $biologico = $this->paiNormalizeText($indicator['biologico'] ?? '');
         $mun = $this->paiNormalizeText($municipio);
         $reg = $this->paiNormalizeText($regimen);
+        $indicatorKey = (string) ($indicator['key'] ?? '');
+        if ($indicatorKey === '') {
+            return null;
+        }
 
-        $rows = PaiIndicador2026::query()
+        $catalogId = PaiIndicadorCatalogo::query()
+            ->where('activo', true)
+            ->where('codigo_key', $indicatorKey)
+            ->value('id');
+
+        if (!$catalogId) {
+            return null;
+        }
+
+        $rows = PaiProgramacionMeta::query()
             ->where('vigencia', $year)
             ->where('activo', true)
+            ->where('indicador_catalogo_id', (int) $catalogId)
             ->where(function ($q) use ($ipsId) {
                 $q->where('ips_user_id', $ipsId)
                     ->orWhereNull('ips_user_id');
@@ -1550,8 +1638,6 @@ class AfiliadoController extends Controller
                 'ips_user_id',
                 'municipio',
                 'regimen',
-                'indicador',
-                'biologico',
                 'poblacion_programada_anual',
             ]);
 
@@ -1562,12 +1648,6 @@ class AfiliadoController extends Controller
                 continue;
             }
             if ($this->paiNormalizeText($r->regimen) !== $reg) {
-                continue;
-            }
-            if ($this->paiNormalizeText($r->indicador) !== $indicador) {
-                continue;
-            }
-            if ($this->paiNormalizeText($r->biologico) !== $biologico) {
                 continue;
             }
 

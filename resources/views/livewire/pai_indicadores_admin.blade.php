@@ -1,12 +1,12 @@
 @extends('adminlte::page')
 
-@section('title', 'PAI - Indicadores 2026')
+@section('title', 'PAI - Programacion y Metas')
 
 @section('content_header')
 <div class="d-flex justify-content-between align-items-center">
     <div>
-        <h1 class="mb-1">Administrar Indicadores PAI 2026</h1>
-        <div class="text-muted">Fuente administrable para metas del reporte de coberturas (sincronizable desde PROGRAMACION)</div>
+        <h1 class="mb-1">Administrar Programacion PAI</h1>
+        <div class="text-muted">Estructura mantenible de metas por vigencia, municipio, IPS, regimen e indicador</div>
     </div>
     <div class="d-flex align-items-center">
         <button type="button" class="btn btn-outline-success mr-2" id="btnImportProgramacion">
@@ -161,7 +161,7 @@
                 <p class="mb-2"><strong>Objetivo:</strong> explicar de donde salen <strong>Meta</strong>, <strong>Dosis aplicadas</strong>, <strong>Susceptibles</strong>, <strong>Cobertura</strong> y <strong>Estado</strong>.</p>
 
                 <h6 class="mt-3">1) Fuentes de datos</h6>
-                <p class="mb-1"><strong>Meta:</strong> sale primero de esta tabla administrable <code>pai_indicadores_2026</code> (la que alimentas en esta pantalla).</p>
+                <p class="mb-1"><strong>Meta:</strong> sale primero de tablas estructuradas <code>pai_programacion_metas</code> + <code>pai_indicadores_catalogo</code> (administrables desde este modulo).</p>
                 <p class="mb-1"><strong>Dosis aplicadas:</strong> se cuentan desde <code>vacunas</code> (join con <code>afiliados</code>) filtrando por año, periodo, municipio, IPS y regimen, con conteo de afiliados unicos por indicador.</p>
                 <p class="mb-1"><strong>Catalogo de biológicos:</strong> se usa <code>referencia_vacunas</code> para mapear IDs de vacuna por indicador.</p>
 
@@ -171,7 +171,7 @@
 
                 <h6 class="mt-3">3) Calculo de META por indicador</h6>
                 <p class="mb-1">Para cada fila (Indicador + Biologico):</p>
-                <pre class="bg-light p-2 rounded"><code>PoblacionProgramadaAnual = valor en pai_indicadores_2026
+                <pre class="bg-light p-2 rounded"><code>PoblacionProgramadaAnual = valor en pai_programacion_metas
 MetaMes = round(PoblacionProgramadaAnual / 12)
 MetaPeriodo = MetaMes * cantidadMesesDelPeriodo</code></pre>
                 <p class="mb-1">Si no hay registro en tabla administrable, el sistema usa fallback (Excel de indicadores / estimacion) segun configuracion.</p>
@@ -201,7 +201,7 @@ Cobertura = (MetaPeriodo &gt; 0) ? (DosisAplicadas / MetaPeriodo) : 0</code></pr
 Cobertura &gt; 1.00         -> Cobertura Optima</code></pre>
 
                 <h6 class="mt-3">7) Recomendacion de calidad de datos</h6>
-                <p class="mb-0">Para resultados estables, mantén completa la tabla <code>pai_indicadores_2026</code> por cada combinacion de Municipio + IPS + Regimen + Indicador + Biologico de la vigencia.</p>
+                <p class="mb-0">Para resultados estables, mantén completa la tabla <code>pai_programacion_metas</code> por cada combinacion de Vigencia + Municipio + IPS + Regimen + Indicador.</p>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-dismiss="modal">Cerrar</button>
