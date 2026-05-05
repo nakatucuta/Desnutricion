@@ -62,7 +62,7 @@
                         </datalist>
                     </div>
                     <div class="col-md-2 mb-2">
-                        <label class="small text-muted mb-1">Poblacion anual</label>
+                        <label class="small text-muted mb-1">Poblacion anual (Meta anual)</label>
                         <input type="number" class="form-control form-control-sm" id="poblacion_programada_anual" min="0" required>
                     </div>
                 </div>
@@ -113,6 +113,9 @@
                 </div>
             </form>
             <small class="text-muted" id="paiIndicMsg"></small>
+            <div class="small text-muted mt-2">
+                Nota: este valor corresponde a la <strong>Meta anual</strong>. En Estadisticas PAI se convierte a meta del periodo segun escala (mensual, trimestral, semestral, etc.).
+            </div>
         </div>
     </div>
 
@@ -136,7 +139,7 @@
                             <th>Regimen</th>
                             <th>Indicador</th>
                             <th>Biologico</th>
-                            <th class="text-right">Poblacion</th>
+                            <th class="text-right">Poblacion (Meta anual)</th>
                             <th>Activo</th>
                             <th>Acciones</th>
                         </tr>
@@ -161,7 +164,7 @@
                 <p class="mb-2"><strong>Objetivo:</strong> explicar de donde salen <strong>Meta</strong>, <strong>Dosis aplicadas</strong>, <strong>Susceptibles</strong>, <strong>Cobertura</strong> y <strong>Estado</strong>.</p>
 
                 <h6 class="mt-3">1) Fuentes de datos</h6>
-                <p class="mb-1"><strong>Meta:</strong> sale primero de tablas estructuradas <code>pai_programacion_metas</code> + <code>pai_indicadores_catalogo</code> (administrables desde este modulo).</p>
+                <p class="mb-1"><strong>Meta anual:</strong> sale primero de tablas estructuradas <code>pai_programacion_metas</code> + <code>pai_indicadores_catalogo</code> (administrables desde este modulo).</p>
                 <p class="mb-1"><strong>Dosis aplicadas:</strong> se cuentan desde <code>vacunas</code> (join con <code>afiliados</code>) filtrando por año, periodo, municipio, IPS y regimen, con conteo de afiliados unicos por indicador.</p>
                 <p class="mb-1"><strong>Catalogo de biológicos:</strong> se usa <code>referencia_vacunas</code> para mapear IDs de vacuna por indicador.</p>
 

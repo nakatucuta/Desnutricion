@@ -33,7 +33,6 @@ use Barryvdh\DomPDF\Facade\Pdf;
 use Yajra\DataTables\Facades\DataTables;
 use PhpOffice\PhpSpreadsheet\IOFactory;
 use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
-use PhpOffice\PhpSpreadsheet\Reader\IReadFilter;
 use App\Services\PaiMvpCoverageService;
 
 
@@ -465,13 +464,15 @@ class AfiliadoController extends Controller
         $cutoffDate = $periodEnd->format('Y-m-d');
 
         $vaccineIds = $this->resolvePaiVaccineIds();
-        $indicadoresMeta = $this->paiIndicadoresMetaPayload();
+        // Cargar Excel solo bajo demanda (fallback), evita timeouts en dashboard.
+        $indicadoresMeta = ['path' => null, 'index' => []];
+        $excelMetaLoaded = false;
         $ipsName = collect($catalogIps)
             ->firstWhere('id', $ipsId)['name'] ?? '';
         $rows = [];
         $usedExcelMeta = false;
         $usedManagedMeta = false;
-        $metaSource = !empty($indicadoresMeta['path']) ? 'Mixto (Programacion BD + Excel + estimacion)' : 'Mixto (Programacion BD + estimacion)';
+        $metaSource = 'Mixto (Programacion BD + estimacion)';
 
         foreach ($this->paiIndicadoresCatalogRows() as $indicator) {
             $populationAnnual = $this->paiPopulationAnnualFromManagedTable(
@@ -479,12 +480,20 @@ class AfiliadoController extends Controller
                 $year,
                 $municipio,
                 $ipsId,
-                $regimen
+                $regimen,
+                (string) $ipsName
             );
 
             if ($populationAnnual !== null) {
                 $usedManagedMeta = true;
             } else {
+                if (!$excelMetaLoaded) {
+                    $indicadoresMeta = $this->paiIndicadoresMetaPayload();
+                    $excelMetaLoaded = true;
+                    if (!empty($indicadoresMeta['path'])) {
+                        $metaSource = 'Mixto (Programacion BD + Excel + estimacion)';
+                    }
+                }
                 $populationAnnual = $this->paiPopulationAnnualFromIndicadoresExcel(
                 $indicadoresMeta['index'] ?? [],
                 $indicator,
@@ -852,17 +861,19 @@ class AfiliadoController extends Controller
             $filesRead++;
             foreach ($workbookRows as $wr) {
                 $ipsExcel = (string) ($wr['ips_nombre_excel'] ?? '');
-                $ipsUserId = null;
+                $ipsUserId = $this->paiResolveIpsUserIdFromSourceName($ipsExcel);
                 $ipsNorm = $this->paiNormalizeText($ipsExcel);
                 $ipsCmp = $this->paiNormalizeIpsComparable($ipsExcel);
-                foreach ($users as $u) {
-                    if ($ipsNorm !== '' && ($u['norm'] === $ipsNorm || Str::contains($u['norm'], $ipsNorm) || Str::contains($ipsNorm, $u['norm']))) {
-                        $ipsUserId = (int) $u['id'];
-                        break;
-                    }
-                    if ($ipsCmp !== '' && ($u['cmp'] === $ipsCmp || Str::contains($u['cmp'], $ipsCmp) || Str::contains($ipsCmp, $u['cmp']))) {
-                        $ipsUserId = (int) $u['id'];
-                        break;
+                if ($ipsUserId === null) {
+                    foreach ($users as $u) {
+                        if ($ipsNorm !== '' && ($u['norm'] === $ipsNorm || Str::contains($u['norm'], $ipsNorm) || Str::contains($ipsNorm, $u['norm']))) {
+                            $ipsUserId = (int) $u['id'];
+                            break;
+                        }
+                        if ($ipsCmp !== '' && ($u['cmp'] === $ipsCmp || Str::contains($u['cmp'], $ipsCmp) || Str::contains($ipsCmp, $u['cmp']))) {
+                            $ipsUserId = (int) $u['id'];
+                            break;
+                        }
                     }
                 }
 
@@ -974,6 +985,43 @@ class AfiliadoController extends Controller
         ];
     }
 
+    private function paiResolveIpsUserIdFromSourceName(string $ipsSourceName): ?int
+    {
+        $name = $this->paiNormalizeText($ipsSourceName);
+        if ($name === '') {
+            return null;
+        }
+
+        $overrides = [
+            'ASOCABILDOS M' => 1064,
+            'ESE HNSP' => 1072,
+            'ESE HOSPITAL ARMANDO PABON' => 1068,
+            'ESE HOSPITAL DE NAZARETH' => 1069,
+            'ESE HOSPITAL SAN RAFAEL' => 1055,
+            'ESE NUESTRA SENORA DEL PILAR' => 2,
+            'ESE SANTA RITA DE CASSIA DISTRACCION' => 1062,
+            'IPS KARAQUITA' => 9,
+            'IPSI AYUULEPALA' => 27,
+            'IPSI ERREJERIA' => 1066,
+            'IPSI KARAQUITA' => 9,
+            'IPSI MEDIGROUP M' => 1050,
+            'IPSI SUPULAWAYUU' => 4,
+            'MAICAO' => 35,
+            'MEDIGROUP R' => 1074,
+            'PROGRAMACION TOTAL WALEKERU 2026' => 1073,
+            'RIOHACHA' => 1074,
+            'TOTAL IPS MEDISER' => 1056,
+            'URIBIA' => 1056,
+            'WALEKERU' => 1073,
+        ];
+
+        if (!array_key_exists($name, $overrides)) {
+            return null;
+        }
+
+        return (int) $overrides[$name];
+    }
+
     private function collectProgramacionSourceFiles(string $root): array
     {
         $all = [];
@@ -1032,21 +1080,6 @@ class AfiliadoController extends Controller
         if (method_exists($reader, 'setReadEmptyCells')) {
             $reader->setReadEmptyCells(false);
         }
-        if (method_exists($reader, 'setReadFilter')) {
-            $reader->setReadFilter(new class implements IReadFilter {
-                public function readCell($columnAddress, $row, $worksheetName = ''): bool
-                {
-                    if ($row === 7 && $columnAddress === 'A') {
-                        return true;
-                    }
-                    if ($row >= 10 && $row <= 90 && ($columnAddress === 'B' || $columnAddress === 'C')) {
-                        return true;
-                    }
-                    return false;
-                }
-            });
-        }
-
         if (method_exists($reader, 'listWorksheetNames') && method_exists($reader, 'setLoadSheetsOnly')) {
             $targets = [];
             foreach ($reader->listWorksheetNames($filePath) as $candidate) {
@@ -1608,7 +1641,8 @@ class AfiliadoController extends Controller
         int $year,
         string $municipio,
         int $ipsId,
-        string $regimen
+        string $regimen,
+        string $ipsName = ''
     ): ?int {
         $mun = $this->paiNormalizeText($municipio);
         $reg = $this->paiNormalizeText($regimen);
@@ -1630,30 +1664,45 @@ class AfiliadoController extends Controller
             ->where('vigencia', $year)
             ->where('activo', true)
             ->where('indicador_catalogo_id', (int) $catalogId)
-            ->where(function ($q) use ($ipsId) {
-                $q->where('ips_user_id', $ipsId)
-                    ->orWhereNull('ips_user_id');
-            })
+            ->whereRaw("UPPER(LTRIM(RTRIM(municipio))) = ?", [$mun])
+            ->whereRaw("UPPER(LTRIM(RTRIM(regimen))) = ?", [$reg])
             ->get([
                 'ips_user_id',
+                'ips_nombre_fuente',
                 'municipio',
                 'regimen',
                 'poblacion_programada_anual',
             ]);
 
         $bestSpecific = null;
+        $bestNameMatch = null;
         $bestGeneric = null;
+        $ipsNorm = $this->paiNormalizeText($ipsName);
+        $ipsCmp = $this->paiNormalizeIpsComparable($ipsName);
         foreach ($rows as $r) {
-            if ($this->paiNormalizeText($r->municipio) !== $mun) {
-                continue;
-            }
-            if ($this->paiNormalizeText($r->regimen) !== $reg) {
-                continue;
-            }
-
             $val = (int) $r->poblacion_programada_anual;
             if ((int) ($r->ips_user_id ?? 0) === $ipsId) {
                 $bestSpecific = max($bestSpecific ?? 0, $val);
+                continue;
+            }
+
+            $sourceName = (string) ($r->ips_nombre_fuente ?? '');
+            $sourceNorm = $this->paiNormalizeText($sourceName);
+            $sourceCmp = $this->paiNormalizeIpsComparable($sourceName);
+            $matchByName = false;
+            if ($ipsNorm !== '' && $sourceNorm !== '') {
+                $matchByName = $sourceNorm === $ipsNorm
+                    || Str::contains($sourceNorm, $ipsNorm)
+                    || Str::contains($ipsNorm, $sourceNorm);
+            }
+            if (!$matchByName && $ipsCmp !== '' && $sourceCmp !== '') {
+                $matchByName = $sourceCmp === $ipsCmp
+                    || Str::contains($sourceCmp, $ipsCmp)
+                    || Str::contains($ipsCmp, $sourceCmp);
+            }
+
+            if ($matchByName) {
+                $bestNameMatch = max($bestNameMatch ?? 0, $val);
             } elseif ($r->ips_user_id === null) {
                 $bestGeneric = max($bestGeneric ?? 0, $val);
             }
@@ -1661,6 +1710,9 @@ class AfiliadoController extends Controller
 
         if ($bestSpecific !== null) {
             return (int) $bestSpecific;
+        }
+        if ($bestNameMatch !== null) {
+            return (int) $bestNameMatch;
         }
         if ($bestGeneric !== null) {
             return (int) $bestGeneric;
