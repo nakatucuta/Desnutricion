@@ -464,13 +464,9 @@ class AfiliadoController extends Controller
         $cutoffDate = $periodEnd->format('Y-m-d');
 
         $vaccineIds = $this->resolvePaiVaccineIds();
-        // Cargar Excel solo bajo demanda (fallback), evita timeouts en dashboard.
-        $indicadoresMeta = ['path' => null, 'index' => []];
-        $excelMetaLoaded = false;
         $ipsName = collect($catalogIps)
             ->firstWhere('id', $ipsId)['name'] ?? '';
         $rows = [];
-        $usedExcelMeta = false;
         $usedManagedMeta = false;
         $metaSource = 'Mixto (Programacion BD + estimacion)';
 
@@ -487,20 +483,7 @@ class AfiliadoController extends Controller
             if ($populationAnnual !== null) {
                 $usedManagedMeta = true;
             } else {
-                if (!$excelMetaLoaded) {
-                    $indicadoresMeta = $this->paiIndicadoresMetaPayload();
-                    $excelMetaLoaded = true;
-                    if (!empty($indicadoresMeta['path'])) {
-                        $metaSource = 'Mixto (Programacion BD + Excel + estimacion)';
-                    }
-                }
-                $populationAnnual = $this->paiPopulationAnnualFromIndicadoresExcel(
-                $indicadoresMeta['index'] ?? [],
-                $indicator,
-                $municipio,
-                (string) $ipsName,
-                $regimen
-                );
+                $populationAnnual = null;
             }
 
             if ($populationAnnual === null) {
@@ -512,8 +495,6 @@ class AfiliadoController extends Controller
                     $regimen,
                     $cutoffDate
                 );
-            } elseif (!$usedManagedMeta) {
-                $usedExcelMeta = true;
             }
 
             $metaMes = (int) round($populationAnnual / 12);
@@ -593,8 +574,8 @@ class AfiliadoController extends Controller
             'flags' => [
                 'combo_has_data' => $comboCount > 0,
                 'combo_count' => $comboCount,
-                'meta_source' => $usedManagedMeta ? 'Tabla Programacion PAI (BD)' : ($usedExcelMeta ? 'INDICADORES PAI 2026 (Excel)' : $metaSource),
-                'meta_source_file' => $indicadoresMeta['path'] ?? null,
+                'meta_source' => $usedManagedMeta ? 'Tabla Programacion PAI (BD)' : $metaSource,
+                'meta_source_file' => null,
             ],
             'generated_at' => now()->format('Y-m-d H:i:s'),
         ]);
