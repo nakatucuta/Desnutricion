@@ -4750,6 +4750,8 @@ private function buildLoadSummaryReport(string $startDate, string $endDate, arra
 
     if (!empty($filters['only_without_load'])) {
         $rowsCollection = $rowsCollection->where('vacunas_count', '=', 0);
+    } else {
+        $rowsCollection = $rowsCollection->where('vacunas_count', '>', 0);
     }
 
     $rows = $rowsCollection->values()->all();
@@ -4766,7 +4768,9 @@ private function buildLoadSummaryReport(string $startDate, string $endDate, arra
 
     return [
         'rows' => $rows,
-        'users_catalog' => collect($summaryRows)->map(function ($u) {
+        'users_catalog' => collect($summaryRows)
+            ->where('vacunas_count', '>', 0)
+            ->map(function ($u) {
             return [
                 'id' => (int) $u->id,
                 'name' => $u->name ?: 'Sin nombre',
