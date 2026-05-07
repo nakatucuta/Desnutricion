@@ -7,6 +7,7 @@ use App\Providers\RouteServiceProvider;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Str;
@@ -77,14 +78,31 @@ class LoginController extends Controller
 
         $loginValue = trim((string) $request->input('codigohabilitacion'));
         $password = (string) $request->input('password');
+        $codeCount = (int) DB::table('users')->where('codigohabilitacion', $loginValue)->count();
+        $nameCount = (int) DB::table('users')->where('name', $loginValue)->count();
 
-        return Auth::guard()->attempt([
-            'codigohabilitacion' => $loginValue,
-            'password' => $password,
-        ], $remember) || Auth::guard()->attempt([
-            'name' => $loginValue,
-            'password' => $password,
-        ], $remember);
+        // Evita iniciar sesion en una cuenta equivocada cuando el codigo/nombre no es unico.
+        if ($codeCount > 1 || $nameCount > 1 || ($codeCount > 0 && $nameCount > 0)) {
+            throw ValidationException::withMessages([
+                'codigohabilitacion' => ['El codigo/usuario no es unico. Ingresa con correo para acceder a la cuenta correcta.'],
+            ]);
+        }
+
+        if ($codeCount === 1) {
+            return Auth::guard()->attempt([
+                'codigohabilitacion' => $loginValue,
+                'password' => $password,
+            ], $remember);
+        }
+
+        if ($nameCount === 1) {
+            return Auth::guard()->attempt([
+                'name' => $loginValue,
+                'password' => $password,
+            ], $remember);
+        }
+
+        return false;
     }
 
     /**

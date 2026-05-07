@@ -27,6 +27,8 @@ use App\Http\Controllers\PreconcepcionalController;
 use App\Http\Controllers\FormatosController;
 use App\Http\Controllers\GestantesStatsController;
 use App\Http\Controllers\AlertasController;
+use App\Http\Controllers\AccessControlController;
+use App\Http\Controllers\AccessRequestController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\NovedadController;
 use App\Http\Controllers\HomeController;
@@ -208,6 +210,18 @@ Route::middleware('auth')->group(function () {
     Route::post('/novedades/read-all', [NovedadController::class, 'markAllRead'])->name('novedades.readAll');
     Route::get('/novedades/{novedad}/audit', [NovedadController::class, 'audit'])->name('novedades.audit');
     Route::get('/novedades/{novedad}/audit/pdf', [NovedadController::class, 'auditPdf'])->name('novedades.audit.pdf');
+    Route::get('/access/denied', [AccessRequestController::class, 'denied'])->name('access.denied');
+    Route::get('/access/requests/create', [AccessRequestController::class, 'create'])->name('access-requests.create');
+    Route::post('/access/requests', [AccessRequestController::class, 'store'])->name('access-requests.store');
+});
+
+Route::middleware(['auth', 'super_admin'])->group(function () {
+    Route::get('/admin/permisos', [AccessControlController::class, 'index'])->name('access-control.index');
+    Route::get('/admin/permisos/data', [AccessControlController::class, 'data'])->name('access-control.data');
+    Route::put('/admin/permisos/usuarios/{user}', [AccessControlController::class, 'updateUserPermissions'])
+        ->name('access-control.users.update');
+    Route::post('/admin/permisos/solicitudes/{accessRequest}/resolver', [AccessControlController::class, 'resolveRequest'])
+        ->name('access-control.requests.resolve');
 });
 
 Route::get('/home', [HomeController::class, 'index'])->name('home');

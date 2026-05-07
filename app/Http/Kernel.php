@@ -36,6 +36,7 @@ class Kernel extends HttpKernel
             \Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse::class,
             \Illuminate\Session\Middleware\StartSession::class,
             \Illuminate\View\Middleware\ShareErrorsFromSession::class,
+            \App\Http\Middleware\EnforceModulePermissions::class,
             \App\Http\Middleware\VerifyCsrfToken::class,
             \Illuminate\Routing\Middleware\SubstituteBindings::class,
         ],
@@ -75,6 +76,7 @@ class Kernel extends HttpKernel
         'Admin_nutric_seguimiento' => \App\Http\Middleware\Admin_nutric_seguimiento::class,
         'adminrevision' => \App\Http\Middleware\adminrevision::class,
         'increase_execution_time' => \App\Http\Middleware\IncreaseExecutionTime::class,
+        'super_admin' => \App\Http\Middleware\EnsureSuperAdmin::class,
 
         
     ];

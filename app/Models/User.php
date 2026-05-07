@@ -4,6 +4,7 @@ namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Facades\Storage;
@@ -126,6 +127,29 @@ class User extends Authenticatable
     public function usesIframeMode(): bool
     {
         return (bool) ($this->pref_iframe_mode ?? false);
+    }
+
+    public function modulePermissions(): HasMany
+    {
+        return $this->hasMany(UserModulePermission::class, 'user_id');
+    }
+
+    public function accessRequests(): HasMany
+    {
+        return $this->hasMany(ModuleAccessRequest::class, 'user_id');
+    }
+
+    public function isSuperAdministrator(): bool
+    {
+        return (int) $this->id === (int) config('access_control.super_admin_id', 33);
+    }
+
+    public function isGestanteExclusiveUser(): bool
+    {
+        $name = strtolower(trim((string) $this->name));
+        $code = strtolower(trim((string) $this->codigohabilitacion));
+
+        return str_ends_with($name, '_ges') || str_ends_with($code, '_ges');
     }
 
 

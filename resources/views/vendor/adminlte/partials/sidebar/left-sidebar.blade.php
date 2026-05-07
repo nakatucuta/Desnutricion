@@ -41,6 +41,43 @@
 
     {{-- Sidebar menu --}}
     <div class="sidebar">
+        @php
+            $sidebarItems = $adminlte->menu('sidebar');
+
+            $filterByCan = function (array $items) use (&$filterByCan) {
+                $filtered = [];
+                foreach ($items as $item) {
+                    if (!is_array($item)) {
+                        $filtered[] = $item;
+                        continue;
+                    }
+
+                    if (!empty($item['submenu']) && is_array($item['submenu'])) {
+                        $item['submenu'] = $filterByCan($item['submenu']);
+                    }
+
+                    if (!empty($item['can'])) {
+                        $allowed = \Illuminate\Support\Facades\Gate::any(
+                            $item['can'],
+                            !empty($item['model']) ? $item['model'] : []
+                        );
+                        if (!$allowed) {
+                            continue;
+                        }
+                    }
+
+                    if (!empty($item['submenu']) && is_array($item['submenu']) && count($item['submenu']) === 0) {
+                        continue;
+                    }
+
+                    $filtered[] = $item;
+                }
+
+                return array_values($filtered);
+            };
+
+            $sidebarItems = $filterByCan($sidebarItems);
+        @endphp
         <nav class="pt-2">
             <ul class="nav nav-pills nav-sidebar flex-column {{ config('adminlte.classes_sidebar_nav', '') }}"
                 data-widget="treeview" role="menu"
@@ -51,7 +88,7 @@
                     data-accordion="false"
                 @endif>
                 {{-- Configured sidebar links --}}
-                @each('adminlte::partials.sidebar.menu-item', $adminlte->menu('sidebar'), 'item')
+                @each('adminlte::partials.sidebar.menu-item', $sidebarItems, 'item')
             </ul>
         </nav>
     </div>

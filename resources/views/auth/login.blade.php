@@ -431,7 +431,7 @@
                 <p class="sub">Ingresa tus credenciales para acceder al modulo.</p>
                 <p class="security-note">
                     Seguridad activa: si hay 5 intentos fallidos, el acceso se bloquea por 10 minutos.
-                    El metodo de ingreso sigue siendo el mismo (correo o usuario/codigo).
+                    Si tu IPS comparte codigo de habilitacion entre varios usuarios, ingresa con correo para entrar a la cuenta correcta.
                 </p>
                 @if (session('status'))
                     <div class="session-alert">{{ session('status') }}</div>
@@ -441,11 +441,11 @@
                 @endif
 
                 <div class="login-modes">
-                    <button type="button" class="mode-btn {{ old('email') ? '' : 'is-active' }}" data-mode="codigo">Ingresar con codigo</button>
-                    <button type="button" class="mode-btn {{ old('email') ? 'is-active' : '' }}" data-mode="correo">Ingresar con correo</button>
+                    <button type="button" class="mode-btn {{ old('codigohabilitacion') ? '' : 'is-active' }}" data-mode="correo">Ingresar con correo</button>
+                    <button type="button" class="mode-btn {{ old('codigohabilitacion') ? 'is-active' : '' }}" data-mode="codigo">Ingresar con codigo</button>
                 </div>
 
-                <div class="auth-panel {{ old('email') ? '' : 'is-active' }}" id="panel-codigo">
+                <div class="auth-panel {{ old('codigohabilitacion') ? 'is-active' : '' }}" id="panel-codigo">
                     <form method="POST" action="{{ route('login') }}">
                         @csrf
 
@@ -479,7 +479,7 @@
                     </form>
                 </div>
 
-                <div class="auth-panel {{ old('email') ? 'is-active' : '' }}" id="panel-correo">
+                <div class="auth-panel {{ old('codigohabilitacion') ? '' : 'is-active' }}" id="panel-correo">
                     <form method="POST" action="{{ route('login') }}">
                         @csrf
 

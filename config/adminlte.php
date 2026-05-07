@@ -336,6 +336,7 @@ return [
         [
             'text'    => 'Alteraciones nutricionales',
             'icon'    => 'fas fa-notes-medical',
+            'can'     => 'access-nutricional',
             'submenu' => [
                 [
                     'text'    => 'Evento 113',
@@ -444,6 +445,7 @@ return [
         [
             'text'    => 'Registro Diario (PAI)',
             'icon'    => 'fas fa-syringe',
+            'can'     => 'access-pai',
             'submenu' => [
                 [
                     'text'        => 'Cargue',
@@ -475,7 +477,8 @@ return [
        
         [
             'text'    => 'Tamizajes (cargue)',
-            'icon'    => 'fas fa-notes-medical', // Aquí reemplazas el icono
+            'icon'    => 'fas fa-notes-medical',
+            'can'     => 'access-tamizajes',
             'submenu' => [
                 [
                     'text'        => 'Cargue',
@@ -493,6 +496,7 @@ return [
          [
     'text' => 'Gestantes (cargue)',
     'icon' => 'fas fa-baby-carriage',
+    'can'  => 'access-gestantes',
 
     'submenu' => [
 
@@ -566,7 +570,8 @@ return [
        
               [
             'text'    => 'Cursos de vida',
-            'icon'    => 'fas fa-notes-medical', // Aquí reemplazas el icono
+            'icon'    => 'fas fa-notes-medical',
+            'can'     => 'access-ciclosvida',
             'submenu' => [
                 [
                     'text'        => 'Cursos de vida',
@@ -589,6 +594,17 @@ return [
             'text' => 'change_password',
             'url'  => 'password/reset',
             'icon' => 'fas fa-fw fa-lock',
+        ],
+        [
+            'text'  => 'Solicitar Acceso',
+            'route' => 'access-requests.create',
+            'icon'  => 'fas fa-key',
+        ],
+        [
+            'text'  => 'Permisos de usuarios',
+            'route' => 'access-control.index',
+            'icon'  => 'fas fa-user-shield',
+            'can'   => 'manage-access-control',
         ],
 
 
@@ -822,3 +838,5 @@ return [
 
     'livewire' => false,
 ];
+
+
