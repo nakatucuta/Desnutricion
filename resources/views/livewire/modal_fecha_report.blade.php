@@ -72,7 +72,7 @@
                     <div class="form-group mb-0">
                         <label for="loadFilterUser" class="mb-1">Usuario</label>
                         <select id="loadFilterUser" class="form-control form-control-sm">
-                            <option value="">Todos los usuarios con cargue</option>
+                            <option value="">Todos los usuarios que cargan</option>
                         </select>
                     </div>
                     <div class="form-group mb-0 d-flex align-items-end">

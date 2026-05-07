@@ -2061,7 +2061,7 @@ window.PAI_INITIAL_LOAD_STATE = @json($paiLoadState ?? ['busy' => false]);
       const $sel = $('#loadFilterUser');
       const previous = selectedUserId || $sel.val() || '';
       $sel.empty();
-      $sel.append('<option value="">Todos los usuarios con cargue</option>');
+      $sel.append('<option value="">Todos los usuarios que cargan</option>');
       (users || []).forEach(function(u){
           const val = String(u.id);
           const selected = (String(previous) === val) ? ' selected' : '';

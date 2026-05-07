@@ -4649,7 +4649,15 @@ private function buildLoadSummaryReport(string $startDate, string $endDate, arra
     $cacheSeconds = max((int) env('PAI_LOAD_SUMMARY_CACHE_SECONDS', 45), 10);
 
     return Cache::remember($cacheKey, now()->addSeconds($cacheSeconds), function () use ($startDate, $endDate, $filters) {
+    $usuariosConHistorialQuery = DB::table('vacunas')
+        ->select('user_id')
+        ->whereNotNull('user_id')
+        ->groupBy('user_id');
+
     $summaryQuery = DB::table('users as u')
+        ->joinSub($usuariosConHistorialQuery, 'vh', function ($join) {
+            $join->on('u.id', '=', 'vh.user_id');
+        })
         ->leftJoin('vacunas as v', function ($join) use ($startDate, $endDate) {
             $join->on('u.id', '=', 'v.user_id')
                 ->whereBetween('v.fecha_vacuna', [$startDate, $endDate]);
@@ -4769,7 +4777,6 @@ private function buildLoadSummaryReport(string $startDate, string $endDate, arra
     return [
         'rows' => $rows,
         'users_catalog' => collect($summaryRows)
-            ->where('vacunas_count', '>', 0)
             ->map(function ($u) {
             return [
                 'id' => (int) $u->id,
