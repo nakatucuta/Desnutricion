@@ -76,6 +76,8 @@ class Sivigila114Controller extends Controller
 
     public function data(Request $request)
     {
+        $canManageCrud = Auth::check() && (int) Auth::user()->usertype !== 2;
+
         $query = DB::connection('sqlsrv_1')
             ->table($this->sourceTable . ' as m')
             ->selectRaw("
@@ -132,20 +134,75 @@ class Sivigila114Controller extends Controller
                     ? '<span class="badge badge-success"><i class="fas fa-check mr-1"></i>Procesado</span>'
                     : '<span class="badge badge-warning"><i class="fas fa-clock mr-1"></i>Pendiente</span>';
             })
-            ->addColumn('acciones', function ($row) {
+            ->addColumn('acciones', function ($row) use ($canManageCrud) {
                 $doc = trim((string) $row->num_ide_);
                 $fec = trim((string) $row->fec_noti);
-                $isProcessed = DB::table('sivigilas')
+                $local = Sivigila::query()
                     ->where('cod_eve', 114)
                     ->whereRaw("LTRIM(RTRIM(CAST(num_ide_ AS VARCHAR(40)))) = ?", [$doc])
                     ->whereDate('fec_not', $fec)
-                    ->exists();
+                    ->orderByDesc('id')
+                    ->first();
+
+                // Fallback: usar la ultima asignacion del evento 114 para ese documento.
+                if (!$local) {
+                    $local = Sivigila::query()
+                        ->where('cod_eve', 114)
+                        ->whereRaw("LTRIM(RTRIM(CAST(num_ide_ AS VARCHAR(40)))) = ?", [$doc])
+                        ->orderByDesc('fec_not')
+                        ->orderByDesc('id')
+                        ->first();
+                }
 
                 $url = route('sivigila114.create', ['num_ide_' => $row->num_ide_, 'fec_not' => $row->fec_noti]);
-                if ($isProcessed) {
-                    return '<span class="badge badge-secondary">Ya asignado</span>';
+                $localId = $local?->id;
+                $isProcessed = (bool) $localId;
+                $hasSeguimiento = $localId
+                    ? Seguimiento::where('sivigilas_id', $localId)->exists()
+                    : false;
+
+                $dropdown = '<div class="dropdown">
+                    <button class="btn btn-sm btn-outline-primary dropdown-toggle" type="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                        <i class="fas fa-cogs mr-1"></i> Acciones
+                    </button>
+                    <div class="dropdown-menu dropdown-menu-right shadow-sm">';
+
+                if (!$isProcessed) {
+                    $dropdown .= '<a class="dropdown-item" href="' . e($url) . '">
+                                    <i class="fas fa-notes-medical text-success mr-2"></i> Asignar
+                                  </a>';
+                } else {
+                    $dropdown .= '<span class="dropdown-item text-muted">
+                                    <i class="fas fa-check-circle text-secondary mr-2"></i> Procesado
+                                  </span>';
                 }
-                return '<a class="btn btn-sm btn-outline-primary" href="' . e($url) . '"><i class="fas fa-notes-medical mr-1"></i>Asignar</a>';
+
+                if ($canManageCrud && $localId) {
+                    $dropdown .= '<div class="dropdown-divider"></div>';
+                    $dropdown .= '<a class="dropdown-item" href="' . route('sivigila.show', ['sivigila' => $localId, 'redirect_route' => 'sivigila114.index']) . '">
+                                    <i class="fas fa-eye text-info mr-2"></i> Visualizar asignacion
+                                  </a>';
+                    $dropdown .= '<a class="dropdown-item" href="' . route('sivigila.edit', ['sivigila' => $localId, 'redirect_route' => 'sivigila114.index']) . '">
+                                    <i class="fas fa-edit text-warning mr-2"></i> Editar asignacion
+                                  </a>';
+
+                    if ($hasSeguimiento) {
+                        $dropdown .= '<span class="dropdown-item text-muted">
+                                        <i class="fas fa-lock text-secondary mr-2"></i> No se puede eliminar (ya tiene seguimiento)
+                                      </span>';
+                    } else {
+                        $dropdown .= '<form method="POST" action="' . route('sivigila.destroy', $localId) . '" onsubmit="return confirm(\'Seguro que deseas eliminar esta asignacion?\');">
+                                        ' . csrf_field() . method_field('DELETE') . '
+                                        <input type="hidden" name="redirect_route" value="sivigila114.index">
+                                        <button type="submit" class="dropdown-item text-danger">
+                                            <i class="fas fa-trash-alt mr-2"></i> Eliminar
+                                        </button>
+                                      </form>';
+                    }
+                }
+
+                $dropdown .= '</div></div>';
+                return $dropdown;
             })
             ->rawColumns(['procesado_badge', 'acciones'])
             ->make(true);

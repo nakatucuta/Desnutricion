@@ -4,6 +4,16 @@
 /public/storage
 /storage/*.key
 /storage/backups/
+/storage/framework/cache/data/*
+!/storage/framework/cache/data/.gitignore
+/storage/framework/sessions/*
+!/storage/framework/sessions/.gitignore
+/storage/framework/testing/*
+!/storage/framework/testing/.gitignore
+/storage/framework/views/*
+!/storage/framework/views/.gitignore
+/storage/logs/*.log
+!/storage/logs/.gitignore
 /vendor
 .env
 .env.backup

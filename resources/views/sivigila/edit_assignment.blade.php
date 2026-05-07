@@ -12,7 +12,7 @@
             <small class="text-muted">Actualiza responsable y datos clave de la asignacion</small>
         </div>
     </div>
-    <a href="{{ route('sivigila.index') }}" class="btn btn-outline-secondary btn-sm mb-2"><i class="fas fa-arrow-left mr-1"></i> Volver</a>
+    <a href="{{ route($redirectRoute ?? 'sivigila.index') }}" class="btn btn-outline-secondary btn-sm mb-2"><i class="fas fa-arrow-left mr-1"></i> Volver</a>
 </div>
 @stop
 
@@ -22,6 +22,7 @@
         <form method="POST" action="{{ route('sivigila.update', $sivigila->id) }}">
             @csrf
             @method('PUT')
+            <input type="hidden" name="redirect_route" value="{{ $redirectRoute ?? 'sivigila.index' }}">
 
             <div class="row">
                 <div class="col-md-3 form-group">
@@ -86,7 +87,7 @@
 
             <div class="d-flex" style="gap:.6rem;">
                 <button class="btn btn-primary"><i class="fas fa-save mr-1"></i> Guardar cambios</button>
-                <a href="{{ route('sivigila.index') }}" class="btn btn-outline-secondary">Cancelar</a>
+                <a href="{{ route($redirectRoute ?? 'sivigila.index') }}" class="btn btn-outline-secondary">Cancelar</a>
             </div>
         </form>
     </div>

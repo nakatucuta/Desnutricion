@@ -759,30 +759,37 @@ public function reportExport(Request $request)
                   . "<a href=\"{$loginUrl}\">Ingresar al sistema</a>"
                   . $bodyText;
 
-            // SMTP SSL en puerto 465
-            $transport = new EsmtpTransport(
-                env('MAIL_HOST', 'smtp.gmail.com'),
-                465,
-                'ssl'
-            );
-            $transport->setUsername(env('MAIL_USERNAME'));
-            $transport->setPassword(env('MAIL_PASSWORD'));
+            $mailHost = (string) (config('mail.mailers.smtp.host') ?: env('MAIL_HOST', 'smtp.gmail.com'));
+            $mailPort = (int) (config('mail.mailers.smtp.port') ?: 465);
+            $mailEncryption = (string) (config('mail.mailers.smtp.encryption') ?: 'ssl');
+            $mailUsername = config('mail.mailers.smtp.username') ?? env('MAIL_USERNAME');
+            $mailPassword = config('mail.mailers.smtp.password') ?? env('MAIL_PASSWORD');
+            $mailFromAddress = config('mail.from.address') ?? env('MAIL_FROM_ADDRESS');
+            $mailFromName = (string) (config('mail.from.name') ?? env('MAIL_FROM_NAME', 'Sistema Desnutricion'));
 
-            Log::info("SMTP configurado: host=".env('MAIL_HOST')." port=465 encryption=ssl");
+            if (empty($mailUsername) || empty($mailPassword) || empty($mailFromAddress)) {
+                Log::warning("No se envía correo: configuración SMTP incompleta para sivigila ID {$sivigila->id}");
+            } else {
+                try {
+                    $transport = new EsmtpTransport($mailHost, $mailPort, $mailEncryption);
+                    $transport->setUsername((string) $mailUsername);
+                    $transport->setPassword((string) $mailPassword);
 
-            $mailer = new Mailer($transport);
-            $email  = (new Email())
-                ->from(new Address(env('MAIL_FROM_ADDRESS'), env('MAIL_FROM_NAME')))
-                ->to(new Address($user->email))
-                ->subject('Recordatorio de control')
-                ->html($html);
+                    Log::info("SMTP configurado: host={$mailHost} port={$mailPort} encryption={$mailEncryption}");
 
-            try {
-                $mailer->send($email);
-                $mailSent = true;
-                Log::info("Correo enviado a {$user->email} para nuevo registro sivigila ID {$sivigila->id}");
-            } catch (\Throwable $e) {
-                Log::warning("Error SMTP al enviar a {$user->email}: {$e->getMessage()}");
+                    $mailer = new Mailer($transport);
+                    $email  = (new Email())
+                        ->from(new Address((string) $mailFromAddress, $mailFromName))
+                        ->to(new Address($user->email))
+                        ->subject('Recordatorio de control')
+                        ->html($html);
+
+                    $mailer->send($email);
+                    $mailSent = true;
+                    Log::info("Correo enviado a {$user->email} para nuevo registro sivigila ID {$sivigila->id}");
+                } catch (\Throwable $e) {
+                    Log::warning("Error SMTP al enviar a {$user->email}: {$e->getMessage()}");
+                }
             }
         } else {
             Log::warning("No se envía correo: usuario ID {$sivigila->user_id} sin email o no encontrado");
@@ -806,16 +813,17 @@ public function reportExport(Request $request)
      * @param  \App\Models\Sivigila  $empleado
      * @return \Illuminate\Http\Response
      */
-    public function show(Sivigila $empleado)
+    public function show(Request $request, Sivigila $empleado)
     {
         if (!$this->canManageAssignments(Auth::user())) {
             abort(403, 'No tienes permiso para visualizar asignaciones.');
         }
 
+        $redirectRoute = $this->resolveRedirectRoute($request, 'sivigila.index');
         $sivigila = $empleado->load('user');
         if (!$sivigila || !$sivigila->id) {
             return redirect()
-                ->route('sivigila.index')
+                ->route($redirectRoute)
                 ->with('error1', 'No se pudo abrir la asignacion seleccionada.');
         }
 
@@ -827,7 +835,7 @@ public function reportExport(Request $request)
 
         $hasSeguimiento = Seguimiento::where('sivigilas_id', $sivigila->id)->exists();
 
-        return view('sivigila.show_assignment', compact('sivigila', 'audits', 'hasSeguimiento'));
+        return view('sivigila.show_assignment', compact('sivigila', 'audits', 'hasSeguimiento', 'redirectRoute'));
     }
 
     /**
@@ -836,19 +844,20 @@ public function reportExport(Request $request)
      * @param  \App\Models\Sivigila  $empleado
      * @return \Illuminate\Http\Response
      */
-    public function edit(Sivigila $sivigila)
+    public function edit(Request $request, Sivigila $sivigila)
     {
         if (!$this->canManageAssignments(Auth::user())) {
             abort(403, 'No tienes permiso para editar asignaciones.');
         }
 
+        $redirectRoute = $this->resolveRedirectRoute($request, 'sivigila.index');
         $usuarios = DB::table('users')
             ->select('id', 'name', 'codigohabilitacion', 'usertype')
             ->where('usertype', 2)
             ->orderBy('name')
             ->get();
 
-        return view('sivigila.edit_assignment', compact('sivigila', 'usuarios'));
+        return view('sivigila.edit_assignment', compact('sivigila', 'usuarios', 'redirectRoute'));
     }
 
     /**
@@ -863,6 +872,7 @@ public function reportExport(Request $request)
         if (!$this->canManageAssignments(Auth::user())) {
             abort(403, 'No tienes permiso para actualizar asignaciones.');
         }
+        $redirectRoute = $this->resolveRedirectRoute($request, 'sivigila.index');
 
         $request->validate([
             'user_id' => 'required|exists:users,id',
@@ -937,7 +947,7 @@ public function reportExport(Request $request)
         }
 
         return redirect()
-            ->route('sivigila.index')
+            ->route($redirectRoute)
             ->with('mensaje', 'Asignacion actualizada correctamente.');
     }
 
@@ -947,24 +957,43 @@ public function reportExport(Request $request)
      * @param  \App\Models\Sivigila  $empleado
      * @return \Illuminate\Http\Response
      */
-    public function destroy(Sivigila $sivigila)
+    public function destroy(Request $request, Sivigila $sivigila)
     {
         if (!$this->canManageAssignments(Auth::user())) {
             abort(403, 'No tienes permiso para eliminar asignaciones.');
         }
+        $redirectRoute = $this->resolveRedirectRoute($request, 'sivigila.index');
 
         $hasSeguimiento = Seguimiento::where('sivigilas_id', $sivigila->id)->exists();
         if ($hasSeguimiento) {
             return redirect()
-                ->route('sivigila.index')
+                ->route($redirectRoute)
                 ->with('error1', 'No se puede eliminar: el registro ya tiene seguimientos asociados.');
         }
 
+        $assignedUser = User::find($sivigila->user_id);
+        $assignmentData = [
+            'id' => (int) $sivigila->id,
+            'user_id' => (int) ($sivigila->user_id ?? 0),
+            'evento' => (string) ($sivigila->cod_eve ?? '113'),
+            'fec_not' => (string) ($sivigila->fec_not ?? ''),
+            'num_ide_' => (string) ($sivigila->num_ide_ ?? ''),
+            'pri_nom_' => (string) ($sivigila->pri_nom_ ?? ''),
+            'seg_nom_' => (string) ($sivigila->seg_nom_ ?? ''),
+            'pri_ape_' => (string) ($sivigila->pri_ape_ ?? ''),
+            'seg_ape_' => (string) ($sivigila->seg_ape_ ?? ''),
+        ];
+
         $sivigila->delete();
+        $mailSent = $this->sendAssignmentDeletedEmail($assignedUser, $assignmentData);
+
+        $message = $mailSent
+            ? 'Asignacion eliminada correctamente. Se notifico al usuario asignado.'
+            : 'Asignacion eliminada correctamente. No se pudo enviar el correo de notificacion.';
 
         return redirect()
-            ->route('sivigila.index')
-            ->with('mensaje', 'Asignacion eliminada correctamente.');
+            ->route($redirectRoute)
+            ->with('mensaje', $message);
     }
 
     private function canManageAssignments($user): bool
@@ -973,6 +1002,79 @@ public function reportExport(Request $request)
             return false;
         }
         return (int) $user->usertype !== 2;
+    }
+
+    private function resolveRedirectRoute(Request $request, string $default = 'sivigila.index'): string
+    {
+        $route = (string) $request->input('redirect_route', $request->query('redirect_route', $default));
+        return in_array($route, ['sivigila.index', 'sivigila114.index'], true) ? $route : $default;
+    }
+
+    private function sendAssignmentDeletedEmail(?User $user, array $assignmentData): bool
+    {
+        if (!$user || empty($user->email)) {
+            Log::warning('No se envía correo de eliminacion: usuario asignado sin email o no encontrado', [
+                'sivigila_id' => $assignmentData['id'] ?? null,
+                'user_id' => $assignmentData['user_id'] ?? null,
+            ]);
+            return false;
+        }
+
+        $mailHost = (string) (config('mail.mailers.smtp.host') ?: env('MAIL_HOST', 'smtp.gmail.com'));
+        $mailPort = (int) (config('mail.mailers.smtp.port') ?: 465);
+        $mailEncryption = (string) (config('mail.mailers.smtp.encryption') ?: 'ssl');
+        $mailUsername = config('mail.mailers.smtp.username') ?? env('MAIL_USERNAME');
+        $mailPassword = config('mail.mailers.smtp.password') ?? env('MAIL_PASSWORD');
+        $mailFromAddress = config('mail.from.address') ?? env('MAIL_FROM_ADDRESS');
+        $mailFromName = (string) (config('mail.from.name') ?? env('MAIL_FROM_NAME', 'Sistema Desnutricion'));
+
+        if (empty($mailUsername) || empty($mailPassword) || empty($mailFromAddress)) {
+            Log::warning('No se envía correo de eliminacion: configuración SMTP incompleta', [
+                'sivigila_id' => $assignmentData['id'] ?? null,
+                'target_email' => $user->email,
+            ]);
+            return false;
+        }
+
+        $pacienteNombre = trim(implode(' ', array_filter([
+            $assignmentData['pri_nom_'] ?? null,
+            $assignmentData['seg_nom_'] ?? null,
+            $assignmentData['pri_ape_'] ?? null,
+            $assignmentData['seg_ape_'] ?? null,
+        ])));
+
+        $html = 'FAVOR NO CONTESTAR ESTE MENSAJE<br>'
+              . 'Te informamos que una asignacion de paciente fue eliminada del sistema.<br><br>'
+              . 'Evento: <strong>' . e((string) ($assignmentData['evento'] ?? '')) . '</strong><br>'
+              . 'Fecha de notificacion: <strong>' . e((string) ($assignmentData['fec_not'] ?? '')) . '</strong><br>'
+              . 'Identificacion: <strong>' . e((string) ($assignmentData['num_ide_'] ?? '')) . '</strong><br>'
+              . 'Paciente: <strong>' . e($pacienteNombre) . '</strong><br>';
+
+        try {
+            $transport = new EsmtpTransport($mailHost, $mailPort, $mailEncryption);
+            $transport->setUsername((string) $mailUsername);
+            $transport->setPassword((string) $mailPassword);
+
+            $mailer = new Mailer($transport);
+            $email  = (new Email())
+                ->from(new Address((string) $mailFromAddress, $mailFromName))
+                ->to(new Address($user->email))
+                ->subject('Asignacion eliminada')
+                ->html($html);
+
+            $mailer->send($email);
+            Log::info('Correo de eliminacion enviado correctamente', [
+                'sivigila_id' => $assignmentData['id'] ?? null,
+                'target_email' => $user->email,
+            ]);
+            return true;
+        } catch (\Throwable $e) {
+            Log::warning('Error SMTP al enviar correo de eliminacion: ' . $e->getMessage(), [
+                'sivigila_id' => $assignmentData['id'] ?? null,
+                'target_email' => $user->email,
+            ]);
+            return false;
+        }
     }
 
     public function search(Request $request)

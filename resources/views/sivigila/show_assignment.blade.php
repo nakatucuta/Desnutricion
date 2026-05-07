@@ -14,9 +14,9 @@
     </div>
     <div class="mb-2">
         @if(!empty($sivigila) && !empty($sivigila->id))
-            <a href="{{ route('sivigila.edit', ['sivigila' => $sivigila->id]) }}" class="btn btn-warning btn-sm mr-1"><i class="fas fa-edit mr-1"></i> Editar</a>
+            <a href="{{ route('sivigila.edit', ['sivigila' => $sivigila->id, 'redirect_route' => ($redirectRoute ?? 'sivigila.index')]) }}" class="btn btn-warning btn-sm mr-1"><i class="fas fa-edit mr-1"></i> Editar</a>
         @endif
-        <a href="{{ route('sivigila.index') }}" class="btn btn-outline-secondary btn-sm"><i class="fas fa-arrow-left mr-1"></i> Volver</a>
+        <a href="{{ route($redirectRoute ?? 'sivigila.index') }}" class="btn btn-outline-secondary btn-sm"><i class="fas fa-arrow-left mr-1"></i> Volver</a>
     </div>
 </div>
 @stop
