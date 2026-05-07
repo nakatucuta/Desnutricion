@@ -4586,7 +4586,7 @@ public function loadSummary(Request $request)
 
     [$startDate, $endDate] = $this->validatedDateRange($request);
     $filters = $this->extractLoadSummaryFilters($request);
-    $report = $this->buildLoadSummaryReport($startDate, $endDate, $filters);
+    $report = $this->buildLoadSummaryReport($startDate, $endDate, $filters, false);
 
     return response()->json(array_merge([
         'ok' => true,
@@ -4602,7 +4602,7 @@ public function loadSummaryPdf(Request $request)
 
     [$startDate, $endDate] = $this->validatedDateRange($request);
     $filters = $this->extractLoadSummaryFilters($request);
-    $report = $this->buildLoadSummaryReport($startDate, $endDate, $filters);
+    $report = $this->buildLoadSummaryReport($startDate, $endDate, $filters, true);
 
     $pdf = Pdf::loadView('livewire.reporte_cargue_pdf', [
         'startDate' => $startDate,
@@ -4639,16 +4639,17 @@ private function extractLoadSummaryFilters(Request $request): array
     ];
 }
 
-private function buildLoadSummaryReport(string $startDate, string $endDate, array $filters = []): array
+private function buildLoadSummaryReport(string $startDate, string $endDate, array $filters = [], bool $applyVisibilityFilter = true): array
 {
     $cacheKey = 'pai:load_summary:v2:' . md5(json_encode([
         'start' => $startDate,
         'end' => $endDate,
         'filters' => $filters,
+        'apply_visibility_filter' => $applyVisibilityFilter,
     ]));
     $cacheSeconds = max((int) env('PAI_LOAD_SUMMARY_CACHE_SECONDS', 45), 10);
 
-    return Cache::remember($cacheKey, now()->addSeconds($cacheSeconds), function () use ($startDate, $endDate, $filters) {
+    return Cache::remember($cacheKey, now()->addSeconds($cacheSeconds), function () use ($startDate, $endDate, $filters, $applyVisibilityFilter) {
     $usuariosConHistorialQuery = DB::table('vacunas')
         ->select('user_id')
         ->whereNotNull('user_id')
@@ -4756,10 +4757,12 @@ private function buildLoadSummaryReport(string $startDate, string $endDate, arra
         ];
     });
 
-    if (!empty($filters['only_without_load'])) {
-        $rowsCollection = $rowsCollection->where('vacunas_count', '=', 0);
-    } else {
-        $rowsCollection = $rowsCollection->where('vacunas_count', '>', 0);
+    if ($applyVisibilityFilter) {
+        if (!empty($filters['only_without_load'])) {
+            $rowsCollection = $rowsCollection->where('vacunas_count', '=', 0);
+        } else {
+            $rowsCollection = $rowsCollection->where('vacunas_count', '>', 0);
+        }
     }
 
     $rows = $rowsCollection->values()->all();
