@@ -33,7 +33,7 @@
     </a>
 
     {{-- User menu dropdown --}}
-    <ul class="dropdown-menu dropdown-menu-lg dropdown-menu-right">
+    <ul class="dropdown-menu dropdown-menu-lg dropdown-menu-right aw-user-dropdown">
 
         {{-- User menu header --}}
         @if(!View::hasSection('usermenu_header') && config('adminlte.usermenu_header'))
@@ -114,3 +114,116 @@
     </ul>
 
 </li>
+
+@once
+    <style>
+            .navbar-nav > .user-menu > .aw-user-dropdown{
+                display:block;
+                opacity:0;
+                visibility:hidden;
+                pointer-events:none;
+                transform:translateY(-10px) scale(.94);
+                transform-origin:top right;
+                filter:blur(7px);
+                border:1px solid rgba(79, 142, 219, .28);
+                box-shadow:0 20px 44px rgba(31, 75, 116, .18), 0 0 0 1px rgba(255,255,255,.55);
+                transition:
+                    opacity .22s ease,
+                    visibility .22s ease,
+                    transform .34s cubic-bezier(.16,.84,.28,1),
+                    filter .28s ease;
+                overflow:hidden;
+                will-change:opacity, transform, filter;
+            }
+
+            .navbar-nav > .user-menu.show > .aw-user-dropdown{
+                opacity:1;
+                visibility:visible;
+                pointer-events:auto;
+                transform:translateY(0) scale(1);
+                filter:blur(0);
+                animation:awDropdownGlow .46s ease both;
+            }
+
+            .navbar-nav > .user-menu > .aw-user-dropdown::before{
+                content:"";
+                position:absolute;
+                inset:0;
+                z-index:0;
+                background:
+                    radial-gradient(circle at 28% 0%, rgba(105,212,255,.2), transparent 38%),
+                    linear-gradient(120deg, rgba(255,255,255,.18), transparent 34%);
+                opacity:0;
+                transform:translateY(-8px);
+                transition:opacity .28s ease, transform .28s ease;
+                pointer-events:none;
+            }
+
+            .navbar-nav > .user-menu.show > .aw-user-dropdown::before{
+                opacity:1;
+                transform:translateY(0);
+            }
+
+            .navbar-nav > .user-menu > .aw-user-dropdown > li,
+            .navbar-nav > .user-menu > .aw-user-dropdown > .dropdown-divider{
+                position:relative;
+                z-index:1;
+                opacity:0;
+                transform:translateY(8px);
+            }
+
+            .navbar-nav > .user-menu.show > .aw-user-dropdown > li,
+            .navbar-nav > .user-menu.show > .aw-user-dropdown > .dropdown-divider{
+                animation:awDropdownItemIn .34s cubic-bezier(.16,.84,.28,1) forwards;
+            }
+
+            .navbar-nav > .user-menu.show > .aw-user-dropdown > li:nth-child(1){animation-delay:.04s}
+            .navbar-nav > .user-menu.show > .aw-user-dropdown > li:nth-child(2){animation-delay:.08s}
+            .navbar-nav > .user-menu.show > .aw-user-dropdown > li:nth-child(3){animation-delay:.12s}
+            .navbar-nav > .user-menu.show > .aw-user-dropdown > li:nth-child(4){animation-delay:.16s}
+            .navbar-nav > .user-menu.show > .aw-user-dropdown > li:nth-child(5){animation-delay:.20s}
+            .navbar-nav > .user-menu.show > .aw-user-dropdown > li:nth-child(6){animation-delay:.24s}
+
+            .navbar-nav > .user-menu > .aw-user-dropdown .dropdown-item,
+            .navbar-nav > .user-menu > .aw-user-dropdown .user-footer .btn{
+                transition:transform .18s ease, background .18s ease, box-shadow .18s ease;
+            }
+
+            .navbar-nav > .user-menu > .aw-user-dropdown .dropdown-item:hover,
+            .navbar-nav > .user-menu > .aw-user-dropdown .user-footer .btn:hover{
+                transform:translateX(2px);
+                box-shadow:0 8px 20px rgba(63, 139, 226, .12);
+            }
+
+            @keyframes awDropdownGlow{
+                0%{box-shadow:0 12px 26px rgba(31,75,116,.1), 0 0 0 rgba(105,212,255,0)}
+                54%{box-shadow:0 22px 50px rgba(31,75,116,.2), 0 0 30px rgba(105,212,255,.2)}
+                100%{box-shadow:0 20px 44px rgba(31,75,116,.18), 0 0 0 1px rgba(255,255,255,.55)}
+            }
+
+            @keyframes awDropdownItemIn{
+                to{
+                    opacity:1;
+                    transform:translateY(0);
+                }
+            }
+
+            @media (prefers-reduced-motion: reduce){
+                .navbar-nav > .user-menu > .aw-user-dropdown,
+                .navbar-nav > .user-menu > .aw-user-dropdown::before,
+                .navbar-nav > .user-menu > .aw-user-dropdown > li,
+                .navbar-nav > .user-menu > .aw-user-dropdown > .dropdown-divider{
+                    transition:none!important;
+                    animation:none!important;
+                    filter:none!important;
+                }
+
+                .navbar-nav > .user-menu.show > .aw-user-dropdown,
+                .navbar-nav > .user-menu.show > .aw-user-dropdown > li,
+                .navbar-nav > .user-menu.show > .aw-user-dropdown > .dropdown-divider{
+                    opacity:1;
+                    transform:none;
+                }
+            }
+    </style>
+@endonce
