@@ -7,6 +7,7 @@ use App\Models\Sivigila;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Carbon\Carbon;
 use Maatwebsite\Excel\Excel as ExcelFormat;
 use Maatwebsite\Excel\Facades\Excel;
 use App\Exports\SivigilaDesignerExport;
@@ -236,8 +237,18 @@ class Sivigila114Controller extends Controller
         $incomeedit5 = $registro->semana ?? null;
         $incomeedit6 = $registro->nmun_resi ?? null;
         $incomeedit7 = $registro->ndep_resi ?? null;
-        $incomeedit8 = $registro->fecha_nto_ ?? null;
-        $incomeedit9 = $registro->edad_ges ?? null;
+        $fechaNacimiento = $this->normalizeSourceDate($registro->fecha_nto_ ?? null);
+        $fechaReferencia = $this->normalizeSourceDate($incomeedit2) ?? Carbon::today();
+        $edadMeses = null;
+        if ($fechaNacimiento) {
+            $edadMeses = (int) floor((float) $fechaNacimiento->diffInMonths($fechaReferencia));
+            if ($edadMeses < 0) {
+                $edadMeses = 0;
+            }
+        }
+
+        $incomeedit8 = $fechaNacimiento ? $fechaNacimiento->toDateString() : null;
+        $incomeedit9 = $edadMeses;
         $incomeedit10 = null;
         $income11 = $registro->nom_upgd ?? null;
 
@@ -278,6 +289,36 @@ class Sivigila114Controller extends Controller
             'incomeedit15',
             'incomeedit16'
         ));
+    }
+
+    private function normalizeSourceDate($value): ?Carbon
+    {
+        if ($value === null) {
+            return null;
+        }
+
+        $raw = trim((string) $value);
+        if ($raw === '' || in_array($raw, ['0000-00-00', '1900-01-01'], true)) {
+            return null;
+        }
+
+        $formats = ['Y-m-d', 'Y-m-d H:i:s', 'd/m/Y', 'd-m-Y', 'm/d/Y', 'd/m/Y H:i:s', 'Ymd'];
+        foreach ($formats as $fmt) {
+            try {
+                $dt = Carbon::createFromFormat($fmt, $raw);
+                if ($dt !== false) {
+                    return $dt->startOfDay();
+                }
+            } catch (\Throwable $e) {
+                // continuar con siguiente formato
+            }
+        }
+
+        try {
+            return Carbon::parse($raw)->startOfDay();
+        } catch (\Throwable $e) {
+            return null;
+        }
     }
 
     private function reportColumnCatalog(): array

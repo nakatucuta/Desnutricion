@@ -14,6 +14,8 @@
         optional($registro)->pri_ape_,
         optional($registro)->seg_ape_,
     ])));
+    $edadMesesRaw = old('edad_ges', $incomeedit9 ?? null);
+    $edadMesesEntera = is_numeric($edadMesesRaw) ? (string) max(0, (int) floor((float) $edadMesesRaw)) : $edadMesesRaw;
 @endphp
 
 <style>
@@ -162,7 +164,7 @@
             </div>
             <div class="col-md-3 form-group">
                 <label>Edad meses</label>
-                <input class="form-control" type="text" name="edad_ges" id="edad_ges" value="{{ old('edad_ges', $incomeedit9) }}">
+                <input class="form-control" type="number" min="0" step="1" name="edad_ges" id="edad_ges" value="{{ $edadMesesEntera }}">
             </div>
         </div>
 
