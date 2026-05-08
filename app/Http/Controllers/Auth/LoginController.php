@@ -83,8 +83,31 @@ class LoginController extends Controller
 
         // Evita iniciar sesion en una cuenta equivocada cuando el codigo/nombre no es unico.
         if ($codeCount > 1 || $nameCount > 1 || ($codeCount > 0 && $nameCount > 0)) {
+            $emails = DB::table('users')
+                ->where(function ($q) use ($loginValue) {
+                    $q->where('codigohabilitacion', $loginValue)
+                      ->orWhere('name', $loginValue);
+                })
+                ->whereNotNull('email')
+                ->pluck('email')
+                ->map(fn($e) => mb_strtolower(trim((string) $e)))
+                ->filter(fn($e) => $e !== '')
+                ->unique()
+                ->values();
+
+            $emailsMsg = $emails->isNotEmpty()
+                ? ' Correos asociados: ' . $emails->implode(', ') . '.'
+                : ' No hay correos asociados visibles para este identificador.';
+
+            $payload = [
+                'codigohabilitacion' => ['El codigo/usuario no es unico. Ingresa con correo para acceder a la cuenta correcta.' . $emailsMsg],
+            ];
+            if ($emails->isNotEmpty()) {
+                $payload['login_email_suggestions'] = $emails->all();
+            }
+
             throw ValidationException::withMessages([
-                'codigohabilitacion' => ['El codigo/usuario no es unico. Ingresa con correo para acceder a la cuenta correcta.'],
+                ...$payload,
             ]);
         }
 

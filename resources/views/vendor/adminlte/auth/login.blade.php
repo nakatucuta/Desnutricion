@@ -96,6 +96,37 @@
 
     /* Errores visibles incluso si se alterna el método */
     .is-invalid ~ .invalid-feedback{ display:block; }
+    .login-suggest-wrap{
+        margin-top:.55rem;
+        padding:.55rem .6rem;
+        border:1px dashed #bfdbfe;
+        background:#eff6ff;
+        border-radius:10px;
+    }
+    .login-suggest-title{
+        margin:0 0 .35rem 0;
+        font-size:.82rem;
+        color:#1e3a8a;
+        font-weight:700;
+    }
+    .login-suggest-chips{
+        display:flex;
+        flex-wrap:wrap;
+        gap:.38rem;
+    }
+    .login-suggest-chip{
+        display:inline-flex;
+        align-items:center;
+        border-radius:999px;
+        padding:.24rem .56rem;
+        background:#dbeafe;
+        color:#1d4ed8;
+        border:1px solid #93c5fd;
+        font-size:.78rem;
+        line-height:1.2;
+        font-weight:700;
+        word-break:break-all;
+    }
 
     /* Footer links */
     .auth-footer a{ color:#111827; font-weight:600; text-decoration:underline; }
@@ -233,6 +264,16 @@
         @error('codigohabilitacion')
             <span class="invalid-feedback" role="alert"><strong>{{ $message }}</strong></span>
         @enderror
+        @if($errors->has('login_email_suggestions'))
+            <div class="login-suggest-wrap">
+                <p class="login-suggest-title">Correos sugeridos para iniciar sesion:</p>
+                <div class="login-suggest-chips">
+                    @foreach($errors->get('login_email_suggestions') as $emailSuggestion)
+                        <span class="login-suggest-chip">{{ $emailSuggestion }}</span>
+                    @endforeach
+                </div>
+            </div>
+        @endif
     </div>
 
     <div class="field-hint mb-3">Usa <em>uno</em> de los dos métodos.</div>
