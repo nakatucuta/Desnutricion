@@ -558,12 +558,13 @@ class AfiliadoController extends Controller
                 'end_date' => $periodEnd->format('Y-m-d'),
             ],
             'thresholds' => [
-                'optima' => '>100%',
-                'util' => '95% - 100%',
-                'bajo_riesgo' => '90% - 94.9%',
-                'no_util' => '80% - 89.9%',
-                'critica' => '50% - 79.9%',
-                'muy_critica' => '<=50%',
+                'optima' => '>=23.7%',
+                'util' => '23.69% - 20.00%',
+                'bajo_riesgo' => '19.99% - 16.00%',
+                'alto_riesgo' => '15.99% - 13.00%',
+                'critica' => '12.99% - 10.69%',
+                'muy_critica' => '10.59% - 0.10%',
+                'sin_reporte' => '0',
             ],
             'rows' => $rows,
             'totals' => [
@@ -1912,26 +1913,28 @@ class AfiliadoController extends Controller
 
     private function paiCoverageState(float $coverage): string
     {
-        if ($coverage <= 0) {
+        $percentage = $coverage * 100;
+
+        if ($percentage <= 0) {
             return 'SIN REPORTE';
         }
-        if ($coverage <= 0.50) {
-            return 'Cobertura muy crítica';
+        if ($percentage >= 23.70) {
+            return 'OPTIMO';
         }
-        if ($coverage >= 0.50 && $coverage <= 0.799) {
-            return 'Cobertura Crítica';
+        if ($percentage >= 20.00) {
+            return 'UTIL';
         }
-        if ($coverage >= 0.80 && $coverage <= 0.899) {
-            return 'Cobertura no útil';
+        if ($percentage >= 16.00) {
+            return 'BAJO RIESGO';
         }
-        if ($coverage >= 0.90 && $coverage <= 0.949) {
-            return 'Cobertura bajo riesgo';
+        if ($percentage >= 13.00) {
+            return 'ALTO RIESGO';
         }
-        if ($coverage >= 0.95 && $coverage <= 1.0) {
-            return 'Cobertura útil';
+        if ($percentage >= 10.69) {
+            return 'CRITICO';
         }
-        if ($coverage > 1.0) {
-            return 'Cobertura Óptima';
+        if ($percentage >= 0.10) {
+            return 'MUY CRITICO';
         }
 
         return 'SIN REPORTE';

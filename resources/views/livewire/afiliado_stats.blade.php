@@ -120,14 +120,14 @@
 .pai-mini__label{font-size:.76rem;text-transform:uppercase;color:#64748b;font-weight:800}
 .pai-mini__value{font-size:1.3rem;font-weight:900;color:#0f172a}
 .pai-table-head th{font-size:.74rem;text-transform:uppercase;letter-spacing:.02em;background:#f8fbff;border-top:none}
-.pai-chip{display:inline-block;padding:5px 10px;border-radius:999px;font-size:.78rem;font-weight:700}
-.chip-optimo{background:#dcfce7;color:#166534}
-.chip-util{background:#ecfeff;color:#155e75}
-.chip-bajo{background:#eff6ff;color:#1d4ed8}
-.chip-no-util{background:#fff7ed;color:#9a3412}
-.chip-critica{background:#ffedd5;color:#9a3412}
-.chip-muy-critica{background:#fee2e2;color:#991b1b}
-.chip-sin{background:#f1f5f9;color:#475569}
+.pai-chip{display:inline-block;padding:5px 10px;border-radius:0;font-size:.78rem;font-weight:800;border:1px solid #000;color:#000}
+.chip-optimo{background:#0070c0;color:#fff}
+.chip-util{background:#00b0b0;color:#000}
+.chip-bajo{background:#ffff00;color:#000}
+.chip-alto{background:#f4b183;color:#000}
+.chip-critica{background:#ff0000;color:#000}
+.chip-muy-critica{background:#c00000;color:#fff}
+.chip-sin{background:#fff;color:#000}
 .gap-2{gap:.5rem}
 </style>
 @stop
@@ -143,10 +143,12 @@
 
     function stateClass(estado){
         const e = (estado || '').toLowerCase();
-        if (e.includes('óptima') || e.includes('optima')) return 'chip-optimo';
-        if (e.includes('útil') || e.includes('util')) return e.includes('no útil') || e.includes('no util') ? 'chip-no-util' : 'chip-util';
+        if (e.includes('optimo') || e.includes('optima') || e.includes('óptima')) return 'chip-optimo';
+        if (e.includes('util') || e.includes('útil')) return 'chip-util';
         if (e.includes('bajo riesgo')) return 'chip-bajo';
-        if (e.includes('crítica') || e.includes('critica')) return e.includes('muy') ? 'chip-muy-critica' : 'chip-critica';
+        if (e.includes('alto riesgo')) return 'chip-alto';
+        if (e.includes('muy critico') || e.includes('muy critica') || e.includes('muy crítica')) return 'chip-muy-critica';
+        if (e.includes('critico') || e.includes('critica') || e.includes('crítica')) return 'chip-critica';
         if (e.includes('sin reporte')) return 'chip-sin';
         return 'chip-sin';
     }
@@ -196,12 +198,13 @@
         const el = document.getElementById('paiThresholds');
         if (!el) return;
         const map = [
-            ['chip-optimo', 'Cobertura Óptima', th?.optima || '>100%'],
-            ['chip-util', 'Cobertura útil', th?.util || '95% - 100%'],
-            ['chip-bajo', 'Cobertura bajo riesgo', th?.bajo_riesgo || '90% - 94.9%'],
-            ['chip-no-util', 'Cobertura no útil', th?.no_util || '80% - 89.9%'],
-            ['chip-critica', 'Cobertura Crítica', th?.critica || '50% - 79.9%'],
-            ['chip-muy-critica', 'Cobertura muy crítica', th?.muy_critica || '<=50%']
+            ['chip-optimo', 'OPTIMO', th?.optima || '>=23.7%'],
+            ['chip-util', 'UTIL', th?.util || '23.69% - 20.00%'],
+            ['chip-bajo', 'BAJO RIESGO', th?.bajo_riesgo || '19.99% - 16.00%'],
+            ['chip-alto', 'ALTO RIESGO', th?.alto_riesgo || '15.99% - 13.00%'],
+            ['chip-critica', 'CRITICO', th?.critica || '12.99% - 10.69%'],
+            ['chip-muy-critica', 'MUY CRITICO', th?.muy_critica || '10.59% - 0.10%'],
+            ['chip-sin', 'SIN REPORTE', th?.sin_reporte || '0']
         ];
         el.innerHTML = map.map(x => '<span class="pai-chip ' + x[0] + '">' + x[1] + ': ' + x[2] + '</span>').join('');
     }
