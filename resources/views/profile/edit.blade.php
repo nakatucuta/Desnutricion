@@ -20,6 +20,14 @@
     @if (session('status'))
         <div class="alert alert-success">{{ session('status') }}</div>
     @endif
+    @if (session('warning'))
+        <div class="alert alert-warning">{{ session('warning') }}</div>
+    @endif
+    @if (!empty($user->force_password_change))
+        <div class="alert alert-warning">
+            Tu contrasena fue restablecida por administracion. Debes cambiarla para continuar usando el sistema.
+        </div>
+    @endif
     @if ($errors->any())
         <div class="alert alert-danger">
             <ul class="mb-0 pl-3">

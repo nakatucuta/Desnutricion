@@ -8,7 +8,9 @@ use App\Models\User;
 use App\Services\AccessControlService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\Rules\Password;
 use Yajra\DataTables\Facades\DataTables;
 
 class AccessControlController extends Controller
@@ -60,6 +62,9 @@ class AccessControlController extends Controller
             ->filterColumn('user_label', function ($q, $keyword) {
                 $q->where('name', 'like', '%' . $keyword . '%');
             })
+            ->addColumn('select_html', function (User $user) {
+                return '<input type="checkbox" class="ac-user-select" value="' . e((string) $user->id) . '" aria-label="Seleccionar usuario">';
+            })
             ->addColumn('user_label', function (User $user) {
                 $label = e((string) $user->name);
                 if ($this->accessControl->isSuperAdmin($user)) {
@@ -68,6 +73,23 @@ class AccessControlController extends Controller
                     $label .= ' <span class="badge badge-info ml-1">_ges</span>';
                 }
                 return $label;
+            })
+            ->addColumn('usertype_html', function (User $user) {
+                $formId = 'f-user-' . $user->id;
+                $labels = [
+                    1 => '1 - Administrador',
+                    2 => '2 - Prestador',
+                    3 => '3 - Nutricionista',
+                ];
+
+                $html = '<select name="usertype" form="' . e($formId) . '" class="form-control form-control-sm ac-type-select">';
+                foreach ($labels as $value => $label) {
+                    $selected = (int) ($user->usertype ?? 0) === (int) $value ? ' selected' : '';
+                    $html .= '<option value="' . e((string) $value) . '"' . $selected . '>' . e($label) . '</option>';
+                }
+                $html .= '</select>';
+
+                return $html;
             })
             ->addColumn('permissions_html', function (User $user) use ($permissions) {
                 $currentCodes = $user->modulePermissions
@@ -106,9 +128,17 @@ class AccessControlController extends Controller
             })
             ->addColumn('action_html', function (User $user) {
                 $formId = 'f-user-' . $user->id;
-                return '<button type="submit" form="' . e($formId) . '" class="btn btn-sm btn-success btn-block">Guardar</button>';
+                $resetPayload = e(json_encode([
+                    'id' => (int) $user->id,
+                    'name' => (string) ($user->name ?? ('Usuario #' . $user->id)),
+                    'url' => route('access-control.users.password.reset', $user),
+                ]));
+
+                return '<button type="submit" form="' . e($formId) . '" class="btn btn-sm btn-success btn-block mb-2">Guardar</button>'
+                    . '<button type="button" class="btn btn-sm btn-outline-danger btn-block js-reset-user-password" data-user="' . $resetPayload . '">'
+                    . '<i class="fas fa-key mr-1"></i>Reset</button>';
             })
-            ->rawColumns(['user_label', 'permissions_html', 'action_html'])
+            ->rawColumns(['select_html', 'user_label', 'usertype_html', 'permissions_html', 'action_html'])
             ->toJson();
     }
 
@@ -122,16 +152,60 @@ class AccessControlController extends Controller
             ->all();
 
         $validated = $request->validate([
+            'usertype' => ['required', 'integer', Rule::in([1, 2, 3])],
             'permissions' => ['nullable', 'array'],
             'permissions.*' => ['string', Rule::in($codes)],
         ]);
 
-        $requested = array_values(array_unique((array) ($validated['permissions'] ?? [])));
+        $user->usertype = (int) $validated['usertype'];
+        $user->save();
+
+        $requested = (int) $user->usertype === 1
+            ? $codes
+            : array_values(array_unique((array) ($validated['permissions'] ?? [])));
         $this->accessControl->syncUserPermissions($user, $requested, (int) Auth::id());
 
         return redirect()
             ->route('access-control.index')
             ->with('success', 'Permisos actualizados para: ' . ($user->name ?: ('Usuario #' . $user->id)));
+    }
+
+    public function resetUserPassword(Request $request, User $user)
+    {
+        $validated = $request->validate([
+            'temporary_password' => ['required', 'confirmed', Password::min(10)->letters()->mixedCase()->numbers()->symbols()],
+        ]);
+
+        $user->forceFill([
+            'password' => Hash::make((string) $validated['temporary_password']),
+            'force_password_change' => true,
+            'password_reset_at' => now(),
+        ])->save();
+
+        return redirect()
+            ->route('access-control.index')
+            ->with('success', 'Contrasena restablecida para ' . ($user->name ?: ('Usuario #' . $user->id)) . '. Al ingresar debera cambiarla.');
+    }
+
+    public function resetSelectedPasswords(Request $request)
+    {
+        $validated = $request->validate([
+            'user_ids' => ['required', 'array', 'min:1'],
+            'user_ids.*' => ['integer', 'exists:users,id'],
+            'temporary_password' => ['required', 'confirmed', Password::min(10)->letters()->mixedCase()->numbers()->symbols()],
+        ]);
+
+        $userIds = array_values(array_unique(array_map('intval', $validated['user_ids'])));
+        $updated = User::query()->whereIn('id', $userIds)->update([
+            'password' => Hash::make((string) $validated['temporary_password']),
+            'force_password_change' => true,
+            'password_reset_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        return redirect()
+            ->route('access-control.index')
+            ->with('success', 'Contrasena restablecida para ' . $updated . ' usuario(s) seleccionado(s). Al ingresar deberan cambiarla.');
     }
 
     public function resolveRequest(Request $request, ModuleAccessRequest $accessRequest)

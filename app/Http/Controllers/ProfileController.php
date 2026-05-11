@@ -267,6 +267,7 @@ class ProfileController extends Controller
         }
 
         $user->password = Hash::make((string) $request->input('password'));
+        $user->force_password_change = false;
         $user->save();
         try {
             Auth::logoutOtherDevices((string) $request->input('password'));

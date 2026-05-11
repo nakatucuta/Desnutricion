@@ -220,6 +220,10 @@ Route::middleware(['auth', 'super_admin'])->group(function () {
     Route::get('/admin/permisos/data', [AccessControlController::class, 'data'])->name('access-control.data');
     Route::put('/admin/permisos/usuarios/{user}', [AccessControlController::class, 'updateUserPermissions'])
         ->name('access-control.users.update');
+    Route::post('/admin/permisos/usuarios/{user}/password/reset', [AccessControlController::class, 'resetUserPassword'])
+        ->name('access-control.users.password.reset');
+    Route::post('/admin/permisos/password/reset-selected', [AccessControlController::class, 'resetSelectedPasswords'])
+        ->name('access-control.users.password.reset-selected');
     Route::post('/admin/permisos/solicitudes/{accessRequest}/resolver', [AccessControlController::class, 'resolveRequest'])
         ->name('access-control.requests.resolve');
 });

@@ -40,6 +40,8 @@ class User extends Authenticatable
         'codigohabilitacion',
         'profile_photo_path',
         'pref_iframe_mode',
+        'force_password_change',
+        'password_reset_at',
     ];
 
     /**
@@ -64,6 +66,8 @@ class User extends Authenticatable
         
         'email_verified_at' => 'datetime',
         'pref_iframe_mode' => 'boolean',
+        'force_password_change' => 'boolean',
+        'password_reset_at' => 'datetime',
     ];
 
     public function Ingreso ()
