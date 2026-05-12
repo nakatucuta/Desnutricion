@@ -28,8 +28,7 @@ class AsignacionesMaestrosiv549Controller extends Controller
 
         $casoQuery = \App\Models\MaestroSiv549::query()
             ->where('tip_ide_', $tipIde)
-            ->where('num_ide_', $numIde)
-            ->whereRaw("LOWER(LTRIM(RTRIM(COALESCE(nom_eve, '')))) = ?", [self::EVENTO_FIJO_549]);
+            ->where('num_ide_', $numIde);
 
         if ($fecNotNorm !== null) {
             $fecNotSql = $this->toSqlServerDateLiteral($fecNotNorm);
