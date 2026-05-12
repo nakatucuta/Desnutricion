@@ -558,12 +558,12 @@ class AfiliadoController extends Controller
                 'end_date' => $periodEnd->format('Y-m-d'),
             ],
             'thresholds' => [
-                'optima' => '>=23.7%',
-                'util' => '23.69% - 20.00%',
-                'bajo_riesgo' => '19.99% - 16.00%',
-                'alto_riesgo' => '15.99% - 13.00%',
-                'critica' => '12.99% - 10.69%',
-                'muy_critica' => '10.59% - 0.10%',
+                'optima' => '>100%',
+                'util' => '95.0% - 100%',
+                'bajo_riesgo' => '90.0% - 94.9%',
+                'no_util' => '80.0% - 89.9%',
+                'critica' => '50.0% - 79.9%',
+                'muy_critica' => '<=50%',
                 'sin_reporte' => '0',
             ],
             'rows' => $rows,
@@ -1918,23 +1918,23 @@ class AfiliadoController extends Controller
         if ($percentage <= 0) {
             return 'SIN REPORTE';
         }
-        if ($percentage >= 23.70) {
-            return 'OPTIMO';
+        if ($percentage > 100) {
+            return 'Cobertura Óptima';
         }
-        if ($percentage >= 20.00) {
-            return 'UTIL';
+        if ($percentage >= 95.00) {
+            return 'Cobertura útil';
         }
-        if ($percentage >= 16.00) {
-            return 'BAJO RIESGO';
+        if ($percentage >= 90.00) {
+            return 'Cobertura bajo riesgo';
         }
-        if ($percentage >= 13.00) {
-            return 'ALTO RIESGO';
+        if ($percentage >= 80.00) {
+            return 'Cobertura no útil';
         }
-        if ($percentage >= 10.69) {
-            return 'CRITICO';
+        if ($percentage > 50.00) {
+            return 'Cobertura Crítica';
         }
-        if ($percentage >= 0.10) {
-            return 'MUY CRITICO';
+        if ($percentage <= 50.00) {
+            return 'Cobertura muy crítica';
         }
 
         return 'SIN REPORTE';
