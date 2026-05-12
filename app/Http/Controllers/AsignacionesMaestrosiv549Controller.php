@@ -10,6 +10,8 @@ use Illuminate\Validation\ValidationException;
 
 class AsignacionesMaestrosiv549Controller extends Controller
 {
+    private const EVENTO_FIJO_549 = 'morbilidad materna extrema';
+
     private function ensureAdmin(): void
     {
         abort_unless(auth()->check() && (int) (auth()->user()->usertype ?? 0) === 1, 403, 'Acceso solo para administradores.');
@@ -22,16 +24,12 @@ class AsignacionesMaestrosiv549Controller extends Controller
 
         $tipIde = trim((string) $request->tip_ide_);
         $numIde = trim((string) $request->num_ide_);
-        $nomEve = trim((string) $request->nom_eve);
         $fecNotNorm = $this->normalizeDate($request->fec_not);
 
         $casoQuery = \App\Models\MaestroSiv549::query()
             ->where('tip_ide_', $tipIde)
-            ->where('num_ide_', $numIde);
-
-        if ($nomEve !== '') {
-            $casoQuery->where('nom_eve', $nomEve);
-        }
+            ->where('num_ide_', $numIde)
+            ->whereRaw("LOWER(LTRIM(RTRIM(COALESCE(nom_eve, '')))) = ?", [self::EVENTO_FIJO_549]);
 
         if ($fecNotNorm !== null) {
             $fecNotSql = $this->toSqlServerDateLiteral($fecNotNorm);
@@ -41,6 +39,7 @@ class AsignacionesMaestrosiv549Controller extends Controller
         $caso = $casoQuery->firstOrFail();
 
         $datosCaso = $caso->toArray();
+        $datosCaso['nom_eve'] = self::EVENTO_FIJO_549;
 
         $codigo_habilitacion = null;
         $nombre_ips_primaria = null;
@@ -95,7 +94,7 @@ class AsignacionesMaestrosiv549Controller extends Controller
             ->with('colaboradores:id,name,email,codigohabilitacion')
             ->whereRaw("LTRIM(RTRIM(COALESCE(tip_ide_, ''))) = ?", [trim((string) ($caso->tip_ide_ ?? ''))])
             ->whereRaw("LTRIM(RTRIM(COALESCE(num_ide_, ''))) = ?", [trim((string) ($caso->num_ide_ ?? ''))])
-            ->whereRaw("LTRIM(RTRIM(COALESCE(nom_eve, ''))) = ?", [trim((string) ($caso->nom_eve ?? ''))])
+            ->whereRaw("LOWER(LTRIM(RTRIM(COALESCE(nom_eve, '')))) = ?", [self::EVENTO_FIJO_549])
             ->whereRaw("COALESCE(NULLIF(LTRIM(RTRIM(COALESCE([year], ''))), ''), CONVERT(varchar(4), YEAR(fec_not)), '0000') = ?", [$periodYear])
             ->whereRaw("COALESCE(NULLIF(RIGHT('00' + LTRIM(RTRIM(COALESCE(semana, ''))), 2), ''), RIGHT('00' + CONVERT(varchar(2), DATEPART(ISO_WEEK, fec_not)), 2), '00') = ?", [$periodSemana])
             ->orderBy('id')
@@ -146,12 +145,14 @@ class AsignacionesMaestrosiv549Controller extends Controller
             'tip_ide_' => 'required',
             'num_ide_' => 'required',
             'fec_not'  => 'required',
-            'nom_eve'  => 'required',
         ], [
             'user_ids.required' => 'Debes seleccionar un prestador para la asignacion.',
             'user_ids.array' => 'El formato de prestador seleccionado no es valido.',
             'user_ids.min' => 'Debes seleccionar un prestador para la asignacion.',
             'user_ids.*.exists' => 'El prestador seleccionado no existe.',
+            'tip_ide_.required' => 'El campo Tipo de identificacion es obligatorio.',
+            'num_ide_.required' => 'El campo Numero de identificacion es obligatorio.',
+            'fec_not.required' => 'El campo Fecha de notificacion es obligatorio.',
         ]);
 
         $usuarioAsignador = auth()->user();
@@ -167,7 +168,7 @@ class AsignacionesMaestrosiv549Controller extends Controller
         $baseData = $request->except(['user_ids']);
         $baseData['tip_ide_'] = trim((string) ($baseData['tip_ide_'] ?? ''));
         $baseData['num_ide_'] = trim((string) ($baseData['num_ide_'] ?? ''));
-        $baseData['nom_eve'] = trim((string) ($baseData['nom_eve'] ?? ''));
+        $baseData['nom_eve'] = self::EVENTO_FIJO_549;
         $baseData['fec_not'] = $this->normalizeDate($baseData['fec_not'] ?? null);
         if ($baseData['fec_not'] === null) {
             throw ValidationException::withMessages([
@@ -221,7 +222,7 @@ class AsignacionesMaestrosiv549Controller extends Controller
             $asignacion = \App\Models\AsignacionesMaestrosiv549::query()
                 ->whereRaw("LTRIM(RTRIM(COALESCE(tip_ide_, ''))) = ?", [$baseData['tip_ide_']])
                 ->whereRaw("LTRIM(RTRIM(COALESCE(num_ide_, ''))) = ?", [$baseData['num_ide_']])
-                ->whereRaw("LTRIM(RTRIM(COALESCE(nom_eve, ''))) = ?", [$baseData['nom_eve']])
+                ->whereRaw("LOWER(LTRIM(RTRIM(COALESCE(nom_eve, '')))) = ?", [self::EVENTO_FIJO_549])
                 ->whereRaw("COALESCE(NULLIF(LTRIM(RTRIM(COALESCE([year], ''))), ''), CONVERT(varchar(4), YEAR(fec_not)), '0000') = ?", [$periodYear])
                 ->whereRaw("COALESCE(NULLIF(RIGHT('00' + LTRIM(RTRIM(COALESCE(semana, ''))), 2), ''), RIGHT('00' + CONVERT(varchar(2), DATEPART(ISO_WEEK, fec_not)), 2), '00') = ?", [$periodSemana])
                 ->orderBy('id')

@@ -14,6 +14,7 @@
     ];
 
     $hiddenFields = ['created_at', 'updated_at'];
+    $requiredFields = ['tip_ide_', 'num_ide_', 'fec_not', 'nom_eve'];
     $elegiblesCount = (int) (($usuariosElegibles ?? collect())->count());
     $asignadosCount = (int) (($asignacionesExistentes ?? collect())->count());
     $sinElegibles = $elegiblesCount === 0;
@@ -260,13 +261,22 @@
                                 @continue(in_array($campo, $hiddenFields, true))
                                 <div class="col-md-6 col-xl-4 mb-3">
                                     <div class="form-group mb-0">
-                                        <label for="{{ $campo }}" class="asig-label">{{ $prettyLabel($campo) }}</label>
+                                        <label for="{{ $campo }}" class="asig-label">
+                                            {{ $prettyLabel($campo) }}
+                                            @if(in_array($campo, $requiredFields, true))
+                                                <span class="text-danger">*</span>
+                                            @endif
+                                        </label>
                                         <input
                                             type="text"
-                                            class="form-control asig-input"
+                                            class="form-control asig-input @error($campo) is-invalid @enderror"
                                             name="{{ $campo }}"
                                             id="{{ $campo }}"
-                                            value="{{ old($campo, $valor ?? '') }}">
+                                            value="{{ old($campo, $valor ?? '') }}"
+                                            {{ $campo === 'nom_eve' ? 'readonly' : '' }}>
+                                        @error($campo)
+                                            <div class="invalid-feedback d-block">{{ $message }}</div>
+                                        @enderror
                                     </div>
                                 </div>
                             @endforeach

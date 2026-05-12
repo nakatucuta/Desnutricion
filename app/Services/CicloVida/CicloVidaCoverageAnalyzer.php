@@ -108,9 +108,10 @@ class CicloVidaCoverageAnalyzer
         $catalogRows = $this->catalogRows($filters['course_key'], $filters['module_key']);
         $courseCatalog = $this->courseCatalog($filters['course_key']);
 
-        $realizedGlobalStats = $this->realizedGlobalSummary($filters);
-        $realizedCourseStats = $this->realizedCourseStats($filters);
-        $realizedModuleStats = $this->realizedModuleStats($filters);
+        $realized = $this->realizedStats($filters);
+        $realizedGlobalStats = $realized['global'];
+        $realizedCourseStats = $realized['courses'];
+        $realizedModuleStats = $realized['modules'];
 
         $measurableRows = array_values(array_filter($catalogRows, fn (array $row) => $row['measurable']));
         [$gapRows, $gapCourseStats, $gapSummary] = $this->missingStats($filters, $measurableRows, $catalogRows);
@@ -430,6 +431,105 @@ class CicloVidaCoverageAnalyzer
         ];
     }
 
+    protected function realizedStats(array $filters): array
+    {
+        $rows = DB::query()
+            ->fromSub($this->eventAnalyticsBase($filters), 'q')
+            ->selectRaw('
+                q.course_key,
+                q.module_key,
+                COUNT(1) as total_attentions,
+                COUNT(DISTINCT q.patient_key) as unique_patients,
+                COUNT(DISTINCT q.ips_primaria) as unique_ips,
+                COUNT(DISTINCT q.municipio) as unique_municipalities
+            ')
+            ->groupBy('q.course_key', 'q.module_key')
+            ->get();
+
+        $modules = [];
+        $courses = [];
+        $global = [
+            'total_attentions' => 0,
+            'unique_patients' => 0,
+            'unique_ips' => 0,
+            'unique_municipalities' => 0,
+        ];
+
+        foreach ($rows as $row) {
+            $courseKey = (string) $row->course_key;
+            $moduleKey = (string) $row->module_key;
+
+            $modules[$courseKey][$moduleKey] = [
+                'total_attentions' => (int) $row->total_attentions,
+                'unique_patients' => (int) $row->unique_patients,
+                'unique_ips' => (int) $row->unique_ips,
+                'unique_municipalities' => (int) $row->unique_municipalities,
+            ];
+
+            if (!isset($courses[$courseKey])) {
+                $courses[$courseKey] = [
+                    'total_attentions' => 0,
+                    'unique_patients' => 0,
+                    'unique_ips' => 0,
+                    'unique_municipalities' => 0,
+                ];
+            }
+
+            $courses[$courseKey]['total_attentions'] += (int) $row->total_attentions;
+            // unique_patients/ips/municipality by course must be exact; compute in dedicated query per course scope below.
+            $courses[$courseKey]['unique_patients'] = 0;
+            $courses[$courseKey]['unique_ips'] = 0;
+            $courses[$courseKey]['unique_municipalities'] = 0;
+        }
+
+        $globalRow = DB::query()
+            ->fromSub($this->eventAnalyticsBase($filters), 'q')
+            ->selectRaw('
+                COUNT(1) as total_attentions,
+                COUNT(DISTINCT q.patient_key) as unique_patients,
+                COUNT(DISTINCT q.ips_primaria) as unique_ips,
+                COUNT(DISTINCT q.municipio) as unique_municipalities
+            ')
+            ->first();
+
+        $global = [
+            'total_attentions' => (int) ($globalRow->total_attentions ?? 0),
+            'unique_patients' => (int) ($globalRow->unique_patients ?? 0),
+            'unique_ips' => (int) ($globalRow->unique_ips ?? 0),
+            'unique_municipalities' => (int) ($globalRow->unique_municipalities ?? 0),
+        ];
+
+        $courseDistinctRows = DB::query()
+            ->fromSub($this->eventAnalyticsBase($filters), 'q')
+            ->selectRaw('
+                q.course_key,
+                COUNT(DISTINCT q.patient_key) as unique_patients,
+                COUNT(DISTINCT q.ips_primaria) as unique_ips,
+                COUNT(DISTINCT q.municipio) as unique_municipalities
+            ')
+            ->groupBy('q.course_key')
+            ->get();
+
+        foreach ($courseDistinctRows as $row) {
+            $courseKey = (string) $row->course_key;
+            $courses[$courseKey] = $courses[$courseKey] ?? [
+                'total_attentions' => 0,
+                'unique_patients' => 0,
+                'unique_ips' => 0,
+                'unique_municipalities' => 0,
+            ];
+            $courses[$courseKey]['unique_patients'] = (int) $row->unique_patients;
+            $courses[$courseKey]['unique_ips'] = (int) $row->unique_ips;
+            $courses[$courseKey]['unique_municipalities'] = (int) $row->unique_municipalities;
+        }
+
+        return [
+            'global' => $global,
+            'courses' => $courses,
+            'modules' => $modules,
+        ];
+    }
+
     protected function realizedCourseStats(array $filters): array
     {
         $rows = DB::query()
@@ -640,37 +740,32 @@ class CicloVidaCoverageAnalyzer
             return $this->dueCountsMemo[$memoKey] = [];
         }
 
-        $union = null;
+        $oldestBirthDate = collect($windows)->min('start');
+        $latestBirthDate = collect($windows)->max('end');
+        $segment = DB::query()
+            ->fromSub($this->patientProfileSubquery($filters, [
+                'oldest_birth_date' => $oldestBirthDate,
+                'latest_birth_date' => $latestBirthDate,
+            ]), 'p')
+            ->whereNotNull('p.fecha_nacimiento');
 
+        $this->applyGenderPopulationFilter($segment, $row['rule'] ?? [], 'p.genero');
+
+        $dueCountExpression = collect($windows)
+            ->map(fn (array $window) => 'SUM(CASE WHEN p.fecha_nacimiento >= ? AND p.fecha_nacimiento <= ? THEN 1 ELSE 0 END)')
+            ->implode(' + ');
+        $dueCountBindings = [];
         foreach ($windows as $window) {
-            $segment = DB::query()
-                ->fromSub($this->patientProfileSubquery($filters, [
-                    'oldest_birth_date' => $window['start'],
-                    'latest_birth_date' => $window['end'],
-                ]), 'p')
-                ->whereNotNull('p.fecha_nacimiento')
-                ->whereDate('p.fecha_nacimiento', '>=', $window['start'])
-                ->whereDate('p.fecha_nacimiento', '<=', $window['end']);
-
-            $this->applyGenderPopulationFilter($segment, $row['rule'] ?? [], 'p.genero');
-
-            $segment->selectRaw("CONCAT(COALESCE(p.tipo_identificacion,''), '|', COALESCE(p.identificacion,'')) as patient_key");
-
-            if ($union === null) {
-                $union = $segment;
-            } else {
-                $union->unionAll($segment);
-            }
-        }
-
-        if ($union === null) {
-            return $this->dueCountsMemo[$memoKey] = [];
+            $dueCountBindings[] = $window['start'];
+            $dueCountBindings[] = $window['end'];
         }
 
         $rows = DB::query()
-            ->fromSub($union, 'd')
-            ->selectRaw('d.patient_key, COUNT(1) as due_count')
-            ->groupBy('d.patient_key')
+            ->fromSub($segment, 'p')
+            ->selectRaw("CONCAT(COALESCE(p.tipo_identificacion,''), '|', COALESCE(p.identificacion,'')) as patient_key")
+            ->selectRaw("({$dueCountExpression}) as due_count", $dueCountBindings)
+            ->groupBy('p.tipo_identificacion', 'p.identificacion')
+            ->havingRaw("({$dueCountExpression}) > 0", $dueCountBindings)
             ->get();
 
         $result = [];
@@ -707,68 +802,47 @@ class CicloVidaCoverageAnalyzer
             return $this->duePatientDetailMemo[$memoKey] = [];
         }
 
-        $union = null;
+        $oldestBirthDate = collect($windows)->min('start');
+        $latestBirthDate = collect($windows)->max('end');
+        $segment = DB::query()
+            ->fromSub($this->patientProfileSubquery($filters, [
+                'oldest_birth_date' => $oldestBirthDate,
+                'latest_birth_date' => $latestBirthDate,
+            ]), 'p')
+            ->whereNotNull('p.fecha_nacimiento');
 
+        $this->applyGenderPopulationFilter($segment, $row['rule'] ?? [], 'p.genero');
+
+        $dueCountExpression = collect($windows)
+            ->map(fn (array $window) => 'SUM(CASE WHEN p.fecha_nacimiento >= ? AND p.fecha_nacimiento <= ? THEN 1 ELSE 0 END)')
+            ->implode(' + ');
+        $dueCountBindings = [];
         foreach ($windows as $window) {
-            $segment = DB::query()
-                ->fromSub($this->patientProfileSubquery($filters, [
-                    'oldest_birth_date' => $window['start'],
-                    'latest_birth_date' => $window['end'],
-                ]), 'p')
-                ->whereNotNull('p.fecha_nacimiento')
-                ->whereDate('p.fecha_nacimiento', '>=', $window['start'])
-                ->whereDate('p.fecha_nacimiento', '<=', $window['end']);
-
-            $this->applyGenderPopulationFilter($segment, $row['rule'] ?? [], 'p.genero');
-
-            $segment->selectRaw("CONCAT(COALESCE(p.tipo_identificacion,''), '|', COALESCE(p.identificacion,'')) as patient_key")
-                ->addSelect([
-                    'p.tipo_identificacion',
-                    'p.identificacion',
-                    'p.primer_nombre',
-                    'p.segundo_nombre',
-                    'p.primer_apellido',
-                    'p.segundo_apellido',
-                    'p.fecha_nacimiento',
-                    'p.genero',
-                    'p.estado_actual',
-                    'p.departamento',
-                    'p.municipio',
-                    'p.zona',
-                    'p.ips_primaria',
-                ]);
-
-            if ($union === null) {
-                $union = $segment;
-            } else {
-                $union->unionAll($segment);
-            }
-        }
-
-        if ($union === null) {
-            return $this->duePatientDetailMemo[$memoKey] = [];
+            $dueCountBindings[] = $window['start'];
+            $dueCountBindings[] = $window['end'];
         }
 
         $rows = DB::query()
-            ->fromSub($union, 'd')
+            ->fromSub($segment, 'p')
             ->selectRaw("
-                d.patient_key,
-                MAX(d.tipo_identificacion) as tipo_identificacion,
-                MAX(d.identificacion) as identificacion,
-                MAX(d.primer_nombre) as primer_nombre,
-                MAX(d.segundo_nombre) as segundo_nombre,
-                MAX(d.primer_apellido) as primer_apellido,
-                MAX(d.segundo_apellido) as segundo_apellido,
-                MAX(d.fecha_nacimiento) as fecha_nacimiento,
-                MAX(d.genero) as genero,
-                MAX(d.estado_actual) as estado_actual,
-                MAX(d.departamento) as departamento,
-                MAX(d.municipio) as municipio,
-                MAX(d.zona) as zona,
-                MAX(d.ips_primaria) as ips_primaria,
-                COUNT(1) as expected_attentions
+                CONCAT(COALESCE(p.tipo_identificacion,''), '|', COALESCE(p.identificacion,'')) as patient_key,
+                MAX(p.tipo_identificacion) as tipo_identificacion,
+                MAX(p.identificacion) as identificacion,
+                MAX(p.primer_nombre) as primer_nombre,
+                MAX(p.segundo_nombre) as segundo_nombre,
+                MAX(p.primer_apellido) as primer_apellido,
+                MAX(p.segundo_apellido) as segundo_apellido,
+                MAX(p.fecha_nacimiento) as fecha_nacimiento,
+                MAX(p.genero) as genero,
+                MAX(p.estado_actual) as estado_actual,
+                MAX(p.departamento) as departamento,
+                MAX(p.municipio) as municipio,
+                MAX(p.zona) as zona,
+                MAX(p.ips_primaria) as ips_primaria
             ")
-            ->groupBy('d.patient_key')
+            ->selectRaw("({$dueCountExpression}) as expected_attentions", $dueCountBindings)
+            ->groupBy('p.tipo_identificacion', 'p.identificacion')
+            ->havingRaw("({$dueCountExpression}) > 0", $dueCountBindings)
             ->get();
 
         $result = [];

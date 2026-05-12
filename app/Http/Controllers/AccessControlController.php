@@ -9,6 +9,7 @@ use App\Services\AccessControlService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Password;
 use Yajra\DataTables\Facades\DataTables;
@@ -182,9 +183,11 @@ class AccessControlController extends Controller
             'password_reset_at' => now(),
         ])->save();
 
+        $sent = $this->sendTemporaryPasswordEmail($user, (string) $validated['temporary_password'], Auth::user());
+
         return redirect()
             ->route('access-control.index')
-            ->with('success', 'Contrasena restablecida para ' . ($user->name ?: ('Usuario #' . $user->id)) . '. Al ingresar debera cambiarla.');
+            ->with('success', 'Contrasena restablecida para ' . ($user->name ?: ('Usuario #' . $user->id)) . '. Al ingresar debera cambiarla. ' . ($sent ? 'Correo enviado.' : 'No se pudo enviar correo porque el usuario no tiene correo valido o hubo un error de envio.'));
     }
 
     public function resetSelectedPasswords(Request $request)
@@ -196,6 +199,8 @@ class AccessControlController extends Controller
         ]);
 
         $userIds = array_values(array_unique(array_map('intval', $validated['user_ids'])));
+        $users = User::query()->whereIn('id', $userIds)->get(['id', 'name', 'email']);
+
         $updated = User::query()->whereIn('id', $userIds)->update([
             'password' => Hash::make((string) $validated['temporary_password']),
             'force_password_change' => true,
@@ -203,9 +208,16 @@ class AccessControlController extends Controller
             'updated_at' => now(),
         ]);
 
+        $sentCount = 0;
+        foreach ($users as $user) {
+            if ($this->sendTemporaryPasswordEmail($user, (string) $validated['temporary_password'], Auth::user())) {
+                $sentCount++;
+            }
+        }
+
         return redirect()
             ->route('access-control.index')
-            ->with('success', 'Contrasena restablecida para ' . $updated . ' usuario(s) seleccionado(s). Al ingresar deberan cambiarla.');
+            ->with('success', 'Contrasena restablecida para ' . $updated . ' usuario(s) seleccionado(s). Al ingresar deberan cambiarla. Correos enviados: ' . $sentCount . '/' . $users->count() . '.');
     }
 
     public function resolveRequest(Request $request, ModuleAccessRequest $accessRequest)
@@ -244,5 +256,31 @@ class AccessControlController extends Controller
         return redirect()
             ->route('access-control.index')
             ->with('success', 'Solicitud #' . $accessRequest->id . ' gestionada (' . strtoupper($accessRequest->status) . ').');
+    }
+
+    private function sendTemporaryPasswordEmail(User $user, string $temporaryPassword, ?User $admin): bool
+    {
+        $email = trim((string) ($user->email ?? ''));
+        if ($email === '' || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            return false;
+        }
+
+        try {
+            Mail::send('emails.temporary_password_reset', [
+                'user' => $user,
+                'admin' => $admin,
+                'temporaryPassword' => $temporaryPassword,
+                'loginUrl' => route('login'),
+                'profileUrl' => route('profile.edit'),
+                'resetAt' => now()->format('Y-m-d H:i:s'),
+            ], function ($message) use ($email) {
+                $message->to($email)->subject('[ANAS WAYUU] Contrasena temporal asignada');
+            });
+
+            return true;
+        } catch (\Throwable $e) {
+            report($e);
+            return false;
+        }
     }
 }
