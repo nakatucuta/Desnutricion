@@ -376,6 +376,60 @@ class CicloVidaCoverageAnalyzer
             }
         }
 
+        // Consolidate duplicates caused by multiple document types for the same person.
+        // Keep one row per course/module/identification and preserve the highest missing count.
+        $dedupedRows = [];
+        foreach ($detailRows as $row) {
+            $identification = trim((string) ($row['identificacion'] ?? ''));
+            $dedupeKey = implode('|', [
+                (string) ($row['course_key'] ?? ''),
+                (string) ($row['module_key'] ?? ''),
+                $identification,
+            ]);
+
+            if ($identification === '') {
+                $dedupeKey .= '|'.trim((string) ($row['nombre_completo'] ?? ''));
+            }
+
+            if (!isset($dedupedRows[$dedupeKey])) {
+                $dedupedRows[$dedupeKey] = $row;
+                continue;
+            }
+
+            $current = $dedupedRows[$dedupeKey];
+            $currentMissing = (int) ($current['missing_attentions'] ?? 0);
+            $incomingMissing = (int) ($row['missing_attentions'] ?? 0);
+
+            if ($incomingMissing > $currentMissing) {
+                $dedupedRows[$dedupeKey] = $row;
+                continue;
+            }
+
+            if ($incomingMissing === $currentMissing) {
+                $currentValid = (int) ($current['valid_attentions'] ?? 0);
+                $incomingValid = (int) ($row['valid_attentions'] ?? 0);
+                if ($incomingValid > $currentValid) {
+                    $dedupedRows[$dedupeKey] = $row;
+                }
+            }
+        }
+
+        $detailRows = array_values($dedupedRows);
+        $patientKeys = [];
+        $ips = [];
+        foreach ($detailRows as $row) {
+            $patientUniqueKey = trim((string) ($row['identificacion'] ?? ''));
+            if ($patientUniqueKey === '') {
+                $patientUniqueKey = trim((string) ($row['nombre_completo'] ?? ''));
+            }
+            if ($patientUniqueKey !== '') {
+                $patientKeys[$patientUniqueKey] = true;
+            }
+
+            $ipsResponsable = trim((string) ($row['ips_responsable'] ?? 'Sin IPS'));
+            $ips[$ipsResponsable !== '' ? $ipsResponsable : 'Sin IPS'] = true;
+        }
+
         usort($detailRows, function (array $left, array $right): int {
             return [
                 $left['primer_apellido'],
