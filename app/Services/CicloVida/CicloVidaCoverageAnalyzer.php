@@ -1353,6 +1353,39 @@ class CicloVidaCoverageAnalyzer
     protected function coverageRules(): array
     {
         return [
+            'primera_infancia.odontologia_general' => [
+                'type' => 'periodic_years',
+                'start_age' => 1,
+                'end_age' => 5,
+                'every' => 1,
+                'label' => 'Una vez por ano entre 1 y 5 anos',
+            ],
+            'primera_infancia.hemoglobina' => [
+                'type' => 'exact_months',
+                'months' => [6, 12, 18],
+                'label' => 'Hitos de 6, 12 y 18 meses',
+            ],
+            'primera_infancia.lactancia' => [
+                'type' => 'periodic_months',
+                'start_month' => 1,
+                'end_month' => 8,
+                'every' => 1,
+                'label' => 'Una vez por mes entre 1 y 8 meses',
+            ],
+            'primera_infancia.vitamina_a' => [
+                'type' => 'periodic_months',
+                'start_month' => 24,
+                'end_month' => 60,
+                'every' => 6,
+                'label' => 'Cada 6 meses entre 24 y 60 meses',
+            ],
+            'primera_infancia.hierro' => [
+                'type' => 'periodic_months',
+                'start_month' => 24,
+                'end_month' => 59,
+                'every' => 6,
+                'label' => 'Cada 6 meses entre 24 y 59 meses',
+            ],
             'infancia.medica' => [
                 'type' => 'exact_years',
                 'ages' => [6, 8, 10],
