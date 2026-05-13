@@ -9,7 +9,9 @@ use Illuminate\Http\Request;
 
 class RefreshCicloVidaCoverageSnapshots extends Command
 {
-    protected $signature = 'ciclosvida:coverage-snapshots-refresh {--preset=* : Preset(s) to refresh}';
+    protected $signature = 'ciclosvida:coverage-snapshots-refresh
+                            {--preset=* : Preset(s) to refresh}
+                            {--include-single-filters : Also generate snapshots with one common filter at a time}';
 
     protected $description = 'Precalcula snapshots de cobertura y brechas para rangos pesados del toolbar.';
 
@@ -27,24 +29,31 @@ class RefreshCicloVidaCoverageSnapshots extends Command
 
         if ($allPresets === []) {
             $this->warn('No hay presets validos para refrescar.');
+
             return self::SUCCESS;
         }
 
+        $scopes = [['label' => 'default', 'filters' => []]];
+        if ((bool) $this->option('include-single-filters')) {
+            $scopes = $snapshots->commonSingleFilterScopes($analyzer);
+        }
+
         foreach ($allPresets as $presetKey => [$from, $to]) {
-            $this->info("Procesando {$presetKey}: {$from}..{$to}");
+            foreach ($scopes as $scope) {
+                $this->info("Procesando {$presetKey} [{$scope['label']}]: {$from}..{$to}");
 
-            $request = Request::create('/ciclos-vida/cobertura-brechas/data', 'GET', [
-                'desde' => $from,
-                'hasta' => $to,
-                'include_non_measurable' => true,
-                'hide_empty' => false,
-            ]);
+                $payloadRequest = $snapshots->requestPayload($from, $to, $scope['filters']);
+                $request = Request::create('/ciclos-vida/cobertura-brechas/data', 'GET', $payloadRequest);
+                $payload = $analyzer->analyze($request);
+                $payload['meta'] = $payload['meta'] ?? [];
+                $payload['meta']['request_filters'] = $payloadRequest;
 
-            $payload = $analyzer->analyze($request);
-            $snapshots->store($presetKey, $from, $to, $payload);
+                $snapshots->store($presetKey, $from, $to, $payload, $scope['filters']);
+            }
         }
 
         $this->info('Snapshots de cobertura actualizados.');
+
         return self::SUCCESS;
     }
 }

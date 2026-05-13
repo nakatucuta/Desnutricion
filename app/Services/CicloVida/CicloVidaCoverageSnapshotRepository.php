@@ -2,30 +2,47 @@
 
 namespace App\Services\CicloVida;
 
+use App\Support\CicloVidaCatalog;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
 class CicloVidaCoverageSnapshotRepository
 {
-    public function hasOnlyDefaultFilters(array $query): bool
+    public function snapshotableFilters(array $query): ?array
     {
-        $keys = ['course_key', 'module_key', 'departamento', 'municipio', 'ips', 'genero', 'zona', 'estado_actual'];
+        $keys = ['course_key', 'departamento', 'municipio', 'ips', 'genero', 'zona', 'estado_actual'];
+        $filters = [];
+
         foreach ($keys as $key) {
-            if (trim((string) ($query[$key] ?? '')) !== '') {
-                return false;
+            $value = trim((string) ($query[$key] ?? ''));
+            if ($value !== '') {
+                $filters[$key] = $value;
             }
+        }
+
+        if (trim((string) ($query['module_key'] ?? '')) !== '') {
+            return null;
         }
 
         $include = filter_var($query['include_non_measurable'] ?? true, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
         $hide = filter_var($query['hide_empty'] ?? false, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
 
-        return ($include ?? true) === true && ($hide ?? false) === false;
+        if (($include ?? true) !== true || ($hide ?? false) !== false) {
+            return null;
+        }
+
+        if (count($filters) > 1) {
+            return null;
+        }
+
+        return $filters;
     }
 
     public function findForRequest(Request $request): ?array
     {
-        if (!$this->hasOnlyDefaultFilters($request->query())) {
+        $filters = $this->snapshotableFilters($request->query());
+        if ($filters === null) {
             return null;
         }
 
@@ -39,6 +56,7 @@ class CicloVidaCoverageSnapshotRepository
         $row = DB::table('ciclo_vida_coverage_snapshots')
             ->whereDate('range_from', $from)
             ->whereDate('range_to', $to)
+            ->where('filter_key', $this->filterKey($filters))
             ->orderByDesc('updated_at')
             ->first();
 
@@ -60,24 +78,77 @@ class CicloVidaCoverageSnapshotRepository
         return $payload;
     }
 
-    public function store(string $presetKey, string $from, string $to, array $payload): void
+    public function store(string $presetKey, string $from, string $to, array $payload, array $filters = []): void
     {
         $json = json_encode($payload, JSON_UNESCAPED_UNICODE);
+        $filterKey = $this->filterKey($filters);
+        $filterJson = json_encode($filters, JSON_UNESCAPED_UNICODE);
 
-        DB::transaction(function () use ($presetKey, $from, $to, $json): void {
+        DB::transaction(function () use ($presetKey, $from, $to, $json, $filterKey, $filterJson): void {
             DB::table('ciclo_vida_coverage_snapshots')
                 ->where('preset_key', $presetKey)
                 ->whereDate('range_from', $from)
                 ->whereDate('range_to', $to)
+                ->where('filter_key', $filterKey)
                 ->delete();
 
             DB::statement(
                 'INSERT INTO ciclo_vida_coverage_snapshots
-                    (preset_key, range_from, range_to, payload_json, generated_at, created_at, updated_at)
-                 VALUES (?, ?, ?, ?, GETDATE(), GETDATE(), GETDATE())',
-                [$presetKey, $from, $to, $json]
+                    (preset_key, range_from, range_to, filter_key, filter_json, payload_json, generated_at, created_at, updated_at)
+                 VALUES (?, ?, ?, ?, ?, ?, GETDATE(), GETDATE(), GETDATE())',
+                [$presetKey, $from, $to, $filterKey, $filterJson, $json]
             );
         });
+    }
+
+    public function requestPayload(string $from, string $to, array $filters = []): array
+    {
+        return array_merge([
+            'desde' => $from,
+            'hasta' => $to,
+            'include_non_measurable' => true,
+            'hide_empty' => false,
+        ], $filters);
+    }
+
+    public function commonSingleFilterScopes(CicloVidaCoverageAnalyzer $analyzer): array
+    {
+        $options = $analyzer->advancedFilterOptions();
+        $scopes = [
+            ['label' => 'default', 'filters' => []],
+        ];
+
+        foreach (array_keys(CicloVidaCatalog::courses()) as $courseKey) {
+            $scopes[] = [
+                'label' => 'course:'.$courseKey,
+                'filters' => ['course_key' => $courseKey],
+            ];
+        }
+
+        $map = [
+            'departments' => 'departamento',
+            'municipalities' => 'municipio',
+            'ips' => 'ips',
+            'genders' => 'genero',
+            'zones' => 'zona',
+            'states' => 'estado_actual',
+        ];
+
+        foreach ($map as $sourceKey => $filterKey) {
+            foreach (($options[$sourceKey] ?? []) as $item) {
+                $value = trim((string) ($item['value'] ?? ''));
+                if ($value === '') {
+                    continue;
+                }
+
+                $scopes[] = [
+                    'label' => $filterKey.':'.$value,
+                    'filters' => [$filterKey => $value],
+                ];
+            }
+        }
+
+        return $scopes;
     }
 
     public function presets(): array
@@ -93,5 +164,16 @@ class CicloVidaCoverageSnapshotRepository
             'month_previous' => [$today->copy()->subMonthNoOverflow()->startOfMonth()->toDateString(), $today->copy()->subMonthNoOverflow()->endOfMonth()->toDateString()],
             'year_current' => [$today->copy()->startOfYear()->toDateString(), $today->copy()->endOfYear()->toDateString()],
         ];
+    }
+
+    protected function filterKey(array $filters): string
+    {
+        if ($filters === []) {
+            return 'default';
+        }
+
+        ksort($filters);
+
+        return md5(json_encode($filters, JSON_UNESCAPED_UNICODE));
     }
 }

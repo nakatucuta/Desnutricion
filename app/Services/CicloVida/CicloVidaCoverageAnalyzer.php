@@ -211,7 +211,7 @@ class CicloVidaCoverageAnalyzer
                 ];
             }
 
-            $courseGap = $gapCourseStats[$courseKey] ?? [
+            $courseGap = array_replace([
                 'target_patients' => 0,
                 'patients_with_missing' => 0,
                 'expected_attentions' => 0,
@@ -219,7 +219,7 @@ class CicloVidaCoverageAnalyzer
                 'missing_attentions' => 0,
                 'excess_attentions' => 0,
                 'measurable_modules' => 0,
-            ];
+            ], $gapCourseStats[$courseKey] ?? []);
 
             $missingCourses[] = [
                 'course_key' => $courseKey,
