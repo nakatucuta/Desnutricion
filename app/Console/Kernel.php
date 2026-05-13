@@ -36,6 +36,11 @@ class Kernel extends ConsoleKernel
         $this->scheduleCicloVidaRefresh($schedule, 'juventud', 3, 15, 15, $timezone);
         $this->scheduleCicloVidaRefresh($schedule, 'adultez', 3, 15, 35, $timezone);
         $this->scheduleCicloVidaRefresh($schedule, 'vejez', 3, 15, 55, $timezone);
+
+        $schedule->command('ciclosvida:coverage-snapshots-refresh')
+            ->dailyAt('04:20')
+            ->timezone($timezone)
+            ->withoutOverlapping(700);
     }
 
     protected function scheduleCicloVidaRefresh(

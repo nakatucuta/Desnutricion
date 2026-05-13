@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Exports\CicloVidaCoverageMissingExport;
 use App\Services\CicloVida\CicloVidaCacheRepository;
 use App\Services\CicloVida\CicloVidaCoverageAnalyzer;
+use App\Services\CicloVida\CicloVidaCoverageSnapshotRepository;
 use App\Services\CicloVida\CicloVidaReportDesigner;
 use App\Support\CicloVidaCatalog;
 use Illuminate\Http\Request;
@@ -226,6 +227,12 @@ class CicloVidaController extends Controller
     public function coverageData(Request $request)
     {
         try {
+            $snapshots = app(CicloVidaCoverageSnapshotRepository::class);
+            $snapshotPayload = $snapshots->findForRequest($request);
+            if (is_array($snapshotPayload)) {
+                return response()->json($snapshotPayload);
+            }
+
             return response()->json(app(CicloVidaCoverageAnalyzer::class)->analyze($request));
         } catch (\Throwable $e) {
             Log::error('ciclosvida.coverage.data', [
