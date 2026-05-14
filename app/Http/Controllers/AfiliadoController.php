@@ -371,7 +371,9 @@ class AfiliadoController extends Controller
 
         $catalogIps = DB::table('vacunas as v')
             ->join('users as u', 'u.id', '=', 'v.user_id')
-            ->whereYear('v.fecha_vacuna', $year)
+            ->whereNotNull('v.user_id')
+            ->whereNotNull('u.name')
+            ->whereRaw("LTRIM(RTRIM(u.name)) <> ''")
             ->select('u.id', 'u.name')
             ->groupBy('u.id', 'u.name')
             ->orderBy('u.name')
