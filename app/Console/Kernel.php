@@ -29,32 +29,11 @@ class Kernel extends ConsoleKernel
             ->timezone($timezone)
             ->withoutOverlapping(4);
 
-        // Ejecuta refresh recientes dos veces al dia y los deja escalonados para no saturar la base.
-        $this->scheduleCicloVidaRefresh($schedule, 'primera_infancia', 2, 14, 15, $timezone);
-        $this->scheduleCicloVidaRefresh($schedule, 'infancia', 2, 14, 35, $timezone);
-        $this->scheduleCicloVidaRefresh($schedule, 'adolescencia', 2, 14, 55, $timezone);
-        $this->scheduleCicloVidaRefresh($schedule, 'juventud', 3, 15, 15, $timezone);
-        $this->scheduleCicloVidaRefresh($schedule, 'adultez', 3, 15, 35, $timezone);
-        $this->scheduleCicloVidaRefresh($schedule, 'vejez', 3, 15, 55, $timezone);
-
-        $schedule->command('ciclosvida:coverage-snapshots-refresh --include-single-filters')
-            ->dailyAt('04:20')
+        // Ejecuta todos los refresh de ciclos de vida una sola vez al dia (6:00 PM).
+        $schedule->command('ciclosvida:daily-refresh-report')
+            ->dailyAt('18:00')
             ->timezone($timezone)
             ->withoutOverlapping(1400);
-    }
-
-    protected function scheduleCicloVidaRefresh(
-        Schedule $schedule,
-        string $course,
-        int $firstHour,
-        int $secondHour,
-        int $offset,
-        string $timezone
-    ): void {
-        $schedule->command("ciclosvida:cache-refresh {$course}")
-            ->twiceDailyAt($firstHour, $secondHour, $offset)
-            ->timezone($timezone)
-            ->withoutOverlapping(700);
     }
 
     /**
