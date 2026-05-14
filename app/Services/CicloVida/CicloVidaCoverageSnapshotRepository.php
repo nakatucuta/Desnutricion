@@ -60,6 +60,12 @@ class CicloVidaCoverageSnapshotRepository
             ->orderByDesc('updated_at')
             ->first();
 
+        $usedClosestSnapshot = false;
+        if (!$row) {
+            $row = $this->findClosestPeriodicSnapshot($from, $to, $filters);
+            $usedClosestSnapshot = (bool) $row;
+        }
+
         if (!$row) {
             return null;
         }
@@ -73,6 +79,11 @@ class CicloVidaCoverageSnapshotRepository
         $payload['meta']['snapshot'] = [
             'preset_key' => $row->preset_key,
             'generated_at' => (string) ($row->generated_at ?? $row->updated_at),
+            'range_from' => (string) $row->range_from,
+            'range_to' => (string) $row->range_to,
+            'requested_from' => $from,
+            'requested_to' => $to,
+            'closest_match' => $usedClosestSnapshot,
         ];
 
         return $payload;
@@ -160,10 +171,48 @@ class CicloVidaCoverageSnapshotRepository
             'days_30' => [$today->copy()->subDays(29)->toDateString(), $today->toDateString()],
             'days_90' => [$today->copy()->subDays(89)->toDateString(), $today->toDateString()],
             'days_120' => [$today->copy()->subDays(119)->toDateString(), $today->toDateString()],
-            'month_current' => [$today->copy()->startOfMonth()->toDateString(), $today->copy()->endOfMonth()->toDateString()],
+            'month_current' => [$today->copy()->startOfMonth()->toDateString(), $today->toDateString()],
             'month_previous' => [$today->copy()->subMonthNoOverflow()->startOfMonth()->toDateString(), $today->copy()->subMonthNoOverflow()->endOfMonth()->toDateString()],
-            'year_current' => [$today->copy()->startOfYear()->toDateString(), $today->copy()->endOfYear()->toDateString()],
+            'year_current' => [$today->copy()->startOfYear()->toDateString(), $today->toDateString()],
         ];
+    }
+
+    protected function findClosestPeriodicSnapshot(string $from, string $to, array $filters): ?object
+    {
+        try {
+            $fromDate = Carbon::parse($from)->startOfDay();
+            $toDate = Carbon::parse($to)->startOfDay();
+        } catch (\Throwable $e) {
+            return null;
+        }
+
+        $filterKey = $this->filterKey($filters);
+
+        $isYearToDate = $fromDate->equalTo($toDate->copy()->startOfYear());
+        if ($isYearToDate) {
+            return DB::table('ciclo_vida_coverage_snapshots')
+                ->where('preset_key', 'year_current')
+                ->where('filter_key', $filterKey)
+                ->whereDate('range_from', $fromDate->toDateString())
+                ->whereDate('range_to', '<=', $toDate->toDateString())
+                ->orderByDesc('range_to')
+                ->orderByDesc('updated_at')
+                ->first();
+        }
+
+        $isMonthToDate = $fromDate->equalTo($toDate->copy()->startOfMonth());
+        if ($isMonthToDate) {
+            return DB::table('ciclo_vida_coverage_snapshots')
+                ->where('preset_key', 'month_current')
+                ->where('filter_key', $filterKey)
+                ->whereDate('range_from', $fromDate->toDateString())
+                ->whereDate('range_to', '<=', $toDate->toDateString())
+                ->orderByDesc('range_to')
+                ->orderByDesc('updated_at')
+                ->first();
+        }
+
+        return null;
     }
 
     protected function filterKey(array $filters): string

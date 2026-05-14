@@ -84,8 +84,9 @@ class CicloVidaCoverageAnalyzer
         $this->duePatientDetailMemo = [];
         $filters = $this->normalizeFilters($request);
         $cacheKey = 'ciclosvida.coverage.analysis.'.md5(json_encode($filters, JSON_UNESCAPED_UNICODE));
+        $ttlMinutes = $this->analysisCacheTtlMinutes($filters);
 
-        return Cache::remember($cacheKey, now()->addMinutes(10), fn (): array => $this->performAnalysis($filters));
+        return Cache::remember($cacheKey, now()->addMinutes($ttlMinutes), fn (): array => $this->performAnalysis($filters));
     }
 
     public function missingDetail(Request $request): array
@@ -1185,6 +1186,28 @@ class CicloVidaCoverageAnalyzer
             'include_non_measurable' => filter_var($request->query('include_non_measurable', true), FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE) ?? true,
             'hide_empty' => filter_var($request->query('hide_empty', false), FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE) ?? false,
         ];
+    }
+
+    protected function analysisCacheTtlMinutes(array $filters): int
+    {
+        try {
+            $from = Carbon::parse((string) ($filters['from'] ?? now()->toDateString()))->startOfDay();
+            $to = Carbon::parse((string) ($filters['to'] ?? now()->toDateString()))->startOfDay();
+        } catch (\Throwable $e) {
+            return 10;
+        }
+
+        $isYearToDate = $from->equalTo($to->copy()->startOfYear());
+        if ($isYearToDate) {
+            return 120;
+        }
+
+        $isMonthToDate = $from->equalTo($to->copy()->startOfMonth());
+        if ($isMonthToDate) {
+            return 30;
+        }
+
+        return 10;
     }
 
     protected function catalogRows(?string $courseFilter, ?string $moduleFilter): array
