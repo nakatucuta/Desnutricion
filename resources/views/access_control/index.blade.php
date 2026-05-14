@@ -496,6 +496,7 @@
             {{ $errors->first() }}
         </div>
     @endif
+    <div id="ac-live-feedback" class="alert d-none" role="alert"></div>
 
     <div class="card ac-card mb-4">
         <div class="card-header d-flex flex-wrap align-items-center justify-content-between">
@@ -780,6 +781,61 @@
             tempPassword.val('');
             tempPasswordConfirmation.val('');
             resetModal.modal('show');
+        });
+
+        const liveFeedback = $('#ac-live-feedback');
+        const showLiveFeedback = function (kind, message) {
+            liveFeedback
+                .removeClass('d-none alert-success alert-danger alert-warning')
+                .addClass(kind === 'success' ? 'alert-success' : 'alert-danger')
+                .text(message);
+
+            window.clearTimeout(window.__acFeedbackTimer);
+            window.__acFeedbackTimer = window.setTimeout(function () {
+                liveFeedback.addClass('d-none');
+            }, 4500);
+        };
+
+        $(document).on('submit', 'form[id^="f-user-"]', function (e) {
+            e.preventDefault();
+
+            const form = $(this);
+            const formId = form.attr('id');
+            const saveBtn = $('button[form="' + formId + '"].btn-success');
+            const originalLabel = saveBtn.data('original-label') || saveBtn.text();
+            saveBtn.data('original-label', originalLabel);
+
+            saveBtn.prop('disabled', true).text('Guardando...');
+
+            $.ajax({
+                url: form.attr('action'),
+                method: 'POST',
+                data: form.serialize(),
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Accept': 'application/json'
+                }
+            })
+            .done(function (res) {
+                showLiveFeedback('success', (res && res.message) ? res.message : 'Permisos actualizados correctamente.');
+            })
+            .fail(function (xhr) {
+                let message = 'No fue posible guardar los permisos de este usuario.';
+                if (xhr.responseJSON) {
+                    if (xhr.responseJSON.message) {
+                        message = xhr.responseJSON.message;
+                    } else if (xhr.responseJSON.errors) {
+                        const firstKey = Object.keys(xhr.responseJSON.errors)[0];
+                        if (firstKey && xhr.responseJSON.errors[firstKey] && xhr.responseJSON.errors[firstKey][0]) {
+                            message = xhr.responseJSON.errors[firstKey][0];
+                        }
+                    }
+                }
+                showLiveFeedback('error', message);
+            })
+            .always(function () {
+                saveBtn.prop('disabled', false).text(originalLabel);
+            });
         });
     })();
 </script>

@@ -145,6 +145,8 @@ class AccessControlController extends Controller
 
     public function updateUserPermissions(Request $request, User $user)
     {
+        $isAjax = $request->expectsJson() || $request->ajax();
+
         $codes = ModulePermission::query()
             ->where('is_assignable', true)
             ->pluck('code')
@@ -158,13 +160,36 @@ class AccessControlController extends Controller
             'permissions.*' => ['string', Rule::in($codes)],
         ]);
 
-        $user->usertype = (int) $validated['usertype'];
-        $user->save();
+        try {
+            $user->usertype = (int) $validated['usertype'];
+            $user->save();
 
-        $requested = (int) $user->usertype === 1
-            ? $codes
-            : array_values(array_unique((array) ($validated['permissions'] ?? [])));
-        $this->accessControl->syncUserPermissions($user, $requested, (int) Auth::id());
+            $requested = (int) $user->usertype === 1
+                ? $codes
+                : array_values(array_unique((array) ($validated['permissions'] ?? [])));
+            $this->accessControl->syncUserPermissions($user, $requested, (int) Auth::id());
+        } catch (\Throwable $e) {
+            report($e);
+
+            if ($isAjax) {
+                return response()->json([
+                    'ok' => false,
+                    'message' => 'No se pudo actualizar permisos para: ' . ($user->name ?: ('Usuario #' . $user->id)) . '. Revisa configuracion de base de datos.',
+                ], 500);
+            }
+
+            return redirect()
+                ->route('access-control.index')
+                ->with('error', 'No se pudo actualizar permisos para: ' . ($user->name ?: ('Usuario #' . $user->id)) . '. Revisa configuracion de base de datos.');
+        }
+
+        if ($isAjax) {
+            return response()->json([
+                'ok' => true,
+                'message' => 'Permisos actualizados para: ' . ($user->name ?: ('Usuario #' . $user->id)),
+                'user_id' => (int) $user->id,
+            ]);
+        }
 
         return redirect()
             ->route('access-control.index')

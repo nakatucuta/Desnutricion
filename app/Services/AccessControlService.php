@@ -195,14 +195,13 @@ class AccessControlService
         DB::transaction(function () use ($user, $permissionIds, $grantedByUserId) {
             UserModulePermission::query()->where('user_id', (int) $user->id)->delete();
 
-            $now = now();
             foreach ($permissionIds as $permissionId) {
-                UserModulePermission::query()->create([
+                DB::table('user_module_permissions')->insert([
                     'user_id' => (int) $user->id,
                     'module_permission_id' => $permissionId,
                     'granted_by_user_id' => $grantedByUserId,
-                    'created_at' => $now,
-                    'updated_at' => $now,
+                    'created_at' => DB::raw('GETDATE()'),
+                    'updated_at' => DB::raw('GETDATE()'),
                 ]);
             }
         });
