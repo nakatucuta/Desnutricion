@@ -16,10 +16,13 @@ class Kernel extends ConsoleKernel
     protected function schedule(Schedule $schedule)
     {
         $timezone = (string) config('app.timezone', 'America/Bogota');
+        $backupWindowStart = '02:50';
+        $backupWindowEnd = '04:30';
 
         $schedule->command('seguimientos:enviar-alertas')
             ->everyTenMinutes()
-            ->timezone($timezone);
+            ->timezone($timezone)
+            ->unlessBetween($backupWindowStart, $backupWindowEnd);
         $schedule->command('profile:purge-email-changes')
             ->dailyAt('01:20')
             ->timezone($timezone)
@@ -27,7 +30,8 @@ class Kernel extends ConsoleKernel
         $schedule->command('redis:health-check')
             ->everyFiveMinutes()
             ->timezone($timezone)
-            ->withoutOverlapping(4);
+            ->withoutOverlapping(4)
+            ->unlessBetween($backupWindowStart, $backupWindowEnd);
 
         // Ejecuta todos los refresh de ciclos de vida una sola vez al dia (6:00 PM).
         $schedule->command('ciclosvida:daily-refresh-report')
