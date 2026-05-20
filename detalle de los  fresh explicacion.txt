@@ -1,0 +1,36 @@
+# Ir a la carpeta del proyecto
+cd C:\Apache24\htdocs\Desnutricion
+
+# Ejecuta TODO el proceso diario de ciclos de vida:
+# 1) refresca cache de los 6 cursos de vida
+# 2) refresca snapshots de cobertura/brechas
+# 3) genera TXT de reporte
+# 4) intenta enviarlo al correo indicado
+php artisan ciclosvida:daily-refresh-report --email=jsuarez@epsianaswayuu.com
+
+# --- Ejecuciones individuales (por módulo) ---
+
+# Refresca cache para Primera Infancia
+php artisan ciclosvida:cache-refresh primera_infancia
+
+# Refresca cache para Infancia
+php artisan ciclosvida:cache-refresh infancia
+
+# Refresca cache para Adolescencia
+php artisan ciclosvida:cache-refresh adolescencia
+
+# Refresca cache para Juventud
+php artisan ciclosvida:cache-refresh juventud
+
+# Refresca cache para Adultez
+php artisan ciclosvida:cache-refresh adultez
+
+# Refresca cache para Vejez
+php artisan ciclosvida:cache-refresh vejez
+
+# Refresca snapshots de cobertura/brechas (incluye filtros individuales)
+php artisan ciclosvida:coverage-snapshots-refresh --include-single-filters
+
+# Ejecuta solo lo que esté "vencido" en el scheduler de Laravel en ese momento
+# (si no hay tareas vencidas, no corre nada)
+php artisan schedule:run
