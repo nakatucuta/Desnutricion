@@ -145,7 +145,7 @@
                                     </button>
                                 </div>
                                 <div class="custom-control custom-switch mt-2">
-                                    <input type="checkbox" class="custom-control-input" id="autoSelectGesOnSave" {{ $autoSelectGesDefault ? 'checked' : '' }}>
+                                    <input type="checkbox" class="custom-control-input" id="autoSelectGesOnSave">
                                     <label class="custom-control-label" for="autoSelectGesOnSave">
                                         Al guardar, asignar automaticamente a todos los _ges elegibles
                                     </label>
@@ -740,6 +740,7 @@
 <script>
 $(function () {
     let assignmentSubmitting = false;
+    let userSelectionTouched = false;
 
     $('.select2-user').select2({
         placeholder: '-- Selecciona usuarios _ges --',
@@ -753,10 +754,12 @@ $(function () {
     }
 
     $('#btnSelectAllGes').on('click', function () {
+        userSelectionTouched = true;
         selectAllElegibles();
     });
 
     $('#btnClearGes').on('click', function () {
+        userSelectionTouched = true;
         $('#user_ids').val(null).trigger('change');
     });
 
@@ -766,6 +769,7 @@ $(function () {
     @endif
 
     $('#user_ids').on('change', function () {
+        userSelectionTouched = true;
         if ($(this).val() && $(this).val().length > 0) {
             $('#badge-select').fadeOut(200);
             $('#btn-asignar-guardar').addClass('btn-pop');
@@ -802,7 +806,7 @@ $(function () {
             return false;
         }
 
-        if ($('#autoSelectGesOnSave').is(':checked')) {
+        if ($('#autoSelectGesOnSave').is(':checked') && !userSelectionTouched) {
             selectAllElegibles();
         }
 

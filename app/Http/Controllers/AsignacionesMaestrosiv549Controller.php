@@ -237,13 +237,16 @@ class AsignacionesMaestrosiv549Controller extends Controller
             $existingIds = $asignacion->colaboradores()->pluck('users.id')->map(fn ($v) => (int) $v)->toArray();
             $targetIds = $usuariosValidos->pluck('id')->map(fn ($v) => (int) $v)->toArray();
             $newIds = array_values(array_diff($targetIds, $existingIds));
-            $omitidas = count($targetIds) - count($newIds);
+            $removedIds = array_values(array_diff($existingIds, $targetIds));
+            $keepIds = array_values(array_intersect($existingIds, $targetIds));
 
-            if (!empty($newIds)) {
-                $asignacion->colaboradores()->syncWithoutDetaching($newIds);
-            }
+            // La seleccion enviada en el formulario es la fuente de verdad:
+            // agrega los nuevos y quita los que el usuario retiro manualmente.
+            $asignacion->colaboradores()->sync($targetIds);
 
             $creadas = count($newIds);
+            $removidas = count($removedIds);
+            $omitidas = count($keepIds);
             if ($creadas > 0) {
                 $nuevosUsuarios = $usuariosValidos->whereIn('id', $newIds);
                 foreach ($nuevosUsuarios as $usuarioAsignado) {
@@ -257,7 +260,7 @@ class AsignacionesMaestrosiv549Controller extends Controller
 
             DB::commit();
 
-            if ($creadas === 0 && $omitidas > 0) {
+            if ($creadas === 0 && $removidas === 0 && $omitidas > 0) {
                 return back()
                     ->withInput()
                     ->with('asig_duplicate', true)
@@ -266,9 +269,9 @@ class AsignacionesMaestrosiv549Controller extends Controller
                     ]);
             }
 
-            if ($omitidas > 0) {
+            if ($omitidas > 0 || $removidas > 0) {
                 return redirect()->route('maestrosiv549.index')
-                    ->with('success', "Equipo actualizado. Prestadores agregados: {$creadas}. Ya asignados (omitidos): {$omitidas}.");
+                    ->with('success', "Equipo actualizado. Prestadores agregados: {$creadas}. Prestadores retirados: {$removidas}. Ya asignados (sin cambios): {$omitidas}.");
             }
         } catch (\Illuminate\Database\QueryException $e) {
             DB::rollBack();
