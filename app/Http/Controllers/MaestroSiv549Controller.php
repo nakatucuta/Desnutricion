@@ -19,7 +19,7 @@ class MaestroSiv549Controller extends Controller
 {
     public function index()
     {
-        $years = $this->distinctOptions('year', 20, true);
+        $years = $this->distinctResolvedYears(20);
         $defaultYear = (string) now()->year;
 
         if (!in_array($defaultYear, $years, true)) {
@@ -28,7 +28,7 @@ class MaestroSiv549Controller extends Controller
         }
 
         $availableQuery = $this->latestGestanteNotificationPerYearQuery()
-            ->where('year', $defaultYear);
+            ->where('year_resolved', $defaultYear);
 
         $assignmentKey = DB::raw("
             CONCAT(
@@ -122,7 +122,7 @@ class MaestroSiv549Controller extends Controller
             'fec_not_ultima',
             'fec_not_sort',
             'semana',
-            'year',
+            'year_resolved as year',
             'ocupacion_',
             'telefono_',
             'dir_res_',
@@ -345,6 +345,8 @@ class MaestroSiv549Controller extends Controller
     private function latestGestanteNotificationPerYearQuery(): Builder
     {
         $fecNotExpr = $this->fecNotDateExpr();
+        $yearFromFecNotExpr = $this->resolvedYearExpr();
+        $monthFromFecNotExpr = $this->resolvedMonthExpr();
 
         $ranked = MaestroSiv549::query()
             ->select('maestrosiv549.*')
@@ -352,11 +354,17 @@ class MaestroSiv549Controller extends Controller
                 {$fecNotExpr} AS [fec_not_sort]
             ")
             ->selectRaw("
+                {$yearFromFecNotExpr} AS [year_resolved]
+            ")
+            ->selectRaw("
+                {$monthFromFecNotExpr} AS [month_resolved]
+            ")
+            ->selectRaw("
                 MAX({$fecNotExpr}) OVER (
                     PARTITION BY
                         LTRIM(RTRIM(ISNULL(CAST([tip_ide_] AS NVARCHAR(50)), ''))),
                         LTRIM(RTRIM(ISNULL(CAST([num_ide_] AS NVARCHAR(100)), ''))),
-                        LTRIM(RTRIM(ISNULL(CAST([year] AS NVARCHAR(10)), '')))
+                        {$yearFromFecNotExpr}
                 ) AS [fec_not_ultima]
             ")
             ->selectRaw("
@@ -364,7 +372,7 @@ class MaestroSiv549Controller extends Controller
                     PARTITION BY
                         LTRIM(RTRIM(ISNULL(CAST([tip_ide_] AS NVARCHAR(50)), ''))),
                         LTRIM(RTRIM(ISNULL(CAST([num_ide_] AS NVARCHAR(100)), ''))),
-                        LTRIM(RTRIM(ISNULL(CAST([year] AS NVARCHAR(10)), '')))
+                        {$yearFromFecNotExpr}
                     ORDER BY
                         {$fecNotExpr} DESC,
                         [fec_not] DESC,
@@ -380,10 +388,9 @@ class MaestroSiv549Controller extends Controller
     private function applyFilters(Builder $query, Request $request): void
     {
         $year = trim((string) $request->input('year', ''));
-        if ($year === '') {
-            $year = (string) now()->year;
+        if ($year !== '') {
+            $query->where('year_resolved', $year);
         }
-        $query->whereRaw("LTRIM(RTRIM(ISNULL(CAST([year] AS NVARCHAR(10)), ''))) = ?", [$year]);
 
         $equals = [
             'semana',
@@ -518,6 +525,31 @@ class MaestroSiv549Controller extends Controller
         )";
     }
 
+    private function resolvedYearExpr(): string
+    {
+        return "COALESCE(CONVERT(varchar(4), YEAR(" . $this->fecNotDateExpr() . ")), '')";
+    }
+
+    private function resolvedMonthExpr(): string
+    {
+        return "COALESCE(RIGHT('00' + CONVERT(varchar(2), MONTH(" . $this->fecNotDateExpr() . ")), 2), '')";
+    }
+
+    private function distinctResolvedYears(int $limit = 20): array
+    {
+        return MaestroSiv549::query()
+            ->selectRaw($this->resolvedYearExpr() . ' as year_resolved')
+            ->whereRaw($this->resolvedYearExpr() . " <> ''")
+            ->groupByRaw($this->resolvedYearExpr())
+            ->orderByDesc('year_resolved')
+            ->limit($limit)
+            ->pluck('year_resolved')
+            ->map(fn ($value) => trim((string) $value))
+            ->filter()
+            ->values()
+            ->all();
+    }
+
     private function reportColumnCatalog(): array
     {
         $labels = [
@@ -552,6 +584,10 @@ class MaestroSiv549Controller extends Controller
                 'label' => $labels[$field] ?? $this->humanizeLabel($field),
                 'db' => $field,
             ];
+        }
+
+        if (isset($catalog['year'])) {
+            $catalog['year']['db'] = 'year_resolved';
         }
 
         return $catalog;
