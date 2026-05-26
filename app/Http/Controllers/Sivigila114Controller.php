@@ -274,6 +274,7 @@ class Sivigila114Controller extends Controller
                 ->select('name', 'id', 'codigohabilitacion')
                 ->where('usertype', 2)
                 ->where('codigohabilitacion', $incomeedit14->codigo_habilitacion)
+                ->whereRaw("LOWER(LTRIM(RTRIM(name))) NOT LIKE ?", ['%[_]ges'])
                 ->orderBy('id')
                 ->get()
             : collect();
@@ -281,6 +282,7 @@ class Sivigila114Controller extends Controller
         $incomeedit15 = DB::table('users')
             ->select('name', 'id', 'codigohabilitacion')
             ->where('usertype', 2)
+            ->whereRaw("LOWER(LTRIM(RTRIM(name))) NOT LIKE ?", ['%[_]ges'])
             ->orderBy('name')
             ->get();
         $incomeedit16 = DB::connection('sqlsrv_1')

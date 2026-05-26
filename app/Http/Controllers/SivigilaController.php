@@ -532,8 +532,10 @@ public function reportExport(Request $request)
         if ($incomeedit14 !== null) {
             $income12 = DB::table('users')
                 ->select('name', 'id', 'codigohabilitacion')
+                ->where('usertype', 2)
                 ->where('codigohabilitacion', $incomeedit14->codigo_habilitacion)
-                
+                ->whereRaw("LOWER(LTRIM(RTRIM(name))) NOT LIKE ?", ['%[_]ges'])
+                ->orderBy('id')
                 ->get();
             // Resto del código que maneja el resultado de la segunda consulta...
         } else {
@@ -544,7 +546,9 @@ public function reportExport(Request $request)
 
 
         $incomeedit15 =  DB::table('users')->select('name', 'id','codigohabilitacion')
-        // ->where('usertype', 2)
+        ->where('usertype', 2)
+        ->whereRaw("LOWER(LTRIM(RTRIM(name))) NOT LIKE ?", ['%[_]ges'])
+        ->orderBy('name')
         ->get();
         // $incomeedit15 = DB::connection('sqlsrv_1')->table('maestroIpsGru as a')
         // ->join('maestroIpsGruDet as b', function ($join) {
@@ -590,8 +594,10 @@ public function reportExport(Request $request)
         if ($incomeedit14 !== null) {
             $income12 = DB::table('users')
                 ->select('name', 'id', 'codigohabilitacion')
+                ->where('usertype', 2)
                 ->where('codigohabilitacion', $incomeedit14->codigo_habilitacion)
-                
+                ->whereRaw("LOWER(LTRIM(RTRIM(name))) NOT LIKE ?", ['%[_]ges'])
+                ->orderBy('id')
                 ->get();
             // Resto del código que maneja el resultado de la segunda consulta...
         } else {
@@ -602,7 +608,9 @@ public function reportExport(Request $request)
 
 
         $incomeedit15 =  DB::table('users')->select('name', 'id','codigohabilitacion')
-        // ->where('usertype', 2)
+        ->where('usertype', 2)
+        ->whereRaw("LOWER(LTRIM(RTRIM(name))) NOT LIKE ?", ['%[_]ges'])
+        ->orderBy('name')
         ->get();
 
         $incomeedit16 = DB::connection('sqlsrv_1')
@@ -649,6 +657,15 @@ public function reportExport(Request $request)
         ]);
 
         // 2) Crear el registro (mass assignment; asegúrate de tener $fillable en tu modelo)
+        $selectedUserName = DB::table('users')->where('id', $request->input('user_id'))->value('name');
+        if ($selectedUserName !== null && preg_match('/_ges\s*$/i', trim((string) $selectedUserName))) {
+            return back()
+                ->withInput()
+                ->withErrors([
+                    'user_id' => 'No se permite asignar usuarios del modulo gestantes (_ges) en eventos 113 o 114.',
+                ]);
+        }
+
         $data = $request->only([
             'cod_eve','semana','fec_not','year',
             'tip_ide_','num_ide_','pri_nom_','seg_nom_',
@@ -854,6 +871,7 @@ public function reportExport(Request $request)
         $usuarios = DB::table('users')
             ->select('id', 'name', 'codigohabilitacion', 'usertype')
             ->where('usertype', 2)
+            ->whereRaw("LOWER(LTRIM(RTRIM(name))) NOT LIKE ?", ['%[_]ges'])
             ->orderBy('name')
             ->get();
 
@@ -882,6 +900,15 @@ public function reportExport(Request $request)
             'Ips_manejo_hospitalario' => 'nullable|string|max:255',
             'estado' => 'required|in:0,1',
         ]);
+
+        $selectedUserName = DB::table('users')->where('id', $request->input('user_id'))->value('name');
+        if ($selectedUserName !== null && preg_match('/_ges\s*$/i', trim((string) $selectedUserName))) {
+            return back()
+                ->withInput()
+                ->withErrors([
+                    'user_id' => 'No se permite asignar usuarios del modulo gestantes (_ges) en eventos 113 o 114.',
+                ]);
+        }
 
         $oldUserId = (int) ($sivigila->user_id ?? 0);
         $newUserId = (int) $request->input('user_id');
