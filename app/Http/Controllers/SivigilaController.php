@@ -771,7 +771,7 @@ public function reportExport(Request $request)
                 Log::warning("No se envía correo: configuración SMTP incompleta para sivigila ID {$sivigila->id}");
             } else {
                 try {
-                    $transport = new EsmtpTransport($mailHost, $mailPort, $mailEncryption);
+                    $transport = new EsmtpTransport($mailHost, $mailPort, $this->resolveSmtpTlsFlag($mailEncryption));
                     $transport->setUsername((string) $mailUsername);
                     $transport->setPassword((string) $mailPassword);
 
@@ -1010,6 +1010,21 @@ public function reportExport(Request $request)
         return in_array($route, ['sivigila.index', 'sivigila114.index'], true) ? $route : $default;
     }
 
+    private function resolveSmtpTlsFlag(string $mailEncryption): ?bool
+    {
+        $mailEncryption = strtolower(trim($mailEncryption));
+
+        if ($mailEncryption === 'ssl') {
+            return true;
+        }
+
+        if ($mailEncryption === 'tls') {
+            return false;
+        }
+
+        return null;
+    }
+
     private function sendAssignmentDeletedEmail(?User $user, array $assignmentData): bool
     {
         if (!$user || empty($user->email)) {
@@ -1051,7 +1066,7 @@ public function reportExport(Request $request)
               . 'Paciente: <strong>' . e($pacienteNombre) . '</strong><br>';
 
         try {
-            $transport = new EsmtpTransport($mailHost, $mailPort, $mailEncryption);
+            $transport = new EsmtpTransport($mailHost, $mailPort, $this->resolveSmtpTlsFlag($mailEncryption));
             $transport->setUsername((string) $mailUsername);
             $transport->setPassword((string) $mailPassword);
 

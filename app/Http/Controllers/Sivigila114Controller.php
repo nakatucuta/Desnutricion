@@ -257,13 +257,32 @@ class Sivigila114Controller extends Controller
             ->where('identificacion', $num_ide_)
             ->value('tipo_afiliacion');
 
-        $income12 = DB::table('users')
+        $incomeedit14 = DB::connection('sqlsrv_1')->table('maestroAfiliados as a')
+            ->join('maestroips as b', 'a.numeroCarnet', '=', 'b.numeroCarnet')
+            ->join('maestroIpsGru as c', 'b.idGrupoIps', '=', 'c.id')
+            ->join('maestroIpsGruDet as d', function ($join) {
+                $join->on('c.id', '=', 'd.idd')
+                    ->where('d.servicio', '=', 1);
+            })
+            ->join('refIps as e', 'd.idIps', '=', 'e.idIps')
+            ->select(DB::raw('CAST(e.codigo AS BIGINT) as codigo_habilitacion'))
+            ->where('a.identificacion', $num_ide_)
+            ->first();
+
+        $income12 = $incomeedit14
+            ? DB::table('users')
+                ->select('name', 'id', 'codigohabilitacion')
+                ->where('usertype', 2)
+                ->where('codigohabilitacion', $incomeedit14->codigo_habilitacion)
+                ->orderBy('id')
+                ->get()
+            : collect();
+
+        $incomeedit15 = DB::table('users')
             ->select('name', 'id', 'codigohabilitacion')
             ->where('usertype', 2)
             ->orderBy('name')
             ->get();
-        $incomeedit14 = null;
-        $incomeedit15 = $income12;
         $incomeedit16 = DB::connection('sqlsrv_1')
             ->table('refIps')
             ->select('refIps.descrip as nombrepres', 'refIps.codigo as cod')
