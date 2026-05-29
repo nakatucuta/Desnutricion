@@ -230,7 +230,6 @@ class Cargue412Controller extends Controller
         }
 
         $before = Cargue412::findOrFail($id);
-        $oldAssigned = $before->user_id ? User::find($before->user_id) : null;
         $registro = null;
 
         $fillable = (new Cargue412())->getFillable();
@@ -247,7 +246,7 @@ class Cargue412Controller extends Controller
             }
         }
 
-        DB::transaction(function () use ($id, $data, &$registro) {
+        DB::transaction(function () use ($id, $data, &$registro, $before, $request) {
             DB::connection('sqlsrv')->statement('SET DATEFORMAT ymd');
 
             Cargue412::where('id', $id)->update($data);
@@ -257,6 +256,27 @@ class Cargue412Controller extends Controller
                 ->update(['estado' => 1]);
 
             $registro = Cargue412::find($id);
+
+            if (!$registro) {
+                throw new \RuntimeException('No fue posible recargar el registro 412 actualizado.');
+            }
+
+            $oldUserId = $before->user_id ? (int) $before->user_id : null;
+            $newUserId = $registro->user_id ? (int) $registro->user_id : null;
+
+            if ($newUserId !== null) {
+                $actionType = 'sin_cambio';
+                if ($oldUserId === null) {
+                    $actionType = 'asignacion';
+                } elseif ($oldUserId !== $newUserId) {
+                    $actionType = 'reasignacion';
+                }
+
+                $this->insert412AssignmentAudit($registro, $oldUserId, $newUserId, $actionType, $request, [
+                    'old_user_id' => $oldUserId,
+                    'new_user_id' => $newUserId,
+                ]);
+            }
         });
 
         if (!$registro) {
@@ -269,7 +289,7 @@ class Cargue412Controller extends Controller
         $oldUserId = $before->user_id ? (int) $before->user_id : null;
         $newUserId = $registro->user_id ? (int) $registro->user_id : null;
 
-        if ($newUserId !== null) {
+        if (false && $newUserId !== null) {
             $actionType = 'sin_cambio';
             if ($oldUserId === null) {
                 $actionType = 'asignacion';
@@ -650,6 +670,55 @@ class Cargue412Controller extends Controller
         };
 
         return response()->stream($callback, 200, $headers);
+    }
+
+    private function insert412AssignmentAudit(
+        Cargue412 $registro,
+        ?int $oldUserId,
+        ?int $newUserId,
+        string $actionType,
+        Request $request,
+        array $changes
+    ): void {
+        $oldAssigned = $oldUserId ? User::find($oldUserId) : null;
+        $newAssigned = $newUserId ? User::find($newUserId) : null;
+        $fechaCaptacion = null;
+
+        try {
+            $fechaCaptacion = !empty($registro->fecha_captacion)
+                ? Carbon::parse($registro->fecha_captacion)->toDateString()
+                : null;
+        } catch (\Throwable $e) {
+            $fechaCaptacion = null;
+        }
+
+        DB::connection('sqlsrv')->table('dbo.cargue412_assignment_audits')->insert([
+            'cargue412_id' => (int) $registro->id,
+            'performed_by_user_id' => Auth::id(),
+            'old_assigned_user_id' => $oldUserId,
+            'new_assigned_user_id' => $newUserId,
+            'action_type' => $actionType,
+            'numero_identificacion' => $registro->numero_identificacion,
+            'paciente_nombre' => trim(implode(' ', array_filter([
+                $registro->primer_nombre,
+                $registro->segundo_nombre,
+                $registro->primer_apellido,
+                $registro->segundo_apellido,
+            ]))),
+            'municipio' => $registro->municipio,
+            'fecha_captacion' => $fechaCaptacion,
+            'old_assigned_name' => $oldAssigned?->name,
+            'new_assigned_name' => $newAssigned?->name,
+            'old_assigned_email' => $oldAssigned?->email,
+            'new_assigned_email' => $newAssigned?->email,
+            'old_assigned_code' => $oldAssigned?->codigohabilitacion,
+            'new_assigned_code' => $newAssigned?->codigohabilitacion,
+            'ip_address' => $request->ip(),
+            'user_agent' => (string) $request->userAgent(),
+            'changes' => json_encode($changes, JSON_UNESCAPED_UNICODE),
+            'created_at' => DB::raw('GETDATE()'),
+            'updated_at' => DB::raw('GETDATE()'),
+        ]);
     }
 
     protected function renderAcciones($row)

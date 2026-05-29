@@ -51,6 +51,7 @@
                     <option value="asignacion">Asignacion</option>
                     <option value="reasignacion">Reasignacion</option>
                     <option value="sin_cambio">Sin cambio</option>
+                    <option value="asignacion_backfill">Asignacion historica</option>
                 </select>
             </div>
             <div class="col-md-2">
@@ -176,4 +177,3 @@ $(function () {
 });
 </script>
 @stop
-
