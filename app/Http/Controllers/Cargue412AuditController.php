@@ -6,6 +6,7 @@ use App\Exports\Cargue412AssignmentAuditExport;
 use App\Models\Cargue412AssignmentAudit;
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Maatwebsite\Excel\Facades\Excel;
 use Maatwebsite\Excel\Excel as ExcelFormat;
 use Yajra\DataTables\Facades\DataTables;
@@ -99,7 +100,16 @@ class Cargue412AuditController extends Controller
                 'a.new_assigned_name',
                 'a.new_assigned_code',
                 'a.ip_address',
-                'u.name as performed_by_name',
+                DB::raw("
+                    COALESCE(
+                        u.name,
+                        CASE
+                            WHEN a.action_type = 'asignacion_backfill' OR a.ip_address = 'system-backfill'
+                            THEN 'Sistema - recuperacion historica'
+                            ELSE ''
+                        END
+                    ) as performed_by_name
+                "),
             ]);
 
         if ($request->filled('from')) {
