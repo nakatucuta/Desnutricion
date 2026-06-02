@@ -200,7 +200,7 @@
                     </div>
                     <div class="seg-form-note mt-3" role="status" aria-live="polite">
                         <i class="fas fa-info-circle mr-2"></i>
-                        Bloque no iniciado: se guardara como <strong>no efectivo (0)</strong>. Solo se exige "seguimiento efectivo" cuando realmente inicias ese bloque.
+                        Cada bloque queda completo solo cuando todos sus campos obligatorios estan diligenciados. Si falta uno, el siguiente seguimiento permanece bloqueado.
                     </div>
                     <div class="seg-tracker">
                         @foreach($trackerSteps as $step)
@@ -213,7 +213,7 @@
                     </div>
                 </div>
 
-                <div class="seg-section" data-stage-key="hospitalizacion" data-stage-title="Hospitalizacion" data-complete-fields="fecha_hospitalizacion,fecha_egreso,gestion_hospitalizacion">
+                <div class="seg-section" data-stage-key="hospitalizacion" data-stage-title="Hospitalizacion" data-complete-fields="fecha_hospitalizacion,fecha_egreso,institucion_egreso_paciente,gestion_hospitalizacion,ttl_criter,diagnostico_cie10,causa_agrupada">
                     <div class="seg-section__head">
                         <span class="seg-section__icon"><i class="fas fa-hospital-user"></i></span>
                         <div>
@@ -287,7 +287,7 @@
                     </div>
                 </div>
 
-                <div class="seg-section" data-stage-key="inmediato" data-stage-title="Seguimiento inmediato" data-complete-fields="descripcion_seguimiento_inmediato,fecha_control_rn_inmediato">
+                <div class="seg-section" data-stage-key="inmediato" data-stage-title="Seguimiento inmediato" data-complete-fields="descripcion_seguimiento_inmediato,fecha_control_rn_inmediato,seguimiento_efectivo_inmediato">
                     <div class="seg-section__head">
                         <span class="seg-section__icon"><i class="fas fa-bolt"></i></span>
                         <div>
@@ -344,7 +344,32 @@
                 @endphp
 
                 @foreach($seguimientos as $idx => $cfg)
-                    <div class="seg-section" data-stage-key="seguimiento-{{ $idx }}" data-stage-title="{{ $cfg['titulo'] }}" data-complete-fields="fecha_seguimiento_{{ $idx }}">
+                    @php
+                        $requiredFields = ['fecha_seguimiento_'.$idx];
+                        if ($cfg['tipo']) {
+                            $requiredFields[] = 'tipo_seguimiento_'.$idx;
+                        }
+                        $requiredFields[] = 'paciente_sigue_embarazo_'.$idx;
+                        $requiredFields[] = 'fecha_control_'.$idx;
+                        if ($idx === 1) {
+                            $requiredFields[] = 'metodo_anticonceptivo';
+                        }
+                        $requiredFields[] = 'fecha_consulta_rn_'.$idx;
+                        $requiredFields[] = 'entrega_medicamentos_labs_'.$idx;
+                        if ($cfg['efectivo']) {
+                            $requiredFields[] = 'seguimiento_efectivo_'.$idx;
+                        }
+                        if ($idx === 1) {
+                            $requiredFields[] = 'gestion_posegreso_1';
+                        } elseif ($idx === 2) {
+                            $requiredFields[] = 'gestion_primera_semana';
+                        } elseif ($idx === 3) {
+                            $requiredFields[] = 'gestion_segunda_semana';
+                        } elseif ($idx === 4) {
+                            $requiredFields[] = 'gestion_tercera_semana';
+                        }
+                    @endphp
+                    <div class="seg-section" data-stage-key="seguimiento-{{ $idx }}" data-stage-title="{{ $cfg['titulo'] }}" data-complete-fields="{{ implode(',', $requiredFields) }}">
                         <div class="seg-section__head">
                             <span class="seg-section__icon"><i class="fas fa-calendar-check"></i></span>
                             <div>
@@ -812,6 +837,26 @@
         position:relative;
         z-index:1;
     }
+    .seg-section__missing{
+        display:none;
+        margin:-.25rem 0 1rem;
+        padding:.75rem .9rem;
+        border-radius:12px;
+        border:1px solid #f1c7bd;
+        background:linear-gradient(180deg, #fff8f6, #fff0ec);
+        color:#8d3829;
+        font-size:.88rem;
+        font-weight:600;
+    }
+    .seg-section.is-active .seg-section__missing,
+    .seg-section.is-locked .seg-section__missing{
+        display:block;
+    }
+    .seg-input.is-missing{
+        border-color:#dc6b55;
+        background:#fff8f6;
+        box-shadow:0 0 0 .12rem rgba(220, 107, 85, .12);
+    }
     .seg-section__lock{
         position:absolute;
         inset:0;
@@ -1078,12 +1123,52 @@ document.addEventListener('DOMContentLoaded', function () {
             `;
             section.appendChild(overlay);
         }
+
+        if (!section.querySelector('.seg-section__missing')) {
+            const missingAlert = document.createElement('div');
+            missingAlert.className = 'seg-section__missing';
+            missingAlert.setAttribute('role', 'alert');
+            missingAlert.setAttribute('aria-live', 'polite');
+            section.querySelector('.seg-section__content')?.prepend(missingAlert);
+        }
     });
 
     function hasMeaningfulValue(field) {
         if (!field) return false;
         if (field.type === 'checkbox') return field.checked;
         return String(field.value || '').trim() !== '';
+    }
+
+    function requiredFieldNames(section) {
+        return (section.dataset.completeFields || '')
+            .split(',')
+            .map((item) => item.trim())
+            .filter(Boolean);
+    }
+
+    function fieldsByName(section, name) {
+        return Array.from(section.querySelectorAll(`[name="${name}"]`))
+            .filter((field) => field.type !== 'hidden');
+    }
+
+    function fieldLabel(section, name) {
+        const field = fieldsByName(section, name)[0];
+        const label = field?.closest('.form-group')?.querySelector('label');
+        return (label?.textContent || name).replace(/\s+/g, ' ').trim();
+    }
+
+    function missingFieldNames(section) {
+        return requiredFieldNames(section).filter((name) => {
+            const fields = fieldsByName(section, name);
+            return !fields.length || !fields.some(hasMeaningfulValue);
+        });
+    }
+
+    function isSectionStarted(section) {
+        return requiredFieldNames(section).some((name) => {
+            const fields = fieldsByName(section, name);
+            return fields.some(hasMeaningfulValue);
+        });
     }
 
     function isSectionComplete(section) {
@@ -1094,10 +1179,37 @@ document.addEventListener('DOMContentLoaded', function () {
 
         if (!fieldNames.length) return false;
 
-        return fieldNames.some((name) => {
-            const fields = Array.from(section.querySelectorAll(`[name="${name}"]`));
+        return fieldNames.every((name) => {
+            const fields = fieldsByName(section, name);
             return fields.some(hasMeaningfulValue);
         });
+    }
+
+    function updateMissingStyles(section, forceVisible = false) {
+        const missingNames = missingFieldNames(section);
+        const missingAlert = section.querySelector('.seg-section__missing');
+
+        requiredFieldNames(section).forEach((name) => {
+            fieldsByName(section, name).forEach((field) => {
+                field.classList.toggle('is-missing', missingNames.includes(name) && (forceVisible || isSectionStarted(section)));
+            });
+        });
+
+        if (!missingAlert) {
+            return missingNames;
+        }
+
+        if (!missingNames.length) {
+            missingAlert.textContent = '';
+            missingAlert.style.display = 'none';
+            return missingNames;
+        }
+
+        const labels = missingNames.map((name) => fieldLabel(section, name));
+        missingAlert.textContent = `Falta completar en ${section.dataset.stageTitle || 'este bloque'}: ${labels.join(', ')}.`;
+        missingAlert.style.display = (forceVisible || isSectionStarted(section)) ? 'block' : 'none';
+
+        return missingNames;
     }
 
     function setStatusPill(section, state) {
@@ -1151,15 +1263,20 @@ document.addEventListener('DOMContentLoaded', function () {
             const previousSection = index === 0 ? null : sections[index - 1];
             const unlocked = !previousSection || isSectionComplete(previousSection);
             const lockMessage = section.querySelector('.seg-section__lock-message');
+            const previousMissing = previousSection ? missingFieldNames(previousSection) : [];
 
             section.classList.toggle('is-locked', !unlocked);
             section.classList.toggle('is-complete', currentComplete);
             section.classList.toggle('is-active', unlocked && !currentComplete);
+            updateMissingStyles(section, unlocked && isSectionStarted(section));
 
             if (lockMessage && previousSection) {
                 const previousTitle = previousSection.dataset.stageTitle || 'el paso anterior';
                 const currentTitle = section.dataset.stageTitle || 'este bloque';
-                lockMessage.textContent = `Completa ${previousTitle} para desbloquear ${currentTitle}.`;
+                const missingLabels = previousMissing.map((name) => fieldLabel(previousSection, name));
+                lockMessage.textContent = missingLabels.length
+                    ? `Completa ${previousTitle} para desbloquear ${currentTitle}. Falta: ${missingLabels.join(', ')}.`
+                    : `Completa ${previousTitle} para desbloquear ${currentTitle}.`;
             }
 
             if (currentComplete) {
@@ -1182,6 +1299,30 @@ document.addEventListener('DOMContentLoaded', function () {
     document.querySelectorAll('.seg-section input, .seg-section select, .seg-section textarea').forEach((field) => {
         field.addEventListener('input', updateSectionStates);
         field.addEventListener('change', updateSectionStates);
+    });
+
+    document.getElementById('seguimiento549Form')?.addEventListener('submit', function (event) {
+        let firstProblem = null;
+
+        sections.forEach((section, index) => {
+            const previousSection = index === 0 ? null : sections[index - 1];
+            const unlocked = !previousSection || isSectionComplete(previousSection);
+            const mustValidate = index === 0 || isSectionStarted(section);
+            const missing = updateMissingStyles(section, mustValidate || !unlocked);
+
+            if ((mustValidate && missing.length) || (!unlocked && isSectionStarted(section))) {
+                firstProblem = firstProblem || section;
+            }
+        });
+
+        if (firstProblem) {
+            event.preventDefault();
+            updateSectionStates();
+            firstProblem.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            const firstMissing = missingFieldNames(firstProblem)[0];
+            const field = firstMissing ? fieldsByName(firstProblem, firstMissing)[0] : null;
+            setTimeout(() => field?.focus({ preventScroll: true }), 320);
+        }
     });
 
     function syncToggleCard(input) {

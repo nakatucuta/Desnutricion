@@ -418,52 +418,185 @@ class SeguimientMaestrosiv549Controller extends Controller
     private function validateConditionalBlocks(Request $request): void
     {
         $errors = [];
+        $previousComplete = true;
+        $previousTitle = null;
+        $previousMissing = [];
 
-        // Si se inicia el bloque inmediato, exige seguimiento efectivo inmediato.
-        if ($this->hasAnyInput($request, [
-            'descripcion_seguimiento_inmediato',
-            'fecha_control_rn_inmediato',
-            'soporte_inmediato_pdf',
-        ]) && $request->input('seguimiento_efectivo_inmediato', '') === '') {
-            $errors['seguimiento_efectivo_inmediato'] = 'Debes seleccionar si el seguimiento inmediato fue efectivo.';
-        }
+        foreach ($this->requiredProgressBlocks() as $index => $block) {
+            $fields = $block['fields'];
+            $fieldNames = array_keys($fields);
+            $touched = $this->hasAnyInput($request, $fieldNames);
+            $mustValidate = $index === 0 || $touched;
+            $missing = $this->missingRequiredFields($request, $fields);
 
-        // Para seguimientos 2..5: si se inicia el bloque, exige fecha y efectivo.
-        foreach ([2, 3, 4, 5] as $idx) {
-            $touchFields = [
-                'fecha_seguimiento_'.$idx,
-                'paciente_sigue_embarazo_'.$idx,
-                'fecha_control_'.$idx,
-                'fecha_consulta_rn_'.$idx,
-                'entrega_medicamentos_labs_'.$idx,
-                'soporte_seguimiento_'.$idx.'_pdf',
-            ];
-
-            if ($idx === 3) {
-                $touchFields[] = 'gestion_segunda_semana';
-                $touchFields[] = 'tipo_seguimiento_3';
-            } elseif ($idx === 4) {
-                $touchFields[] = 'gestion_tercera_semana';
-                $touchFields[] = 'tipo_seguimiento_4';
-            } elseif ($idx === 2) {
-                $touchFields[] = 'gestion_primera_semana';
-            } elseif ($idx === 5) {
-                $touchFields[] = 'tipo_seguimiento_5';
+            if ($touched && !$previousComplete) {
+                $errors[$fieldNames[0]] = sprintf(
+                    'No puedes diligenciar %s hasta completar %s. En %s falta: %s.',
+                    $block['title'],
+                    $previousTitle,
+                    $previousTitle,
+                    implode(', ', $previousMissing)
+                );
             }
 
-            if ($this->hasAnyInput($request, $touchFields)) {
-                if (trim((string) $request->input('fecha_seguimiento_'.$idx, '')) === '') {
-                    $errors['fecha_seguimiento_'.$idx] = 'Debes registrar la fecha del Seguimiento '.$idx.'.';
-                }
-                if (trim((string) $request->input('seguimiento_efectivo_'.$idx, '')) === '') {
-                    $errors['seguimiento_efectivo_'.$idx] = 'Debes seleccionar si el Seguimiento '.$idx.' fue efectivo.';
-                }
+            if ($mustValidate && !empty($missing)) {
+                $errors[$this->firstMissingField($request, $fields)] = sprintf(
+                    'En %s falta completar: %s.',
+                    $block['title'],
+                    implode(', ', $missing)
+                );
             }
+
+            $currentComplete = empty($missing);
+            $previousComplete = $previousComplete && $mustValidate && $currentComplete;
+            $previousTitle = $block['title'];
+            $previousMissing = $missing;
         }
 
         if (!empty($errors)) {
             throw ValidationException::withMessages($errors);
         }
+    }
+
+    private function requiredProgressBlocks(): array
+    {
+        return [
+            [
+                'title' => 'Hospitalizacion',
+                'fields' => [
+                    'fecha_hospitalizacion' => 'Fecha hospitalizacion',
+                    'fecha_egreso' => 'Fecha egreso',
+                    'institucion_egreso_paciente' => 'Institucion que da el egreso a la paciente',
+                    'gestion_hospitalizacion' => 'Gestion durante hospitalizacion',
+                    'ttl_criter' => 'Ttl_criter',
+                    'diagnostico_cie10' => 'Diagnostico CIE 10',
+                    'causa_agrupada' => 'Causa agrupada',
+                ],
+            ],
+            [
+                'title' => 'Seguimiento inmediato',
+                'fields' => [
+                    'descripcion_seguimiento_inmediato' => 'Descripcion',
+                    'fecha_control_rn_inmediato' => 'Control del recien nacido',
+                    'seguimiento_efectivo_inmediato' => 'Seguimiento efectivo',
+                ],
+            ],
+            [
+                'title' => 'Seguimiento 1',
+                'fields' => [
+                    'fecha_seguimiento_1' => 'Fecha',
+                    'tipo_seguimiento_1' => 'Tipo',
+                    'paciente_sigue_embarazo_1' => 'Sigue en embarazo',
+                    'fecha_control_1' => 'Fecha control',
+                    'metodo_anticonceptivo' => 'Metodo anticonceptivo elegido y provisto',
+                    'fecha_consulta_rn_1' => 'Fecha consulta RN',
+                    'entrega_medicamentos_labs_1' => 'Entrega de medicamentos o labs en casa',
+                    'gestion_posegreso_1' => 'Gestion realizada post egreso',
+                ],
+            ],
+            [
+                'title' => 'Seguimiento 2',
+                'fields' => [
+                    'fecha_seguimiento_2' => 'Fecha',
+                    'paciente_sigue_embarazo_2' => 'Sigue en embarazo',
+                    'fecha_control_2' => 'Fecha control',
+                    'fecha_consulta_rn_2' => 'Fecha consulta RN',
+                    'entrega_medicamentos_labs_2' => 'Entrega de medicamentos o labs en casa',
+                    'seguimiento_efectivo_2' => 'Seguimiento efectivo',
+                    'gestion_primera_semana' => 'Gestion primera semana',
+                ],
+            ],
+            [
+                'title' => 'Seguimiento 3',
+                'fields' => [
+                    'fecha_seguimiento_3' => 'Fecha',
+                    'tipo_seguimiento_3' => 'Tipo',
+                    'paciente_sigue_embarazo_3' => 'Sigue en embarazo',
+                    'fecha_control_3' => 'Fecha control',
+                    'fecha_consulta_rn_3' => 'Fecha consulta RN',
+                    'entrega_medicamentos_labs_3' => 'Entrega de medicamentos o labs en casa',
+                    'seguimiento_efectivo_3' => 'Seguimiento efectivo',
+                    'gestion_segunda_semana' => 'Gestion segunda semana',
+                ],
+            ],
+            [
+                'title' => 'Seguimiento 4',
+                'fields' => [
+                    'fecha_seguimiento_4' => 'Fecha',
+                    'tipo_seguimiento_4' => 'Tipo',
+                    'paciente_sigue_embarazo_4' => 'Sigue en embarazo',
+                    'fecha_control_4' => 'Fecha control',
+                    'fecha_consulta_rn_4' => 'Fecha consulta RN',
+                    'entrega_medicamentos_labs_4' => 'Entrega de medicamentos o labs en casa',
+                    'seguimiento_efectivo_4' => 'Seguimiento efectivo',
+                    'gestion_tercera_semana' => 'Gestion tercera semana',
+                ],
+            ],
+            [
+                'title' => 'Seguimiento 5',
+                'fields' => [
+                    'fecha_seguimiento_5' => 'Fecha',
+                    'tipo_seguimiento_5' => 'Tipo',
+                    'paciente_sigue_embarazo_5' => 'Sigue en embarazo',
+                    'fecha_control_5' => 'Fecha control',
+                    'fecha_consulta_rn_5' => 'Fecha consulta RN',
+                    'entrega_medicamentos_labs_5' => 'Entrega de medicamentos o labs en casa',
+                    'seguimiento_efectivo_5' => 'Seguimiento efectivo',
+                ],
+            ],
+            [
+                'title' => 'Controles finales',
+                'fields' => [
+                    'fecha_consulta_lactancia' => 'Consulta apoyo lactancia',
+                    'fecha_control_metodo' => 'Primer control metodo anticonceptivo',
+                    'gestion_despues_mes' => 'Gestion despues del mes',
+                    'fecha_consulta_6_meses' => 'Consulta 6 meses',
+                    'fecha_consulta_1_ano' => 'Consulta 1 ano',
+                ],
+            ],
+        ];
+    }
+
+    private function missingRequiredFields(Request $request, array $fields): array
+    {
+        $missing = [];
+
+        foreach ($fields as $field => $label) {
+            if (!$this->hasRequiredInput($request, $field)) {
+                $missing[] = $label;
+            }
+        }
+
+        return $missing;
+    }
+
+    private function firstMissingField(Request $request, array $fields): string
+    {
+        foreach (array_keys($fields) as $field) {
+            if (!$this->hasRequiredInput($request, $field)) {
+                return $field;
+            }
+        }
+
+        return array_key_first($fields);
+    }
+
+    private function hasRequiredInput(Request $request, string $field): bool
+    {
+        if ($request->hasFile($field)) {
+            return true;
+        }
+
+        $value = $request->input($field, null);
+        if ($value === null) {
+            return false;
+        }
+
+        if (is_array($value)) {
+            return !empty($value);
+        }
+
+        return trim((string) $value) !== '';
     }
 
     private function hasAnyInput(Request $request, array $fields): bool
