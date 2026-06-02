@@ -53,7 +53,7 @@
                 <thead>
                     <tr>
                         <th>ID</th>
-                        <th>Fecha asignacion</th>
+                        <th>Fecha seguimiento</th>
                         <th>Identificacion</th>
                         <th>Semana epid</th>
                         <th>Nombre</th>

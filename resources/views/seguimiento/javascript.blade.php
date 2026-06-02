@@ -28,7 +28,7 @@ $(function () {
         },
         columns: [
             { data: 'id', name: 'id' },
-            { data: 'creado', name: 'creado' },
+            { data: 'fecha_seguimiento', name: 'fecha_seguimiento' },
             { data: 'num_ide', name: 'num_ide' },
             { data: 'semana', name: 'semana' },
             { data: 'nombre', name: 'nombre', orderable: false, searchable: true },

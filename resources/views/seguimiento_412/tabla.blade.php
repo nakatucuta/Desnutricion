@@ -52,7 +52,7 @@
             <table class="table table-hover table-striped table-bordered w-100" id="seguimiento412">
                 <thead>
                     <tr>
-                        <th>Fecha de cargue</th>
+                        <th>Fecha seguimiento</th>
                         <th>ID</th>
                         <th>Identificacion</th>
                         <th>Nombre</th>

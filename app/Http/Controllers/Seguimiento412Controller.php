@@ -134,6 +134,7 @@ public function data(Request $request)
         ->select([
             'seguimiento_id',
             'estado',
+            'seguimiento_created_at as fecha_seguimiento',
             'seguimiento_created_at',
             'fecha_proximo_control',
             'seguimiento_user_id',
@@ -166,6 +167,9 @@ public function data(Request $request)
 
     return DataTables::of($query)
         ->setRowId('seguimiento_id')
+        ->editColumn('fecha_seguimiento', fn($r) =>
+            \Carbon\Carbon::parse($r->fecha_seguimiento)->format('Y-m-d')
+        )
         ->editColumn('seguimiento_created_at', fn($r) =>
             \Carbon\Carbon::parse($r->seguimiento_created_at)->format('Y-m-d')
         )

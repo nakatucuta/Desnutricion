@@ -59,6 +59,7 @@ class SeguimientoController extends Controller
         $query = DB::table('vw_seguimientos')
             ->select([
                 'id',
+                'creado as fecha_seguimiento',
                 'creado',
                 'num_ide',
                 'semana',
@@ -110,6 +111,7 @@ class SeguimientoController extends Controller
         }
     
         return DataTables::of($query)
+            ->editColumn('fecha_seguimiento', fn($r) => Carbon::parse($r->fecha_seguimiento)->format('Y-m-d'))
             ->editColumn('creado', fn($r) => Carbon::parse($r->creado)->format('Y-m-d'))
             ->editColumn('fecha_proximo_control', fn($r) =>
                 $r->fecha_proximo_control
