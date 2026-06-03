@@ -24,7 +24,7 @@ $(function () {
             }
         },
         columns: [
-            { data: 'fecha_seguimiento', name: 'fecha_seguimiento' },
+            { data: 'fecha_seguimiento', name: 'seguimiento_created_at' },
             { data: 'seguimiento_id', name: 'seguimiento_id' },
             { data: 'numero_identificacion', name: 'numero_identificacion' },
             { data: 'nombre_completo', name: 'nombre_completo' },

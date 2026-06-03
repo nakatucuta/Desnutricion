@@ -59,7 +59,7 @@ class CicloVidaCacheRefresher
             $recordsLoaded = 0;
 
             DB::transaction(function () use ($courseKey, $moduleKey, $module, $from, $to, $runId, $rows, &$recordsLoaded): void {
-                $this->deleteWindowRecords($courseKey, $moduleKey, $from, $to);
+                $this->deleteWindowRecords($courseKey, $moduleKey, $module, $from, $to);
 
                 $seenHashes = [];
                 $metrics = [
@@ -614,8 +614,23 @@ class CicloVidaCacheRefresher
         return true;
     }
 
-    protected function deleteWindowRecords(string $courseKey, string $moduleKey, Carbon $from, Carbon $to): void
+    protected function deleteWindowRecords(string $courseKey, string $moduleKey, array $module, Carbon $from, Carbon $to): void
     {
+        if ((string) ($module['record_type'] ?? 'event') === 'alert') {
+            DB::table('ciclo_vida_cache_records')
+                ->where('course_key', $courseKey)
+                ->where('module_key', $moduleKey)
+                ->where('record_type', 'alert')
+                ->delete();
+
+            DB::table('ciclo_vida_cache_summaries')
+                ->where('course_key', $courseKey)
+                ->where('module_key', $moduleKey)
+                ->delete();
+
+            return;
+        }
+
         DB::table('ciclo_vida_cache_records')
             ->where('course_key', $courseKey)
             ->where('module_key', $moduleKey)

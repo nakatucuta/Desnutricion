@@ -42,12 +42,12 @@ class DailyCicloVidaRefreshReport extends Command
         }
 
         $jobs = [
-            ['label' => 'cache-refresh primera_infancia', 'tokens' => ['ciclosvida:cache-refresh', 'primera_infancia']],
-            ['label' => 'cache-refresh infancia', 'tokens' => ['ciclosvida:cache-refresh', 'infancia']],
-            ['label' => 'cache-refresh adolescencia', 'tokens' => ['ciclosvida:cache-refresh', 'adolescencia']],
-            ['label' => 'cache-refresh juventud', 'tokens' => ['ciclosvida:cache-refresh', 'juventud']],
-            ['label' => 'cache-refresh adultez', 'tokens' => ['ciclosvida:cache-refresh', 'adultez']],
-            ['label' => 'cache-refresh vejez', 'tokens' => ['ciclosvida:cache-refresh', 'vejez']],
+            ['label' => 'cache-refresh primera_infancia incremental', 'tokens' => ['ciclosvida:cache-refresh', 'primera_infancia', '--incremental']],
+            ['label' => 'cache-refresh infancia incremental', 'tokens' => ['ciclosvida:cache-refresh', 'infancia', '--incremental']],
+            ['label' => 'cache-refresh adolescencia incremental', 'tokens' => ['ciclosvida:cache-refresh', 'adolescencia', '--incremental']],
+            ['label' => 'cache-refresh juventud incremental', 'tokens' => ['ciclosvida:cache-refresh', 'juventud', '--incremental']],
+            ['label' => 'cache-refresh adultez incremental', 'tokens' => ['ciclosvida:cache-refresh', 'adultez', '--incremental']],
+            ['label' => 'cache-refresh vejez incremental', 'tokens' => ['ciclosvida:cache-refresh', 'vejez', '--incremental']],
             ['label' => 'coverage-snapshots-refresh', 'tokens' => ['ciclosvida:coverage-snapshots-refresh', '--include-single-filters']],
         ];
 

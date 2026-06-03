@@ -16,7 +16,8 @@ class RefreshCicloVidaCache extends Command
                             {--from= : Fecha inicial YYYY-MM-DD}
                             {--to= : Fecha final exclusiva YYYY-MM-DD}
                             {--days= : Ventana relativa si no se envian fechas}
-                            {--resume : Omite modulos que ya terminaron con success para el mismo rango}';
+                            {--resume : Omite modulos que ya terminaron con success para el mismo rango}
+                            {--incremental : Refresca eventos solo desde el ultimo corte exitoso del modulo}';
 
     protected $description = 'Materializa la informacion de ciclos de vida en tablas cache locales.';
 
@@ -29,6 +30,10 @@ class RefreshCicloVidaCache extends Command
         $moduleKeys = array_values(array_filter((array) $this->option('module')));
         if (empty($moduleKeys)) {
             $moduleKeys = CicloVidaCatalog::materializedModules($courseKey);
+        }
+
+        if ($this->option('incremental') && empty($this->option('from')) && empty($this->option('to'))) {
+            return $this->handleIncremental($refresher, $courseKey, $moduleKeys);
         }
 
         [$from, $to] = $this->resolveDateRange($courseKey);
@@ -67,6 +72,48 @@ class RefreshCicloVidaCache extends Command
         return self::SUCCESS;
     }
 
+    protected function handleIncremental(CicloVidaCacheRefresher $refresher, string $courseKey, array $moduleKeys): int
+    {
+        $this->info("Refrescando {$courseKey} en modo incremental");
+
+        $summary = [];
+        foreach ($moduleKeys as $moduleKey) {
+            [$from, $to, $mode] = $this->resolveIncrementalDateRange($courseKey, $moduleKey);
+
+            if ($to->lessThanOrEqualTo($from)) {
+                $summary[] = [$courseKey, $moduleKey, 'skipped', 0, 'sin ventana nueva'];
+                continue;
+            }
+
+            $this->line("Modulo {$moduleKey}: {$mode} desde {$from->toDateString()} hasta {$to->toDateString()}");
+
+            try {
+                $results = $refresher->refreshCourse($courseKey, [$moduleKey], $from, $to);
+            } catch (\Throwable $e) {
+                $this->error($e->getMessage());
+
+                return self::FAILURE;
+            }
+
+            foreach ($results as $row) {
+                $summary[] = [
+                    $row['course'],
+                    $row['module'],
+                    $row['status'],
+                    $row['records'],
+                    $mode,
+                ];
+            }
+        }
+
+        $this->table(
+            ['Curso', 'Modulo', 'Estado', 'Registros', 'Modo'],
+            $summary
+        );
+
+        return self::SUCCESS;
+    }
+
     protected function resolveDateRange(string $courseKey): array
     {
         $fromInput = $this->option('from');
@@ -86,6 +133,38 @@ class RefreshCicloVidaCache extends Command
             now()->subDays(max($days, 1))->startOfDay(),
             now()->addDay()->startOfDay(),
         ];
+    }
+
+    protected function resolveIncrementalDateRange(string $courseKey, string $moduleKey): array
+    {
+        $module = (array) data_get(config("ciclosvida.courses.{$courseKey}.modules"), $moduleKey, []);
+        $recordType = (string) ($module['record_type'] ?? 'event');
+
+        if ($recordType === 'alert') {
+            [$from, $to] = $this->resolveDateRange($courseKey);
+
+            return [$from, $to, 'alert-replace'];
+        }
+
+        $latest = DB::table('ciclo_vida_cache_runs')
+            ->where('course_key', $courseKey)
+            ->where('module_key', $moduleKey)
+            ->where('status', 'success')
+            ->orderByDesc('range_end')
+            ->orderByDesc('id')
+            ->first(['range_end']);
+
+        if ($latest && !empty($latest->range_end)) {
+            return [
+                Carbon::parse((string) $latest->range_end)->startOfDay(),
+                now()->addDay()->startOfDay(),
+                'incremental',
+            ];
+        }
+
+        [$from, $to] = $this->resolveDateRange($courseKey);
+
+        return [$from, $to, 'initial-window'];
     }
 
     protected function resumableSkipModules(string $courseKey, Carbon $from, Carbon $to): array
