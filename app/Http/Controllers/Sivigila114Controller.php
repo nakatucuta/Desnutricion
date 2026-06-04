@@ -104,8 +104,17 @@ class Sivigila114Controller extends Controller
         if ($request->filled('tip_ide_')) {
             $query->where('m.tip_ide_', 'like', '%' . trim((string) $request->input('tip_ide_')) . '%');
         }
-        // El filtro "procesado" se calcula en capa aplicacion para evitar inconsistencias
-        // de cruce entre conexiones sqlsrv_1 (fuente) y sqlsrv local (asignaciones).
+        $procesado = trim((string) $request->input('procesado', ''));
+        if ($procesado !== '') {
+            $processedDocs = $this->processedDocumentNumbers();
+            if ($procesado === '1') {
+                $processedDocs->isEmpty()
+                    ? $query->whereRaw('1 = 0')
+                    : $query->whereIn(DB::raw('LTRIM(RTRIM(CAST(m.num_ide_ AS VARCHAR(40))))'), $processedDocs->all());
+            } elseif ($procesado === '0' && $processedDocs->isNotEmpty()) {
+                $query->whereNotIn(DB::raw('LTRIM(RTRIM(CAST(m.num_ide_ AS VARCHAR(40))))'), $processedDocs->all());
+            }
+        }
         if ($request->filled('nom_upgd')) {
             $query->where('m.nom_upgd', 'like', '%' . trim((string) $request->input('nom_upgd')) . '%');
         }
@@ -123,37 +132,14 @@ class Sivigila114Controller extends Controller
 
         return DataTables::of($query)
             ->addColumn('procesado_badge', function ($row) {
-                $doc = trim((string) $row->num_ide_);
-                $fec = trim((string) $row->fec_noti);
-                $isProcessed = DB::table('sivigilas')
-                    ->where('cod_eve', 114)
-                    ->whereRaw("LTRIM(RTRIM(CAST(num_ide_ AS VARCHAR(40)))) = ?", [$doc])
-                    ->whereDate('fec_not', $fec)
-                    ->exists();
+                $isProcessed = (bool) $this->findLocalAssignment($row);
 
                 return $isProcessed
                     ? '<span class="badge badge-success"><i class="fas fa-check mr-1"></i>Procesado</span>'
                     : '<span class="badge badge-warning"><i class="fas fa-clock mr-1"></i>Pendiente</span>';
             })
             ->addColumn('acciones', function ($row) use ($canManageCrud) {
-                $doc = trim((string) $row->num_ide_);
-                $fec = trim((string) $row->fec_noti);
-                $local = Sivigila::query()
-                    ->where('cod_eve', 114)
-                    ->whereRaw("LTRIM(RTRIM(CAST(num_ide_ AS VARCHAR(40)))) = ?", [$doc])
-                    ->whereDate('fec_not', $fec)
-                    ->orderByDesc('id')
-                    ->first();
-
-                // Fallback: usar la ultima asignacion del evento 114 para ese documento.
-                if (!$local) {
-                    $local = Sivigila::query()
-                        ->where('cod_eve', 114)
-                        ->whereRaw("LTRIM(RTRIM(CAST(num_ide_ AS VARCHAR(40)))) = ?", [$doc])
-                        ->orderByDesc('fec_not')
-                        ->orderByDesc('id')
-                        ->first();
-                }
+                $local = $this->findLocalAssignment($row);
 
                 $url = route('sivigila114.create', ['num_ide_' => $row->num_ide_, 'fec_not' => $row->fec_noti]);
                 $localId = $local?->id;
@@ -386,6 +372,17 @@ class Sivigila114Controller extends Controller
         if ($request->filled('tip_ide_')) {
             $query->where('m.tip_ide_', 'like', '%' . trim((string) $request->input('tip_ide_')) . '%');
         }
+        $procesado = trim((string) $request->input('procesado', ''));
+        if ($procesado !== '') {
+            $processedDocs = $this->processedDocumentNumbers();
+            if ($procesado === '1') {
+                $processedDocs->isEmpty()
+                    ? $query->whereRaw('1 = 0')
+                    : $query->whereIn(DB::raw('LTRIM(RTRIM(CAST(m.num_ide_ AS VARCHAR(40))))'), $processedDocs->all());
+            } elseif ($procesado === '0' && $processedDocs->isNotEmpty()) {
+                $query->whereNotIn(DB::raw('LTRIM(RTRIM(CAST(m.num_ide_ AS VARCHAR(40))))'), $processedDocs->all());
+            }
+        }
         if ($request->filled('nom_upgd')) {
             $query->where('m.nom_upgd', 'like', '%' . trim((string) $request->input('nom_upgd')) . '%');
         }
@@ -402,6 +399,48 @@ class Sivigila114Controller extends Controller
         }
 
         return $query;
+    }
+
+    private function findLocalAssignment(object $row): ?Sivigila
+    {
+        $doc = trim((string) ($row->num_ide_ ?? ''));
+        $fec = trim((string) ($row->fec_noti ?? ''));
+
+        if ($doc === '') {
+            return null;
+        }
+
+        $query = Sivigila::query()
+            ->where('cod_eve', 114)
+            ->whereRaw("LTRIM(RTRIM(CAST(num_ide_ AS VARCHAR(40)))) = ?", [$doc]);
+
+        if ($fec !== '') {
+            $local = (clone $query)
+                ->whereDate('fec_not', $fec)
+                ->orderByDesc('id')
+                ->first();
+
+            if ($local) {
+                return $local;
+            }
+        }
+
+        // En 114 algunas fechas cambian entre la fuente y la asignacion local.
+        return $query
+            ->orderByDesc('fec_not')
+            ->orderByDesc('id')
+            ->first();
+    }
+
+    private function processedDocumentNumbers()
+    {
+        return DB::table('sivigilas')
+            ->where('cod_eve', 114)
+            ->whereNotNull('num_ide_')
+            ->selectRaw("DISTINCT LTRIM(RTRIM(CAST(num_ide_ AS VARCHAR(40)))) as num_ide")
+            ->pluck('num_ide')
+            ->filter(fn($doc) => trim((string) $doc) !== '')
+            ->values();
     }
 
     public function reportPreview(Request $request)
@@ -453,11 +492,7 @@ class Sivigila114Controller extends Controller
                 $row->seg_ape_ ?? '',
             ])));
 
-            $isProcessed = DB::table('sivigilas')
-                ->where('cod_eve', 114)
-                ->whereRaw("LTRIM(RTRIM(CAST(num_ide_ AS VARCHAR(40)))) = ?", [trim((string) ($row->num_ide_ ?? ''))])
-                ->whereDate('fec_not', (string) ($row->fec_noti ?? ''))
-                ->exists();
+            $isProcessed = (bool) $this->findLocalAssignment($row);
 
             $arr = [];
             foreach ($columns as $col) {
