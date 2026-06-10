@@ -42,6 +42,13 @@ class User extends Authenticatable
         'pref_iframe_mode',
         'force_password_change',
         'password_reset_at',
+        'login_count',
+        'failed_login_count',
+        'logout_count',
+        'last_login_at',
+        'last_login_ip',
+        'last_login_user_agent',
+        'last_logout_at',
     ];
 
     /**
@@ -68,6 +75,8 @@ class User extends Authenticatable
         'pref_iframe_mode' => 'boolean',
         'force_password_change' => 'boolean',
         'password_reset_at' => 'datetime',
+        'last_login_at' => 'datetime',
+        'last_logout_at' => 'datetime',
     ];
 
     public function Ingreso ()
@@ -141,6 +150,11 @@ class User extends Authenticatable
     public function accessRequests(): HasMany
     {
         return $this->hasMany(ModuleAccessRequest::class, 'user_id');
+    }
+
+    public function accessEvents(): HasMany
+    {
+        return $this->hasMany(UserAccessEvent::class, 'user_id');
     }
 
     public function isSuperAdministrator(): bool

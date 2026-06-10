@@ -606,6 +606,12 @@ return [
             'icon'  => 'fas fa-user-shield',
             'can'   => 'manage-access-control',
         ],
+        [
+            'text'  => 'Ingresos de usuarios',
+            'route' => 'access-control.login-events.index',
+            'icon'  => 'fas fa-user-clock',
+            'can'   => 'manage-access-control',
+        ],
 
 
 

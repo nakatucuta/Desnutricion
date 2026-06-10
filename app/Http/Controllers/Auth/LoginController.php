@@ -3,12 +3,12 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
+use App\Services\AccessControlService;
 use App\Providers\RouteServiceProvider;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
@@ -182,7 +182,9 @@ class LoginController extends Controller
 
     protected function sendLockoutResponse(Request $request)
     {
-        $this->logAuthEvent('login_lockout', $request);
+        app(AccessControlService::class)->recordAuthEvent('login_lockout', $request, null, [
+            'source' => 'web_login',
+        ]);
 
         $seconds = RateLimiter::availableIn($this->throttleKey($request));
         $minutes = (int) ceil($seconds / 60);
@@ -195,21 +197,8 @@ class LoginController extends Controller
 
     protected function authenticated(Request $request, $user)
     {
-        $this->logAuthEvent('login_success', $request, $user->id ?? null);
-    }
-
-    private function logAuthEvent(string $event, Request $request, ?int $userId = null): void
-    {
-        $identifier = $request->filled('email')
-            ? mb_strtolower(trim((string) $request->input('email')))
-            : trim((string) $request->input('codigohabilitacion'));
-
-        Log::info('auth_event', [
-            'event' => $event,
-            'user_id' => $userId,
-            'identifier_hash' => $identifier !== '' ? hash('sha256', $identifier) : null,
-            'ip' => $request->ip(),
-            'user_agent' => Str::limit((string) $request->userAgent(), 255, ''),
+        app(AccessControlService::class)->recordAuthEvent('login_success', $request, $user, [
+            'source' => 'web_login',
         ]);
     }
 
@@ -220,6 +209,13 @@ class LoginController extends Controller
 
     public function logout(Request $request): RedirectResponse
     {
+        $user = Auth::user();
+        if ($user) {
+            app(AccessControlService::class)->recordAuthEvent('logout', $request, $user, [
+                'source' => 'web_logout',
+            ]);
+        }
+
         Auth::guard()->logout();
         $request->session()->invalidate();
         $request->session()->regenerateToken();
@@ -229,7 +225,9 @@ class LoginController extends Controller
 
     protected function sendFailedLoginResponse(Request $request)
     {
-        $this->logAuthEvent('login_failed', $request);
+        app(AccessControlService::class)->recordAuthEvent('login_failed', $request, null, [
+            'source' => 'web_login',
+        ]);
 
         $field = $request->filled('email') ? 'email' : 'codigohabilitacion';
         $attempts = (int) RateLimiter::attempts($this->throttleKey($request));

@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\ModulePermission;
+use App\Models\UserAccessEvent;
 use App\Models\User;
 use App\Models\UserModulePermission;
 use Illuminate\Http\Request;
@@ -242,6 +243,184 @@ class AccessControlService
         return ModulePermission::query()
             ->where('is_assignable', true)
             ->orderBy('name')
+            ->get();
+    }
+
+    public function resolveLoginUser(Request $request): ?User
+    {
+        if ($request->filled('email')) {
+            $email = mb_strtolower(trim((string) $request->input('email')));
+
+            if ($email === '') {
+                return null;
+            }
+
+            return User::query()
+                ->whereRaw('LOWER([email]) = ?', [$email])
+                ->first();
+        }
+
+        $identifier = trim((string) $request->input('codigohabilitacion'));
+        if ($identifier === '') {
+            return null;
+        }
+
+        $users = User::query()
+            ->where('codigohabilitacion', $identifier)
+            ->orWhere('name', $identifier)
+            ->limit(2)
+            ->get();
+
+        return $users->count() === 1 ? $users->first() : null;
+    }
+
+    public function recordAuthEvent(string $eventType, Request $request, ?User $user = null, array $details = []): void
+    {
+        if (!Schema::hasTable('user_access_events')) {
+            return;
+        }
+
+        $resolvedUser = $user ?: $this->resolveLoginUser($request);
+        $identifier = $request->filled('email')
+            ? mb_strtolower(trim((string) $request->input('email')))
+            : trim((string) $request->input('codigohabilitacion'));
+
+        $event = new UserAccessEvent([
+            'user_id' => $resolvedUser?->id,
+            'event_type' => $eventType,
+            'login_identifier' => $identifier !== '' ? $identifier : null,
+            'identifier_hash' => $identifier !== '' ? hash('sha256', $identifier) : null,
+            'auth_method' => $request->filled('email') ? 'email' : 'codigo',
+            'ip_address' => $request->ip(),
+            'user_agent' => mb_substr((string) $request->userAgent(), 0, 500),
+            'session_id' => $request->session()?->getId(),
+            'route_name' => $request->route()?->getName(),
+            'details' => $this->formatEventDetails($details),
+            'occurred_at' => now(),
+        ]);
+
+        $event->save();
+
+        if (!$resolvedUser) {
+            return;
+        }
+
+        if ($eventType === 'login_success') {
+            if (!Schema::hasColumn('users', 'login_count') || !Schema::hasColumn('users', 'last_login_at')) {
+                return;
+            }
+
+            User::query()->whereKey($resolvedUser->id)->update([
+                'login_count' => DB::raw('ISNULL([login_count], 0) + 1'),
+                'last_login_at' => now(),
+                'last_login_ip' => $request->ip(),
+                'last_login_user_agent' => mb_substr((string) $request->userAgent(), 0, 500),
+                'updated_at' => now(),
+            ]);
+        } elseif ($eventType === 'login_failed') {
+            if (!Schema::hasColumn('users', 'failed_login_count')) {
+                return;
+            }
+
+            User::query()->whereKey($resolvedUser->id)->update([
+                'failed_login_count' => DB::raw('ISNULL([failed_login_count], 0) + 1'),
+                'updated_at' => now(),
+            ]);
+        } elseif ($eventType === 'logout') {
+            if (!Schema::hasColumn('users', 'logout_count') || !Schema::hasColumn('users', 'last_logout_at')) {
+                return;
+            }
+
+            User::query()->whereKey($resolvedUser->id)->update([
+                'logout_count' => DB::raw('ISNULL([logout_count], 0) + 1'),
+                'last_logout_at' => now(),
+                'updated_at' => now(),
+            ]);
+        }
+    }
+
+    private function formatEventDetails(array $details): ?string
+    {
+        $clean = collect($details)
+            ->filter(static fn ($value) => $value !== null && $value !== '')
+            ->map(function ($value, $key) {
+                if (is_bool($value)) {
+                    $value = $value ? 'true' : 'false';
+                } elseif (is_array($value)) {
+                    $value = json_encode($value, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+                }
+
+                return $key . '=' . (string) $value;
+            })
+            ->implode(' | ');
+
+        return $clean !== '' ? $clean : null;
+    }
+
+    public function loginEventStats(): array
+    {
+        if (!Schema::hasTable('user_access_events')) {
+            return [
+                'successful_logins' => 0,
+                'failed_logins' => 0,
+                'logouts' => 0,
+                'today_successful_logins' => 0,
+                'today_failed_logins' => 0,
+                'last_successful_login_at' => null,
+                'last_failed_login_at' => null,
+                'active_users_today' => 0,
+            ];
+        }
+
+        $today = now()->toDateString();
+
+        return [
+            'successful_logins' => (int) UserAccessEvent::query()->successful()->count(),
+            'failed_logins' => (int) UserAccessEvent::query()->failed()->count(),
+            'logouts' => (int) UserAccessEvent::query()->logout()->count(),
+            'today_successful_logins' => (int) UserAccessEvent::query()
+                ->successful()
+                ->whereDate('occurred_at', $today)
+                ->count(),
+            'today_failed_logins' => (int) UserAccessEvent::query()
+                ->failed()
+                ->whereDate('occurred_at', $today)
+                ->count(),
+            'last_successful_login_at' => UserAccessEvent::query()->successful()->max('occurred_at'),
+            'last_failed_login_at' => UserAccessEvent::query()->failed()->max('occurred_at'),
+            'active_users_today' => (int) UserAccessEvent::query()
+                ->successful()
+                ->whereDate('occurred_at', $today)
+                ->whereNotNull('user_id')
+                ->distinct()
+                ->count('user_id'),
+        ];
+    }
+
+    public function topLoginUsers(int $limit = 10): Collection
+    {
+        if (
+            !Schema::hasColumn('users', 'login_count')
+            || !Schema::hasColumn('users', 'failed_login_count')
+            || !Schema::hasColumn('users', 'last_login_at')
+            || !Schema::hasColumn('users', 'last_login_ip')
+        ) {
+            return collect();
+        }
+
+        return User::query()
+            ->select([
+                'users.id',
+                'users.name',
+                'users.email',
+                'users.codigohabilitacion',
+                'users.login_count',
+                'users.failed_login_count',
+                'users.last_login_at',
+                'users.last_login_ip',
+            ])
+            ->orderByDesc('login_count')
+            ->limit($limit)
             ->get();
     }
 

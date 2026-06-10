@@ -217,7 +217,11 @@ Route::middleware('auth')->group(function () {
 
 Route::middleware(['auth', 'super_admin'])->group(function () {
     Route::get('/admin/permisos', [AccessControlController::class, 'index'])->name('access-control.index');
+    Route::get('/admin/permisos/ingresos', function () {
+        return redirect()->to(route('access-control.index') . '#ingresos');
+    })->name('access-control.login-events.index');
     Route::get('/admin/permisos/data', [AccessControlController::class, 'data'])->name('access-control.data');
+    Route::get('/admin/permisos/ingresos/data', [AccessControlController::class, 'loginEventsData'])->name('access-control.login-events.data');
     Route::put('/admin/permisos/usuarios/{user}', [AccessControlController::class, 'updateUserPermissions'])
         ->name('access-control.users.update');
     Route::post('/admin/permisos/usuarios/{user}/password/reset', [AccessControlController::class, 'resetUserPassword'])

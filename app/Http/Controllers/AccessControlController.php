@@ -4,10 +4,12 @@ namespace App\Http\Controllers;
 
 use App\Models\ModuleAccessRequest;
 use App\Models\ModulePermission;
+use App\Models\UserAccessEvent;
 use App\Models\User;
 use App\Services\AccessControlService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Validation\Rule;
@@ -34,11 +36,92 @@ class AccessControlController extends Controller
             ->limit(40)
             ->get();
 
+        $loginStats = $this->accessControl->loginEventStats();
+        $topLoginUsers = $this->accessControl->topLoginUsers(8);
+        $recentAccessEvents = Schema::hasTable('user_access_events')
+            ? UserAccessEvent::query()
+                ->with(['user:id,name,email,codigohabilitacion'])
+                ->latest('occurred_at')
+                ->latest('id')
+                ->limit(15)
+                ->get()
+            : collect();
+
         return view('access_control.index', [
             'permissions' => $permissions,
             'pendingRequests' => $pendingRequests,
             'service' => $this->accessControl,
+            'loginStats' => $loginStats,
+            'topLoginUsers' => $topLoginUsers,
+            'recentAccessEvents' => $recentAccessEvents,
         ]);
+    }
+
+    public function loginEventsData(Request $request)
+    {
+        if (!Schema::hasTable('user_access_events')) {
+            return DataTables::collection(collect())->toJson();
+        }
+
+        $query = UserAccessEvent::query()
+            ->with(['user:id,name,email,codigohabilitacion']);
+
+        return DataTables::eloquent($query)
+            ->filterColumn('user_label', function ($q, $keyword) {
+                $q->whereHas('user', function ($uq) use ($keyword) {
+                    $uq->where('name', 'like', '%' . $keyword . '%')
+                        ->orWhere('email', 'like', '%' . $keyword . '%')
+                        ->orWhere('codigohabilitacion', 'like', '%' . $keyword . '%');
+                });
+            })
+            ->addColumn('user_label', function (UserAccessEvent $event) {
+                $user = $event->user;
+
+                if (!$user) {
+                    return '<span class="text-muted">Usuario eliminado o no identificado</span>';
+                }
+
+                $name = e((string) $user->name);
+                $extra = trim((string) ($user->email ?? $user->codigohabilitacion ?? ''));
+
+                return '<strong>' . $name . '</strong><br><small class="text-muted">' . e($extra) . '</small>';
+            })
+            ->addColumn('event_badge', function (UserAccessEvent $event) {
+                return match ($event->event_type) {
+                    'login_success' => '<span class="badge badge-success">Ingreso exitoso</span>',
+                    'login_failed' => '<span class="badge badge-danger">Ingreso fallido</span>',
+                    'login_lockout' => '<span class="badge badge-warning">Bloqueo temporal</span>',
+                    'logout' => '<span class="badge badge-info">Cierre de sesion</span>',
+                    default => '<span class="badge badge-secondary">' . e((string) $event->event_type) . '</span>',
+                };
+            })
+            ->addColumn('details_html', function (UserAccessEvent $event) {
+                $items = [];
+
+                if ($event->login_identifier) {
+                    $items[] = 'Identificador: ' . e((string) $event->login_identifier);
+                }
+
+                if ($event->ip_address) {
+                    $items[] = 'IP: ' . e((string) $event->ip_address);
+                }
+
+                if ($event->session_id) {
+                    $items[] = 'Sesion: ' . e((string) $event->session_id);
+                }
+
+                if ($event->route_name) {
+                    $items[] = 'Ruta: ' . e((string) $event->route_name);
+                }
+
+                if ($event->details) {
+                    $items[] = 'Detalle: ' . e((string) $event->details);
+                }
+
+                return implode('<br>', $items) ?: '<span class="text-muted">Sin detalle adicional</span>';
+            })
+            ->rawColumns(['user_label', 'event_badge', 'details_html'])
+            ->toJson();
     }
 
     public function data(Request $request)

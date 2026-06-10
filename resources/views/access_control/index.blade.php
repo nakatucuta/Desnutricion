@@ -384,6 +384,77 @@
         flex-wrap:wrap;
         gap:.35rem;
     }
+    .ac-hero__actions{
+        display:flex;
+        flex-wrap:wrap;
+        gap:.5rem;
+        margin-top:1rem;
+        z-index:2;
+        position:relative;
+    }
+    .ac-hero__actions .btn{
+        border-radius:999px;
+        font-weight:800;
+        padding:.48rem .95rem;
+    }
+    .ac-stats-grid{
+        display:grid;
+        grid-template-columns:repeat(4, minmax(0, 1fr));
+        gap:.9rem;
+    }
+    .ac-stat-card{
+        background:linear-gradient(180deg,#ffffff 0%, #f5fbfa 100%);
+        border:1px solid #d6ebe7;
+        border-radius:16px;
+        box-shadow:0 10px 24px rgba(11, 58, 54, .08);
+        padding:1rem 1rem .95rem;
+        min-height:120px;
+    }
+    .ac-stat-label{
+        display:flex;
+        align-items:center;
+        gap:.45rem;
+        font-size:.78rem;
+        text-transform:uppercase;
+        letter-spacing:.05em;
+        color:#5b7672;
+        font-weight:800;
+        margin-bottom:.55rem;
+    }
+    .ac-stat-value{
+        font-size:2rem;
+        line-height:1;
+        font-weight:900;
+        color:#103f3b;
+    }
+    .ac-stat-note{
+        margin-top:.55rem;
+        color:#62837f;
+        font-size:.86rem;
+        min-height:1.3rem;
+    }
+    .ac-mini-table thead th{
+        background:#e8f6f3;
+        color:#1f4d49;
+        border-color:#d1e9e5!important;
+        text-transform:uppercase;
+        letter-spacing:.04em;
+        font-size:.74rem;
+    }
+    .ac-mini-table td{
+        vertical-align:middle;
+    }
+    .ac-badge-soft{
+        display:inline-flex;
+        align-items:center;
+        border-radius:999px;
+        padding:.26rem .65rem;
+        background:#eef9f7;
+        border:1px solid #cce9e4;
+        color:#174a46;
+        font-weight:800;
+        font-size:.78rem;
+    }
     .ac-selection-badge{
         display:inline-flex;
         align-items:center;
@@ -428,6 +499,9 @@
         }
         .ac-hero__title{font-size:1.9rem;}
         .ac-hero__subtitle{font-size:.9rem;}
+        .ac-hero__actions{
+            margin-top:.85rem;
+        }
         .ac-hero__orbital{
             width:100%;
             min-width:0;
@@ -460,6 +534,9 @@
             width:auto;
             max-width:none;
         }
+        .ac-stats-grid{
+            grid-template-columns:1fr;
+        }
     }
 </style>
 @stop
@@ -471,6 +548,14 @@
                 <span class="ac-hero__badge">Control de Acceso</span>
                 <h1 class="ac-hero__title">Gestiona aqui toda la informacion.</h1>
                 <p class="ac-hero__subtitle mb-0">Administra usuarios, permisos y solicitudes de acceso con una vista centralizada y segura.</p>
+                <div class="ac-hero__actions">
+                    <a href="#permisos" class="btn btn-light btn-sm">
+                        <i class="fas fa-user-shield mr-1"></i>Ver permisos
+                    </a>
+                    <a href="#ingresos" class="btn btn-outline-light btn-sm">
+                        <i class="fas fa-user-clock mr-1"></i>Control de ingresos
+                    </a>
+                </div>
             </div>
         </div>
         <div class="ac-hero__orbital">
@@ -498,7 +583,7 @@
     @endif
     <div id="ac-live-feedback" class="alert d-none" role="alert"></div>
 
-    <div class="card ac-card mb-4">
+    <div class="card ac-card mb-4" id="permisos">
         <div class="card-header d-flex flex-wrap align-items-center justify-content-between">
             <strong>Asignar o quitar permisos por usuario</strong>
             <div class="ac-admin-actions mt-2 mt-md-0">
@@ -577,6 +662,148 @@
                     @endforelse
                 </tbody>
             </table>
+        </div>
+    </div>
+
+    <div class="card ac-card mb-4" id="ingresos">
+        <div class="card-header d-flex flex-wrap align-items-center justify-content-between">
+            <strong>Control de ingresos de usuarios</strong>
+            <div class="ac-admin-actions mt-2 mt-md-0">
+                <span class="ac-badge-soft">
+                    <i class="fas fa-chart-line mr-1"></i>
+                    {{ number_format($loginStats['successful_logins'] ?? 0) }} ingresos registrados
+                </span>
+                <a href="#permisos" class="btn btn-sm btn-outline-secondary">
+                    <i class="fas fa-arrow-up mr-1"></i>Volver a permisos
+                </a>
+            </div>
+        </div>
+        <div class="card-body">
+            <div class="ac-stats-grid mb-4">
+                <div class="ac-stat-card">
+                    <div class="ac-stat-label"><i class="fas fa-sign-in-alt"></i>Ingresos exitosos</div>
+                    <div class="ac-stat-value">{{ number_format($loginStats['successful_logins'] ?? 0) }}</div>
+                    <div class="ac-stat-note">Total acumulado desde que se activó la auditoria.</div>
+                </div>
+                <div class="ac-stat-card">
+                    <div class="ac-stat-label"><i class="fas fa-times-circle"></i>Intentos fallidos</div>
+                    <div class="ac-stat-value">{{ number_format($loginStats['failed_logins'] ?? 0) }}</div>
+                    <div class="ac-stat-note">Errores de autenticacion y accesos bloqueados.</div>
+                </div>
+                <div class="ac-stat-card">
+                    <div class="ac-stat-label"><i class="fas fa-users"></i>Usuarios activos hoy</div>
+                    <div class="ac-stat-value">{{ number_format($loginStats['active_users_today'] ?? 0) }}</div>
+                    <div class="ac-stat-note">Usuarios distintos que iniciaron sesion hoy.</div>
+                </div>
+                <div class="ac-stat-card">
+                    <div class="ac-stat-label"><i class="fas fa-clock"></i>Ultimo ingreso</div>
+                    <div class="ac-stat-value" style="font-size:1.1rem;line-height:1.3;">
+                        {{ $loginStats['last_successful_login_at'] ? \Illuminate\Support\Carbon::parse($loginStats['last_successful_login_at'])->format('Y-m-d H:i') : 'Sin datos' }}
+                    </div>
+                    <div class="ac-stat-note">
+                        Ultimo intento fallido:
+                        {{ $loginStats['last_failed_login_at'] ? \Illuminate\Support\Carbon::parse($loginStats['last_failed_login_at'])->format('Y-m-d H:i') : 'Sin datos' }}
+                    </div>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-lg-8 mb-4">
+                    <div class="card shadow-sm border-0 h-100">
+                        <div class="card-header bg-white d-flex align-items-center justify-content-between">
+                            <strong><i class="fas fa-stream mr-2"></i>Eventos recientes</strong>
+                            <span class="text-muted small">Se actualiza en tiempo real al recargar la tabla</span>
+                        </div>
+                        <div class="card-body table-responsive p-0">
+                            <table id="login-events-table" class="table table-sm table-bordered table-hover mb-0" style="width:100%;">
+                                <thead class="thead-light">
+                                    <tr>
+                                        <th>Fecha</th>
+                                        <th>Usuario</th>
+                                        <th>Evento</th>
+                                        <th>Detalle</th>
+                                    </tr>
+                                </thead>
+                                <tbody></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-lg-4 mb-4">
+                    <div class="card shadow-sm border-0 h-100">
+                        <div class="card-header bg-white d-flex align-items-center justify-content-between">
+                            <strong><i class="fas fa-trophy mr-2"></i>Top de ingresos</strong>
+                            <span class="text-muted small">Usuarios con mas entradas</span>
+                        </div>
+                        <div class="card-body table-responsive p-0">
+                            <table class="table table-sm table-striped mb-0 ac-mini-table">
+                                <thead>
+                                    <tr>
+                                        <th>Usuario</th>
+                                        <th>Ingresos</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @forelse ($topLoginUsers as $row)
+                                        <tr>
+                                            <td>
+                                                <strong>{{ $row->name }}</strong><br>
+                                                <small class="text-muted">{{ $row->email ?: $row->codigohabilitacion }}</small>
+                                            </td>
+                                            <td>
+                                                <span class="ac-badge-soft">{{ number_format((int) ($row->login_count ?? 0)) }}</span><br>
+                                                <small class="text-muted">
+                                                    Ultimo: {{ $row->last_login_at ? \Illuminate\Support\Carbon::parse($row->last_login_at)->format('Y-m-d H:i') : 'Sin datos' }}
+                                                </small>
+                                            </td>
+                                        </tr>
+                                    @empty
+                                        <tr>
+                                            <td colspan="2" class="text-center text-muted py-4">Aun no hay datos de ingresos registrados.</td>
+                                        </tr>
+                                    @endforelse
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card shadow-sm border-0">
+                <div class="card-header bg-white d-flex align-items-center justify-content-between">
+                    <strong><i class="fas fa-history mr-2"></i>Ultimos ingresos y eventos</strong>
+                    <span class="text-muted small">Vista resumida precargada</span>
+                </div>
+                <div class="card-body table-responsive p-0">
+                    <table class="table table-sm table-striped mb-0 ac-mini-table">
+                        <thead>
+                            <tr>
+                                <th>Fecha</th>
+                                <th>Usuario</th>
+                                <th>Evento</th>
+                                <th>IP</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @forelse ($recentAccessEvents as $event)
+                                <tr>
+                                    <td>{{ optional($event->occurred_at)->format('Y-m-d H:i') }}</td>
+                                    <td>
+                                        {{ $event->user->name ?? 'Usuario no identificado' }}<br>
+                                        <small class="text-muted">{{ $event->user->email ?? $event->login_identifier ?? '' }}</small>
+                                    </td>
+                                    <td>{!! $event->event_type === 'login_success' ? '<span class="badge badge-success">Ingreso</span>' : ($event->event_type === 'login_failed' ? '<span class="badge badge-danger">Fallido</span>' : '<span class="badge badge-info">' . e($event->event_type) . '</span>') !!}</td>
+                                    <td>{{ $event->ip_address ?: 'N/D' }}</td>
+                                </tr>
+                            @empty
+                                <tr>
+                                    <td colspan="4" class="text-center text-muted py-4">No hay eventos recientes para mostrar.</td>
+                                </tr>
+                            @endforelse
+                        </tbody>
+                    </table>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -796,7 +1023,7 @@
             }, 4500);
         };
 
-        $(document).on('submit', 'form[id^="f-user-"]', function (e) {
+    $(document).on('submit', 'form[id^="f-user-"]', function (e) {
             e.preventDefault();
 
             const form = $(this);
@@ -836,6 +1063,47 @@
             .always(function () {
                 saveBtn.prop('disabled', false).text(originalLabel);
             });
+        });
+
+        $('#login-events-table').DataTable({
+            processing: true,
+            serverSide: true,
+            deferRender: true,
+            pageLength: 15,
+            lengthMenu: [10, 15, 25, 50],
+            searchDelay: 250,
+            ajax: '{{ route('access-control.login-events.data') }}',
+            order: [[0, 'desc']],
+            columns: [
+                {
+                    data: 'occurred_at',
+                    name: 'occurred_at',
+                    render: function (data, type) {
+                        if (type !== 'display') return data;
+                        const safe = data ? $('<div>').text(data).html() : '';
+                        return '<span class="ac-cell-compact" title="' + safe + '">' + safe + '</span>';
+                    }
+                },
+                {
+                    data: 'user_label',
+                    name: 'user_label',
+                    orderable: false,
+                    searchable: true
+                },
+                {
+                    data: 'event_badge',
+                    name: 'event_type',
+                    orderable: false,
+                    searchable: false
+                },
+                {
+                    data: 'details_html',
+                    name: 'details_html',
+                    orderable: false,
+                    searchable: false
+                }
+            ],
+            language: { url: 'https://cdn.datatables.net/plug-ins/1.13.7/i18n/es-ES.json' }
         });
     })();
 </script>
