@@ -234,6 +234,9 @@ class SeguimientosHubController extends Controller
         $this->applySeguimientoAsignacionFilters($q, $request);
 
         return DataTables::of($q)
+            ->filter(function ($query) use ($request) {
+                $this->applySeguimientosGlobalSearch($query, $request);
+            })
             ->addColumn('paciente', function ($s) {
                 $a = $s->asignacion;
                 if (!$a) {
@@ -626,6 +629,37 @@ class SeguimientosHubController extends Controller
             if ($hasta) {
                 $asignacionQuery->whereDate('fec_not', '<=', $hasta->toDateString());
             }
+        });
+    }
+
+    private function applySeguimientosGlobalSearch($query, Request $request): void
+    {
+        $term = trim((string) data_get($request->input('search', []), 'value', ''));
+        if ($term === '') {
+            return;
+        }
+
+        $like = '%'.$term.'%';
+
+        $query->where(function ($searchQuery) use ($like) {
+            $searchQuery
+                ->whereRaw('CAST(seguimient_maestrosiv549.id AS NVARCHAR(30)) LIKE ?', [$like])
+                ->orWhereRaw('CAST(seguimient_maestrosiv549.asignacion_id AS NVARCHAR(30)) LIKE ?', [$like])
+                ->orWhereHas('asignacion', function ($asignacionQuery) use ($like) {
+                    $asignacionQuery
+                        ->whereRaw("LTRIM(RTRIM(COALESCE(tip_ide_, ''))) LIKE ?", [$like])
+                        ->orWhereRaw("LTRIM(RTRIM(COALESCE(num_ide_, ''))) LIKE ?", [$like])
+                        ->orWhereRaw("LTRIM(RTRIM(COALESCE(pri_nom_, ''))) LIKE ?", [$like])
+                        ->orWhereRaw("LTRIM(RTRIM(COALESCE(seg_nom_, ''))) LIKE ?", [$like])
+                        ->orWhereRaw("LTRIM(RTRIM(COALESCE(pri_ape_, ''))) LIKE ?", [$like])
+                        ->orWhereRaw("LTRIM(RTRIM(COALESCE(seg_ape_, ''))) LIKE ?", [$like])
+                        ->orWhereRaw("LTRIM(RTRIM(COALESCE(nom_eve, ''))) LIKE ?", [$like])
+                        ->orWhereRaw("CONVERT(varchar(10), fec_not, 23) LIKE ?", [$like])
+                        ->orWhereHas('user', function ($userQuery) use ($like) {
+                            $userQuery->where('name', 'like', $like)
+                                ->orWhere('email', 'like', $like);
+                        });
+                });
         });
     }
 
