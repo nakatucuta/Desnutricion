@@ -114,6 +114,8 @@ class SeguimientosHubController extends Controller
             $q->whereIn('id', $this->visibleAsignacionesSubquery((int) $user->id));
         }
 
+        $this->applyAsignacionFilters($q, $request);
+
         return DataTables::of($q)
             ->addColumn('paciente', function ($row) {
                 $nombre = trim("{$row->pri_nom_} {$row->seg_nom_} {$row->pri_ape_} {$row->seg_ape_}");
@@ -229,6 +231,8 @@ class SeguimientosHubController extends Controller
             $q->whereIn('asignacion_id', $this->visibleAsignacionesSubquery((int) $user->id));
         }
 
+        $this->applySeguimientoAsignacionFilters($q, $request);
+
         return DataTables::of($q)
             ->addColumn('paciente', function ($s) {
                 $a = $s->asignacion;
@@ -320,6 +324,8 @@ class SeguimientosHubController extends Controller
         if (!$muestraTodo) {
             $query->whereIn('asignacion_id', $this->visibleAsignacionesSubquery((int) $user->id));
         }
+
+        $this->applySeguimientoAsignacionFilters($query, $request);
 
         $now = Carbon::now();
         $rows = [];
@@ -568,6 +574,59 @@ class SeguimientosHubController extends Controller
         } catch (\Throwable $e) {
             return null;
         }
+    }
+
+    private function applyAsignacionFilters($query, Request $request): void
+    {
+        $tipIde = trim((string) $request->input('tip_ide_', ''));
+        if ($tipIde !== '') {
+            $query->whereRaw("LTRIM(RTRIM(COALESCE(tip_ide_, ''))) LIKE ?", ['%'.$tipIde.'%']);
+        }
+
+        $numIde = trim((string) $request->input('num_ide_', ''));
+        if ($numIde !== '') {
+            $query->whereRaw("LTRIM(RTRIM(COALESCE(num_ide_, ''))) LIKE ?", ['%'.$numIde.'%']);
+        }
+
+        $desde = $this->parseDateInput($request->input('fec_desde'));
+        if ($desde) {
+            $query->whereDate('fec_not', '>=', $desde->toDateString());
+        }
+
+        $hasta = $this->parseDateInput($request->input('fec_hasta'));
+        if ($hasta) {
+            $query->whereDate('fec_not', '<=', $hasta->toDateString());
+        }
+    }
+
+    private function applySeguimientoAsignacionFilters($query, Request $request): void
+    {
+        $tipIde = trim((string) $request->input('tip_ide_', ''));
+        $numIde = trim((string) $request->input('num_ide_', ''));
+        $desde = $this->parseDateInput($request->input('fec_desde'));
+        $hasta = $this->parseDateInput($request->input('fec_hasta'));
+
+        if ($tipIde === '' && $numIde === '' && !$desde && !$hasta) {
+            return;
+        }
+
+        $query->whereHas('asignacion', function ($asignacionQuery) use ($tipIde, $numIde, $desde, $hasta) {
+            if ($tipIde !== '') {
+                $asignacionQuery->whereRaw("LTRIM(RTRIM(COALESCE(tip_ide_, ''))) LIKE ?", ['%'.$tipIde.'%']);
+            }
+
+            if ($numIde !== '') {
+                $asignacionQuery->whereRaw("LTRIM(RTRIM(COALESCE(num_ide_, ''))) LIKE ?", ['%'.$numIde.'%']);
+            }
+
+            if ($desde) {
+                $asignacionQuery->whereDate('fec_not', '>=', $desde->toDateString());
+            }
+
+            if ($hasta) {
+                $asignacionQuery->whereDate('fec_not', '<=', $hasta->toDateString());
+            }
+        });
     }
 
     private function visibleAsignacionesSubquery(int $userId)

@@ -180,32 +180,35 @@
                 @endif
             </div>
 
-            <form method="GET" action="{{ route('seguimientos.export') }}" class="row align-items-end">
+            <form method="GET" action="{{ route('seguimientos.export') }}" class="row align-items-end" id="segHubFilterForm">
                 <div class="col-md-3 mb-3">
                     <label class="seg-hub-label">Tipo ID</label>
-                    <input type="text" name="tip_ide_" class="form-control seg-hub-input" placeholder="Ej: CC" value="{{ request('tip_ide_') }}">
+                    <input type="text" name="tip_ide_" id="filterTipIde" class="form-control seg-hub-input" placeholder="Ej: CC" value="{{ request('tip_ide_') }}">
                 </div>
                 <div class="col-md-3 mb-3">
                     <label class="seg-hub-label">Numero ID</label>
-                    <input type="text" name="num_ide_" class="form-control seg-hub-input" placeholder="Documento" value="{{ request('num_ide_') }}">
+                    <input type="text" name="num_ide_" id="filterNumIde" class="form-control seg-hub-input" placeholder="Documento" value="{{ request('num_ide_') }}">
                 </div>
                 <div class="col-md-2 mb-3">
                     <label class="seg-hub-label">Desde</label>
-                    <input type="date" name="fec_desde" class="form-control seg-hub-input" value="{{ request('fec_desde') }}">
+                    <input type="date" name="fec_desde" id="filterFecDesde" class="form-control seg-hub-input" value="{{ request('fec_desde') }}">
                 </div>
                 <div class="col-md-2 mb-3">
                     <label class="seg-hub-label">Hasta</label>
-                    <input type="date" name="fec_hasta" class="form-control seg-hub-input" value="{{ request('fec_hasta') }}">
+                    <input type="date" name="fec_hasta" id="filterFecHasta" class="form-control seg-hub-input" value="{{ request('fec_hasta') }}">
                 </div>
                 <div class="col-md-2 mb-3">
-                    <button class="btn seg-hub-btn seg-hub-btn--primary btn-block" type="submit">
+                    <button class="btn seg-hub-btn seg-hub-btn--primary btn-block mb-2" type="button" id="btnFiltrarPanel">
+                        <i class="fas fa-search mr-1"></i> Filtrar panel
+                    </button>
+                    <button class="btn seg-hub-btn seg-hub-btn--ghost btn-block" type="submit">
                         <i class="fas fa-file-excel mr-1"></i> Exportar
                     </button>
                 </div>
                 <div class="col-12 d-flex flex-wrap gap-2">
-                    <a href="{{ route('seguimientos.index') }}" class="btn seg-hub-btn seg-hub-btn--ghost">
+                    <button type="button" id="btnLimpiarPanel" class="btn seg-hub-btn seg-hub-btn--ghost">
                         <i class="fas fa-sync-alt mr-1"></i> Limpiar filtros
-                    </a>
+                    </button>
                 </div>
             </form>
         </div>
@@ -901,6 +904,21 @@ $(function () {
         $(listSelector).html(html);
     }
 
+    function panelFilters() {
+        return {
+            tip_ide_: $('#filterTipIde').val(),
+            num_ide_: $('#filterNumIde').val(),
+            fec_desde: $('#filterFecDesde').val(),
+            fec_hasta: $('#filterFecHasta').val()
+        };
+    }
+
+    function reloadPanelTables() {
+        dtAsignados.ajax.reload(null, false);
+        dtRealizados.ajax.reload(null, false);
+        dtAlertas.ajax.reload(null, false);
+    }
+
     function loadIndicadores() {
         const desde = $('#indFecDesde').val();
         const hasta = $('#indFecHasta').val();
@@ -963,7 +981,12 @@ $(function () {
         processing: true,
         serverSide: true,
         responsive: true,
-        ajax: '{{ route("seguimientos.asignados.data") }}',
+        ajax: {
+            url: '{{ route("seguimientos.asignados.data") }}',
+            data: function (d) {
+                Object.assign(d, panelFilters());
+            }
+        },
         language: commonLanguage,
         columns: [
             { data: 'id', name: 'id' },
@@ -985,7 +1008,12 @@ $(function () {
         processing: true,
         serverSide: true,
         responsive: true,
-        ajax: '{{ route("seguimientos.realizados.data") }}',
+        ajax: {
+            url: '{{ route("seguimientos.realizados.data") }}',
+            data: function (d) {
+                Object.assign(d, panelFilters());
+            }
+        },
         language: commonLanguage,
         columns: [
             { data: 'id', name: 'id' },
@@ -1008,7 +1036,12 @@ $(function () {
         processing: true,
         serverSide: true,
         responsive: true,
-        ajax: '{{ route("seguimientos.alertas.data") }}',
+        ajax: {
+            url: '{{ route("seguimientos.alertas.data") }}',
+            data: function (d) {
+                Object.assign(d, panelFilters());
+            }
+        },
         language: commonLanguage,
         columns: [
             { data: 'id', name: 'id', title: 'ID Seg.' },
@@ -1032,6 +1065,25 @@ $(function () {
     });
 
     loadIndicadores();
+
+    $('#btnFiltrarPanel').on('click', function () {
+        reloadPanelTables();
+    });
+
+    $('#segHubFilterForm input').on('keydown', function (event) {
+        if (event.key === 'Enter') {
+            event.preventDefault();
+            reloadPanelTables();
+        }
+    });
+
+    $('#btnLimpiarPanel').on('click', function () {
+        $('#filterTipIde').val('');
+        $('#filterNumIde').val('');
+        $('#filterFecDesde').val('');
+        $('#filterFecHasta').val('');
+        reloadPanelTables();
+    });
 
     $('#btnAplicarIndicadores').on('click', function () {
         loadIndicadores();
