@@ -13,6 +13,11 @@ class UserAccessEvent extends Model
 
     public $timestamps = false;
 
+    /**
+     * SQL Server is happier with an explicit, non-ambiguous format here.
+     */
+    protected $dateFormat = 'Y-m-d H:i:s';
+
     protected $fillable = [
         'user_id',
         'event_type',
@@ -28,7 +33,7 @@ class UserAccessEvent extends Model
     ];
 
     protected $casts = [
-        'occurred_at' => 'datetime',
+        'occurred_at' => 'datetime:Y-m-d H:i:s',
     ];
 
     public function user(): BelongsTo

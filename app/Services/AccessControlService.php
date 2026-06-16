@@ -9,7 +9,9 @@ use App\Models\UserModulePermission;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
+use Throwable;
 
 class AccessControlService
 {
@@ -299,7 +301,18 @@ class AccessControlService
             'occurred_at' => now(),
         ]);
 
-        $event->save();
+        try {
+            $event->save();
+        } catch (Throwable $e) {
+            Log::warning('No se pudo registrar el evento de acceso.', [
+                'event_type' => $eventType,
+                'user_id' => $resolvedUser?->id,
+                'route_name' => $request->route()?->getName(),
+                'message' => $e->getMessage(),
+            ]);
+
+            return;
+        }
 
         if (!$resolvedUser) {
             return;
