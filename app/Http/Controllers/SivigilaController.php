@@ -562,9 +562,7 @@ public function reportExport(Request $request)
         $incomeedit16 = DB::connection('sqlsrv_1')
                 ->table('refIps')
                 ->select('refIps.descrip as nombrepres', 'refIps.codigo as cod')
-                ->where('codigoDepartamento', 44)
-                ->orWhere('codigoDepartamento', 47)
-                ->orWhere('codigoDepartamento', 8)
+                ->whereIn('codigoDepartamento', ['44', '47', '8'])
                 ->get();
 
 
@@ -616,9 +614,7 @@ public function reportExport(Request $request)
         $incomeedit16 = DB::connection('sqlsrv_1')
         ->table('refIps')
         ->select('refIps.descrip as nombrepres', 'refIps.codigo as cod')
-        ->where('codigoDepartamento', 44)
-        ->orWhere('codigoDepartamento', 47)
-        ->orWhere('codigoDepartamento', 8)
+        ->whereIn('codigoDepartamento', ['44', '47', '8'])
         ->get();
         return view('sivigila.create1',["income12"=>$income12 
         ,"incomeedit14"=>$incomeedit14,"incomeedit15"=>$incomeedit15,"incomeedit16"=>$incomeedit16]);

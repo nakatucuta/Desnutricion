@@ -39,7 +39,7 @@ class SeguimientoOcasionalController extends Controller
         ->get();
 
         $income12 =  DB::connection('sqlsrv_1')->table('refIps')->select('descrip')
-        ->where('refIps.codigoDepartamento', 44)
+        ->where('refIps.codigoDepartamento', '44')
         ->get();
 
         return view('seguimiento_ocasional.create',compact('incomeedit','income12','consultapaciente'));

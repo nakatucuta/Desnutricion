@@ -337,7 +337,7 @@ public function viewPDF($id)
     
         $income12 = DB::connection('sqlsrv_1')
             ->table('refIps')->select('descrip')
-            ->where('codigoDepartamento', 44)
+            ->where('codigoDepartamento', '44')
             ->get();
     
         return view('seguimiento.create', compact('incomeedit','income12','evento'));

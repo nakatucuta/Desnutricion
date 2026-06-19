@@ -112,7 +112,7 @@ class IngresoController extends Controller
         $incomeedit = Sivigila::all()->where('estado',1);
         
         $income12 =  DB::connection('sqlsrv_1')->table('refIps')->select('descrip')
-        ->where('refIps.codigoDepartamento', 44)
+        ->where('refIps.codigoDepartamento', '44')
         ->get();
 
         return view('ingreso.create',compact('incomeedit'),["income12"=>$income12]);

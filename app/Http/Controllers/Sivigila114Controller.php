@@ -274,7 +274,7 @@ class Sivigila114Controller extends Controller
         $incomeedit16 = DB::connection('sqlsrv_1')
             ->table('refIps')
             ->select('refIps.descrip as nombrepres', 'refIps.codigo as cod')
-            ->whereIn('codigoDepartamento', [44, 47, 8])
+            ->whereIn('codigoDepartamento', ['44', '47', '8'])
             ->get();
 
         return view('sivigila114.create', compact(
