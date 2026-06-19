@@ -29,6 +29,7 @@
     $paciente = $expediente['paciente'] ?? [];
     $resumen = $expediente['resumen'] ?? [];
     $qr = $expediente['qr'] ?? [];
+    $canDeleteSeguimientos = (int) (auth()->user()->usertype ?? 0) === 1;
     $pdfPublicUrl = function($value) {
         if (!is_string($value) || trim($value) === '') return null;
         if (\Illuminate\Support\Str::startsWith($value, ['http://', 'https://'])) return $value;
@@ -249,6 +250,19 @@
                                             </button>
                                         @else
                                             <span class="text-muted small d-block">Sin PDFs</span>
+                                        @endif
+
+                                        @if($canDeleteSeguimientos)
+                                            <form method="POST"
+                                                  action="{{ route('ges_tipo1.seguimientos.destroy', ['ges' => $gestante->id, 'seg' => $seg->id]) }}"
+                                                  class="d-inline-block"
+                                                  onsubmit="return confirm('¿Seguro que deseas eliminar este seguimiento?');">
+                                                @csrf
+                                                @method('DELETE')
+                                                <button type="submit" class="btn btn-sm btn-outline-danger mb-1">
+                                                    <i class="fas fa-trash-alt mr-1"></i> Eliminar
+                                                </button>
+                                            </form>
                                         @endif
 
                                         @if(count($segPdfs))

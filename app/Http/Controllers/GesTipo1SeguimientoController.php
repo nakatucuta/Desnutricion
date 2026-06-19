@@ -113,7 +113,15 @@ class GesTipo1SeguimientoController extends Controller
 
     public function destroy(GesTipo1 $ges, GesTipo1Seguimiento $seg)
     {
-        $seg->delete();
+        abort_unless((int) Auth::user()->usertype === 1, 403);
+
+        DB::transaction(function () use ($seg) {
+            DB::table('gestantes_alertas')
+                ->where('seguimiento_id', $seg->id)
+                ->delete();
+
+            $seg->delete();
+        });
 
         return redirect()
             ->route('ges_tipo1.show', ['ges' => $ges->id])
