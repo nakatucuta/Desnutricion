@@ -1,0 +1,97 @@
+INFORME FINAL - NORMALIZACION VACUNACION PAI
+
+Fecha: 2026-06-24
+Proyecto: Desnutricion
+
+1. RESUMEN EJECUTIVO
+
+Se implemento un normalizador central de dosis (`docis`) para el modulo de vacunacion PAI.
+La base de datos fue normalizada en sitio y el import futuro quedo conectado al mismo criterio.
+
+2. CAMBIOS REALIZADOS
+
+2.1. Estructura de base de datos
+
+- Se agrego la columna `docis_original` a la tabla `vacunas`.
+- `docis` quedo como el valor normalizado usado por el sistema.
+- `docis_original` conserva el texto de entrada para trazabilidad.
+
+2.2. Normalizador central
+
+- Se creo `app/Services/PaiDoseNormalizer.php`.
+- El normalizador:
+  - limpia espacios y comillas
+  - corrige variantes de escritura
+  - unifica texto equivalente
+  - deja en NULL lo que no es inferible con seguridad
+
+2.3. Importacion futura
+
+- Se conecto el import `AfiliadoImportStreaming` al normalizador.
+- Toda vacuna nueva pasa por el mismo proceso de limpieza antes de insertarse.
+
+2.4. Backfill historico
+
+- Se ejecuto la normalizacion sobre la base existente.
+- Se preservo el original en `docis_original`.
+- Se corrigieron variantes conocidas y se eliminaron comillas literales.
+
+3. RESULTADO FINAL EN BD
+
+- Total de registros en `vacunas`: 648572
+- Registros con `docis_original`: 644817
+- Registros con comillas literales en `docis`: 0
+- Registros con `docis` nulo: 15527
+
+4. VALORES CANONICOS RESULTANTES
+
+Los valores que quedaron consolidados con mas uso incluyen:
+
+- PRIMERA DOSIS
+- SEGUNDA DOSIS
+- TERCERA DOSIS
+- CUARTA DOSIS
+- QUINTA DOSIS
+- PRIMER REFUERZO
+- SEGUNDO REFUERZO
+- TERCER REFUERZO
+- CUARTO REFUERZO
+- REFUERZO
+- UNICA
+- UNICA 0.5
+- UNICA 0.25
+- RECIEN NACIDO
+
+5. CASOS MANEJADOS COMO ESPECIALES
+
+- `vacunas_id` 55 y 56 se normalizan por defecto a `UNICA` cuando el dato viene mal.
+- `vacunas_id` 23 y 24 se manejan con `num_frascos_utilizados` cuando `docis` no aplica.
+- Textos no inferibles o claramente corruptos se dejan en NULL en `docis` y se conservan en `docis_original`.
+
+6. CASOS QUE QUEDAN EN NULL POR SEGURIDAD
+
+Se dejaron en NULL porque no era seguro asumir una dosis valida:
+
+- textos con nombres de personas
+- codigos internos
+- frases ambiguas como combinaciones de dos dosis en un solo campo
+
+7. ARCHIVOS TOCADOS
+
+- `config/pai_docis.php`
+- `app/Services/PaiDoseNormalizer.php`
+- `app/Imports/AfiliadoImportStreaming.php`
+- `app/Console/Commands/NormalizePaiVacunasDocis.php`
+- `database/migrations/2026_06_24_090000_add_docis_original_to_vacunas_table.php`
+- `app/Models/vacuna.php`
+
+8. REPORTE OPERATIVO GENERADO
+
+- `storage/app/pai_docis_normalization_report.txt`
+
+9. OBSERVACION FINAL
+
+La base ya quedo normalizada para el flujo actual y para cargas futuras.
+Quedan 15527 registros con `docis` en NULL por no poder inferir una dosis segura.
+Si se desea, el siguiente paso puede ser una revision manual de esos casos o una regla adicional por biologico.
+

@@ -1,0 +1,247 @@
+GUIA DE NORMALIZACION - MODULO DE VACUNACION PAI
+
+Fecha de referencia: 2026-06-24
+Base de analisis: codigo actual del proyecto + datos observados en BD local
+
+1. OBJETIVO
+
+Dejar una guia clara para normalizar el modulo de vacunacion sin perder historial,
+manteniendo el calculo de faltantes normativos y reduciendo duplicados por texto libre.
+
+2. ESTADO ACTUAL DEL MODULO
+
+El sistema ya tiene dos logicas distintas:
+
+2.1. Carga y deduplicacion
+
+- La tabla principal es `vacunas`.
+- Cada registro se relaciona con:
+  - `afiliado_id`
+  - `vacunas_id` -> referencia_vacunas
+  - `docis` -> texto libre de la dosis
+  - `regimen`
+- El import normaliza `docis` a mayusculas, quita acentos y espacios.
+- La deduplicacion actual usa una llave parecida a:
+  - `afiliado_id + vacunas_id + docis_normalizado`
+- Eso evita algunas repeticiones, pero no corrige variaciones semanticas.
+
+2.2. Calculo de faltantes normativos
+
+- Existe una capa normativa para decir que vacunas faltan.
+- Esa logica vive en `app/Services/PaiMvpCoverageService.php`.
+- La vista de resultados esta en `resources/views/livewire/vacunas_faltantes.blade.php`.
+- El calculo usa:
+  - edad
+  - sexo
+  - condicion de gestante
+  - semanas de gestacion
+  - municipio de residencia
+  - `vacunas_id`
+  - cantidad de vacunas aplicadas
+
+3. ESTRUCTURA REAL DE LA BD
+
+Tabla `vacunas`
+
+- `docis` = texto libre de dosis
+- `vacunas_id` = FK a `referencia_vacunas`
+- `regimen` = regimen asociado a la aplicacion
+- `num_frascos_utilizados` = caso especial para ciertos biologicos
+
+Tabla `referencia_vacunas`
+
+- Guarda el catalogo de biologicos.
+- Ya existen ids historicos y algunos nombres duplicados o similares.
+
+4. HALLAZGOS IMPORTANTES EN DATOS
+
+Se observo:
+
+- `648572` registros aproximados en `vacunas`
+- `40` valores distintos en `docis`
+- `3755` filas con `docis` vacio
+- Variantes validas de dosis:
+  - `PRIMERA DOSIS`
+  - `SEGUNDA DOSIS`
+  - `TERCERA DOSIS`
+  - `PRIMER REFUERZO`
+  - `SEGUNDO REFUERZO`
+  - `REFUERZO`
+  - `DOSIS UNICA`
+  - `UNICA`
+  - `RECIEN NACIDO`
+- Tambien aparecen valores que no parecen dosis reales:
+  - nombres de personas
+  - codigos internos
+  - textos sueltos
+
+Casos especiales:
+
+- `vacunas_id` 23 y 24:
+  - el sistema puede mostrar `num_frascos_utilizados` cuando `docis` viene vacio
+- `vacunas_id` 55:
+  - aparecen variantes como `UNICA`, `DOSIS UNICA`, `UNICA`
+- `vacunas_id` 56:
+  - hay un valor claramente anomalo en algunos registros
+
+5. REGLAS NORMATIVAS ACTUALES
+
+Estas son las reglas que el sistema usa hoy para faltantes:
+
+5.1. Base MVP
+
+- BCG -> 1 dosis
+- Hepatitis B (RN) -> 1 dosis
+- Penta/Hexa primaria -> 3 dosis
+- Polio primaria -> 3 dosis
+- Rotavirus -> 2 dosis
+- Neumococo -> 3 dosis
+- SRP (2 dosis) -> 2 dosis
+- DPT/DPaT refuerzo -> 1 dosis
+- Varicela -> 1 dosis
+- Hepatitis A -> 1 dosis
+- Fiebre amarilla -> 1 dosis
+- VPH (9 a 17) -> 1 dosis
+- Gestante: Influenza -> 1 dosis
+- Gestante: dTpa -> 1 dosis
+- Gestante: VSR -> 1 dosis
+
+5.2. Reglas normativas ampliadas
+
+- Polio refuerzo escolar -> 4 dosis
+- SRP catch-up 5-9 anos -> 2 dosis
+- Td adolescente -> 1 dosis
+- Td adulto base -> 1 dosis
+- Influenza adulto mayor -> 1 dosis
+- Influenza 6-23 meses -> 1 dosis
+- Fiebre amarilla por riesgo territorial -> 1 dosis
+- Dengue priorizado -> 1 dosis
+
+6. COMO CALCULA EL SISTEMA LOS FALTANTES
+
+El motor:
+
+- toma el afiliado
+- identifica su edad y condiciones
+- arma las reglas que aplican
+- busca las vacunas aplicadas por `vacunas_id`
+- compara las aplicadas contra las requeridas
+- devuelve:
+  - `faltantes_count`
+  - detalle por vacuna
+  - motivo
+  - criterio etario
+
+Importante:
+
+- El motor no usa una tabla formal de equivalencias de dosis.
+- Para decidir si una dosis cumple, revisa patrones de texto en `docis`.
+- Ejemplo de interpretacion:
+  - `PRIMERA`
+  - `PRIMER`
+  - `1RA`
+  - `UNICA`
+  - `REFUERZO`
+  - `SEGUNDO`
+  - `2DO`
+
+7. PROBLEMA CENTRAL
+
+El problema no es que el modulo no tenga esquema.
+
+El problema es que el esquema esta distribuido asi:
+
+- una parte en codigo normativo
+- una parte en texto libre (`docis`)
+- una parte en deduplicacion por patrones
+
+Eso permite:
+
+- duplicados semanticos
+- variaciones de escritura
+- dificultad para auditar
+- dificultad para hacer reportes uniformes
+
+8. RECOMENDACION DE NORMALIZACION
+
+Mi recomendacion es NO cambiar todo de golpe.
+
+Orden recomendado:
+
+8.1. Fase 1 - Catalogo canonic
+
+- Definir un catalogo unico de dosis normalizadas.
+- Ejemplo de categorias canonicas:
+  - `UNICA`
+  - `PRIMERA DOSIS`
+  - `SEGUNDA DOSIS`
+  - `TERCERA DOSIS`
+  - `CUARTA DOSIS`
+  - `QUINTA DOSIS`
+  - `PRIMER REFUERZO`
+  - `SEGUNDO REFUERZO`
+  - `RECIEN NACIDO`
+  - `DOSIS ANUAL`
+- Definir alias permitidos por cada canonico.
+
+8.2. Fase 2 - Inventario de excepciones
+
+- Sacar todas las variantes reales de `docis`.
+- Marcar:
+  - auto-normalizable
+  - ambigua
+  - invalida
+  - especial por biologico
+
+8.3. Fase 3 - Backfill seguro
+
+- Normalizar en lotes.
+- Guardar respaldo de valor original si hace falta.
+- No sobrescribir los casos ambiguos sin revision.
+
+8.4. Fase 4 - Ajuste del import
+
+- Traducir `docis` al canonico antes de insertar.
+- Si viene un valor nuevo, mandarlo a cola de revision.
+
+8.5. Fase 5 - Ajuste de reportes
+
+- PDF, exportes y tablas deben mostrar el valor canonico.
+- Si se requiere, el valor original queda solo como trazabilidad.
+
+9. PUNTO DE PARTIDA PRACTICO
+
+Si vamos a empezar ya, sugiero este orden:
+
+1. Definir el catalogo canonico de dosis.
+2. Listar alias por cada biologico.
+3. Detectar excepciones por `vacunas_id`.
+4. Normalizar `docis` historico.
+5. Ajustar importacion.
+6. Ajustar vistas y exportes.
+7. Recalcular faltantes.
+
+10. ARCHIVOS CLAVE A REVISAR
+
+- `app/Imports/AfiliadoImportStreaming.php`
+- `app/Services/PaiMvpCoverageService.php`
+- `app/Http/Controllers/AfiliadoController.php`
+- `app/Exports/vacunaExport.php`
+- `resources/views/pdf/vacunas_afiliado.blade.php`
+- `resources/views/livewire/vacuna_manager.blade.php`
+- `resources/views/livewire/vacunas_faltantes.blade.php`
+
+11. DECISIONES QUE FALTAN TOMAR
+
+- Si `docis` se mantiene como texto libre o se convierte en catalogo normalizado.
+- Si se crea una nueva tabla para catalogo de dosis.
+- Si se guarda el valor original como respaldo historico.
+- Si se normalizan tambien nombres duplicados en `referencia_vacunas`.
+- Si los casos 23, 24, 55 y 56 quedan como especiales o se reclasifican.
+
+12. CONCLUSION
+
+Si, el sistema ya sabe calcular faltantes normativos.
+No, todavia no tiene una normalizacion fuerte de `docis`.
+Por eso el siguiente paso correcto es construir el catalogo canonico antes de tocar la data.
+

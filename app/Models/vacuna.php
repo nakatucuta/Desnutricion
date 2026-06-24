@@ -23,6 +23,7 @@ class vacuna extends Model
         
         'nombre',
         'docis',
+        'docis_original',
         'laboratorio',
         'lote',
         'jeringa',

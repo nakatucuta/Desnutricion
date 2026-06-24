@@ -3,6 +3,7 @@
 namespace App\Imports;
 
 use App\Models\batch_verifications;
+use App\Services\PaiDoseNormalizer;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -34,6 +35,7 @@ class AfiliadoImportStreaming implements ToModel, WithStartRow, WithChunkReading
 
     private array $carnetCache = [];
     private array $afiliadoIdCache = [];
+    private PaiDoseNormalizer $doseNormalizer;
 
     /** ✅ Conexión LOCAL (sqlsrv) */
     private string $localConn = 'sqlsrv';
@@ -227,6 +229,8 @@ class AfiliadoImportStreaming implements ToModel, WithStartRow, WithChunkReading
     ) {
         @set_time_limit(0);
         @ini_set('memory_limit', '1024M');
+
+        $this->doseNormalizer = app(PaiDoseNormalizer::class);
 
         $this->userId = $userId;
         $this->token  = $uploadToken;
@@ -1022,13 +1026,7 @@ class AfiliadoImportStreaming implements ToModel, WithStartRow, WithChunkReading
 
     private function normalizeDocis($value): ?string
     {
-        if ($value === null) return null;
-        $s = trim((string)$value);
-        if ($s === '' || strtoupper($s) === 'NONE') return null;
-
-        $s = @iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', $s) ?: $s;
-        $s = preg_replace('/\s+/', ' ', $s);
-        return mb_strtoupper($s, 'UTF-8');
+        return $this->doseNormalizer->normalizeDocis($value);
     }
 
     private function forceStringLots(array $row): array
@@ -1208,6 +1206,7 @@ class AfiliadoImportStreaming implements ToModel, WithStartRow, WithChunkReading
 
                 $VACUNA_TEMPLATE = [
                     'docis' => null,
+                    'docis_original' => null,
                     'laboratorio' => null,
                     'lote' => null,
                     'jeringa' => null,
@@ -1357,6 +1356,10 @@ class AfiliadoImportStreaming implements ToModel, WithStartRow, WithChunkReading
                             $v = trim((string) $vacunaData[$k]);
                             $vacunaData[$k] = ($v === '') ? null : $v;
                         }
+
+                        $rawDocis = $vacunaData['docis'] ?? null;
+                        $vacunaData['docis_original'] = $this->doseNormalizer->normalizeOriginal($rawDocis);
+                        $vacunaData['docis'] = $docisNorm;
 
                         $vacunaData = $this->sanitizeVacunaInsert($vacunaData, (int)($fila['excelRow'] ?? 0));
 
