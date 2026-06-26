@@ -176,11 +176,11 @@ class AlteracionesNutricionalesIndicadoresController extends Controller
                     $eventoData = $row['events'][$evento] ?? [];
                     $asignados = (int) ($eventoData['asignados'] ?? 0);
                     $clasificaciones = collect($eventoData['clasificaciones'] ?? [])
-                        ->sortDesc()
-                        ->map(fn ($count, $label) => [
-                            'label' => $label,
-                            'count' => (int) $count,
+                        ->map(fn ($item) => [
+                            'label' => $this->normalizeLabel($item['label'] ?? '', 'SIN CLASIFICACION'),
+                            'count' => (int) ($item['count'] ?? 0),
                         ])
+                        ->sortByDesc('count')
                         ->values();
 
                     if ($clasificacionFiltro !== 'all') {
