@@ -36,6 +36,7 @@ use App\Http\Controllers\Cargue412AuditController;
 use App\Http\Controllers\SivigilaAuditController;
 use App\Http\Controllers\Sivigila114Controller;
 use App\Http\Controllers\SeguimientoInteligenciaController;
+use App\Http\Controllers\AlteracionesNutricionalesIndicadoresController;
 use App\Http\Controllers\Auth\ConfirmPasswordController;
 use App\Http\Controllers\Auth\ForgotPasswordController;
 use App\Http\Controllers\Auth\LoginController;
@@ -67,6 +68,15 @@ Route::get('/afiliado/stats-dashboard', [AfiliadoController::class, 'statsDashbo
 ->middleware('auth');
 Route::get('/afiliado/estadisticas', [AfiliadoController::class, 'statsView'])->name('afiliado.stats.view')
 ->middleware('auth');
+Route::get('/alteraciones-nutricionales/indicadores', [AlteracionesNutricionalesIndicadoresController::class, 'index'])
+    ->name('alteraciones.nutricionales.indicadores')
+    ->middleware(['auth', 'can:access-nutricional']);
+Route::get('/alteraciones-nutricionales/indicadores/data', [AlteracionesNutricionalesIndicadoresController::class, 'data'])
+    ->name('alteraciones.nutricionales.indicadores.data')
+    ->middleware(['auth', 'can:access-nutricional']);
+Route::get('/alteraciones-nutricionales/indicadores/trace', [AlteracionesNutricionalesIndicadoresController::class, 'trace'])
+    ->name('alteraciones.nutricionales.indicadores.trace')
+    ->middleware(['auth', 'can:access-nutricional']);
 Route::get('/afiliado/estadisticas/indicadores', [AfiliadoController::class, 'paiIndicadoresIndex'])->name('afiliado.stats.indicadores.index')
 ->middleware('auth');
 Route::get('/afiliado/estadisticas/indicadores/data', [AfiliadoController::class, 'paiIndicadoresData'])->name('afiliado.stats.indicadores.data')

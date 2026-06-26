@@ -339,6 +339,11 @@ return [
             'can'     => 'access-nutricional',
             'submenu' => [
                 [
+                    'text' => 'Indicadores',
+                    'route' => 'alteraciones.nutricionales.indicadores',
+                    'icon' => 'fas fa-chart-line',
+                ],
+                [
                     'text'    => 'Evento 113',
                     'icon'    => 'fas fa-fw fa-share',
                     'submenu' => [

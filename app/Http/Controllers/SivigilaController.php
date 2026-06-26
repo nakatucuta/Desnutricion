@@ -535,8 +535,13 @@ public function reportExport(Request $request)
                 ->where('usertype', 2)
                 ->where('codigohabilitacion', $incomeedit14->codigo_habilitacion)
                 ->whereRaw("LOWER(LTRIM(RTRIM(name))) NOT LIKE ?", ['%[_]ges'])
+                ->whereRaw("LOWER(LTRIM(RTRIM(name))) NOT LIKE ?", ['pai%'])
                 ->orderBy('id')
-                ->get();
+                ->get()
+                ->filter(function ($user) {
+                    return !in_array($this->normalizeCode($user->codigohabilitacion ?? ''), $this->assignmentCodeExclusions(), true);
+                })
+                ->values();
             // Resto del código que maneja el resultado de la segunda consulta...
         } else {
             // Asignar un valor predeterminado a $income12 si $incomeedit14 es null
@@ -548,8 +553,13 @@ public function reportExport(Request $request)
         $incomeedit15 =  DB::table('users')->select('name', 'id','codigohabilitacion')
         ->where('usertype', 2)
         ->whereRaw("LOWER(LTRIM(RTRIM(name))) NOT LIKE ?", ['%[_]ges'])
+        ->whereRaw("LOWER(LTRIM(RTRIM(name))) NOT LIKE ?", ['pai%'])
         ->orderBy('name')
-        ->get();
+        ->get()
+        ->filter(function ($user) {
+            return !in_array($this->normalizeCode($user->codigohabilitacion ?? ''), $this->assignmentCodeExclusions(), true);
+        })
+        ->values();
         // $incomeedit15 = DB::connection('sqlsrv_1')->table('maestroIpsGru as a')
         // ->join('maestroIpsGruDet as b', function ($join) {
         //     $join->on('a.id', '=', 'b.idd')
@@ -595,8 +605,13 @@ public function reportExport(Request $request)
                 ->where('usertype', 2)
                 ->where('codigohabilitacion', $incomeedit14->codigo_habilitacion)
                 ->whereRaw("LOWER(LTRIM(RTRIM(name))) NOT LIKE ?", ['%[_]ges'])
+                ->whereRaw("LOWER(LTRIM(RTRIM(name))) NOT LIKE ?", ['pai%'])
                 ->orderBy('id')
-                ->get();
+                ->get()
+                ->filter(function ($user) {
+                    return !in_array($this->normalizeCode($user->codigohabilitacion ?? ''), $this->assignmentCodeExclusions(), true);
+                })
+                ->values();
             // Resto del código que maneja el resultado de la segunda consulta...
         } else {
             // Asignar un valor predeterminado a $income12 si $incomeedit14 es null
@@ -608,8 +623,13 @@ public function reportExport(Request $request)
         $incomeedit15 =  DB::table('users')->select('name', 'id','codigohabilitacion')
         ->where('usertype', 2)
         ->whereRaw("LOWER(LTRIM(RTRIM(name))) NOT LIKE ?", ['%[_]ges'])
+        ->whereRaw("LOWER(LTRIM(RTRIM(name))) NOT LIKE ?", ['pai%'])
         ->orderBy('name')
-        ->get();
+        ->get()
+        ->filter(function ($user) {
+            return !in_array($this->normalizeCode($user->codigohabilitacion ?? ''), $this->assignmentCodeExclusions(), true);
+        })
+        ->values();
 
         $incomeedit16 = DB::connection('sqlsrv_1')
         ->table('refIps')
@@ -829,8 +849,13 @@ public function reportExport(Request $request)
             ->select('id', 'name', 'codigohabilitacion', 'usertype')
             ->where('usertype', 2)
             ->whereRaw("LOWER(LTRIM(RTRIM(name))) NOT LIKE ?", ['%[_]ges'])
+            ->whereRaw("LOWER(LTRIM(RTRIM(name))) NOT LIKE ?", ['pai%'])
             ->orderBy('name')
-            ->get();
+            ->get()
+            ->filter(function ($user) {
+                return !in_array($this->normalizeCode($user->codigohabilitacion ?? ''), $this->assignmentCodeExclusions(), true);
+            })
+            ->values();
 
         return view('sivigila.edit_assignment', compact('sivigila', 'usuarios', 'redirectRoute'));
     }
@@ -945,6 +970,21 @@ public function reportExport(Request $request)
             return false;
         }
         return (int) $user->usertype !== 2;
+    }
+
+    private function normalizeCode($value): string
+    {
+        $normalized = strtoupper(trim((string) $value));
+
+        return $normalized !== '' ? $normalized : 'SIN CODIGO';
+    }
+
+    private function assignmentCodeExclusions(): array
+    {
+        return [
+            '440980033501',
+            '448470033201',
+        ];
     }
 
     private function resolveRedirectRoute(Request $request, string $default = 'sivigila.index'): string

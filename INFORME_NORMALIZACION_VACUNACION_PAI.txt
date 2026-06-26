@@ -39,8 +39,8 @@ La base de datos fue normalizada en sitio y el import futuro quedo conectado al 
 3. RESULTADO FINAL EN BD
 
 - Total de registros en `vacunas`: 648572
-- Registros con `docis_original`: 644817
-- Registros con comillas literales en `docis`: 0
+- Registros con comillas literales - Registros con `docis_original`: 644817
+en `docis`: 0
 - Registros con `docis` nulo: 15527
 
 4. VALORES CANONICOS RESULTANTES
