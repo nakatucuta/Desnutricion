@@ -21,6 +21,14 @@
 
 @section('content')
 <div class="container-fluid pb-4">
+    <div class="pai-dashboard-shell">
+    <div class="pai-dashboard-overlay" id="paiDashboardOverlay" aria-hidden="true">
+        <div class="pai-dashboard-overlay__card">
+            <div class="spinner-border text-primary mb-3" role="status" aria-label="Cargando"></div>
+            <div class="pai-dashboard-overlay__title">Recalculando cobertura</div>
+            <div class="pai-dashboard-overlay__text">Estamos ajustando los filtros y volviendo a consolidar el detalle. Un momento por favor.</div>
+        </div>
+    </div>
     <div class="card pai-card">
         <div class="card-body">
             <div class="pai-filters__hero">
@@ -134,6 +142,7 @@
             <div class="d-flex flex-wrap gap-2 mt-1" id="paiThresholds"></div>
         </div>
     </div>
+    </div>
 </div>
 
 <div class="modal fade" id="paiDoseModal" tabindex="-1" role="dialog" aria-hidden="true">
@@ -175,6 +184,16 @@
 <style>
 .pai-head{display:flex;justify-content:space-between;align-items:center;gap:12px}
 .pai-title{font-weight:900;color:#0f172a}
+.pai-dashboard-shell{position:relative}
+.pai-dashboard-shell.pai-is-loading .pai-card,
+.pai-dashboard-shell.pai-is-loading .pai-mini{filter:blur(.5px);pointer-events:none;user-select:none}
+.pai-dashboard-shell.pai-is-loading .pai-card,
+.pai-dashboard-shell.pai-is-loading .pai-mini{opacity:.72}
+.pai-dashboard-overlay{position:absolute;inset:0;z-index:30;display:none;align-items:center;justify-content:center;padding:24px;background:linear-gradient(180deg,rgba(255,255,255,.58),rgba(248,251,255,.82));backdrop-filter:blur(4px)}
+.pai-dashboard-overlay.is-visible{display:flex}
+.pai-dashboard-overlay__card{min-width:min(92%,520px);text-align:center;padding:26px 28px;border-radius:20px;border:1px solid rgba(59,130,246,.18);background:rgba(255,255,255,.92);box-shadow:0 24px 50px rgba(15,23,42,.18)}
+.pai-dashboard-overlay__title{font-size:1.05rem;font-weight:900;color:#0f172a}
+.pai-dashboard-overlay__text{margin-top:6px;color:#64748b;font-size:.92rem}
 .pai-section-title{font-weight:900;color:#0f172a;letter-spacing:-.02em}
 .pai-section-subtitle{color:#64748b;font-size:.92rem;max-width:820px}
 .pai-kicker{display:inline-flex;align-items:center;gap:8px;font-size:.72rem;text-transform:uppercase;letter-spacing:.16em;color:#2563eb;font-weight:900;margin-bottom:6px}
@@ -281,6 +300,42 @@
         document.getElementById('paiRegimen').disabled = !municipio;
     }
 
+    function setLoadingState(isLoading, message = ''){
+        const shell = document.querySelector('.pai-dashboard-shell');
+        const overlay = document.getElementById('paiDashboardOverlay');
+        const selectionCount = document.getElementById('paiSelectionCount');
+        const meta = document.getElementById('paiMeta');
+
+        if (shell) {
+            shell.classList.toggle('pai-is-loading', !!isLoading);
+        }
+        if (overlay) {
+            overlay.classList.toggle('is-visible', !!isLoading);
+        }
+        if (selectionCount && isLoading) {
+            selectionCount.textContent = 'Recalculando...';
+        }
+        if (meta && isLoading && message) {
+            meta.textContent = message;
+        }
+
+        ['paiYear','paiEscala','paiPeriodo','paiMunicipio','paiIps','paiRegimen','paiAplicar','paiLimpiar']
+            .forEach(function(id){
+                const el = document.getElementById(id);
+                if (el) {
+                    if (isLoading) {
+                        el.disabled = true;
+                    } else {
+                        el.disabled = false;
+                    }
+                }
+            });
+
+        if (!isLoading) {
+            syncFilterLocks();
+        }
+    }
+
     function paintFilterState(resp){
         const el = document.getElementById('paiSelectionTags');
         if (!el) return;
@@ -313,9 +368,10 @@
 
     function scheduleLoad(){
         if (loadTimer) clearTimeout(loadTimer);
+        setLoadingState(true, 'Preparando recálculo...');
         loadTimer = setTimeout(function(){
             load(true);
-        }, 220);
+        }, 520);
     }
 
     function renderRows(rows){
@@ -334,8 +390,8 @@
                     '<button type="button" class="pai-dose-link" ' +
                         'data-id-vacuna="' + (r.id_vacuna || '') + '" ' +
                         'data-dosis-meta="' + (r.dosis_meta || '') + '" ' +
-                        'data-period-start="' + ((lastResponse?.meta_period?.start_date || '') || '') + '" ' +
-                        'data-period-end="' + ((lastResponse?.meta_period?.end_date || '') || '') + '" ' +
+                        'data-period-start="' + ((lastResponse?.evaluation_period?.start_date || '') || '') + '" ' +
+                        'data-period-end="' + ((lastResponse?.evaluation_period?.end_date || '') || '') + '" ' +
                         'data-indicador="' + (r.indicador || '') + '" ' +
                         'data-biologico="' + (r.biologico || '') + '" ' +
                         'data-dose-count="' + dose + '">' + num.format(dose) + '</button>' +
@@ -441,8 +497,7 @@
             qs.set('periodo', selectedVal('paiPeriodo'));
         }
 
-        document.getElementById('paiMeta').textContent = 'Cargando reporte...';
-        document.getElementById('paiAplicar').disabled = true;
+        setLoadingState(true, 'Cargando reporte...');
 
         fetch(url + '?' + qs.toString(), { headers: { 'Accept': 'application/json' } })
             .then(r => r.json())
@@ -489,7 +544,7 @@
                 document.getElementById('paiMeta').textContent = 'Error consultando las estadisticas PAI.';
             })
             .finally(function(){
-                document.getElementById('paiAplicar').disabled = false;
+                setLoadingState(false);
             });
     }
 
@@ -514,8 +569,8 @@
             periodo: selectedVal('paiPeriodo'),
             id_vacuna: btn.dataset.idVacuna || '',
             dosis_meta: btn.dataset.dosisMeta || '',
-            period_start: btn.dataset.periodStart || (lastResponse?.meta_period?.start_date || ''),
-            period_end: btn.dataset.periodEnd || (lastResponse?.meta_period?.end_date || ''),
+            period_start: btn.dataset.periodStart || (lastResponse?.evaluation_period?.start_date || ''),
+            period_end: btn.dataset.periodEnd || (lastResponse?.evaluation_period?.end_date || ''),
             biologico: btn.dataset.biologico || '',
             ips_name: (currentCatalogs?.ips || []).find(function(item){
                 return String(item.key || '') === String(selectedVal('paiIps'));
