@@ -16,6 +16,7 @@
 
 @section('content_header')
 <div class="alertas-hero">
+
     <div class="alertas-hero__brand">
         <div class="alertas-hero__logo-wrap">
             <img src="{{ asset('img/logo.png') }}" alt="Escudo empresa" class="alertas-hero__logo">
