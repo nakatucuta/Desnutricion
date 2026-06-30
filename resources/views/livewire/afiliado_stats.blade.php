@@ -123,6 +123,7 @@
                         <tr>
                             <th>INDICADOR</th>
                             <th>BIOLOGICOS APLICADOS</th>
+                            <th class="text-center">DOSIS META</th>
                             <th class="text-right">META</th>
                             <th class="text-right">DOSIS APLICADAS</th>
                             <th class="text-right">SUSCEPTIBLES</th>
@@ -385,6 +386,7 @@
             tr.innerHTML =
                 '<td>' + (r.indicador || '') + '</td>' +
                 '<td>' + (r.biologico || '') + '</td>' +
+                '<td class="text-center"><span class="pai-tag pai-tag--active">' + (r.dosis_meta || '') + '</span></td>' +
                 '<td class="text-right">' + num.format(Number(r.meta || 0)) + '</td>' +
                 '<td class="text-right">' +
                     '<button type="button" class="pai-dose-link" ' +
