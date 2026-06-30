@@ -1,354 +1,411 @@
 @extends('adminlte::page')
 
-@section('title', 'PAI - Programacion y Metas')
+@section('title', 'PAI - Metas Vacunacion')
 
 @section('content_header')
-<div class="d-flex justify-content-between align-items-center">
+<div class="pai-head">
     <div>
-        <h1 class="mb-1">Administrar Programacion PAI</h1>
-        <div class="text-muted">Estructura mantenible de metas por vigencia, municipio, IPS, regimen e indicador</div>
+        <h1 class="pai-title mb-1">Metas de Vacunacion</h1>
+        <div class="text-muted">CRUD directo sobre <code>metas_vacunacion</code> para ajustar la programacion anual por vigencia.</div>
     </div>
-    <div class="d-flex align-items-center">
-        <button type="button" class="btn btn-outline-success mr-2" id="btnImportProgramacion">
-            <i class="fas fa-file-import mr-1"></i> Importar Programacion
-        </button>
-        <button type="button" class="btn btn-outline-info mr-2" data-toggle="modal" data-target="#paiCalcHelpModal">
-            <i class="fas fa-calculator mr-1"></i> Como Se Calcula
-        </button>
+    <div class="d-flex flex-wrap gap-2">
         <a href="{{ route('afiliado.stats.view') }}" class="btn btn-outline-secondary">
             <i class="fas fa-arrow-left mr-1"></i> Volver a Estadisticas
         </a>
+        <button type="button" class="btn btn-outline-primary" id="btnReload">
+            <i class="fas fa-sync-alt mr-1"></i> Recargar
+        </button>
     </div>
 </div>
 @stop
 
 @section('content')
-<div class="container-fluid pb-4">
-    <div class="card">
-        <div class="card-header"><strong>Nuevo / Editar registro</strong></div>
+<div class="container-fluid pb-4 pai-shell">
+    <div class="pai-hero card mb-3">
         <div class="card-body">
-            <form id="paiIndicForm">
-                <input type="hidden" id="id" value="">
-                <div class="row">
-                    <div class="col-md-2 mb-2">
-                        <label class="small text-muted mb-1">Vigencia</label>
-                        <input type="number" class="form-control form-control-sm" id="vigencia" value="2026" min="2000" max="2100" required>
-                    </div>
-                    <div class="col-md-3 mb-2">
-                        <label class="small text-muted mb-1">Municipio</label>
-                        <input list="munList" class="form-control form-control-sm" id="municipio" required>
-                        <datalist id="munList">
-                            @foreach($municipios as $m)
-                                <option value="{{ $m }}"></option>
-                            @endforeach
-                        </datalist>
-                    </div>
-                    <div class="col-md-3 mb-2">
-                        <label class="small text-muted mb-1">IPS (users)</label>
-                        <select class="form-control form-control-sm" id="ips_user_id">
-                            <option value="">Sin asociar</option>
-                            @foreach($ips as $u)
-                                <option value="{{ $u->id }}">{{ $u->name }}</option>
-                            @endforeach
-                        </select>
-                    </div>
-                    <div class="col-md-2 mb-2">
-                        <label class="small text-muted mb-1">Regimen</label>
-                        <input list="regList" class="form-control form-control-sm" id="regimen" required>
-                        <datalist id="regList">
-                            @foreach($regimenes as $r)
-                                <option value="{{ $r }}"></option>
-                            @endforeach
-                        </datalist>
-                    </div>
-                    <div class="col-md-2 mb-2">
-                        <label class="small text-muted mb-1">Poblacion anual (Meta anual)</label>
-                        <input type="number" class="form-control form-control-sm" id="poblacion_programada_anual" min="0" required>
+            <div class="row align-items-center">
+                <div class="col-lg-8">
+                    <div class="pai-hero__eyebrow">Edicion rapida</div>
+                    <h2 class="pai-hero__title mb-2">Administra la meta anual de cada IPS, municipio y regimen</h2>
+                    <p class="mb-0 text-muted">
+                        Cada fila representa una meta anual. Aqui puedes crear, corregir o eliminar registros sin pasar por hojas tecnicas ni tablas intermedias.
+                    </p>
+                </div>
+                <div class="col-lg-4 mt-3 mt-lg-0">
+                    <div class="pai-summary-grid">
+                        <div class="pai-summary">
+                            <div class="pai-summary__label">Registros</div>
+                            <div class="pai-summary__value" id="sumRows">{{ number_format((int) data_get($summary, 'rows', 0)) }}</div>
+                        </div>
+                        <div class="pai-summary">
+                            <div class="pai-summary__label">IPS</div>
+                            <div class="pai-summary__value" id="sumIps">{{ number_format((int) data_get($summary, 'prestadores', 0)) }}</div>
+                        </div>
+                        <div class="pai-summary">
+                            <div class="pai-summary__label">Municipios</div>
+                            <div class="pai-summary__value" id="sumMuns">{{ number_format((int) data_get($summary, 'municipios', 0)) }}</div>
+                        </div>
+                        <div class="pai-summary">
+                            <div class="pai-summary__label">Poblacion</div>
+                            <div class="pai-summary__value" id="sumPop">{{ number_format((int) data_get($summary, 'poblacion', 0)) }}</div>
+                        </div>
                     </div>
                 </div>
-
-                <div class="row">
-                    <div class="col-md-4 mb-2">
-                        <label class="small text-muted mb-1">Indicador</label>
-                        <select class="form-control form-control-sm" id="indicador" required>
-                            <option value="">Seleccione...</option>
-                            @foreach($indicadoresCatalog as $c)
-                                <option value="{{ $c['indicador'] }}">{{ $c['indicador'] }}</option>
-                            @endforeach
-                        </select>
-                    </div>
-                    <div class="col-md-3 mb-2">
-                        <label class="small text-muted mb-1">Biologico</label>
-                        <select class="form-control form-control-sm" id="biologico" required>
-                            <option value="">Seleccione indicador primero...</option>
-                        </select>
-                        <small class="text-muted">Se llena segun el indicador seleccionado (criterio del formato PAI).</small>
-                    </div>
-                    <div class="col-md-2 mb-2">
-                        <label class="small text-muted mb-1">Fuente</label>
-                        <input type="text" class="form-control form-control-sm" id="fuente" placeholder="Manual, Excel...">
-                    </div>
-                    <div class="col-md-2 mb-2">
-                        <label class="small text-muted mb-1">Nombre IPS (Excel)</label>
-                        <input type="text" class="form-control form-control-sm" id="ips_nombre_excel" placeholder="Opcional">
-                    </div>
-                    <div class="col-md-1 mb-2">
-                        <label class="small text-muted mb-1">Activo</label>
-                        <select class="form-control form-control-sm" id="activo">
-                            <option value="1" selected>Si</option>
-                            <option value="0">No</option>
-                        </select>
-                    </div>
-                </div>
-
-                <div class="row">
-                    <div class="col-md-10 mb-2">
-                        <label class="small text-muted mb-1">Observaciones</label>
-                        <input type="text" class="form-control form-control-sm" id="observaciones">
-                    </div>
-                    <div class="col-md-2 mb-2 d-flex align-items-end justify-content-end">
-                        <button type="button" class="btn btn-outline-secondary btn-sm mr-2" id="btnLimpiar">Limpiar</button>
-                        <button type="submit" class="btn btn-primary btn-sm" id="btnGuardar">Guardar</button>
-                    </div>
-                </div>
-            </form>
-            <small class="text-muted" id="paiIndicMsg"></small>
-            <div class="small text-muted mt-2">
-                Nota: este valor corresponde a la <strong>Meta anual</strong>. En Estadisticas PAI se convierte a meta del periodo segun escala (mensual, trimestral, semestral, etc.).
             </div>
         </div>
     </div>
 
-    <div class="card mt-3">
-        <div class="card-header d-flex justify-content-between align-items-center">
-            <strong>Registros cargados</strong>
-            <div class="d-flex align-items-center">
-                <label class="small text-muted mb-0 mr-2">Vigencia</label>
-                <input type="number" id="filterYear" class="form-control form-control-sm" style="width:100px;" value="2026" min="2000" max="2100">
-                <button class="btn btn-sm btn-outline-primary ml-2" id="btnRefrescar">Actualizar</button>
+    <div class="row">
+        <div class="col-xl-4 mb-3">
+            <div class="card pai-card h-100">
+                <div class="card-header pai-card__header">
+                    <strong id="formTitle">Nueva meta</strong>
+                    <span class="text-muted small">Completa los campos y guarda.</span>
+                </div>
+                <div class="card-body">
+                    <form id="paiMetaForm">
+                        <input type="hidden" id="id" value="">
+
+                        <div class="form-row">
+                            <div class="form-group col-md-4">
+                                <label class="small text-muted mb-1">Vigencia</label>
+                                <input type="number" class="form-control form-control-sm" id="vigencia" min="2000" max="2100" value="{{ $defaultYear }}" required>
+                            </div>
+                            <div class="form-group col-md-4">
+                                <label class="small text-muted mb-1">Periodo inicio</label>
+                                <input type="text" class="form-control form-control-sm" id="periodo_inicio" placeholder="YYYYMM" maxlength="6" required>
+                            </div>
+                            <div class="form-group col-md-4">
+                                <label class="small text-muted mb-1">Periodo fin</label>
+                                <input type="text" class="form-control form-control-sm" id="periodo_fin" placeholder="YYYYMM" maxlength="6" required>
+                            </div>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group col-md-6">
+                                <label class="small text-muted mb-1">Municipio</label>
+                                <input list="municipiosList" class="form-control form-control-sm" id="municipio" placeholder="Escribe o elige..." required>
+                                <datalist id="municipiosList">
+                                    @foreach(($municipios ?? []) as $item)
+                                        <option value="{{ $item }}"></option>
+                                    @endforeach
+                                </datalist>
+                            </div>
+                            <div class="form-group col-md-6">
+                                <label class="small text-muted mb-1">Prestador</label>
+                                <input list="prestadoresList" class="form-control form-control-sm" id="prestador" placeholder="Escribe o elige..." required>
+                                <datalist id="prestadoresList">
+                                    @foreach(($prestadores ?? []) as $item)
+                                        <option value="{{ $item }}"></option>
+                                    @endforeach
+                                </datalist>
+                            </div>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group col-md-6">
+                                <label class="small text-muted mb-1">Codigo de habilitacion</label>
+                                <input list="codigosList" class="form-control form-control-sm" id="codigo_habilitacion" placeholder="000000000000" required>
+                                <datalist id="codigosList">
+                                    @foreach(($codigos ?? []) as $item)
+                                        <option value="{{ $item }}"></option>
+                                    @endforeach
+                                </datalist>
+                            </div>
+                            <div class="form-group col-md-6">
+                                <label class="small text-muted mb-1">Regimen</label>
+                                <input list="regimenesList" class="form-control form-control-sm" id="regimen" placeholder="SUBSIDIADO / CONTRIBUTIVO" required>
+                                <datalist id="regimenesList">
+                                    @foreach(($regimenes ?? []) as $item)
+                                        <option value="{{ $item }}"></option>
+                                    @endforeach
+                                </datalist>
+                            </div>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group col-md-7">
+                                <label class="small text-muted mb-1">Cobertura</label>
+                                <input list="coberturasList" class="form-control form-control-sm" id="cobertura" placeholder="Nombre de la cobertura" required>
+                                <datalist id="coberturasList">
+                                    @foreach(($coberturas ?? []) as $item)
+                                        <option value="{{ $item }}"></option>
+                                    @endforeach
+                                </datalist>
+                            </div>
+                            <div class="form-group col-md-5">
+                                <label class="small text-muted mb-1">Poblacion</label>
+                                <input type="number" class="form-control form-control-sm" id="poblacion" min="0" value="0" required>
+                            </div>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group col-md-4">
+                                <label class="small text-muted mb-1">Vacuna</label>
+                                <select class="form-control form-control-sm" id="id_vacuna" required>
+                                    <option value="">Seleccione...</option>
+                                    @foreach(($biologicos ?? []) as $bio)
+                                        <option value="{{ $bio['id'] }}">{{ $bio['nombre'] }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                            <div class="form-group col-md-8">
+                                <label class="small text-muted mb-1">Biologico</label>
+                                <input list="biologicosList" class="form-control form-control-sm" id="biologico" placeholder="Nombre del biologico" required>
+                                <datalist id="biologicosList">
+                                    @foreach(($biologicos ?? []) as $bio)
+                                        <option value="{{ $bio['nombre'] }}"></option>
+                                    @endforeach
+                                </datalist>
+                            </div>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group col-md-6">
+                                <label class="small text-muted mb-1">Biologico seleccionado</label>
+                                <div class="form-control form-control-sm pai-readonly" id="bioPreview">Sin seleccionar</div>
+                            </div>
+                            <div class="form-group col-md-6">
+                                <label class="small text-muted mb-1">Estado</label>
+                                <select class="form-control form-control-sm" id="meta_state">
+                                    <option value="active" selected>Activo</option>
+                                    <option value="inactive">Inactivo</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="d-flex justify-content-between align-items-center mt-3">
+                            <div class="small text-muted" id="paiMetaMsg">Listo para editar.</div>
+                            <div class="d-flex gap-2">
+                                <button type="button" class="btn btn-outline-secondary btn-sm" id="btnClear">Limpiar</button>
+                                <button type="submit" class="btn btn-primary btn-sm" id="btnSave">Guardar</button>
+                            </div>
+                        </div>
+                    </form>
+
+                    <div class="mt-3 small text-muted pai-helpbox">
+                        <strong>Tip:</strong> el mismo codigo de habilitacion puede tener varios usuarios `_ges` en el sistema, pero aqui se administra una sola meta consolidada por IPS.
+                    </div>
+                </div>
             </div>
         </div>
-        <div class="card-body p-0">
-            <div class="table-responsive">
-                <table class="table table-sm table-striped mb-0">
-                    <thead>
-                        <tr>
-                            <th>Vigencia</th>
-                            <th>Municipio</th>
-                            <th>IPS</th>
-                            <th>Regimen</th>
-                            <th>Indicador</th>
-                            <th>Biologico</th>
-                            <th class="text-right">Poblacion (Meta anual)</th>
-                            <th>Activo</th>
-                            <th>Acciones</th>
-                        </tr>
-                    </thead>
-                    <tbody id="rowsBody"></tbody>
-                </table>
+
+        <div class="col-xl-8 mb-3">
+            <div class="card pai-card h-100">
+                <div class="card-header pai-card__header">
+                    <div>
+                        <strong>Registros de metas</strong>
+                        <div class="text-muted small">Filtra por vigencia y ajusta rapidamente la tabla.</div>
+                    </div>
+                    <div class="d-flex flex-wrap gap-2 align-items-center">
+                        <input type="number" id="filterYear" class="form-control form-control-sm pai-filter" min="2000" max="2100" value="{{ $defaultYear }}" placeholder="Vigencia">
+                        <input list="municipiosList" id="filterMunicipio" class="form-control form-control-sm pai-filter" placeholder="Municipio">
+                        <input list="prestadoresList" id="filterPrestador" class="form-control form-control-sm pai-filter" placeholder="Prestador">
+                        <input list="codigosList" id="filterCodigo" class="form-control form-control-sm pai-filter" placeholder="Codigo">
+                        <button class="btn btn-sm btn-outline-primary" id="btnApplyFilters">Aplicar</button>
+                    </div>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive pai-table-wrap">
+                        <table class="table table-sm table-hover mb-0">
+                            <thead class="pai-table-head">
+                                <tr>
+                                    <th>Vigencia</th>
+                                    <th>Periodo</th>
+                                    <th>Municipio</th>
+                                    <th>Prestador</th>
+                                    <th>Codigo</th>
+                                    <th>Cobertura</th>
+                                    <th>Biologico</th>
+                                    <th>Dosis</th>
+                                    <th>Regimen</th>
+                                    <th class="text-right">Poblacion</th>
+                                    <th class="text-right">Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody id="rowsBody"></tbody>
+                        </table>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
 </div>
+@stop
 
-<div class="modal fade" id="paiCalcHelpModal" tabindex="-1" role="dialog" aria-labelledby="paiCalcHelpModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-xl modal-dialog-scrollable" role="document">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="paiCalcHelpModalLabel">Detalle del calculo de Estadisticas PAI</h5>
-                <button type="button" class="close" data-dismiss="modal" aria-label="Cerrar">
-                    <span aria-hidden="true">&times;</span>
-                </button>
-            </div>
-            <div class="modal-body">
-                <p class="mb-2"><strong>Objetivo:</strong> explicar de donde salen <strong>Meta</strong>, <strong>Dosis aplicadas</strong>, <strong>Susceptibles</strong>, <strong>Cobertura</strong> y <strong>Estado</strong>.</p>
-
-                <h6 class="mt-3">1) Fuentes de datos</h6>
-                <p class="mb-1"><strong>Meta anual:</strong> sale primero de tablas estructuradas <code>pai_programacion_metas</code> + <code>pai_indicadores_catalogo</code> (administrables desde este modulo).</p>
-                <p class="mb-1"><strong>Dosis aplicadas:</strong> se cuentan desde <code>vacunas</code> (join con <code>afiliados</code>) filtrando por año, periodo, municipio, IPS y regimen, con conteo de afiliados unicos por indicador.</p>
-                <p class="mb-1"><strong>Catalogo de biológicos:</strong> se usa <code>referencia_vacunas</code> para mapear IDs de vacuna por indicador.</p>
-
-                <h6 class="mt-3">2) Filtros que afectan el resultado</h6>
-                <p class="mb-1">Año + Escala (Mensual/Bimensual/Trimestral/Semestral) + Periodo + Municipio + IPS + Regimen.</p>
-                <p class="mb-1">El periodo define los meses que se cuentan: por ejemplo <code>III Trimestre = 7,8,9</code>.</p>
-
-                <h6 class="mt-3">3) Calculo de META por indicador</h6>
-                <p class="mb-1">Para cada fila (Indicador + Biologico):</p>
-                <pre class="bg-light p-2 rounded"><code>PoblacionProgramadaAnual = valor en pai_programacion_metas
-MetaMes = round(PoblacionProgramadaAnual / 12)
-MetaPeriodo = MetaMes * cantidadMesesDelPeriodo</code></pre>
-                <p class="mb-1">Si no hay registro en tabla administrable, el sistema usa fallback (Excel de indicadores / estimacion) segun configuracion.</p>
-
-                <h6 class="mt-3">4) Calculo de DOSIS APLICADAS</h6>
-                <p class="mb-1">Se hace <code>COUNT(DISTINCT v.afiliado_id)</code> sobre <code>vacunas v</code> con estos filtros:</p>
-                <pre class="bg-light p-2 rounded"><code>where year(v.fecha_vacuna) = anio
-and month(v.fecha_vacuna) in (meses del periodo)
-and municipio afiliado = municipio seleccionado
-and v.user_id = IPS seleccionada
-and v.regimen = regimen seleccionado
-and v.vacunas_id in (IDs del biologico del indicador)
-and regla de dosis (ej: 3ra, refuerzo, dosis unica)</code></pre>
-
-                <h6 class="mt-3">5) Susceptibles y Cobertura</h6>
-                <pre class="bg-light p-2 rounded"><code>Susceptibles = max(MetaPeriodo - DosisAplicadas, 0)
-Cobertura = (MetaPeriodo &gt; 0) ? (DosisAplicadas / MetaPeriodo) : 0</code></pre>
-
-                <h6 class="mt-3">6) Estado de cobertura</h6>
-                <p class="mb-1">Se clasifica con esta escala:</p>
-                <pre class="bg-light p-2 rounded"><code>Cobertura = 0            -> SIN REPORTE
-0   &lt;= Cobertura &lt;= 0.50 -> Cobertura muy critica
-0.50<= Cobertura &lt;= 0.799 -> Cobertura Critica
-0.80<= Cobertura &lt;= 0.899 -> Cobertura no util
-0.90<= Cobertura &lt;= 0.949 -> Cobertura bajo riesgo
-0.95<= Cobertura &lt;= 1.00  -> Cobertura util
-Cobertura &gt; 1.00         -> Cobertura Optima</code></pre>
-
-                <h6 class="mt-3">7) Recomendacion de calidad de datos</h6>
-                <p class="mb-0">Para resultados estables, mantén completa la tabla <code>pai_programacion_metas</code> por cada combinacion de Vigencia + Municipio + IPS + Regimen + Indicador.</p>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-dismiss="modal">Cerrar</button>
-            </div>
-        </div>
-    </div>
-</div>
+@section('css')
+<style>
+.pai-shell{background:linear-gradient(180deg,#f6f9ff 0%,#fff 100%)}
+.pai-head{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+.pai-title{font-weight:900;color:#132238}
+.pai-card{border:1px solid rgba(15,23,42,.08);border-radius:18px;box-shadow:0 14px 34px rgba(15,23,42,.06);overflow:hidden}
+.pai-card__header{display:flex;justify-content:space-between;align-items:center;gap:12px;background:linear-gradient(90deg,#f8fbff 0%,#fff 100%)}
+.pai-hero{border:0;border-radius:22px;box-shadow:0 18px 40px rgba(15,23,42,.06);background:radial-gradient(circle at top left,#eef6ff 0%,#ffffff 55%)}
+.pai-hero__eyebrow{display:inline-block;padding:4px 10px;border-radius:999px;background:#e7f0ff;color:#1d4ed8;font-size:.76rem;font-weight:800;letter-spacing:.04em;text-transform:uppercase}
+.pai-hero__title{font-size:1.55rem;font-weight:900;color:#0f172a}
+.pai-summary-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.pai-summary{background:#fff;border:1px solid rgba(15,23,42,.08);border-radius:14px;padding:12px}
+.pai-summary__label{font-size:.72rem;text-transform:uppercase;color:#64748b;font-weight:800}
+.pai-summary__value{font-size:1.2rem;font-weight:900;color:#0f172a}
+.pai-filter{min-width:130px}
+.pai-table-head th{font-size:.74rem;text-transform:uppercase;letter-spacing:.02em;background:#f8fbff;border-top:none;white-space:nowrap}
+.pai-table-wrap{max-height:70vh}
+.pai-readonly{background:#f8fafc;color:#334155}
+.pai-helpbox{padding:12px 14px;border-radius:14px;background:#f8fbff;border:1px solid rgba(37,99,235,.12)}
+.gap-2{gap:.5rem}
+</style>
 @stop
 
 @section('js')
 <meta name="csrf-token" content="{{ csrf_token() }}">
 <script>
 (function(){
-    const indicadorPairs = @json($indicadoresCatalog);
     const routes = {
         data: @json(route('afiliado.stats.indicadores.data')),
         store: @json(route('afiliado.stats.indicadores.store')),
-        importProgramacion: @json(route('afiliado.stats.indicadores.import.programacion')),
         updateBase: @json(url('/afiliado/estadisticas/indicadores')),
         deleteBase: @json(url('/afiliado/estadisticas/indicadores'))
     };
 
-    const body = document.getElementById('rowsBody');
-    const msg = document.getElementById('paiIndicMsg');
     const csrf = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
-    let currentRows = [];
+    const initialRows = @json($defaultRows ?? []);
+    const biologics = @json($biologicos ?? []);
+    const body = document.getElementById('rowsBody');
+    const msg = document.getElementById('paiMetaMsg');
+    let currentRows = initialRows || [];
 
-    function v(id){ return (document.getElementById(id).value || '').trim(); }
-    function set(id,val){ document.getElementById(id).value = val ?? ''; }
-    function esc(s){
-        return String(s ?? '').replace(/[&<>"']/g, function(m){
-            const map = {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'};
-            return map[m] || m;
+    function v(id){ return (document.getElementById(id)?.value || '').trim(); }
+    function set(id, value){ const el = document.getElementById(id); if (el) el.value = value ?? ''; }
+    function esc(value){
+        return String(value ?? '').replace(/[&<>"']/g, function(ch){
+            return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[ch] || ch;
         });
     }
 
-    function refreshBiologicoOptions(selectedBiologico = ''){
-        const indicador = v('indicador');
-        const el = document.getElementById('biologico');
-        if (!el) return;
-
-        const list = (indicadorPairs || [])
-            .filter(p => String(p.indicador || '') === indicador)
-            .map(p => String(p.biologico || ''))
-            .filter((x, i, arr) => x !== '' && arr.indexOf(x) === i);
-
-        el.innerHTML = '';
-        const first = document.createElement('option');
-        first.value = '';
-        first.textContent = list.length ? 'Seleccione...' : 'Sin biologicos para este indicador';
-        el.appendChild(first);
-
-        list.forEach(function(bio){
-            const op = document.createElement('option');
-            op.value = bio;
-            op.textContent = bio;
-            if (selectedBiologico && selectedBiologico === bio) op.selected = true;
-            el.appendChild(op);
-        });
+    function biologicNameById(id){
+        const row = (biologics || []).find(b => String(b.id) === String(id));
+        return row ? String(row.nombre || '') : '';
     }
 
-    function clearForm(){
-        ['id','municipio','ips_user_id','ips_nombre_excel','regimen','indicador','biologico','poblacion_programada_anual','fuente','observaciones'].forEach(id => set(id,''));
-        set('vigencia', v('filterYear') || '2026');
-        set('activo','1');
-        refreshBiologicoOptions('');
+    function syncBioPreview(){
+        const text = biologicNameById(v('id_vacuna')) || v('biologico');
+        document.getElementById('bioPreview').textContent = text || 'Sin seleccionar';
+        if (v('id_vacuna') && !v('biologico')) {
+            set('biologico', text);
+        }
+    }
+
+    function rowHtml(row){
+        return '<tr>' +
+            '<td>' + esc(row.vigencia) + '</td>' +
+            '<td><span class="badge badge-light">' + esc(row.periodo_inicio) + ' - ' + esc(row.periodo_fin) + '</span></td>' +
+            '<td>' + esc(row.municipio) + '</td>' +
+            '<td>' + esc(row.prestador) + '</td>' +
+            '<td><code>' + esc(row.codigo_habilitacion) + '</code></td>' +
+            '<td>' + esc(row.cobertura) + '</td>' +
+            '<td>' + esc(row.biologico) + '</td>' +
+            '<td>' + esc(row.dosis) + '</td>' +
+            '<td>' + esc(row.regimen) + '</td>' +
+            '<td class="text-right">' + Number(row.poblacion || 0).toLocaleString('es-CO') + '</td>' +
+            '<td class="text-right">' +
+                '<button class="btn btn-xs btn-outline-primary mr-1 btn-edit" data-id="' + esc(row.id) + '">Editar</button>' +
+                '<button class="btn btn-xs btn-outline-danger btn-del" data-id="' + esc(row.id) + '">Eliminar</button>' +
+            '</td>' +
+        '</tr>';
+    }
+
+    function draw(rows){
+        currentRows = rows || [];
+        body.innerHTML = currentRows.map(rowHtml).join('');
+        document.getElementById('sumRows').textContent = Number(currentRows.length || 0).toLocaleString('es-CO');
+        document.getElementById('sumIps').textContent = Number(new Set(currentRows.map(r => String(r.codigo_habilitacion || ''))).size).toLocaleString('es-CO');
+        document.getElementById('sumMuns').textContent = Number(new Set(currentRows.map(r => String(r.municipio || ''))).size).toLocaleString('es-CO');
+        document.getElementById('sumPop').textContent = Number(currentRows.reduce((acc, row) => acc + Number(row.poblacion || 0), 0)).toLocaleString('es-CO');
     }
 
     function fillForm(row){
         set('id', row.id);
         set('vigencia', row.vigencia);
+        set('periodo_inicio', row.periodo_inicio);
+        set('periodo_fin', row.periodo_fin);
         set('municipio', row.municipio);
-        set('ips_user_id', row.ips_user_id ?? '');
-        set('ips_nombre_excel', row.ips_nombre_excel ?? '');
-        set('regimen', row.regimen);
-        set('indicador', row.indicador);
-        refreshBiologicoOptions(String(row.biologico || ''));
+        set('prestador', row.prestador);
+        set('codigo_habilitacion', row.codigo_habilitacion);
+        set('cobertura', row.cobertura);
+        set('id_vacuna', row.id_vacuna);
         set('biologico', row.biologico);
-        set('poblacion_programada_anual', row.poblacion_programada_anual);
-        set('fuente', row.fuente ?? '');
-        set('observaciones', row.observaciones ?? '');
-        set('activo', row.activo ? '1' : '0');
+        set('dosis', row.dosis);
+        set('regimen', row.regimen);
+        set('poblacion', row.poblacion);
+        set('meta_state', 'active');
+        document.getElementById('formTitle').textContent = 'Editando meta #' + row.id;
+        msg.textContent = 'Editando registro #' + row.id;
+        syncBioPreview();
     }
 
-    function draw(rows){
-        currentRows = rows || [];
-        body.innerHTML = '';
-        currentRows.forEach(r => {
-            const tr = document.createElement('tr');
-            tr.innerHTML =
-                '<td>'+esc(r.vigencia)+'</td>'+
-                '<td>'+esc(r.municipio)+'</td>'+
-                '<td>'+esc(r.ips_name || '(sin asociar)')+'</td>'+
-                '<td>'+esc(r.regimen)+'</td>'+
-                '<td>'+esc(r.indicador)+'</td>'+
-                '<td>'+esc(r.biologico)+'</td>'+
-                '<td class="text-right">'+Number(r.poblacion_programada_anual || 0).toLocaleString('es-CO')+'</td>'+
-                '<td>'+(r.activo ? 'Si' : 'No')+'</td>'+
-                '<td>'+
-                    '<button class="btn btn-xs btn-outline-primary mr-1 btn-edit" data-id="'+r.id+'">Editar</button>'+
-                    '<button class="btn btn-xs btn-outline-danger btn-del" data-id="'+r.id+'">Eliminar</button>'+
-                '</td>';
-            body.appendChild(tr);
+    function clearForm(){
+        ['id','periodo_inicio','periodo_fin','municipio','prestador','codigo_habilitacion','cobertura','id_vacuna','biologico','dosis','regimen','poblacion'].forEach(function(id){
+            set(id, '');
         });
-    }
-
-    function load(){
-        const url = routes.data + '?year=' + encodeURIComponent(v('filterYear') || '2026');
-        msg.textContent = 'Cargando...';
-        fetch(url, { headers:{ 'Accept':'application/json' }})
-            .then(r => r.json())
-            .then(data => {
-                draw(data.rows || []);
-                msg.textContent = 'Registros: ' + (data.rows || []).length;
-            })
-            .catch(() => { msg.textContent = 'Error cargando datos.'; });
+        set('vigencia', v('filterYear') || {{ (int) $defaultYear }});
+        set('poblacion', '0');
+        set('meta_state', 'active');
+        document.getElementById('formTitle').textContent = 'Nueva meta';
+        msg.textContent = 'Listo para crear una nueva meta.';
+        syncBioPreview();
     }
 
     function payload(){
         return {
-            vigencia: Number(v('vigencia') || 2026),
+            vigencia: Number(v('vigencia') || {{ (int) $defaultYear }}),
+            periodo_inicio: v('periodo_inicio'),
+            periodo_fin: v('periodo_fin'),
             municipio: v('municipio'),
-            ips_user_id: v('ips_user_id') || null,
-            ips_nombre_excel: v('ips_nombre_excel') || null,
-            regimen: v('regimen'),
-            indicador: v('indicador'),
+            prestador: v('prestador'),
+            codigo_habilitacion: v('codigo_habilitacion'),
+            cobertura: v('cobertura'),
+            id_vacuna: Number(v('id_vacuna') || 0),
             biologico: v('biologico'),
-            poblacion_programada_anual: Number(v('poblacion_programada_anual') || 0),
-            fuente: v('fuente') || null,
-            observaciones: v('observaciones') || null,
-            activo: v('activo') === '1'
+            dosis: v('dosis'),
+            regimen: v('regimen'),
+            poblacion: Number(v('poblacion') || 0)
         };
     }
 
-    document.getElementById('paiIndicForm').addEventListener('submit', function(e){
+    function applyFilters(){
+        const qs = new URLSearchParams();
+        qs.set('year', v('filterYear') || {{ (int) $defaultYear }});
+        if (v('filterMunicipio')) qs.set('municipio', v('filterMunicipio'));
+        if (v('filterPrestador')) qs.set('prestador', v('filterPrestador'));
+        if (v('filterCodigo')) qs.set('codigo_habilitacion', v('filterCodigo'));
+        fetch(routes.data + '?' + qs.toString(), { headers: { 'Accept': 'application/json' } })
+            .then(r => r.json())
+            .then(data => {
+                if (!data.ok) throw new Error('No se pudo cargar la tabla.');
+                draw(data.rows || []);
+                msg.textContent = 'Mostrando ' + (data.summary?.rows || 0) + ' registros.';
+            })
+            .catch(err => {
+                msg.textContent = err.message || 'Error cargando datos.';
+            });
+    }
+
+    document.getElementById('id_vacuna').addEventListener('change', function(){
+        set('biologico', biologicNameById(this.value));
+        syncBioPreview();
+    });
+
+    document.getElementById('biologico').addEventListener('input', syncBioPreview);
+
+    document.getElementById('paiMetaForm').addEventListener('submit', function(e){
         e.preventDefault();
         const id = v('id');
-        const isEdit = id !== '';
-        const url = isEdit ? (routes.updateBase + '/' + encodeURIComponent(id)) : routes.store;
-        const method = isEdit ? 'PUT' : 'POST';
+        const method = id ? 'PUT' : 'POST';
+        const url = id ? (routes.updateBase + '/' + encodeURIComponent(id)) : routes.store;
 
         msg.textContent = 'Guardando...';
         fetch(url, {
-            method,
+            method: method,
             headers: {
                 'Content-Type': 'application/json',
                 'X-CSRF-TOKEN': csrf,
@@ -358,12 +415,10 @@ Cobertura &gt; 1.00         -> Cobertura Optima</code></pre>
         })
         .then(async r => {
             const data = await r.json();
-            if (!r.ok || !data.ok) {
-                throw new Error(data.message || 'No se pudo guardar');
-            }
-            msg.textContent = data.message || 'Guardado';
+            if (!r.ok || !data.ok) throw new Error(data.message || 'No se pudo guardar.');
+            msg.textContent = data.message || 'Guardado.';
             clearForm();
-            load();
+            applyFilters();
         })
         .catch(err => {
             msg.textContent = err.message || 'Error guardando.';
@@ -371,73 +426,50 @@ Cobertura &gt; 1.00         -> Cobertura Optima</code></pre>
     });
 
     body.addEventListener('click', function(e){
-        const btnEdit = e.target.closest('.btn-edit');
-        const btnDel = e.target.closest('.btn-del');
-        if (btnEdit) {
-            const row = currentRows.find(x => String(x.id) === String(btnEdit.dataset.id));
-            if (row) {
-                fillForm(row);
-                msg.textContent = 'Editando ID #' + row.id;
-            }
+        const edit = e.target.closest('.btn-edit');
+        const del = e.target.closest('.btn-del');
+
+        if (edit) {
+            const row = currentRows.find(function(x){ return String(x.id) === String(edit.dataset.id); });
+            if (row) fillForm(row);
         }
-        if (btnDel) {
-            const id = btnDel.dataset.id;
-            if (!confirm('¿Eliminar este registro?')) return;
+
+        if (del) {
+            const id = del.dataset.id;
+            if (!confirm('Desea eliminar esta meta?')) return;
             fetch(routes.deleteBase + '/' + encodeURIComponent(id), {
                 method: 'DELETE',
                 headers: { 'X-CSRF-TOKEN': csrf, 'Accept': 'application/json' }
             })
             .then(async r => {
                 const data = await r.json();
-                if (!r.ok || !data.ok) throw new Error(data.message || 'No se pudo eliminar');
-                msg.textContent = data.message || 'Eliminado';
+                if (!r.ok || !data.ok) throw new Error(data.message || 'No se pudo eliminar.');
+                msg.textContent = data.message || 'Eliminado.';
                 if (v('id') === String(id)) clearForm();
-                load();
+                applyFilters();
             })
-            .catch(err => { msg.textContent = err.message || 'Error eliminando.'; });
+            .catch(err => {
+                msg.textContent = err.message || 'Error eliminando.';
+            });
         }
     });
 
-    document.getElementById('indicador').addEventListener('change', function(){
-        refreshBiologicoOptions('');
+    document.getElementById('btnClear').addEventListener('click', function(){
+        clearForm();
     });
 
-    document.getElementById('btnLimpiar').addEventListener('click', function(){ clearForm(); msg.textContent=''; });
-    document.getElementById('btnRefrescar').addEventListener('click', function(){ load(); });
-    document.getElementById('btnImportProgramacion').addEventListener('click', function(){
-        const year = Number(v('filterYear') || 2026);
-        if (!confirm('Se importara PROGRAMACION para la vigencia ' + year + '. Esto reemplazara los registros de esa vigencia en esta tabla. ¿Continuar?')) {
-            return;
-        }
-
-        msg.textContent = 'Importando programacion...';
-        fetch(routes.importProgramacion, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRF-TOKEN': csrf,
-                'Accept': 'application/json'
-            },
-            body: JSON.stringify({
-                vigencia: year,
-                replace_year: true
-            })
-        })
-        .then(async r => {
-            const data = await r.json();
-            if (!r.ok || !data.ok) {
-                throw new Error(data.message || 'No se pudo importar programacion');
-            }
-            const res = data.result || {};
-            msg.textContent = 'Importacion completada. Archivos: ' + (res.files_read || 0) + ', filas: ' + (res.rows_built || 0) + ', IPS sin homologar: ' + (res.unmatched_ips_count || 0);
-            load();
-        })
-        .catch(err => {
-            msg.textContent = err.message || 'Error importando programacion.';
-        });
+    document.getElementById('btnApplyFilters').addEventListener('click', function(){
+        applyFilters();
     });
-    clearForm();
-    load();
+
+    document.getElementById('btnReload').addEventListener('click', function(){
+        applyFilters();
+    });
+
+    set('periodo_inicio', '{{ data_get($defaultRows, '0.periodo_inicio', now()->format('Ym')) }}');
+    set('periodo_fin', '{{ data_get($defaultRows, '0.periodo_fin', now()->format('Ym')) }}');
+    syncBioPreview();
+    draw(initialRows);
 })();
 </script>
 @stop

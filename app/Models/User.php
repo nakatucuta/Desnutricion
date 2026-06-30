@@ -38,6 +38,7 @@ class User extends Authenticatable
         'password',
         'usertype',
         'codigohabilitacion',
+        'municipio',
         'profile_photo_path',
         'pref_iframe_mode',
         'force_password_change',

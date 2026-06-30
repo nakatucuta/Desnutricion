@@ -65,9 +65,11 @@ Route::get('/afiliado/data', [AfiliadoController::class, 'dataTable'])->name('af
 Route::get('/afiliado/load-state', [AfiliadoController::class, 'paiLoadState'])->name('afiliado.load-state')
 ->middleware('auth');
 Route::get('/afiliado/stats-dashboard', [AfiliadoController::class, 'statsDashboard'])->name('afiliado.stats.dashboard')
-->middleware('auth');
+  ->middleware('auth');
+Route::get('/afiliado/stats-dashboard/dosis-detalle', [AfiliadoController::class, 'statsDoseDetail'])->name('afiliado.stats.dose.detail')
+  ->middleware('auth');
 Route::get('/afiliado/estadisticas', [AfiliadoController::class, 'statsView'])->name('afiliado.stats.view')
-->middleware('auth');
+  ->middleware('auth');
 Route::get('/alteraciones-nutricionales/indicadores', [AlteracionesNutricionalesIndicadoresController::class, 'index'])
     ->name('alteraciones.nutricionales.indicadores')
     ->middleware(['auth', 'can:access-nutricional']);

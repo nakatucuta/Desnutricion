@@ -351,11 +351,7 @@ class AfiliadoController extends Controller
     public function statsDashboard(Request $request)
     {
         $this->applyReadOptimizations();
-
-        $year = (int) $request->input('year', (int) now()->year);
-        if ($year < 2000 || $year > 2100) {
-            $year = (int) now()->year;
-        }
+        return response()->json($this->paiBuildStatsDashboardPayloadByUserMunicipio($request));
 
         $catalogMunicipios = DB::table('vacunas as v')
             ->join('afiliados as a', 'a.id', '=', 'v.afiliado_id')
@@ -589,115 +585,1005 @@ class AfiliadoController extends Controller
         return view('livewire.afiliado_stats');
     }
 
-    public function paiIndicadoresIndex()
+    public function statsDoseDetail(Request $request)
     {
         $this->applyReadOptimizations();
 
-        $ips = DB::table('users')
-            ->select('id', 'name')
-            ->orderBy('name')
+        return response()->json($this->paiDoseDetailPayloadByUserMunicipio($request));
+    }
+
+    private function paiBuildStatsDashboardPayloadByUserMunicipio(Request $request): array
+    {
+        $year = (int) $request->input('year', (int) now()->year);
+        if ($year < 2000 || $year > 2100) {
+            $year = (int) now()->year;
+        }
+
+        $metaBaseQuery = DB::table('metas_vacunacion as m')
+            ->where('m.vigencia', $year)
+            ->whereRaw("LTRIM(RTRIM(ISNULL(m.codigo_habilitacion, ''))) <> ''");
+
+        $metaRowsByYear = (clone $metaBaseQuery)
+            ->select([
+                'm.id',
+                'm.vigencia',
+                'm.periodo_inicio',
+                'm.periodo_fin',
+                'm.municipio',
+                'm.prestador',
+                'm.codigo_habilitacion',
+                'm.cobertura',
+                'm.id_vacuna',
+                'm.biologico',
+                'm.dosis',
+                'm.regimen',
+                'm.poblacion',
+            ])
+            ->orderBy('m.municipio')
+            ->orderBy('m.prestador')
+            ->orderBy('m.regimen')
+            ->orderBy('m.cobertura')
+            ->orderBy('m.biologico')
+            ->orderBy('m.dosis')
             ->get();
 
-        $municipios = DB::table('afiliados')
-            ->whereNotNull('municipio_residencia')
-            ->whereRaw("LTRIM(RTRIM(municipio_residencia)) <> ''")
-            ->selectRaw("UPPER(LTRIM(RTRIM(municipio_residencia))) as municipio")
-            ->groupBy(DB::raw("UPPER(LTRIM(RTRIM(municipio_residencia)))"))
+        $usersBaseQuery = DB::table('users as u')
+            ->whereRaw("LTRIM(RTRIM(ISNULL(u.codigohabilitacion, ''))) <> ''");
+
+        $catalogMunicipios = (clone $usersBaseQuery)
+            ->selectRaw("UPPER(LTRIM(RTRIM(ISNULL(u.municipio, '')))) as municipio")
+            ->whereRaw("LTRIM(RTRIM(ISNULL(u.municipio, ''))) <> ''")
+            ->distinct()
             ->orderBy('municipio')
             ->pluck('municipio')
-            ->values();
+            ->values()
+            ->all();
 
-        $regimenes = DB::table('vacunas')
-            ->whereNotNull('regimen')
-            ->whereRaw("LTRIM(RTRIM(regimen)) <> ''")
-            ->selectRaw("UPPER(LTRIM(RTRIM(regimen))) as regimen")
-            ->groupBy(DB::raw("UPPER(LTRIM(RTRIM(regimen)))"))
+        if (empty($catalogMunicipios)) {
+            $catalogMunicipios = (clone $metaBaseQuery)
+                ->selectRaw("UPPER(LTRIM(RTRIM(ISNULL(m.municipio, '')))) as municipio")
+                ->whereRaw("LTRIM(RTRIM(ISNULL(m.municipio, ''))) <> ''")
+                ->distinct()
+                ->orderBy('municipio')
+                ->pluck('municipio')
+                ->values()
+                ->all();
+        }
+
+        $catalogRegimenes = (clone $metaBaseQuery)
+            ->selectRaw("UPPER(LTRIM(RTRIM(ISNULL(m.regimen, '')))) as regimen")
+            ->whereRaw("LTRIM(RTRIM(ISNULL(m.regimen, ''))) <> ''")
+            ->distinct()
             ->orderBy('regimen')
             ->pluck('regimen')
-            ->values();
+            ->values()
+            ->all();
 
-        $indicadoresCatalog = $this->paiIndicadoresCatalogRows()
-            ->map(function ($i) {
+        $usersCatalog = (clone $usersBaseQuery)
+            ->select([
+                'u.id',
+                'u.name',
+                'u.codigohabilitacion',
+                'u.municipio',
+            ])
+            ->orderBy('u.municipio')
+            ->orderBy('u.codigohabilitacion')
+            ->orderBy('u.name')
+            ->get();
+
+        $catalogIps = $usersCatalog
+            ->groupBy(function ($row) {
+                return $this->paiNormalizeText((string) ($row->municipio ?? '')) . '|' . $this->paiNormalizeText((string) ($row->codigohabilitacion ?? ''));
+            })
+            ->map(function ($rows, string $key) {
+                $first = $rows->first();
+                $municipio = $this->paiNormalizeText((string) ($first->municipio ?? ''));
+                $code = $this->paiNormalizeText((string) ($first->codigohabilitacion ?? ''));
+                $names = $rows->pluck('name')
+                    ->map(function ($name) {
+                        return $this->paiNormalizeIpsDisplayName((string) $name);
+                    })
+                    ->filter()
+                    ->unique()
+                    ->values();
+
+                $display = $names->first();
+                if ($display === null || $display === '') {
+                    $display = 'IPS ' . $code;
+                }
+
                 return [
-                    'indicador' => (string) $i['indicador'],
-                    'biologico' => (string) $i['biologico'],
+                    'key' => $key,
+                    'id' => (int) ($first->id ?? 0),
+                    'name' => $display . ($municipio !== '' ? ' - ' . $municipio : ''),
+                    'code' => $code,
+                    'municipio' => $municipio,
+                    'prestador' => $display,
+                    'users_count' => (int) $rows->count(),
+                    'user_ids' => $rows->pluck('id')->map(fn ($id) => (int) $id)->values()->all(),
+                    'names' => $names->all(),
                 ];
+            })
+            ->sortBy(function ($item) {
+                return ($item['municipio'] ?? '') . '|' . ($item['name'] ?? '');
+            })
+            ->values()
+            ->all();
+
+        $periodCatalog = $this->paiPeriodCatalog();
+        $escala = trim((string) $request->input('escala', 'Trimestral'));
+        if (!array_key_exists($escala, $periodCatalog)) {
+            $escala = 'Trimestral';
+        }
+
+        $periodo = trim((string) $request->input('periodo', ''));
+        $periodOptions = array_keys($periodCatalog[$escala] ?? []);
+        if ($periodo === '' || !in_array($periodo, $periodOptions, true)) {
+            $periodo = $periodOptions[0] ?? 'I Trimestre';
+        }
+
+        $periodRange = $this->paiStatsPeriodRange($year, $escala, $periodo);
+        $periodStart = $periodRange['start'];
+        $periodEnd = $periodRange['end'];
+        $months = $periodRange['months'];
+        $divisor = $this->paiStatsScaleDivisor($escala);
+
+        $municipio = mb_strtoupper(trim((string) $request->input('municipio', '')), 'UTF-8');
+        $ipsKey = trim((string) $request->input('ips_key', ''));
+        $regimen = mb_strtoupper(trim((string) $request->input('regimen', '')), 'UTF-8');
+        $hasExplicitMunicipio = $municipio !== '';
+        $hasExplicitIps = $ipsKey !== '';
+        $hasExplicitRegimen = $regimen !== '';
+
+        $defaultMeta = $metaRowsByYear->first() ?: (object) [
+            'municipio' => '',
+            'prestador' => '',
+            'codigo_habilitacion' => '',
+            'regimen' => '',
+            'periodo_inicio' => null,
+            'periodo_fin' => null,
+        ];
+
+        $selectedIps = null;
+        if ($ipsKey !== '') {
+            $selectedIps = collect($catalogIps)->firstWhere('key', $ipsKey);
+        }
+
+        if (!$selectedIps && $municipio !== '') {
+            $selectedIps = collect($catalogIps)
+                ->first(function ($item) use ($municipio) {
+                    return $this->paiNormalizeText((string) ($item['municipio'] ?? '')) === $municipio;
+                });
+        }
+
+        if (!$selectedIps && !$hasExplicitMunicipio && !$hasExplicitIps && !empty($catalogIps)) {
+            $selectedIps = $catalogIps[0];
+        }
+
+        $selectedMunicipio = $municipio !== ''
+            ? $municipio
+            : $this->paiNormalizeText((string) ($selectedIps['municipio'] ?? $defaultMeta->municipio ?? ''));
+
+        if ($selectedMunicipio === '' && !$hasExplicitMunicipio && !empty($catalogMunicipios)) {
+            $selectedMunicipio = (string) $catalogMunicipios[0];
+        }
+
+        if ($selectedIps && $selectedMunicipio !== '' && $this->paiNormalizeText((string) ($selectedIps['municipio'] ?? '')) !== $selectedMunicipio) {
+            $selectedIps = collect($catalogIps)
+                ->first(function ($item) use ($selectedMunicipio) {
+                    return $this->paiNormalizeText((string) ($item['municipio'] ?? '')) === $selectedMunicipio;
+                }) ?: $selectedIps;
+        }
+
+        $selectedRegimen = $regimen !== ''
+            ? $regimen
+            : $this->paiNormalizeText((string) ($defaultMeta->regimen ?? ''));
+
+        if ($selectedRegimen === '' && !$hasExplicitRegimen && !empty($catalogRegimenes)) {
+            $selectedRegimen = (string) $catalogRegimenes[0];
+        }
+
+        $selectedIpsCode = $this->paiNormalizeText((string) ($selectedIps['code'] ?? $defaultMeta->codigo_habilitacion ?? ''));
+
+        $selectedMetaRows = $metaRowsByYear
+            ->filter(function ($row) use ($selectedMunicipio, $selectedRegimen, $selectedIpsCode) {
+                return $this->paiNormalizeText((string) ($row->municipio ?? '')) === $selectedMunicipio
+                    && $this->paiNormalizeText((string) ($row->regimen ?? '')) === $selectedRegimen
+                    && $this->paiNormalizeText((string) ($row->codigo_habilitacion ?? '')) === $selectedIpsCode;
             })
             ->values();
 
-        return view('livewire.pai_indicadores_admin', [
-            'ips' => $ips,
-            'municipios' => $municipios,
-            'regimenes' => $regimenes,
-            'indicadoresCatalog' => $indicadoresCatalog,
-        ]);
+        if ($selectedMetaRows->isEmpty() && !$hasExplicitMunicipio && !$hasExplicitIps && !$hasExplicitRegimen && $metaRowsByYear->isNotEmpty()) {
+            $defaultMeta = $metaRowsByYear->first();
+            $selectedMunicipio = $this->paiNormalizeText((string) ($defaultMeta->municipio ?? ''));
+            $selectedRegimen = $this->paiNormalizeText((string) ($defaultMeta->regimen ?? ''));
+            $selectedIpsCode = $this->paiNormalizeText((string) ($defaultMeta->codigo_habilitacion ?? ''));
+            $selectedIps = collect($catalogIps)
+                ->first(function ($item) use ($selectedMunicipio, $selectedIpsCode) {
+                    return $this->paiNormalizeText((string) ($item['municipio'] ?? '')) === $selectedMunicipio
+                        && $this->paiNormalizeText((string) ($item['code'] ?? '')) === $selectedIpsCode;
+                }) ?: $selectedIps;
+
+            $selectedMetaRows = $metaRowsByYear
+                ->filter(function ($row) use ($selectedMunicipio, $selectedRegimen, $selectedIpsCode) {
+                    return $this->paiNormalizeText((string) ($row->municipio ?? '')) === $selectedMunicipio
+                        && $this->paiNormalizeText((string) ($row->regimen ?? '')) === $selectedRegimen
+                        && $this->paiNormalizeText((string) ($row->codigo_habilitacion ?? '')) === $selectedIpsCode;
+                })
+                ->values();
+        }
+
+        $metaPeriodStart = null;
+        $metaPeriodEnd = null;
+        $firstMeta = $selectedMetaRows->first();
+        if ($firstMeta) {
+            $metaPeriodStart = $this->paiYearMonthToCarbon((string) ($firstMeta->periodo_inicio ?? ''), false);
+            $metaPeriodEnd = $this->paiYearMonthToCarbon((string) ($firstMeta->periodo_fin ?? ''), true);
+        }
+
+        $evaluationStart = $periodStart->copy();
+        $evaluationEnd = $periodEnd->copy();
+        if ($metaPeriodStart instanceof Carbon && $metaPeriodStart->greaterThan($evaluationStart)) {
+            $evaluationStart = $metaPeriodStart->copy();
+        }
+        if ($metaPeriodEnd instanceof Carbon && $metaPeriodEnd->lessThan($evaluationEnd)) {
+            $evaluationEnd = $metaPeriodEnd->copy();
+        }
+
+        $appliedVaccines = collect();
+        if ($evaluationStart->lessThanOrEqualTo($evaluationEnd) && $selectedIpsCode !== '' && $selectedMunicipio !== '' && $selectedRegimen !== '') {
+            $appliedVaccines = DB::table('vacunas as v')
+                ->join('users as u', 'u.id', '=', 'v.user_id')
+                ->whereNotNull('v.fecha_vacuna')
+                ->whereBetween('v.fecha_vacuna', [$evaluationStart->format('Y-m-d'), $evaluationEnd->format('Y-m-d')])
+                ->whereRaw("UPPER(LTRIM(RTRIM(ISNULL(u.codigohabilitacion, '')))) = ?", [$selectedIpsCode])
+                ->whereRaw("UPPER(LTRIM(RTRIM(ISNULL(u.municipio, '')))) = ?", [$selectedMunicipio])
+                ->whereRaw("UPPER(LTRIM(RTRIM(ISNULL(v.regimen, '')))) = ?", [$selectedRegimen])
+                ->select([
+                    'v.id',
+                    'v.vacunas_id',
+                    'v.docis',
+                    'v.fecha_vacuna',
+                    'u.id as user_id',
+                    'u.codigohabilitacion',
+                    'u.municipio',
+                    'v.regimen',
+                ])
+                ->get();
+        }
+
+        $rows = [];
+        foreach ($selectedMetaRows as $meta) {
+            $annualPopulation = (int) ($meta->poblacion ?? 0);
+            $metaPeriodo = (int) round($annualPopulation / max($divisor, 1));
+
+            $dosisAplicadas = $appliedVaccines->filter(function ($vacuna) use ($meta) {
+                if ((int) ($vacuna->vacunas_id ?? 0) !== (int) ($meta->id_vacuna ?? 0)) {
+                    return false;
+                }
+
+                return $this->paiMetaDoseMatches((string) ($meta->dosis ?? ''), $vacuna->docis);
+            })->count();
+
+            $susceptibles = max($metaPeriodo - $dosisAplicadas, 0);
+            $cobertura = $metaPeriodo > 0 ? ($dosisAplicadas / $metaPeriodo) : 0.0;
+
+            $rows[] = [
+                'indicador' => (string) ($meta->cobertura ?? ''),
+                'biologico' => (string) ($meta->biologico ?? ''),
+                'meta' => $metaPeriodo,
+                'dosis_aplicadas' => (int) $dosisAplicadas,
+                'susceptibles' => (int) $susceptibles,
+                'cobertura' => (float) $cobertura,
+                'estado' => $this->paiCoverageState($cobertura),
+                'codigo_habilitacion' => (string) ($meta->codigo_habilitacion ?? ''),
+                'id_vacuna' => (int) ($meta->id_vacuna ?? 0),
+                'dosis_meta' => (string) ($meta->dosis ?? ''),
+                'periodo_inicio' => (string) ($meta->periodo_inicio ?? ''),
+                'periodo_fin' => (string) ($meta->periodo_fin ?? ''),
+                'prestador' => (string) ($meta->prestador ?? ''),
+                'regimen' => (string) ($meta->regimen ?? ''),
+                'poblacion_anual' => $annualPopulation,
+            ];
+        }
+
+        return [
+            'ok' => true,
+            'filters' => [
+                'year' => $year,
+                'municipio' => $selectedMunicipio,
+                'ips_id' => (int) ($selectedIps['id'] ?? 0),
+                'ips_key' => (string) ($selectedIps['key'] ?? $ipsKey),
+                'regimen' => $selectedRegimen,
+                'escala' => $escala,
+                'periodo' => $periodo,
+            ],
+            'catalogs' => [
+                'municipios' => $catalogMunicipios,
+                'ips' => $catalogIps,
+                'regimenes' => $catalogRegimenes,
+                'escalas' => array_keys($periodCatalog),
+                'periodos' => $periodCatalog,
+            ],
+            'period' => [
+                'months' => $months,
+                'month_labels' => array_map(function ($m) {
+                    return $this->paiMonthName((int) $m);
+                }, $months),
+                'start_date' => $periodStart->format('Y-m-d'),
+                'end_date' => $periodEnd->format('Y-m-d'),
+            ],
+            'meta_period' => [
+                'start_date' => $metaPeriodStart instanceof Carbon ? $metaPeriodStart->format('Y-m-d') : null,
+                'end_date' => $metaPeriodEnd instanceof Carbon ? $metaPeriodEnd->format('Y-m-d') : null,
+                'start_code' => (string) ($firstMeta->periodo_inicio ?? ''),
+                'end_code' => (string) ($firstMeta->periodo_fin ?? ''),
+            ],
+            'evaluation_period' => [
+                'start_date' => $evaluationStart->format('Y-m-d'),
+                'end_date' => $evaluationEnd->format('Y-m-d'),
+            ],
+            'thresholds' => [
+                'optima' => '>100%',
+                'util' => '95.0% - 100%',
+                'bajo_riesgo' => '90.0% - 94.9%',
+                'no_util' => '80.0% - 89.9%',
+                'critica' => '50.0% - 79.9%',
+                'muy_critica' => '<=50%',
+                'sin_reporte' => '0',
+            ],
+            'rows' => $rows,
+            'totals' => [
+                'meta' => (int) collect($rows)->sum('meta'),
+                'dosis_aplicadas' => (int) collect($rows)->sum('dosis_aplicadas'),
+                'susceptibles' => (int) collect($rows)->sum('susceptibles'),
+            ],
+            'flags' => [
+                'combo_has_data' => $selectedMetaRows->isNotEmpty(),
+                'combo_count' => (int) $appliedVaccines->count(),
+                'meta_source' => 'metas_vacunacion + vacunas + users.codigohabilitacion + users.municipio',
+                'meta_source_file' => 'metas_vacunacion',
+            ],
+            'generated_at' => now()->format('Y-m-d H:i:s'),
+        ];
+    }
+
+    private function paiDoseDetailPayloadByUserMunicipio(Request $request): array
+    {
+        $year = (int) $request->input('year', (int) now()->year);
+        if ($year < 2000 || $year > 2100) {
+            $year = (int) now()->year;
+        }
+
+        $municipio = mb_strtoupper(trim((string) $request->input('municipio', '')), 'UTF-8');
+        $ipsKey = trim((string) $request->input('ips_key', ''));
+        $regimen = mb_strtoupper(trim((string) $request->input('regimen', '')), 'UTF-8');
+        $idVacuna = (int) $request->input('id_vacuna', 0);
+        $dosisMeta = trim((string) $request->input('dosis_meta', ''));
+        $periodStartInput = trim((string) $request->input('period_start', ''));
+        $periodEndInput = trim((string) $request->input('period_end', ''));
+        $escala = trim((string) $request->input('escala', 'Trimestral'));
+        $periodo = trim((string) $request->input('periodo', 'I Trimestre'));
+        [$ipsMunicipioKey, $ipsCodeKey] = array_pad(explode('|', $ipsKey, 2), 2, '');
+        $ipsCodeKey = trim((string) $ipsCodeKey);
+        if ($ipsCodeKey === '') {
+            $ipsCodeKey = $ipsKey;
+        }
+
+        if ($municipio === '' || $ipsCodeKey === '' || $regimen === '' || $idVacuna <= 0) {
+            return [
+                'ok' => false,
+                'message' => 'Faltan filtros para consultar el detalle.',
+                'rows' => [],
+            ];
+        }
+
+        $periodStart = $periodStartInput !== '' ? Carbon::parse($periodStartInput)->startOfDay() : null;
+        $periodEnd = $periodEndInput !== '' ? Carbon::parse($periodEndInput)->endOfDay() : null;
+        if (!$periodStart || !$periodEnd) {
+            $periodRange = $this->paiStatsPeriodRange($year, $escala, $periodo);
+            $periodStart = $periodRange['start']->copy()->startOfDay();
+            $periodEnd = $periodRange['end']->copy()->endOfDay();
+        }
+
+        $ipsRow = DB::table('users as u')
+            ->whereRaw("UPPER(LTRIM(RTRIM(ISNULL(u.codigohabilitacion, '')))) = ?", [mb_strtoupper(trim($ipsCodeKey), 'UTF-8')])
+            ->whereRaw("UPPER(LTRIM(RTRIM(ISNULL(u.municipio, '')))) = ?", [$municipio])
+            ->select(['u.id', 'u.name', 'u.codigohabilitacion', 'u.municipio'])
+            ->first();
+
+        if (!$ipsRow) {
+            return [
+                'ok' => false,
+                'message' => 'No se encontro el prestador para el detalle solicitado.',
+                'rows' => [],
+            ];
+        }
+
+        $rows = DB::table('vacunas as v')
+            ->join('users as u', 'u.id', '=', 'v.user_id')
+            ->leftJoin('afiliados as a', 'a.id', '=', 'v.afiliado_id')
+            ->leftJoin('referencia_vacunas as rv', 'rv.id', '=', 'v.vacunas_id')
+            ->whereBetween('v.fecha_vacuna', [$periodStart->format('Y-m-d'), $periodEnd->format('Y-m-d')])
+            ->whereRaw("UPPER(LTRIM(RTRIM(ISNULL(u.codigohabilitacion, '')))) = ?", [mb_strtoupper(trim((string) $ipsRow->codigohabilitacion), 'UTF-8')])
+            ->whereRaw("UPPER(LTRIM(RTRIM(ISNULL(u.municipio, '')))) = ?", [$municipio])
+            ->whereRaw("UPPER(LTRIM(RTRIM(ISNULL(v.regimen, '')))) = ?", [$regimen])
+            ->where('v.vacunas_id', $idVacuna)
+            ->select([
+                'v.id as vacuna_id',
+                'v.fecha_vacuna',
+                'v.docis',
+                'v.docis_original',
+                'rv.nombre as vacuna_nombre',
+                'a.tipo_identificacion',
+                'a.numero_identificacion',
+                'a.primer_nombre',
+                'a.segundo_nombre',
+                'a.primer_apellido',
+                'a.segundo_apellido',
+            ])
+            ->orderBy('v.fecha_vacuna')
+            ->get()
+            ->filter(function ($row) use ($dosisMeta) {
+                return $this->paiMetaDoseMatches($dosisMeta, (string) ($row->docis ?? $row->docis_original ?? ''));
+            })
+            ->map(function ($row) {
+                $nombre = trim(implode(' ', array_filter([
+                    (string) ($row->primer_nombre ?? ''),
+                    (string) ($row->segundo_nombre ?? ''),
+                    (string) ($row->primer_apellido ?? ''),
+                    (string) ($row->segundo_apellido ?? ''),
+                ])));
+
+                return [
+                    'vacuna_id' => (int) ($row->vacuna_id ?? 0),
+                    'nombre' => $nombre !== '' ? $nombre : 'Sin nombre',
+                    'tipo_identificacion' => (string) ($row->tipo_identificacion ?? ''),
+                    'numero_identificacion' => (string) ($row->numero_identificacion ?? ''),
+                    'vacuna' => (string) ($row->vacuna_nombre ?? ''),
+                    'docis' => (string) ($row->docis ?? ($row->docis_original ?? '')),
+                    'fecha_vacuna' => $row->fecha_vacuna ? Carbon::parse($row->fecha_vacuna)->format('Y-m-d') : '',
+                ];
+            })
+            ->values()
+            ->all();
+
+        return [
+            'ok' => true,
+            'filters' => [
+                'year' => $year,
+                'municipio' => $municipio,
+                'ips_key' => $ipsKey,
+                'regimen' => $regimen,
+                'id_vacuna' => $idVacuna,
+                'period_start' => $periodStart->format('Y-m-d'),
+                'period_end' => $periodEnd->format('Y-m-d'),
+            ],
+            'ips' => [
+                'name' => (string) ($ipsRow->name ?? ''),
+                'code' => (string) ($ipsRow->codigohabilitacion ?? ''),
+                'municipio' => (string) ($ipsRow->municipio ?? ''),
+            ],
+            'rows' => $rows,
+            'total' => count($rows),
+        ];
+    }
+
+    private function paiStatsScaleDivisor(string $escala): int
+    {
+        return match ($escala) {
+            'Mensual' => 12,
+            'Bimensual' => 6,
+            'Trimestral' => 4,
+            'Semestral' => 2,
+            default => 4,
+        };
+    }
+
+    private function paiStatsPeriodRange(int $year, string $escala, string $periodo): array
+    {
+        $catalog = $this->paiPeriodCatalog();
+        $months = $catalog[$escala][$periodo] ?? [];
+
+        if (empty($months)) {
+            $escala = 'Trimestral';
+            $periodo = 'I Trimestre';
+            $months = $catalog[$escala][$periodo] ?? [1, 2, 3];
+        }
+
+        $start = Carbon::create($year, (int) min($months), 1)->startOfMonth();
+        $end = Carbon::create($year, (int) max($months), 1)->endOfMonth();
+
+        return [
+            'escala' => $escala,
+            'periodo' => $periodo,
+            'months' => $months,
+            'start' => $start,
+            'end' => $end,
+        ];
+    }
+
+    private function paiYearMonthToCarbon(string $yearMonth, bool $endOfMonth = false): ?Carbon
+    {
+        $digits = preg_replace('/\D+/', '', trim($yearMonth));
+        if (strlen($digits) !== 6) {
+            return null;
+        }
+
+        try {
+            $date = Carbon::createFromFormat('Ym', $digits);
+            return $endOfMonth ? $date->copy()->endOfMonth() : $date->copy()->startOfMonth();
+        } catch (\Throwable $e) {
+            return null;
+        }
+    }
+
+    private function paiMetaDoseMatches(string $expectedDose, ?string $actualDose): bool
+    {
+        $expected = $this->paiNormalizeText($expectedDose);
+        if ($expected === '' || $expected === 'TODAS') {
+            return true;
+        }
+
+        $actual = $this->paiNormalizeText((string) $actualDose);
+        if ($actual === '') {
+            return false;
+        }
+
+        if ($expected === $actual || Str::contains($actual, $expected)) {
+            return true;
+        }
+
+        $patterns = [
+            'UNICA' => ['UNICA', 'DOSIS UNICA'],
+            'RECIEN NACIDO' => ['RECIEN NACIDO', 'RECEN NACIDO'],
+            'PRIMERA DOSIS' => ['PRIMERA DOSIS', '1RA DOSIS', '1A DOSIS', 'PRIMERA'],
+            'SEGUNDA DOSIS' => ['SEGUNDA DOSIS', '2DA DOSIS', '2A DOSIS', 'SEGUNDA'],
+            'TERCERA DOSIS' => ['TERCERA DOSIS', '3RA DOSIS', '3ER DOSIS', 'TERCERA'],
+            'PRIMER REFUERZO' => ['PRIMER REFUERZO', '1ER REFUERZO', '1RO REFUERZO'],
+            'SEGUNDO REFUERZO' => ['SEGUNDO REFUERZO', '2DO REFUERZO'],
+            'REFUERZO' => ['REFUERZO'],
+        ];
+
+        foreach ($patterns[$expected] ?? [$expected] as $needle) {
+            if ($needle !== '' && Str::contains($actual, $this->paiNormalizeText($needle))) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private function paiNormalizeIpsDisplayName(string $value): string
+    {
+        $text = trim($value);
+        if ($text === '') {
+            return '';
+        }
+
+        $text = preg_replace('/(?:[_\s-]*ges)$/i', '', $text) ?? $text;
+        $text = rtrim($text, " _-");
+        $text = preg_replace('/\s+/u', ' ', $text) ?? $text;
+
+        return trim($text);
+    }
+
+    private function paiBuildStatsDashboardPayload(Request $request): array
+    {
+        $year = (int) $request->input('year', (int) now()->year);
+        if ($year < 2000 || $year > 2100) {
+            $year = (int) now()->year;
+        }
+
+        $metaBaseQuery = DB::table('metas_vacunacion as m')
+            ->where('m.vigencia', $year)
+            ->whereRaw("LTRIM(RTRIM(ISNULL(m.codigo_habilitacion, ''))) <> ''");
+
+        $catalogMunicipios = (clone $metaBaseQuery)
+            ->selectRaw("UPPER(LTRIM(RTRIM(ISNULL(m.municipio, '')))) as municipio")
+            ->whereRaw("LTRIM(RTRIM(ISNULL(m.municipio, ''))) <> ''")
+            ->distinct()
+            ->orderBy('municipio')
+            ->pluck('municipio')
+            ->values()
+            ->all();
+
+        $catalogRegimenes = (clone $metaBaseQuery)
+            ->selectRaw("UPPER(LTRIM(RTRIM(ISNULL(m.regimen, '')))) as regimen")
+            ->whereRaw("LTRIM(RTRIM(ISNULL(m.regimen, ''))) <> ''")
+            ->distinct()
+            ->orderBy('regimen')
+            ->pluck('regimen')
+            ->values()
+            ->all();
+
+        $metaRowsByYear = (clone $metaBaseQuery)
+            ->select([
+                'm.id',
+                'm.vigencia',
+                'm.periodo_inicio',
+                'm.periodo_fin',
+                'm.municipio',
+                'm.prestador',
+                'm.codigo_habilitacion',
+                'm.cobertura',
+                'm.id_vacuna',
+                'm.biologico',
+                'm.dosis',
+                'm.regimen',
+                'm.poblacion',
+            ])
+            ->orderBy('m.municipio')
+            ->orderBy('m.prestador')
+            ->orderBy('m.regimen')
+            ->orderBy('m.cobertura')
+            ->orderBy('m.biologico')
+            ->orderBy('m.dosis')
+            ->get();
+
+        $catalogIps = $metaRowsByYear
+            ->groupBy(function ($row) {
+                $mun = $this->paiNormalizeText((string) ($row->municipio ?? ''));
+                $code = $this->paiNormalizeText((string) ($row->codigo_habilitacion ?? ''));
+                $prestador = $this->paiNormalizeIpsDisplayName((string) ($row->prestador ?? ''));
+                return implode('|', [$mun, $code, $prestador]);
+            })
+            ->map(function ($rows, string $key) {
+                $first = $rows->first();
+                $municipio = $this->paiNormalizeText((string) ($first->municipio ?? ''));
+                $code = $this->paiNormalizeText((string) ($first->codigo_habilitacion ?? ''));
+                $prestador = $this->paiNormalizeIpsDisplayName((string) ($first->prestador ?? ''));
+                $display = trim($prestador !== '' ? $prestador : (string) ($first->prestador ?? ''));
+                if ($display === '') {
+                    $display = 'IPS '.$code;
+                }
+
+                return [
+                    'key' => $key,
+                    'id' => (int) ($first->id ?? 0),
+                    'name' => $display.' - '.$municipio,
+                    'code' => $code,
+                    'municipio' => $municipio,
+                    'prestador' => $prestador,
+                    'users_count' => 0,
+                    'user_ids' => [],
+                    'names' => [],
+                ];
+            })
+            ->sortBy(function ($item) {
+                return ($item['municipio'] ?? '').'|'.($item['name'] ?? '');
+            })
+            ->values()
+            ->all();
+
+        $periodCatalog = $this->paiPeriodCatalog();
+        $escala = trim((string) $request->input('escala', 'Trimestral'));
+        if (!array_key_exists($escala, $periodCatalog)) {
+            $escala = 'Trimestral';
+        }
+
+        $periodo = trim((string) $request->input('periodo', ''));
+        $periodOptions = array_keys($periodCatalog[$escala] ?? []);
+        if ($periodo === '' || !in_array($periodo, $periodOptions, true)) {
+            $periodo = $periodOptions[0] ?? 'I Trimestre';
+        }
+
+        $periodRange = $this->paiStatsPeriodRange($year, $escala, $periodo);
+        $periodStart = $periodRange['start'];
+        $periodEnd = $periodRange['end'];
+        $months = $periodRange['months'];
+        $divisor = $this->paiStatsScaleDivisor($escala);
+
+        $municipio = mb_strtoupper(trim((string) $request->input('municipio', '')), 'UTF-8');
+        $ipsKey = trim((string) $request->input('ips_key', ''));
+        $ipsId = (int) $request->input('ips_id', 0);
+        $regimen = mb_strtoupper(trim((string) $request->input('regimen', '')), 'UTF-8');
+
+        $selectedIps = null;
+        if ($ipsKey !== '') {
+            $selectedIps = collect($catalogIps)->firstWhere('key', $ipsKey);
+        }
+        if (!$selectedIps && $ipsId > 0) {
+            $selectedIps = collect($catalogIps)->firstWhere('id', $ipsId);
+        }
+
+        $defaultMeta = $metaRowsByYear->first() ?: (object) [
+            'municipio' => '',
+            'prestador' => '',
+            'codigo_habilitacion' => '',
+            'regimen' => '',
+            'periodo_inicio' => null,
+            'periodo_fin' => null,
+        ];
+
+        $selectedMunicipio = $municipio !== ''
+            ? $municipio
+            : $this->paiNormalizeText((string) ($defaultMeta->municipio ?? ''));
+        $selectedRegimen = $regimen !== ''
+            ? $regimen
+            : $this->paiNormalizeText((string) ($defaultMeta->regimen ?? ''));
+        $selectedIpsCode = $selectedIps['code'] ?? $this->paiNormalizeText((string) ($defaultMeta->codigo_habilitacion ?? ''));
+        if ($selectedIps && $selectedMunicipio !== '' && $this->paiNormalizeText((string) ($selectedIps['municipio'] ?? '')) !== $selectedMunicipio) {
+            $selectedIps = null;
+            $selectedIpsCode = $this->paiNormalizeText((string) ($defaultMeta->codigo_habilitacion ?? ''));
+        }
+        if ($selectedMunicipio !== '' && !$selectedIps) {
+            $selectedIps = collect($catalogIps)
+                ->first(function ($item) use ($selectedMunicipio) {
+                    return $this->paiNormalizeText((string) ($item['municipio'] ?? '')) === $selectedMunicipio;
+                });
+            if ($selectedIps) {
+                $selectedIpsCode = (string) ($selectedIps['code'] ?? '');
+                $ipsKey = (string) ($selectedIps['key'] ?? '');
+            }
+        }
+
+        $selectedMetaRows = $metaRowsByYear
+            ->filter(function ($row) use ($selectedMunicipio, $selectedRegimen, $selectedIpsCode) {
+                return $this->paiNormalizeText((string) ($row->municipio ?? '')) === $selectedMunicipio
+                    && $this->paiNormalizeText((string) ($row->regimen ?? '')) === $selectedRegimen
+                    && $this->paiNormalizeText((string) ($row->codigo_habilitacion ?? '')) === $selectedIpsCode;
+            })
+            ->values();
+
+        if ($selectedMetaRows->isEmpty() && $metaRowsByYear->isNotEmpty()) {
+            $defaultMeta = $metaRowsByYear->first();
+            $selectedMunicipio = $this->paiNormalizeText((string) ($defaultMeta->municipio ?? ''));
+            $selectedRegimen = $this->paiNormalizeText((string) ($defaultMeta->regimen ?? ''));
+            $selectedIpsCode = $this->paiNormalizeText((string) ($defaultMeta->codigo_habilitacion ?? ''));
+            $selectedMetaRows = $metaRowsByYear
+                ->filter(function ($row) use ($selectedMunicipio, $selectedRegimen, $selectedIpsCode) {
+                    return $this->paiNormalizeText((string) ($row->municipio ?? '')) === $selectedMunicipio
+                        && $this->paiNormalizeText((string) ($row->regimen ?? '')) === $selectedRegimen
+                        && $this->paiNormalizeText((string) ($row->codigo_habilitacion ?? '')) === $selectedIpsCode;
+                })
+                ->values();
+        }
+
+        $metaPeriodStart = null;
+        $metaPeriodEnd = null;
+        $firstMeta = $selectedMetaRows->first();
+        if ($firstMeta) {
+            $metaPeriodStart = $this->paiYearMonthToCarbon((string) ($firstMeta->periodo_inicio ?? ''), false);
+            $metaPeriodEnd = $this->paiYearMonthToCarbon((string) ($firstMeta->periodo_fin ?? ''), true);
+        }
+
+        $evaluationStart = $periodStart->copy();
+        $evaluationEnd = $periodEnd->copy();
+        if ($metaPeriodStart instanceof Carbon && $metaPeriodStart->greaterThan($evaluationStart)) {
+            $evaluationStart = $metaPeriodStart->copy();
+        }
+        if ($metaPeriodEnd instanceof Carbon && $metaPeriodEnd->lessThan($evaluationEnd)) {
+            $evaluationEnd = $metaPeriodEnd->copy();
+        }
+
+        $appliedVaccines = collect();
+        if ($evaluationStart->lessThanOrEqualTo($evaluationEnd) && $selectedIpsCode !== '' && $selectedMunicipio !== '' && $selectedRegimen !== '') {
+            $appliedVaccines = DB::table('vacunas as v')
+                ->join('users as u', 'u.id', '=', 'v.user_id')
+                ->join('afiliados as a', 'a.id', '=', 'v.afiliado_id')
+                ->whereNotNull('v.fecha_vacuna')
+                ->whereBetween('v.fecha_vacuna', [$evaluationStart->format('Y-m-d'), $evaluationEnd->format('Y-m-d')])
+                ->whereRaw("UPPER(LTRIM(RTRIM(ISNULL(u.codigohabilitacion, '')))) = ?", [$selectedIpsCode])
+                ->whereRaw("UPPER(LTRIM(RTRIM(ISNULL(a.municipio_residencia, '')))) = ?", [$selectedMunicipio])
+                ->whereRaw("UPPER(LTRIM(RTRIM(ISNULL(v.regimen, '')))) = ?", [$selectedRegimen])
+                ->select([
+                    'v.id',
+                    'v.vacunas_id',
+                    'v.docis',
+                    'v.fecha_vacuna',
+                    'u.id as user_id',
+                    'u.codigohabilitacion',
+                    'a.municipio_residencia',
+                    'v.regimen',
+                ])
+                ->get();
+        }
+
+        $rows = [];
+        foreach ($selectedMetaRows as $meta) {
+            $annualPopulation = (int) ($meta->poblacion ?? 0);
+            $metaPeriodo = (int) round($annualPopulation / max($divisor, 1));
+
+            $dosisAplicadas = $appliedVaccines->filter(function ($vacuna) use ($meta) {
+                if ((int) ($vacuna->vacunas_id ?? 0) !== (int) ($meta->id_vacuna ?? 0)) {
+                    return false;
+                }
+
+                return $this->paiMetaDoseMatches((string) ($meta->dosis ?? ''), $vacuna->docis);
+            })->count();
+
+            $susceptibles = max($metaPeriodo - $dosisAplicadas, 0);
+            $cobertura = $metaPeriodo > 0 ? ($dosisAplicadas / $metaPeriodo) : 0.0;
+
+            $rows[] = [
+                'indicador' => (string) ($meta->cobertura ?? ''),
+                'biologico' => (string) ($meta->biologico ?? ''),
+                'meta' => $metaPeriodo,
+                'dosis_aplicadas' => (int) $dosisAplicadas,
+                'susceptibles' => (int) $susceptibles,
+                'cobertura' => (float) $cobertura,
+                'estado' => $this->paiCoverageState($cobertura),
+                'codigo_habilitacion' => (string) ($meta->codigo_habilitacion ?? ''),
+                'dosis_meta' => (string) ($meta->dosis ?? ''),
+                'periodo_inicio' => (string) ($meta->periodo_inicio ?? ''),
+                'periodo_fin' => (string) ($meta->periodo_fin ?? ''),
+                'prestador' => (string) ($meta->prestador ?? ''),
+                'regimen' => (string) ($meta->regimen ?? ''),
+                'poblacion_anual' => $annualPopulation,
+            ];
+        }
+
+        return [
+            'ok' => true,
+            'filters' => [
+                'year' => $year,
+                'municipio' => $selectedMunicipio,
+                'ips_id' => $selectedIps['id'] ?? $ipsId,
+                'ips_key' => (string) ($selectedIps['key'] ?? $ipsKey),
+                'regimen' => $selectedRegimen,
+                'escala' => $escala,
+                'periodo' => $periodo,
+            ],
+            'catalogs' => [
+                'municipios' => $catalogMunicipios,
+                'ips' => $catalogIps,
+                'regimenes' => $catalogRegimenes,
+                'escalas' => array_keys($periodCatalog),
+                'periodos' => $periodCatalog,
+            ],
+            'period' => [
+                'months' => $months,
+                'month_labels' => array_map(function ($m) {
+                    return $this->paiMonthName((int) $m);
+                }, $months),
+                'start_date' => $periodStart->format('Y-m-d'),
+                'end_date' => $periodEnd->format('Y-m-d'),
+            ],
+            'meta_period' => [
+                'start_date' => $metaPeriodStart instanceof Carbon ? $metaPeriodStart->format('Y-m-d') : null,
+                'end_date' => $metaPeriodEnd instanceof Carbon ? $metaPeriodEnd->format('Y-m-d') : null,
+                'start_code' => (string) ($firstMeta->periodo_inicio ?? ''),
+                'end_code' => (string) ($firstMeta->periodo_fin ?? ''),
+            ],
+            'evaluation_period' => [
+                'start_date' => $evaluationStart->format('Y-m-d'),
+                'end_date' => $evaluationEnd->format('Y-m-d'),
+            ],
+            'thresholds' => [
+                'optima' => '>100%',
+                'util' => '95.0% - 100%',
+                'bajo_riesgo' => '90.0% - 94.9%',
+                'no_util' => '80.0% - 89.9%',
+                'critica' => '50.0% - 79.9%',
+                'muy_critica' => '<=50%',
+                'sin_reporte' => '0',
+            ],
+            'rows' => $rows,
+            'totals' => [
+                'meta' => (int) collect($rows)->sum('meta'),
+                'dosis_aplicadas' => (int) collect($rows)->sum('dosis_aplicadas'),
+                'susceptibles' => (int) collect($rows)->sum('susceptibles'),
+            ],
+            'flags' => [
+                'combo_has_data' => $selectedMetaRows->isNotEmpty(),
+                'combo_count' => (int) $appliedVaccines->count(),
+                'meta_source' => 'metas_vacunacion + vacunas + users.codigohabilitacion',
+                'meta_source_file' => 'metas_vacunacion',
+            ],
+            'generated_at' => now()->format('Y-m-d H:i:s'),
+        ];
+    }
+
+    public function paiIndicadoresIndex(Request $request)
+    {
+        $this->applyReadOptimizations();
+        $year = (int) $request->input('year', (int) now()->year);
+        if ($year < 2000 || $year > 2100) {
+            $year = (int) now()->year;
+        }
+
+        [$rows, $catalogs, $summary] = $this->paiMetasVacunacionCatalogPayload($year);
+
+        return view('livewire.pai_indicadores_admin', array_merge($catalogs, [
+            'summary' => $summary,
+            'defaultYear' => $year,
+            'defaultRows' => $rows,
+        ]));
     }
 
     public function paiIndicadoresData(Request $request)
     {
         $this->applyReadOptimizations();
 
-        $year = (int) $request->input('year', 2026);
-        $query = PaiProgramacionMeta::query()
-            ->from('pai_programacion_metas as p')
-            ->leftJoin('users as u', 'u.id', '=', 'p.ips_user_id')
-            ->join('pai_indicadores_catalogo as c', 'c.id', '=', 'p.indicador_catalogo_id')
-            ->where('p.vigencia', $year)
+        $year = (int) $request->input('year', (int) now()->year);
+        if ($year < 2000 || $year > 2100) {
+            $year = (int) now()->year;
+        }
+
+        $query = DB::table('metas_vacunacion as m')
+            ->where('m.vigencia', $year)
             ->select([
-                'p.id',
-                'p.vigencia',
-                'p.municipio',
-                'p.ips_user_id',
-                'u.name as ips_name',
-                'p.ips_nombre_fuente as ips_nombre_excel',
-                'p.regimen',
-                'c.indicador',
-                'c.biologico',
-                'p.poblacion_programada_anual',
-                'p.fuente_tipo as fuente',
-                'p.observaciones',
-                'p.activo',
-                'p.updated_at',
+                'm.id',
+                'm.vigencia',
+                'm.periodo_inicio',
+                'm.periodo_fin',
+                'm.municipio',
+                'm.prestador',
+                'm.codigo_habilitacion',
+                'm.cobertura',
+                'm.id_vacuna',
+                'rv.nombre as referencia_nombre',
+                'm.biologico',
+                'm.dosis',
+                'm.regimen',
+                'm.poblacion',
             ])
-            ->orderBy('p.municipio')
-            ->orderBy('u.name')
-            ->orderBy('c.indicador')
-            ->orderBy('c.biologico');
+            ->leftJoin('referencia_vacunas as rv', 'rv.id', '=', 'm.id_vacuna');
 
         if (trim((string) $request->input('municipio', '')) !== '') {
             $municipio = $this->paiNormalizeText($request->input('municipio'));
-            $query->whereRaw("UPPER(LTRIM(RTRIM(p.municipio))) = ?", [$municipio]);
+            $query->whereRaw("UPPER(LTRIM(RTRIM(m.municipio))) = ?", [$municipio]);
         }
 
-        if ((int) $request->input('ips_user_id', 0) > 0) {
-            $query->where('p.ips_user_id', (int) $request->input('ips_user_id'));
+        if (trim((string) $request->input('prestador', '')) !== '') {
+            $prestador = $this->paiNormalizeText($request->input('prestador'));
+            $query->whereRaw("UPPER(LTRIM(RTRIM(m.prestador))) = ?", [$prestador]);
         }
 
         if (trim((string) $request->input('regimen', '')) !== '') {
             $regimen = $this->paiNormalizeText($request->input('regimen'));
-            $query->whereRaw("UPPER(LTRIM(RTRIM(p.regimen))) = ?", [$regimen]);
+            $query->whereRaw("UPPER(LTRIM(RTRIM(m.regimen))) = ?", [$regimen]);
         }
 
-        return response()->json([
-            'ok' => true,
-            'rows' => $query->get()->map(function ($r) {
+        if (trim((string) $request->input('codigo_habilitacion', '')) !== '') {
+            $codigo = $this->paiNormalizeText($request->input('codigo_habilitacion'));
+            $query->whereRaw("UPPER(LTRIM(RTRIM(m.codigo_habilitacion))) = ?", [$codigo]);
+        }
+
+        if (trim((string) $request->input('cobertura', '')) !== '') {
+            $cobertura = $this->paiNormalizeText($request->input('cobertura'));
+            $query->whereRaw("UPPER(LTRIM(RTRIM(m.cobertura))) LIKE ?", ['%'.$cobertura.'%']);
+        }
+
+        $rows = $query
+            ->orderBy('m.municipio')
+            ->orderBy('m.prestador')
+            ->orderBy('m.regimen')
+            ->orderBy('m.cobertura')
+            ->orderBy('m.biologico')
+            ->orderBy('m.dosis')
+            ->get()
+            ->map(function ($r) {
                 return [
                     'id' => (int) $r->id,
                     'vigencia' => (int) $r->vigencia,
+                    'periodo_inicio' => (string) $r->periodo_inicio,
+                    'periodo_fin' => (string) $r->periodo_fin,
                     'municipio' => (string) $r->municipio,
-                    'ips_user_id' => $r->ips_user_id ? (int) $r->ips_user_id : null,
-                    'ips_name' => $r->ips_name ? (string) $r->ips_name : null,
-                    'ips_nombre_excel' => (string) ($r->ips_nombre_excel ?? ''),
-                    'regimen' => (string) $r->regimen,
-                    'indicador' => (string) $r->indicador,
+                    'prestador' => (string) $r->prestador,
+                    'codigo_habilitacion' => (string) $r->codigo_habilitacion,
+                    'cobertura' => (string) $r->cobertura,
+                    'id_vacuna' => (int) $r->id_vacuna,
+                    'referencia_nombre' => (string) ($r->referencia_nombre ?? ''),
                     'biologico' => (string) $r->biologico,
-                    'poblacion_programada_anual' => (int) $r->poblacion_programada_anual,
-                    'fuente' => (string) ($r->fuente ?? ''),
-                    'observaciones' => (string) ($r->observaciones ?? ''),
-                    'activo' => (bool) $r->activo,
-                    'updated_at' => optional($r->updated_at)->format('Y-m-d H:i:s'),
+                    'dosis' => (string) $r->dosis,
+                    'regimen' => (string) $r->regimen,
+                    'poblacion' => (int) $r->poblacion,
                 ];
-            })->values(),
+            })
+            ->values();
+
+        return response()->json([
+            'ok' => true,
+            'rows' => $rows,
+            'summary' => [
+                'rows' => $rows->count(),
+                'municipios' => $rows->pluck('municipio')->filter()->unique()->count(),
+                'prestadores' => $rows->pluck('codigo_habilitacion')->filter()->unique()->count(),
+                'biologicos' => $rows->pluck('biologico')->filter()->unique()->count(),
+                'poblacion' => (int) $rows->sum('poblacion'),
+            ],
         ]);
     }
 
@@ -705,110 +1591,145 @@ class AfiliadoController extends Controller
     {
         $payload = $this->paiIndicadorValidatedPayload($request);
 
-        $existing = PaiProgramacionMeta::query()
+        $existing = DB::table('metas_vacunacion')
             ->where('vigencia', $payload['vigencia'])
             ->whereRaw("UPPER(LTRIM(RTRIM(municipio))) = ?", [$this->paiNormalizeText($payload['municipio'])])
+            ->whereRaw("UPPER(LTRIM(RTRIM(prestador))) = ?", [$this->paiNormalizeText($payload['prestador'])])
+            ->whereRaw("UPPER(LTRIM(RTRIM(codigo_habilitacion))) = ?", [$this->paiNormalizeText($payload['codigo_habilitacion'])])
+            ->whereRaw("UPPER(LTRIM(RTRIM(cobertura))) = ?", [$this->paiNormalizeText($payload['cobertura'])])
+            ->where('id_vacuna', (int) $payload['id_vacuna'])
+            ->whereRaw("UPPER(LTRIM(RTRIM(biologico))) = ?", [$this->paiNormalizeText($payload['biologico'])])
+            ->whereRaw("UPPER(LTRIM(RTRIM(dosis))) = ?", [$this->paiNormalizeText($payload['dosis'])])
             ->whereRaw("UPPER(LTRIM(RTRIM(regimen))) = ?", [$this->paiNormalizeText($payload['regimen'])])
-            ->where('indicador_catalogo_id', (int) $payload['indicador_catalogo_id'])
-            ->where(function ($q) use ($payload) {
-                if (!empty($payload['ips_user_id'])) {
-                    $q->where('ips_user_id', (int) $payload['ips_user_id']);
-                } else {
-                    $q->whereNull('ips_user_id');
-                }
-            })
             ->first();
 
+        $now = now();
         if ($existing) {
-            $existing->fill($payload);
-            $existing->save();
-            return response()->json(['ok' => true, 'message' => 'Indicador actualizado.', 'id' => (int) $existing->id]);
+            DB::table('metas_vacunacion')
+                ->where('id', (int) $existing->id)
+                ->update(array_merge($payload, ['updated_at' => $now]));
+
+            return response()->json(['ok' => true, 'message' => 'Meta actualizada.', 'id' => (int) $existing->id]);
         }
 
-        $row = PaiProgramacionMeta::create($payload);
-        return response()->json(['ok' => true, 'message' => 'Indicador creado.', 'id' => (int) $row->id]);
+        $id = DB::table('metas_vacunacion')->insertGetId(array_merge($payload, [
+            'created_at' => $now,
+            'updated_at' => $now,
+        ]));
+
+        return response()->json(['ok' => true, 'message' => 'Meta creada.', 'id' => (int) $id]);
     }
 
     public function paiIndicadoresUpdate(Request $request, int $id)
     {
         $payload = $this->paiIndicadorValidatedPayload($request);
-        $row = PaiProgramacionMeta::findOrFail($id);
-        $row->fill($payload);
-        $row->save();
+        $updated = DB::table('metas_vacunacion')
+            ->where('id', $id)
+            ->update(array_merge($payload, ['updated_at' => now()]));
 
-        return response()->json(['ok' => true, 'message' => 'Indicador actualizado.', 'id' => (int) $row->id]);
+        if (!$updated) {
+            abort(404, 'Registro no encontrado.');
+        }
+
+        return response()->json(['ok' => true, 'message' => 'Meta actualizada.', 'id' => $id]);
     }
 
     public function paiIndicadoresDestroy(int $id)
     {
-        $row = PaiProgramacionMeta::findOrFail($id);
-        $row->delete();
+        $deleted = DB::table('metas_vacunacion')->where('id', $id)->delete();
+        if (!$deleted) {
+            abort(404, 'Registro no encontrado.');
+        }
 
-        return response()->json(['ok' => true, 'message' => 'Indicador eliminado.']);
+        return response()->json(['ok' => true, 'message' => 'Meta eliminada.']);
     }
 
     public function paiIndicadoresImportProgramacion(Request $request)
     {
-        $this->ensureAdmin();
-        $this->applyReadOptimizations();
-
-        $year = (int) $request->input('vigencia', 2026);
-        if ($year < 2000 || $year > 2100) {
-            $year = 2026;
-        }
-
-        $replaceYear = filter_var($request->input('replace_year', true), FILTER_VALIDATE_BOOLEAN);
-        $root = trim((string) $request->input('root_path', ''));
-        if ($root === '') {
-            $root = $this->paiProgramacionResolveRoot();
-        }
-
-        if ($root === '' || !is_dir($root)) {
-            return response()->json([
-                'ok' => false,
-                'message' => 'No se encontro la carpeta PROGRAMACION. Configure PAI_PROGRAMACION_ROOT o envie root_path valido.',
-            ], 422);
-        }
-
-        try {
-            $result = $this->syncPaiIndicadoresFromProgramacion($root, $year, $replaceYear);
-            return response()->json([
-                'ok' => true,
-                'message' => 'Sincronizacion de programacion completada.',
-                'result' => $result,
-            ]);
-        } catch (\Throwable $e) {
-            Log::error('Error importando programacion PAI', [
-                'root' => $root,
-                'year' => $year,
-                'error' => $e->getMessage(),
-            ]);
-
-            return response()->json([
-                'ok' => false,
-                'message' => 'Fallo la sincronizacion: '.$e->getMessage(),
-            ], 500);
-        }
+        return response()->json([
+            'ok' => false,
+            'message' => 'Esta seccion ahora administra metas_vacunacion directamente. Use Guardar, Editar o Eliminar.',
+        ], 410);
     }
 
-    private function paiProgramacionResolveRoot(): string
+    private function paiMetasVacunacionCatalogPayload(int $year): array
     {
-        $candidates = [];
-        $env = trim((string) env('PAI_PROGRAMACION_ROOT', ''));
-        if ($env !== '') {
-            $candidates[] = $env;
-        }
+        $base = DB::table('metas_vacunacion as m')->where('m.vigencia', $year);
 
-        $candidates[] = 'C:\\Users\\jsuarez\\Documents\\FORMATO PAI\\programacion jefatura\\PROGRAMACION';
-        $candidates[] = storage_path('app/public/PROGRAMACION');
+        $rows = (clone $base)
+            ->select([
+                'm.id',
+                'm.vigencia',
+                'm.periodo_inicio',
+                'm.periodo_fin',
+                'm.municipio',
+                'm.prestador',
+                'm.codigo_habilitacion',
+                'm.cobertura',
+                'm.id_vacuna',
+                'rv.nombre as referencia_nombre',
+                'm.biologico',
+                'm.dosis',
+                'm.regimen',
+                'm.poblacion',
+            ])
+            ->leftJoin('referencia_vacunas as rv', 'rv.id', '=', 'm.id_vacuna')
+            ->orderBy('m.municipio')
+            ->orderBy('m.prestador')
+            ->orderBy('m.regimen')
+            ->orderBy('m.cobertura')
+            ->orderBy('m.biologico')
+            ->orderBy('m.dosis')
+            ->get()
+            ->map(function ($r) {
+                return [
+                    'id' => (int) $r->id,
+                    'vigencia' => (int) $r->vigencia,
+                    'periodo_inicio' => (string) $r->periodo_inicio,
+                    'periodo_fin' => (string) $r->periodo_fin,
+                    'municipio' => (string) $r->municipio,
+                    'prestador' => (string) $r->prestador,
+                    'codigo_habilitacion' => (string) $r->codigo_habilitacion,
+                    'cobertura' => (string) $r->cobertura,
+                    'id_vacuna' => (int) $r->id_vacuna,
+                    'referencia_nombre' => (string) ($r->referencia_nombre ?? ''),
+                    'biologico' => (string) $r->biologico,
+                    'dosis' => (string) $r->dosis,
+                    'regimen' => (string) $r->regimen,
+                    'poblacion' => (int) $r->poblacion,
+                ];
+            })
+            ->values();
 
-        foreach (array_unique($candidates) as $candidate) {
-            if ($candidate !== '' && is_dir($candidate)) {
-                return $candidate;
-            }
-        }
+        $catalogs = [
+            'municipios' => $rows->pluck('municipio')->filter()->unique()->sort()->values(),
+            'prestadores' => $rows->pluck('prestador')->filter()->unique()->sort()->values(),
+            'codigos' => $rows->pluck('codigo_habilitacion')->filter()->unique()->sort()->values(),
+            'coberturas' => $rows->pluck('cobertura')->filter()->unique()->sort()->values(),
+            'regimenes' => $rows->pluck('regimen')->filter()->unique()->sort()->values(),
+            'biologicos' => DB::table('referencia_vacunas')
+                ->select('id', 'nombre')
+                ->orderBy('nombre')
+                ->get()
+                ->map(function ($r) {
+                    return [
+                        'id' => (int) $r->id,
+                        'nombre' => trim((string) $r->nombre),
+                    ];
+                })
+                ->values(),
+            'years' => $rows->pluck('vigencia')->filter()->unique()->sortDesc()->values(),
+        ];
 
-        return '';
+        $summary = [
+            'rows' => $rows->count(),
+            'municipios' => $catalogs['municipios']->count(),
+            'prestadores' => $catalogs['codigos']->count(),
+            'biologicos' => $rows->pluck('biologico')->filter()->unique()->count(),
+            'poblacion' => (int) $rows->sum('poblacion'),
+        ];
+
+        return [$rows, $catalogs, $summary];
     }
 
     private function syncPaiIndicadoresFromProgramacion(string $root, int $year, bool $replaceYear): array
@@ -1223,45 +2144,40 @@ class AfiliadoController extends Controller
     {
         $validated = $request->validate([
             'vigencia' => 'required|integer|min:2000|max:2100',
+            'periodo_inicio' => ['required', 'regex:/^(?:19|20)\d{2}(?:0[1-9]|1[0-2])$/'],
+            'periodo_fin' => ['required', 'regex:/^(?:19|20)\d{2}(?:0[1-9]|1[0-2])$/'],
             'municipio' => 'required|string|max:120',
-            'ips_user_id' => 'nullable|integer|exists:users,id',
-            'ips_nombre_excel' => 'nullable|string|max:200',
-            'regimen' => 'required|string|max:80',
-            'indicador' => 'required|string|max:220',
+            'prestador' => 'required|string|max:200',
+            'codigo_habilitacion' => 'required|string|max:30',
+            'cobertura' => 'required|string|max:220',
+            'id_vacuna' => 'required|integer|exists:referencia_vacunas,id',
             'biologico' => 'required|string|max:180',
-            'poblacion_programada_anual' => 'required|integer|min:0|max:99999999',
-            'fuente' => 'nullable|string|max:100',
-            'observaciones' => 'nullable|string|max:2000',
-            'activo' => 'nullable',
+            'dosis' => 'required|string|max:120',
+            'regimen' => 'required|string|max:80',
+            'poblacion' => 'required|integer|min:0|max:99999999',
         ]);
 
-        $indicadorNorm = $this->paiNormalizeText($validated['indicador']);
-        $biologicoNorm = $this->paiNormalizeText($validated['biologico']);
-        $catalogoId = PaiIndicadorCatalogo::query()
-            ->where('activo', true)
-            ->get(['id', 'indicador', 'biologico'])
-            ->first(function ($r) use ($indicadorNorm, $biologicoNorm) {
-                return $this->paiNormalizeText((string) $r->indicador) === $indicadorNorm
-                    && $this->paiNormalizeText((string) $r->biologico) === $biologicoNorm;
-            });
-
-        if (!$catalogoId) {
+        $periodoInicio = (string) $validated['periodo_inicio'];
+        $periodoFin = (string) $validated['periodo_fin'];
+        if (strcmp($periodoFin, $periodoInicio) < 0) {
             throw ValidationException::withMessages([
-                'indicador' => 'Indicador/Biologico no existe en catalogo PAI.',
+                'periodo_fin' => 'El periodo final no puede ser menor al periodo inicial.',
             ]);
         }
 
         return [
             'vigencia' => (int) $validated['vigencia'],
+            'periodo_inicio' => $periodoInicio,
+            'periodo_fin' => $periodoFin,
             'municipio' => trim((string) $validated['municipio']),
-            'ips_user_id' => !empty($validated['ips_user_id']) ? (int) $validated['ips_user_id'] : null,
-            'ips_nombre_fuente' => trim((string) ($validated['ips_nombre_excel'] ?? '')) ?: null,
+            'prestador' => trim((string) $validated['prestador']),
+            'codigo_habilitacion' => trim((string) $validated['codigo_habilitacion']),
+            'cobertura' => trim((string) $validated['cobertura']),
+            'id_vacuna' => (int) $validated['id_vacuna'],
+            'biologico' => trim((string) $validated['biologico']),
+            'dosis' => trim((string) $validated['dosis']),
             'regimen' => trim((string) $validated['regimen']),
-            'indicador_catalogo_id' => (int) $catalogoId->id,
-            'poblacion_programada_anual' => (int) $validated['poblacion_programada_anual'],
-            'fuente_tipo' => trim((string) ($validated['fuente'] ?? '')) ?: null,
-            'observaciones' => trim((string) ($validated['observaciones'] ?? '')) ?: null,
-            'activo' => filter_var($request->input('activo', true), FILTER_VALIDATE_BOOLEAN),
+            'poblacion' => (int) $validated['poblacion'],
         ];
     }
 
