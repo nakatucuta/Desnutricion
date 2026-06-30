@@ -83,6 +83,26 @@ class AlteracionesNutricionalesIndicadoresController extends Controller
         return response()->json($this->buildTracePayload($validated['codigo'], $desde, $hasta, $validated['evento'] ?? 'all', $selectedClasificacion));
     }
 
+    public function gaps(Request $request)
+    {
+        $validated = $request->validate([
+            'desde' => 'nullable|date',
+            'hasta' => 'nullable|date|after_or_equal:desde',
+            'evento' => 'nullable|in:all,113,412,114',
+            'clasificacion' => 'nullable|string',
+        ]);
+
+        $selectedClasificacion = $this->normalizeClassFilter($validated['clasificacion'] ?? 'all');
+        $desde = Carbon::parse($validated['desde'] ?? now()->subDays(30))->startOfDay();
+        $hasta = Carbon::parse($validated['hasta'] ?? now())->endOfDay();
+
+        if ($desde->gt($hasta)) {
+            [$desde, $hasta] = [$hasta->copy()->startOfDay(), $desde->copy()->endOfDay()];
+        }
+
+        return response()->json($this->buildGapPayload($desde, $hasta, $validated['evento'] ?? 'all', $selectedClasificacion));
+    }
+
     private function buildPayload(Carbon $desde, Carbon $hasta, string $eventoFiltro = 'all', string $clasificacionFiltro = 'all'): array
     {
         $eventos = $this->eventList($eventoFiltro);
@@ -746,6 +766,96 @@ class AlteracionesNutricionalesIndicadoresController extends Controller
             'range' => [
                 'desde' => $desde->toDateString(),
                 'hasta' => $hasta->toDateString(),
+            ],
+        ];
+    }
+
+    private function buildGapPayload(Carbon $desde, Carbon $hasta, string $eventoFiltro = 'all', string $clasificacionFiltro = 'all'): array
+    {
+        $events = $this->eventList($eventoFiltro);
+        $clasificacionFiltro = $this->normalizeClassFilter($clasificacionFiltro);
+        $items = [];
+        $eventSummary = [];
+
+        foreach ($events as $evento) {
+            $assignmentQuery = $this->assignmentQuery($evento, $desde, $hasta);
+            $assignmentRows = $assignmentQuery->get();
+            $followUps = $this->followUpDetails($evento, $desde, $hasta, $assignmentQuery, '');
+            $followUpsByCase = $followUps->groupBy(fn ($row) => (string) ($row->case_id ?? ''));
+
+            $sinSeguimientoRows = $assignmentRows->filter(function ($row) use ($followUpsByCase) {
+                return !$followUpsByCase->has((string) ($row->case_id ?? ''));
+            })->values();
+
+            if ($clasificacionFiltro !== 'all') {
+                $sinSeguimientoRows = $sinSeguimientoRows->filter(function ($row) use ($clasificacionFiltro, $followUpsByCase) {
+                    $caseId = (string) ($row->case_id ?? '');
+                    if (!$followUpsByCase->has($caseId)) {
+                        return true;
+                    }
+
+                    return !$followUpsByCase->get($caseId, collect())->contains(function ($followUp) use ($clasificacionFiltro) {
+                        return $this->normalizeLabel($followUp->clasificacion ?? '', 'SIN CLASIFICACION') === $clasificacionFiltro;
+                    });
+                })->values();
+            }
+
+            $eventSummary[$evento] = [
+                'label' => "Evento {$evento}",
+                'asignados' => (int) $assignmentRows->count(),
+                'sin_seguimiento' => (int) $sinSeguimientoRows->count(),
+            ];
+
+            foreach ($sinSeguimientoRows as $row) {
+                $patientName = trim(implode(' ', array_filter([
+                    $row->patient_first_name ?? null,
+                    $row->patient_second_name ?? null,
+                    $row->patient_first_lastname ?? null,
+                    $row->patient_second_lastname ?? null,
+                ])));
+
+                $items[] = [
+                    'evento' => $evento,
+                    'evento_label' => "Evento {$evento}",
+                    'codigo' => (string) $row->codigo,
+                    'case_id' => (int) $row->case_id,
+                    'paciente' => $patientName !== '' ? $patientName : 'Sin nombre',
+                    'edad' => (string) ($row->patient_age ?? 'Sin dato'),
+                    'fecha_asignacion' => $row->fecha_asignacion ?? null,
+                    'tipo_identificacion' => (string) ($row->tipo_identificacion ?? 'Sin dato'),
+                    'numero_identificacion' => (string) ($row->numero_identificacion ?? 'Sin dato'),
+                    'usuario' => (string) ($row->user_name ?? 'Sin usuario'),
+                ];
+            }
+        }
+
+        usort($items, function (array $a, array $b): int {
+            $dateA = $this->traceDateValue($a['fecha_asignacion'] ?? null);
+            $dateB = $this->traceDateValue($b['fecha_asignacion'] ?? null);
+
+            return $dateB <=> $dateA;
+        });
+
+        $firstDate = !empty($items) ? $items[array_key_last($items)]['fecha_asignacion'] ?? null : null;
+        $lastDate = !empty($items) ? $items[0]['fecha_asignacion'] ?? null : null;
+
+        return [
+            'ok' => true,
+            'range' => [
+                'desde' => $desde->toDateString(),
+                'hasta' => $hasta->toDateString(),
+            ],
+            'totales' => [
+                'asignados' => array_sum(array_map(fn ($item) => $item['asignados'], $eventSummary)),
+                'sin_seguimiento' => count($items),
+            ],
+            'eventos' => $eventSummary,
+            'rows' => $items,
+            'summary' => [
+                'personas' => count($items),
+                'total' => count($items),
+                'primera_fecha' => $firstDate ? $this->traceDate($firstDate)?->format('d/m/Y') ?? 'Sin dato' : 'Sin dato',
+                'ultima_fecha' => $lastDate ? $this->traceDate($lastDate)?->format('d/m/Y') ?? 'Sin dato' : 'Sin dato',
             ],
         ];
     }

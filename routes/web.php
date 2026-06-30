@@ -77,6 +77,9 @@ Route::get('/alteraciones-nutricionales/indicadores/data', [AlteracionesNutricio
 Route::get('/alteraciones-nutricionales/indicadores/trace', [AlteracionesNutricionalesIndicadoresController::class, 'trace'])
     ->name('alteraciones.nutricionales.indicadores.trace')
     ->middleware(['auth', 'can:access-nutricional']);
+Route::get('/alteraciones-nutricionales/indicadores/gaps', [AlteracionesNutricionalesIndicadoresController::class, 'gaps'])
+    ->name('alteraciones.nutricionales.indicadores.gaps')
+    ->middleware(['auth', 'can:access-nutricional']);
 Route::get('/afiliado/estadisticas/indicadores', [AfiliadoController::class, 'paiIndicadoresIndex'])->name('afiliado.stats.indicadores.index')
 ->middleware('auth');
 Route::get('/afiliado/estadisticas/indicadores/data', [AfiliadoController::class, 'paiIndicadoresData'])->name('afiliado.stats.indicadores.data')

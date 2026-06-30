@@ -66,6 +66,15 @@
     const asignadosModalTitle = document.getElementById('asignadosModalTitle');
     const asignadosModalMeta = document.getElementById('asignadosModalMeta');
 
+    const sinSeguimientoModal = document.getElementById('sinSeguimientoModal');
+    const sinSeguimientoContent = document.getElementById('sinSeguimientoContent');
+    const sinSeguimientoLoading = document.getElementById('sinSeguimientoLoading');
+    const sinSeguimientoError = document.getElementById('sinSeguimientoError');
+    const sinSeguimientoErrorText = document.getElementById('sinSeguimientoErrorText');
+    const sinSeguimientoClose = document.getElementById('sinSeguimientoClose');
+    const sinSeguimientoModalTitle = document.getElementById('sinSeguimientoModalTitle');
+    const sinSeguimientoModalMeta = document.getElementById('sinSeguimientoModalMeta');
+
     const dateFormatter = new Intl.DateTimeFormat('es-CO', {
         year: 'numeric',
         month: '2-digit',
@@ -344,7 +353,17 @@
                     >${formatInteger(row.total_seguimientos ?? 0)}</button>
                 </td>
                 <td>
-                    <div class="an-number">${formatInteger(row.sin_seguimiento ?? row.total_gap ?? 0)}</div>
+                    <button
+                        type="button"
+                        class="an-seguimientos-btn an-sin-seguimiento-btn"
+                        data-sin-seguimiento="1"
+                        data-codigo="${escapeHtml(codigo)}"
+                        data-desde="${escapeHtml(desde)}"
+                        data-hasta="${escapeHtml(hasta)}"
+                        data-evento="${escapeHtml(evento)}"
+                        data-clasificacion="${escapeHtml(clasificacion)}"
+                        onclick="window.openSinSeguimientoModal && window.openSinSeguimientoModal(this.dataset.codigo, this.dataset.desde, this.dataset.hasta, this.dataset.evento, this.dataset.clasificacion)"
+                    >${formatInteger(row.sin_seguimiento ?? row.total_gap ?? 0)}</button>
                     <div class="an-muted">casos sin traza</div>
                 </td>
                 <td>
@@ -869,7 +888,8 @@
     function hideAllModalStates() {
         [primerSeguimientoLoading, primerSeguimientoError, primerSeguimientoContent,
             seguimientosLoading, seguimientosError, seguimientosContent,
-            asignadosLoading, asignadosError, asignadosContent].forEach((node) => {
+            asignadosLoading, asignadosError, asignadosContent,
+            sinSeguimientoLoading, sinSeguimientoError, sinSeguimientoContent].forEach((node) => {
             if (node) {
                 node.classList.add('d-none');
             }
@@ -881,6 +901,7 @@
         if (kind === 'primer') setVisible(primerSeguimientoLoading, true);
         if (kind === 'seguimientos') setVisible(seguimientosLoading, true);
         if (kind === 'asignados') setVisible(asignadosLoading, true);
+        if (kind === 'sin') setVisible(sinSeguimientoLoading, true);
         if (kind === 'trace' && traceLoading) {
             traceLoading.classList.remove('d-none');
         }
@@ -894,6 +915,8 @@
             setError(seguimientosError, seguimientosErrorText, message);
         } else if (kind === 'asignados') {
             setError(asignadosError, asignadosErrorText, message);
+        } else if (kind === 'sin') {
+            setError(sinSeguimientoError, sinSeguimientoErrorText, message);
         }
     }
 
@@ -1278,7 +1301,9 @@
                     primerButton.dataset.evento,
                     primerButton.dataset.clasificacion,
                 );
+                return;
             }
+
         });
     }
 
@@ -1319,6 +1344,8 @@
         window.closeSeguimientosModal = () => closeModal(seguimientosModal);
         window.openPrimerSeguimientoModal = openPrimerSeguimientoModal;
         window.closePrimerSeguimientoModal = () => closeModal(primerSeguimientoModal);
+        window.openSinSeguimientoModal = openSinSeguimientoModal;
+        window.closeSinSeguimientoModal = () => closeModal(sinSeguimientoModal);
     }
 
     function boot() {
@@ -1331,6 +1358,7 @@
         bindModalClose(primerSeguimientoModal, primerSeguimientoClose);
         bindModalClose(seguimientosModal, seguimientosClose);
         bindModalClose(asignadosModal, asignadosClose);
+        bindModalClose(sinSeguimientoModal, sinSeguimientoClose);
 
         if (tableBody && !tableBody.children.length) {
             refreshDashboard();
@@ -1642,5 +1670,191 @@
             </div>
         `;
         setVisible(seguimientosContent, true);
+    }
+
+    function missingFollowUpCard(record, index) {
+        const eventName = formatText(record.evento_label || record.evento, 'Evento');
+        const eventTone = eventToneClass(eventName);
+        const patient = formatText(record.paciente);
+        const edad = formatText(record.edad);
+        const tipo = formatText(record.tipo_identificacion, 'Sin tipo');
+        const documento = formatText(record.numero_identificacion, 'Sin documento');
+        const codigo = formatText(record.codigo, 'Sin codigo');
+        const caso = formatText(record.case_id, 'Sin caso');
+        const fecha = formatDate(record.fecha_asignacion);
+
+        return `
+            <article class="an-follow-card ${index === 0 ? 'is-first' : ''}">
+                <div class="an-follow-card__head">
+                    <div class="an-follow-card__identity">
+                        <div class="an-follow-card__eyebrow ${escapeHtml(eventTone)}">${escapeHtml(eventName)} · Sin seguimiento</div>
+                        <h5>${escapeHtml(patient)}</h5>
+                        <p>Codigo ${escapeHtml(codigo)} · Caso ${escapeHtml(caso)}</p>
+                    </div>
+                    <div class="an-follow-card__meta">
+                        <span class="an-pill an-pill--soft ${escapeHtml(eventTone)}">${escapeHtml(fecha)}</span>
+                        <span class="an-class-chip ${escapeHtml(eventTone)}">${escapeHtml(eventName)}</span>
+                    </div>
+                </div>
+                <div class="an-follow-card__chips">
+                    <span>Tipo doc: ${escapeHtml(tipo)}</span>
+                    <span>Documento: ${escapeHtml(documento)}</span>
+                    <span>Edad: ${escapeHtml(edad)}</span>
+                    <span>Evento: ${escapeHtml(eventName)}</span>
+                </div>
+            </article>
+        `;
+    }
+
+    function summarizeMissingFollowUps(records) {
+        const sortValue = (record) => {
+            const value = record?.fecha_asignacion || record?.fecha_consulta || record?.created_at || null;
+            const date = new Date(value || 0);
+            return Number.isNaN(date.getTime()) ? 0 : date.getTime();
+        };
+
+        const first = records.length ? records.slice().sort((a, b) => sortValue(a) - sortValue(b))[0] : null;
+        const last = records.length ? records.slice().sort((a, b) => sortValue(b) - sortValue(a))[0] : null;
+
+        return {
+            personas: new Set(records.map((item) => String(item.case_id ?? '')).filter(Boolean)).size,
+            total: records.length,
+            primeraFecha: first ? formatDate(first.fecha_asignacion || first.fecha_consulta || first.created_at) : 'Sin dato',
+            ultimaFecha: last ? formatDate(last.fecha_asignacion || last.fecha_consulta || last.created_at) : 'Sin dato',
+        };
+    }
+
+    function renderSinSeguimientoContent(payload) {
+        if (!sinSeguimientoContent) {
+            return;
+        }
+
+        const rows = Array.isArray(payload?.rows) ? payload.rows : [];
+        const eventos = payload?.eventos || {};
+        const summary = payload?.summary || {};
+        const range = payload?.range || {};
+        const filters = state.currentFilters || currentFilters();
+        const eventFilter = filters.evento || 'all';
+        const clasificacion = filters.clasificacion || 'all';
+        const currentEventLabel = eventFilter === 'all' ? 'Todos los eventos' : `Evento ${eventFilter}`;
+        const currentTone = eventToneClass(currentEventLabel);
+
+        if (sinSeguimientoModalMeta) {
+            sinSeguimientoModalMeta.textContent = `Casos sin seguimiento: ${formatInteger(summary.total ?? rows.length)} | Rango ${formatText(range.desde, filters.desde || '')} a ${formatText(range.hasta, filters.hasta || '')} | ${currentEventLabel}`;
+        }
+
+        if (!rows.length) {
+            sinSeguimientoContent.innerHTML = `
+                <div class="an-empty-state">No hay casos sin seguimiento para el filtro actual.</div>
+            `;
+            setVisible(sinSeguimientoContent, true);
+            return;
+        }
+
+        const eventEntries = Object.entries(eventos);
+
+        sinSeguimientoContent.innerHTML = `
+            <div class="an-follow-layout an-modal-full">
+                <section class="an-follow-hero ${currentTone}">
+                    <div class="an-follow-hero__copy">
+                        <div class="an-follow-hero__eyebrow">Casos sin traza</div>
+                        <h4>Asignados sin ningún seguimiento registrado</h4>
+                        <p>La lista muestra el paciente, su documento, el tipo de identificación y el evento al que pertenece para ubicar la brecha al instante.</p>
+                    </div>
+                    <div class="an-follow-hero__stats">
+                        <article>
+                            <span>Sin seguimiento</span>
+                            <strong>${escapeHtml(formatInteger(summary.total ?? rows.length))}</strong>
+                        </article>
+                        <article>
+                            <span>Pacientes</span>
+                            <strong>${escapeHtml(formatInteger(summary.personas ?? rows.length))}</strong>
+                        </article>
+                        <article>
+                            <span>Desde</span>
+                            <strong>${escapeHtml(formatText(range.desde, 'Sin dato'))}</strong>
+                        </article>
+                        <article>
+                            <span>Hasta</span>
+                            <strong>${escapeHtml(formatText(range.hasta, 'Sin dato'))}</strong>
+                        </article>
+                    </div>
+                </section>
+                <section class="an-follow-section">
+                    <div class="an-follow-section__head">
+                        <div>
+                            <div class="an-follow-section__eyebrow">Contexto</div>
+                            <h4>${escapeHtml(currentEventLabel)} | Clasificación: ${escapeHtml(clasificacion === 'all' ? 'Todas' : clasificacion)}</h4>
+                        </div>
+                        <span class="an-pill an-pill--soft ${currentTone}">${escapeHtml(formatInteger(rows.length))} registros</span>
+                    </div>
+                    <div class="an-follow-context">
+                        ${eventEntries.map(([code, detail]) => `
+                            <div class="an-follow-context__item">
+                                <span>${escapeHtml(detail?.label || `Evento ${code}`)}</span>
+                                <strong>${escapeHtml(formatInteger(detail?.sin_seguimiento ?? 0))} sin seguimiento / ${escapeHtml(formatInteger(detail?.asignados ?? 0))} asignados</strong>
+                            </div>
+                        `).join('')}
+                    </div>
+                </section>
+                <section class="an-follow-section">
+                    <div class="an-follow-section__head">
+                        <div>
+                            <div class="an-follow-section__eyebrow">Listado de brechas</div>
+                            <h4>Pacientes que necesitan seguimiento</h4>
+                        </div>
+                        <span class="an-pill an-pill--soft ${currentTone}">${escapeHtml(formatInteger(rows.length))} casos</span>
+                    </div>
+                    <div class="an-follow-records">
+                        ${rows.map((record, index) => missingFollowUpCard(record, index)).join('')}
+                    </div>
+                </section>
+            </div>
+        `;
+        setVisible(sinSeguimientoContent, true);
+    }
+
+    async function openSinSeguimientoModal(codigo, desde, hasta, evento, clasificacion) {
+        const hasCodigo = !isBlank(codigo);
+        const filters = state.currentFilters || currentFilters();
+        const paramsEvent = evento || filters.evento || 'all';
+        const paramsClasificacion = clasificacion || filters.clasificacion || 'all';
+        showModalLoading('sin');
+        openModal(sinSeguimientoModal);
+        clearError(sinSeguimientoError);
+        if (sinSeguimientoModalTitle) {
+            sinSeguimientoModalTitle.textContent = 'Casos sin seguimiento';
+        }
+        if (sinSeguimientoModalMeta) {
+            sinSeguimientoModalMeta.textContent = hasCodigo
+                ? `Cargando casos sin seguimiento del prestador ${codigo}...`
+                : `Cargando casos sin seguimiento para ${paramsEvent === 'all' ? 'todos los eventos' : `evento ${paramsEvent}`}`;
+        }
+
+        try {
+            if (hasCodigo) {
+                const payload = await loadTrace('sin-seguimiento', codigo, desde || filters.desde, hasta || filters.hasta, paramsEvent, paramsClasificacion);
+                const records = collectTraceRecords(payload, paramsEvent, 'sin_seguimiento_detalle')
+                    .slice()
+                    .sort((a, b) => new Date(b.fecha_asignacion || b.fecha_consulta || b.created_at || 0) - new Date(a.fecha_asignacion || a.fecha_consulta || a.created_at || 0));
+                const summary = summarizeMissingFollowUps(records);
+                renderSinSeguimientoContent({
+                    rows: records,
+                    eventos: payload?.trace || {},
+                    summary,
+                    range: payload?.range || { desde: desde || filters.desde, hasta: hasta || filters.hasta },
+                });
+            } else {
+                const params = currentParams(filters);
+                const payload = await fetchJson('/alteraciones-nutricionales/indicadores/gaps', params);
+                renderSinSeguimientoContent(payload);
+            }
+        } catch (error) {
+            showModalError('sin', error.message || 'No fue posible cargar los casos sin seguimiento.');
+        } finally {
+            if (sinSeguimientoLoading) {
+                sinSeguimientoLoading.classList.add('d-none');
+            }
+        }
     }
 })();

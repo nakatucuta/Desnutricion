@@ -82,9 +82,9 @@
                 <strong id="kpiCobertura">{{ number_format((float) data_get($initialTotals, 'cobertura', 0), 2, ',', '.') }}%</strong>
                 <small>seguimientos sobre asignados</small>
             </article>
-            <article class="an-kpi">
+            <article class="an-kpi an-kpi--clickable" data-open-sin-seguimiento="1" onclick="window.openSinSeguimientoModal && window.openSinSeguimientoModal()">
                 <span>Sin seguimiento</span>
-                <strong id="kpiBrecha">{{ number_format((int) data_get($initialTotals, 'brecha', 0), 0, ',', '.') }}</strong>
+                <button type="button" id="kpiBrecha" class="an-kpi__cta" aria-label="Abrir casos sin seguimiento" onclick="window.openSinSeguimientoModal && window.openSinSeguimientoModal()">{{ number_format((int) data_get($initialTotals, 'brecha', 0), 0, ',', '.') }}</button>
                 <small>asignados sin seguimiento</small>
             </article>
         </div>
@@ -223,7 +223,19 @@
                             </button>
                         </td>
                         <td>
-                            <div class="an-number">{{ number_format((int) data_get($row, 'sin_seguimiento', data_get($row, 'total_gap', 0)), 0, ',', '.') }}</div>
+                            <button
+                                type="button"
+                                class="an-seguimientos-btn an-sin-seguimiento-btn"
+                                data-sin-seguimiento="1"
+                                data-codigo="{{ data_get($row, 'codigo') }}"
+                                data-desde="{{ $defaultDesde }}"
+                                data-hasta="{{ $defaultHasta }}"
+                                data-evento="{{ $selectedEvento }}"
+                                data-clasificacion="{{ $selectedClasificacion }}"
+                                onclick="window.openSinSeguimientoModal && window.openSinSeguimientoModal(this.dataset.codigo, this.dataset.desde, this.dataset.hasta, this.dataset.evento, this.dataset.clasificacion)"
+                            >
+                                {{ number_format((int) data_get($row, 'sin_seguimiento', data_get($row, 'total_gap', 0)), 0, ',', '.') }}
+                            </button>
                             <div class="an-muted">casos sin traza</div>
                         </td>
                         <td>
@@ -420,6 +432,32 @@
     </div>
 </div>
 
+<div id="sinSeguimientoModal" class="an-modal" aria-hidden="true">
+    <div class="an-modal__backdrop" data-modal-close="1"></div>
+    <div class="an-modal__dialog" role="dialog" aria-modal="true" aria-labelledby="sinSeguimientoModalTitle">
+        <div class="an-modal__header">
+            <div>
+                <div class="an-eyebrow">Sin seguimiento</div>
+                <h3 id="sinSeguimientoModalTitle">Casos sin traza</h3>
+                <p id="sinSeguimientoModalMeta">Selecciona un rango para ver los casos sin seguimiento.</p>
+            </div>
+            <button type="button" class="btn an-btn an-btn--ghost" id="sinSeguimientoClose">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="an-modal__body">
+            <div id="sinSeguimientoLoading" class="an-loader d-none">
+                <div class="spinner-border text-primary" role="status"></div>
+                <span>Cargando casos sin seguimiento...</span>
+            </div>
+            <div id="sinSeguimientoError" class="alert alert-danger shadow-sm d-none">
+                <i class="fas fa-triangle-exclamation mr-1"></i><span id="sinSeguimientoErrorText"></span>
+            </div>
+            <div id="sinSeguimientoContent" class="an-modal-content d-none"></div>
+        </div>
+    </div>
+</div>
+
 @stop
 
 @section('css')
@@ -593,12 +631,50 @@
         overflow:hidden;
         min-height:116px;
     }
+    .an-kpi__cta{
+        border:none;
+        padding:0;
+        background:transparent;
+        color:#0f172a;
+        font:inherit;
+        font-size:1.5rem;
+        font-weight:900;
+        line-height:1.1;
+        cursor:pointer;
+        text-align:left;
+        width:100%;
+        position:relative;
+        z-index:1;
+    }
+    .an-kpi__cta:hover{
+        color:#1d4ed8;
+        text-decoration:underline;
+    }
+    .an-kpi__cta:focus-visible{
+        outline:3px solid rgba(37,99,235,.25);
+        outline-offset:4px;
+        border-radius:10px;
+    }
+    .an-kpi--clickable{
+        cursor:pointer;
+        transition:transform .18s ease, box-shadow .18s ease, border-color .18s ease;
+    }
+    .an-kpi--clickable:hover{
+        transform:translateY(-1px);
+        border-color:#93c5fd;
+        box-shadow:0 14px 28px rgba(37,99,235,.10);
+    }
     .an-kpi::after{
         content:'';
         position:absolute;
         inset:auto -20px -36px auto;
         width:96px;height:96px;border-radius:999px;
         background:radial-gradient(circle, rgba(14,165,233,.16), transparent 70%);
+        pointer-events:none;
+    }
+    .an-kpi--clickable > *{
+        position:relative;
+        z-index:1;
     }
     .an-kpi span{display:block;font-size:.74rem;font-weight:800;color:#475569;text-transform:uppercase;letter-spacing:.04em;}
     .an-kpi strong{display:block;font-size:1.35rem;line-height:1.1;margin-top:6px;color:#0f172a;}
