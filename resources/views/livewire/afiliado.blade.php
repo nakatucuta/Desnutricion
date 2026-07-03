@@ -1303,7 +1303,7 @@ window.PAI_INITIAL_LOAD_STATE = @json($paiLoadState ?? ['busy' => false]);
               showFile(input.files[0]);
           }
       });
-      dz.addEventListener('click', ()=> input.click());
+      //dz.addEventListener('click', ()=> input.click());
       input.addEventListener('change', ()=> {
           if(input.files && input.files[0]) showFile(input.files[0]);
       });

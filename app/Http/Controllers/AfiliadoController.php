@@ -61,7 +61,8 @@ class AfiliadoController extends Controller
             foreach ([1, 2] as $row) {
                 $line = [];
                 for ($col = 1; $col <= $limitCols; $col++) {
-                    $line[] = $this->normalizeTemplateCell($sheet->getCellByColumnAndRow($col, $row)->getValue());
+                    $cellAddress = Coordinate::stringFromColumnIndex($col) . $row;
+                    $line[] = $this->normalizeTemplateCell($sheet->getCell($cellAddress)->getValue());
                 }
                 $rows[] = $line;
             }
