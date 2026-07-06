@@ -27,6 +27,7 @@ class GesTipo3Import implements OnEachRow, WithStartRow, WithChunkReading, Skips
 
     private array $seenInFile = [];
     private array $cupsSet = [];
+    private array $finalidadSet = [];
     private array $parentCache = [];
     private array $afiliadoActivoCache = [];
 
@@ -45,6 +46,13 @@ class GesTipo3Import implements OnEachRow, WithStartRow, WithChunkReading, Skips
             ->table('sga.dbo.refcups')
             ->pluck('codigo')
             ->map(fn ($c) => mb_strtoupper(trim((string) $c), 'UTF-8'))
+            ->flip()
+            ->toArray();
+
+        $this->finalidadSet = DB::connection('sqlsrv_1')
+            ->table('sga.dbo.refFinalidadVersion2')
+            ->pluck('codigo')
+            ->map(fn ($c) => trim((string) $c))
             ->flip()
             ->toArray();
     }
@@ -325,6 +333,21 @@ class GesTipo3Import implements OnEachRow, WithStartRow, WithChunkReading, Skips
         return $map[$v];
     }
 
+    private function parseFinalidadTecnologia($value, int $excelRow): ?int
+    {
+        $codigo = $this->parseInteger($value, $excelRow, 'Finalidad tecnologia en salud', false, 0);
+        if ($codigo === null) {
+            return null;
+        }
+
+        if (!isset($this->finalidadSet[(string) $codigo])) {
+            $this->addError($excelRow, 'Finalidad tecnologia en salud', 'el codigo no es valido', $value);
+            return null;
+        }
+
+        return $codigo;
+    }
+
     private function parseString($value, int $excelRow, string $field, bool $required = false, int $max = 255): ?string
     {
         $value = $this->clean($value);
@@ -495,7 +518,7 @@ class GesTipo3Import implements OnEachRow, WithStartRow, WithChunkReading, Skips
             }
         }
 
-        $finalidad = $this->parseString($r[6] ?? null, $excelRow, 'Finalidad tecnologia en salud', false, 50);
+        $finalidad = $this->parseFinalidadTecnologia($r[6] ?? null, $excelRow);
         $riesgoGest = $this->parseInteger($r[7] ?? null, $excelRow, 'Clasificacion riesgo gestacional', false, 0, 99);
         $riesgoPree = $this->parseInteger($r[8] ?? null, $excelRow, 'Clasificacion riesgo preeclampsia', false, 0, 99);
 

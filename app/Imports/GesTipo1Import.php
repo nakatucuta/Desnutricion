@@ -4,6 +4,7 @@ namespace App\Imports;
 
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
+use Maatwebsite\Excel\Cell as ExcelCell;
 use Maatwebsite\Excel\Concerns\OnEachRow;
 use Maatwebsite\Excel\Concerns\SkipsEmptyRows;
 use Maatwebsite\Excel\Concerns\WithChunkReading;
@@ -13,16 +14,23 @@ use PhpOffice\PhpSpreadsheet\Shared\Date as ExcelDate;
 
 class GesTipo1Import implements OnEachRow, WithStartRow, WithChunkReading, SkipsEmptyRows
 {
+    private const EDAD_MINIMA_FERTIL_ANIOS = 10;
+    private const GESTACION_NORMAL_MAXIMA_DIAS = 294;
+
     private int $batchVerificationsId;
     private int $userId;
 
     private array $buffer = [];
     private ?int $maxRowsPerInsert = null;
     private array $carnetCache = [];
+    private array $municipioCache = [];
+    private array $ipsCodigoCache = [];
     private array $seenInFile = [];
     private array $errores = [];
     private bool $rowHasErrors = false;
     private bool $errorsCapNoticeAdded = false;
+
+    private const CODIGOS_PERTENENCIA_ETNICA_VALIDOS = [1, 2, 3, 4, 5, 6, 7];
 
     private int $rowsTotal = 0;
     private int $rowsCreated = 0;
@@ -196,6 +204,75 @@ class GesTipo1Import implements OnEachRow, WithStartRow, WithChunkReading, Skips
         return $this->parseInteger($value, $excelRow, $field, true, 0, 2);
     }
 
+    private function parseAntecedenteCode($value, int $excelRow, string $field): ?int
+    {
+        $value = $this->clean($value);
+        if ($value === null) {
+            $this->addError($excelRow, $field, 'campo obligatorio');
+            return null;
+        }
+
+        $normalized = str_replace([' ', ','], ['', '.'], (string) $value);
+        if (!preg_match('/^-?\d+(\.0+)?$/', $normalized)) {
+            $this->addError($excelRow, $field, 'solo permite las opciones 1 y 2', $value);
+            return null;
+        }
+
+        $codigo = (int) round((float) $normalized);
+        if (!in_array($codigo, [1, 2], true)) {
+            $this->addError($excelRow, $field, 'solo permite las opciones 1 y 2', $value);
+            return null;
+        }
+
+        return $codigo;
+    }
+
+    private function parsePeriodoIntergenesico($value, int $excelRow): ?int
+    {
+        $value = $this->clean($value);
+        if ($value === null) {
+            $this->addError($excelRow, 'Periodo intergenesico', 'campo obligatorio');
+            return null;
+        }
+
+        $normalized = str_replace([' ', ','], ['', '.'], (string) $value);
+        if (!preg_match('/^-?\d+(\.0+)?$/', $normalized)) {
+            $this->addError($excelRow, 'Periodo intergenesico', 'solo permite los codigos 0, 1, 2 y 3', $value);
+            return null;
+        }
+
+        $codigo = (int) round((float) $normalized);
+        if (!in_array($codigo, [0, 1, 2, 3], true)) {
+            $this->addError($excelRow, 'Periodo intergenesico', 'solo permite los codigos 0, 1, 2 y 3', $value);
+            return null;
+        }
+
+        return $codigo;
+    }
+
+    private function parseMetodoConcepcion($value, int $excelRow): ?int
+    {
+        $value = $this->clean($value);
+        if ($value === null) {
+            $this->addError($excelRow, 'Metodo de concepcion', 'campo obligatorio');
+            return null;
+        }
+
+        $normalized = str_replace([' ', ','], ['', '.'], (string) $value);
+        if (!preg_match('/^-?\d+(\.0+)?$/', $normalized)) {
+            $this->addError($excelRow, 'Metodo de concepcion', 'solo permite los codigos 1, 2 y 3', $value);
+            return null;
+        }
+
+        $codigo = (int) round((float) $normalized);
+        if (!in_array($codigo, [1, 2, 3], true)) {
+            $this->addError($excelRow, 'Metodo de concepcion', 'solo permite los codigos 1, 2 y 3', $value);
+            return null;
+        }
+
+        return $codigo;
+    }
+
     private function parseZona($value, int $excelRow): ?string
     {
         $value = $this->clean($value);
@@ -218,6 +295,58 @@ class GesTipo1Import implements OnEachRow, WithStartRow, WithChunkReading, Skips
         }
 
         return $map[$v];
+    }
+
+    private function parseMunicipioDane($value, int $excelRow): ?string
+    {
+        $value = $this->clean($value);
+        if ($value === null) {
+            $this->addError($excelRow, 'Municipio residencia habitual', 'campo obligatorio');
+            return null;
+        }
+
+        $codigo = trim((string) $value);
+
+        if (!preg_match('/^\d{5}$/', $codigo)) {
+            $this->addError($excelRow, 'Municipio residencia habitual', 'debe ser un codigo DANE de 5 digitos', $value);
+            return null;
+        }
+
+        if (!$this->municipioExiste($codigo, $excelRow)) {
+            $this->addError($excelRow, 'Municipio residencia habitual', 'el codigo DANE no es valido', $codigo);
+            return null;
+        }
+
+        return $codigo;
+    }
+
+    private function municipioExiste(string $codigo, int $excelRow): bool
+    {
+        if (array_key_exists($codigo, $this->municipioCache)) {
+            return $this->municipioCache[$codigo];
+        }
+
+        try {
+            $exists = DB::connection('sqlsrv_1')
+                ->table('sga.dbo.municipios')
+                ->where('codigoDepartamento', substr($codigo, 0, 2))
+                ->where('codigoMunicipio', substr($codigo, 2, 3))
+                ->exists();
+        } catch (\Throwable $e) {
+            $this->addError(
+                $excelRow,
+                'Municipio residencia habitual',
+                'no fue posible validar el codigo DANE en este momento',
+                $codigo
+            );
+
+            $this->municipioCache[$codigo] = false;
+            return false;
+        }
+
+        $this->municipioCache[$codigo] = $exists;
+
+        return $exists;
     }
 
     private function parseTipoDocumento($value, int $excelRow): ?string
@@ -245,6 +374,90 @@ class GesTipo1Import implements OnEachRow, WithStartRow, WithChunkReading, Skips
         }
 
         return $v;
+    }
+
+    private function parseCodigoIps($value, int $excelRow): ?string
+    {
+        $value = $this->clean($value);
+        if ($value === null) {
+            $this->addError($excelRow, 'Codigo IPS primaria', 'campo obligatorio');
+            return null;
+        }
+
+        $codigo = trim((string) $value);
+
+        if (!preg_match('/^\d{12}$/', $codigo)) {
+            $this->addError($excelRow, 'Codigo IPS primaria', 'debe contener exactamente 12 digitos', $value);
+            return null;
+        }
+
+        if (!$this->codigoIpsExiste($codigo, $excelRow)) {
+            $this->addError($excelRow, 'Codigo IPS primaria', 'el codigo no es valido', $codigo);
+            return null;
+        }
+
+        return $codigo;
+    }
+
+    private function parsePertenenciaEtnica($value, int $excelRow): ?int
+    {
+        $codigo = $this->parseInteger($value, $excelRow, 'Codigo pertenencia etnica', true, 0);
+        if ($codigo === null) {
+            return null;
+        }
+
+        if (!in_array($codigo, self::CODIGOS_PERTENENCIA_ETNICA_VALIDOS, true)) {
+            $this->addError(
+                $excelRow,
+                'Codigo pertenencia etnica',
+                'solo permite los codigos 1, 2, 3, 4, 5, 6 y 7',
+                $value
+            );
+
+            return null;
+        }
+
+        return $codigo;
+    }
+
+    private function codigoIpsExiste(string $codigo, int $excelRow): bool
+    {
+        if (array_key_exists($codigo, $this->ipsCodigoCache)) {
+            return $this->ipsCodigoCache[$codigo];
+        }
+
+        try {
+            $exists = DB::connection('sqlsrv_1')
+                ->table('sga.dbo.refips')
+                ->where('codigo', $codigo)
+                ->exists();
+        } catch (\Throwable $e) {
+            $this->addError(
+                $excelRow,
+                'Codigo IPS primaria',
+                'no fue posible validar el codigo en este momento',
+                $codigo
+            );
+
+            $this->ipsCodigoCache[$codigo] = false;
+            return false;
+        }
+
+        $this->ipsCodigoCache[$codigo] = $exists;
+
+        return $exists;
+    }
+
+    private function getFormattedCellValue(Row $row, string $column)
+    {
+        try {
+            $worksheet = $row->getDelegate()->getWorksheet();
+            $coordinate = $column . $row->getIndex();
+
+            return ExcelCell::make($worksheet, $coordinate)->getValue(null, false, true);
+        } catch (\Throwable $e) {
+            return null;
+        }
     }
 
     private function parseString($value, int $excelRow, string $field, bool $required = false, int $max = 255): ?string
@@ -351,9 +564,11 @@ class GesTipo1Import implements OnEachRow, WithStartRow, WithChunkReading, Skips
 
         $consecutivo = $this->parseInteger($r[1] ?? null, $excelRow, 'Consecutivo', true, 1);
         $paisNacionalidad = $this->parseInteger($r[2] ?? null, $excelRow, 'Pais nacionalidad', true, 1);
-        $municipioResidencia = $this->parseInteger($r[3] ?? null, $excelRow, 'Municipio residencia habitual', true, 1);
+        $municipioValue = $this->getFormattedCellValue($row, 'D');
+        $municipioResidencia = $this->parseMunicipioDane($municipioValue ?? ($r[3] ?? null), $excelRow);
         $zona = $this->parseZona($r[4] ?? null, $excelRow);
-        $codigoIps = $this->parseString($r[5] ?? null, $excelRow, 'Codigo IPS primaria', true, 30);
+        $codigoIpsValue = $this->getFormattedCellValue($row, 'F');
+        $codigoIps = $this->parseCodigoIps($codigoIpsValue ?? ($r[5] ?? null), $excelRow);
         $tipoIdent = $this->parseTipoDocumento($r[6] ?? null, $excelRow);
         $noId = $this->parseString($r[7] ?? null, $excelRow, 'No ID usuario', true, 30);
 
@@ -375,32 +590,63 @@ class GesTipo1Import implements OnEachRow, WithStartRow, WithChunkReading, Skips
         $segundoNombre = $this->parseString($r[11] ?? null, $excelRow, 'Segundo nombre', false, 100) ?? '';
 
         $fechaNacimiento = $this->parseDate($r[12] ?? null, $excelRow, 'Fecha nacimiento');
-        $codigoEtnia = $this->parseInteger($r[13] ?? null, $excelRow, 'Codigo pertenencia etnica', true, 0);
+        $codigoEtnia = $this->parsePertenenciaEtnica($r[13] ?? null, $excelRow);
         $codigoOcupacion = $this->parseInteger($r[14] ?? null, $excelRow, 'Codigo ocupacion', true, 0);
         $codigoNivelEducativo = $this->parseInteger($r[15] ?? null, $excelRow, 'Codigo nivel educativo', true, 0);
         $fechaProbableParto = $this->parseDate($r[16] ?? null, $excelRow, 'Fecha probable parto');
         $direccion = $this->parseString($r[17] ?? null, $excelRow, 'Direccion residencia', true, 500);
 
-        $hta = $this->parseTinyCode($r[18] ?? null, $excelRow, 'Antecedente HTA cronica');
-        $preeclampsia = $this->parseTinyCode($r[19] ?? null, $excelRow, 'Antecedente preeclampsia');
-        $diabetes = $this->parseTinyCode($r[20] ?? null, $excelRow, 'Antecedente diabetes');
-        $autoinmune = $this->parseTinyCode($r[21] ?? null, $excelRow, 'Antecedente LES/autoinmune');
-        $sindrome = $this->parseTinyCode($r[22] ?? null, $excelRow, 'Antecedente sindrome metabolico');
-        $erc = $this->parseTinyCode($r[23] ?? null, $excelRow, 'Antecedente ERC');
-        $trombofilia = $this->parseTinyCode($r[24] ?? null, $excelRow, 'Antecedente trombofilia');
-        $anemia = $this->parseTinyCode($r[25] ?? null, $excelRow, 'Antecedente anemia celulas falciformes');
-        $sepsis = $this->parseTinyCode($r[26] ?? null, $excelRow, 'Antecedente sepsis previa');
-        $tabaco = $this->parseTinyCode($r[27] ?? null, $excelRow, 'Consumo tabaco durante gestacion');
-        $periodoIntergenesico = $this->parseInteger($r[28] ?? null, $excelRow, 'Periodo intergenesico', true, 0, 999);
-        $embarazoMultiple = $this->parseTinyCode($r[29] ?? null, $excelRow, 'Embarazo multiple');
-        $metodoConcepcion = $this->parseInteger($r[30] ?? null, $excelRow, 'Metodo de concepcion', true, 0, 9);
+        $hta = $this->parseAntecedenteCode($r[18] ?? null, $excelRow, 'Antecedente HTA cronica');
+        $preeclampsia = $this->parseAntecedenteCode($r[19] ?? null, $excelRow, 'Antecedente preeclampsia');
+        $diabetes = $this->parseAntecedenteCode($r[20] ?? null, $excelRow, 'Antecedente diabetes');
+        $autoinmune = $this->parseAntecedenteCode($r[21] ?? null, $excelRow, 'Antecedente LES/autoinmune');
+        $sindrome = $this->parseAntecedenteCode($r[22] ?? null, $excelRow, 'Antecedente sindrome metabolico');
+        $erc = $this->parseAntecedenteCode($r[23] ?? null, $excelRow, 'Antecedente ERC');
+        $trombofilia = $this->parseAntecedenteCode($r[24] ?? null, $excelRow, 'Antecedente trombofilia');
+        $anemia = $this->parseAntecedenteCode($r[25] ?? null, $excelRow, 'Antecedente anemia celulas falciformes');
+        $sepsis = $this->parseAntecedenteCode($r[26] ?? null, $excelRow, 'Antecedente sepsis previa');
+        $tabaco = $this->parseAntecedenteCode($r[27] ?? null, $excelRow, 'Consumo tabaco durante gestacion');
+        $periodoIntergenesico = $this->parsePeriodoIntergenesico($r[28] ?? null, $excelRow);
+        $embarazoMultiple = $this->parseAntecedenteCode($r[29] ?? null, $excelRow, 'Embarazo multiple');
+        $metodoConcepcion = $this->parseMetodoConcepcion($r[30] ?? null, $excelRow);
 
-        if ($fechaNacimiento && Carbon::parse($fechaNacimiento)->gt(Carbon::today())) {
+        $today = Carbon::today();
+
+        if ($fechaNacimiento && Carbon::parse($fechaNacimiento)->gt($today)) {
             $this->addError($excelRow, 'Fecha nacimiento', 'no puede ser futura', $fechaNacimiento);
         }
 
         if ($fechaProbableParto && $fechaNacimiento && Carbon::parse($fechaProbableParto)->lt(Carbon::parse($fechaNacimiento))) {
             $this->addError($excelRow, 'Fecha probable parto', 'no puede ser menor a fecha nacimiento');
+        }
+
+        if ($fechaProbableParto) {
+            $fpp = Carbon::parse($fechaProbableParto);
+
+            if ($fpp->lt($today)) {
+                $this->addError($excelRow, 'Fecha probable parto', 'debe ser igual o posterior a la fecha actual', $fechaProbableParto);
+            }
+
+            if ($fpp->gt($today->copy()->addDays(self::GESTACION_NORMAL_MAXIMA_DIAS))) {
+                $this->addError(
+                    $excelRow,
+                    'Fecha probable parto',
+                    'debe estar dentro de un periodo de gestacion normal',
+                    $fechaProbableParto
+                );
+            }
+
+            if ($fechaNacimiento) {
+                $fechaMinimaFertil = Carbon::parse($fechaNacimiento)->addYears(self::EDAD_MINIMA_FERTIL_ANIOS);
+                if ($fechaMinimaFertil->gt($fpp)) {
+                    $this->addError(
+                        $excelRow,
+                        'Fecha probable parto',
+                        'no es coherente con una edad minima fertil de 10 anos',
+                        $fechaProbableParto
+                    );
+                }
+            }
         }
 
         if ($tipoIdent !== null && $noId !== null) {
