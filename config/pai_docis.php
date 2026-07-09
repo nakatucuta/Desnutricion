@@ -9,6 +9,7 @@ return [
     | The import and backfill use these labels as the stable vocabulary.
     */
     'canonical_labels' => [
+        'CERO',
         'UNICA',
         'UNICA CON FRACCION',
         'PRIMERA DOSIS',
@@ -52,7 +53,5 @@ return [
         '?',
         'NO APLICA',
         'NO APLIQUE',
-        'CERO',
-        'DOSIS CERO',
     ],
 ];

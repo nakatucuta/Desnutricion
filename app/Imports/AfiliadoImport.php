@@ -136,6 +136,7 @@ class AfiliadoImport implements ToModel, WithStartRow, WithChunkReading
         // Campos finales (formato nuevo: 255..258, formato anterior: 251..254)
         [$responsable, $fuen_ingresado_paiweb, $motivo_noingreso, $observaciones] = $this->resolveFinalColumns($row, $clean);
         $regimenVacuna         = $clean($row[20] ?? null);
+        $condicionUsuariaVacuna = $clean($row[43] ?? null);
 
         // ---------- Validación rápida ----------
         $data = [
@@ -220,6 +221,7 @@ class AfiliadoImport implements ToModel, WithStartRow, WithChunkReading
             $motivo_noingreso,
             $observaciones,
             $regimenVacuna,
+            $condicionUsuariaVacuna,
             $usuario_activo,
             $now
         );
@@ -350,6 +352,7 @@ class AfiliadoImport implements ToModel, WithStartRow, WithChunkReading
         $motivo_noingreso,
         $observaciones,
         $regimenVacuna,
+        $condicionUsuariaVacuna,
         $usuario_activo,
         string $now
     ): array {
@@ -754,6 +757,7 @@ class AfiliadoImport implements ToModel, WithStartRow, WithChunkReading
                 'motivo_noingreso' => $motivo_noingreso ?? null,
                 'observaciones' => $observaciones ?? null,
                 'regimen' => $regimenVacuna ?? null,
+                'condicion_usuaria' => $condicionUsuariaVacuna ?? null,
 
                 'vacunas_id' => $vacunaNombre,
                 'user_id' => $usuario_activo ?? null,

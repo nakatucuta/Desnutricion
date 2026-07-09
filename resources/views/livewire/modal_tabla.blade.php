@@ -52,6 +52,7 @@
                                 <th>IPS vacunadora</th>
                                 <th>Vacunador</th>
                                 <th>Regimen</th>
+                                <th>Condicion usuaria</th>
                             </tr>
                         </thead>
                         <tbody id="vacunaList">

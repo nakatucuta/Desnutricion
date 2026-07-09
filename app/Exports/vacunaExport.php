@@ -237,6 +237,7 @@ class VacunaExport implements FromQuery, WithHeadings, ShouldAutoSize, WithEvent
             ['select' => 'a.motivo_noingreso', 'heading' => 'Motivo No Ingreso'],
             ['select' => 'a.observaciones', 'heading' => 'Observaciones'],
             ['select' => 'a.regimen as regimen_vacuna', 'heading' => 'Regimen de la Vacuna'],
+            ['select' => 'a.condicion_usuaria as condicion_usuaria_vacuna', 'heading' => 'Condicion Usuaria de la Vacuna'],
             ['select' => 'a.created_at', 'heading' => 'Fecha de Creacion'],
         ];
     }

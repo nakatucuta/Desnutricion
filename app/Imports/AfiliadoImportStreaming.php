@@ -820,20 +820,35 @@ class AfiliadoImportStreaming implements ToModel, WithStartRow, WithChunkReading
         // Cola final (formato nuevo: 255..258, formato anterior: 251..254)
         [$responsable, $fuen_ingresado_paiweb, $motivo_noingreso, $observaciones] = $this->resolveFinalColumns($row);
         $regimenVacuna         = $this->cleanText($row[20] ?? null);
+        $condicionUsuariaVacuna = $this->cleanText($row[43] ?? null);
 
-        // carnet externo con cache
+        // Afiliado externo con cache: carnet + IPS primaria vigente al momento del cargue.
         $cacheKey = $tipo_identifi . '|' . $numero_identifi;
 
         if (!array_key_exists($cacheKey, $this->carnetCache)) {
             try {
                 $ext = DB::connection('sqlsrv_1')
-                    ->table('maestroIdentificaciones')
-                    ->select('numeroCarnet')
-                    ->where('identificacion', $numero_identifi)
-                    ->where('tipoIdentificacion', $tipo_identifi)
+                    ->table('maestroIdentificaciones as A')
+                    ->leftJoin('maestroIps as J', 'A.numeroCarnet', '=', 'J.numeroCarnet')
+                    ->leftJoin('maestroIpsGru as K', 'J.idGrupoIps', '=', 'K.id')
+                    ->leftJoin('maestroipsgrudet as L', function ($join) {
+                        $join->on('L.idd', '=', 'K.id')
+                            ->where('L.servicio', '=', 1);
+                    })
+                    ->select([
+                        'A.numeroCarnet',
+                        'L.codigo as ips_primaria_codigo',
+                        'K.descrip as ips_primaria_nombre',
+                    ])
+                    ->where('A.identificacion', $numero_identifi)
+                    ->where('A.tipoIdentificacion', $tipo_identifi)
                     ->first();
 
-                $this->carnetCache[$cacheKey] = $ext->numeroCarnet ?? null;
+                $this->carnetCache[$cacheKey] = $ext ? [
+                    'numeroCarnet' => $ext->numeroCarnet ?? null,
+                    'ips_primaria_codigo' => $this->normalizeExternalLookupValue($ext->ips_primaria_codigo ?? null),
+                    'ips_primaria_nombre' => $this->normalizeExternalLookupValue($ext->ips_primaria_nombre ?? null),
+                ] : null;
             } catch (\Throwable $e) {
                 $this->carnetCache[$cacheKey] = null;
                 $msg = "Fila {$excelRow}: error consultando DB externa: ".$e->getMessage();
@@ -843,7 +858,10 @@ class AfiliadoImportStreaming implements ToModel, WithStartRow, WithChunkReading
             }
         }
 
-        $numero_carnet = $this->carnetCache[$cacheKey];
+        $afiliadoExterno = $this->carnetCache[$cacheKey] ?? null;
+        $numero_carnet = $afiliadoExterno['numeroCarnet'] ?? null;
+        $ipsPrimariaCodigo = $afiliadoExterno['ips_primaria_codigo'] ?? null;
+        $ipsPrimariaNombre = $afiliadoExterno['ips_primaria_nombre'] ?? null;
 
         if (!$numero_carnet) {
             $msg = "Fila {$excelRow}: NO es afiliado (no existe en BD externa) => {$tipo_identifi} {$numero_identifi}";
@@ -984,7 +1002,10 @@ class AfiliadoImportStreaming implements ToModel, WithStartRow, WithChunkReading
             $fuen_ingresado_paiweb,
             $motivo_noingreso,
             $observaciones,
-            $regimenVacuna
+            $regimenVacuna,
+            $condicionUsuariaVacuna,
+            $ipsPrimariaCodigo,
+            $ipsPrimariaNombre
         );
 
         $this->bufferRows[] = [
@@ -1223,6 +1244,10 @@ class AfiliadoImportStreaming implements ToModel, WithStartRow, WithChunkReading
                     'motivo_noingreso' => null,
                     'observaciones' => null,
                     'regimen' => null,
+                    'condicion_usuaria' => null,
+                    'ips_primaria_codigo' => null,
+                    'ips_primaria_nombre' => null,
+                    'ips_primaria_resolved_at' => null,
                     'batch_verifications_id' => null,
                     'afiliado_id' => null,
                     'vacunas_id' => null,
@@ -1342,7 +1367,7 @@ class AfiliadoImportStreaming implements ToModel, WithStartRow, WithChunkReading
                         foreach ([
                             'docis','laboratorio','lote','jeringa','lote_jeringa','diluyente','lote_diluyente',
                             'observacion','gotero','tipo_neumococo','responsable','fuen_ingresado_paiweb',
-                            'motivo_noingreso','observaciones','regimen','num_frascos_utilizados'
+                            'motivo_noingreso','observaciones','regimen','condicion_usuaria','num_frascos_utilizados'
                         ] as $k) {
                             if ($this->isNullToken($vacunaData[$k] ?? null)) {
                                 $vacunaData[$k] = null;
@@ -1394,7 +1419,11 @@ class AfiliadoImportStreaming implements ToModel, WithStartRow, WithChunkReading
         $fuen_ingresado_paiweb,
         $motivo_noingreso,
         $observaciones,
-        $regimenVacuna
+        $regimenVacuna,
+        $condicionUsuariaVacuna
+        ,
+        ?string $ipsPrimariaCodigo,
+        ?string $ipsPrimariaNombre
     ): array {
         $vacunas = [];
         $nowTs = $this->nowSqlDateTime();
@@ -1512,6 +1541,10 @@ class AfiliadoImportStreaming implements ToModel, WithStartRow, WithChunkReading
                 'motivo_noingreso' => $motivo_noingreso ?? null,
                 'observaciones' => $observaciones ?? null,
                 'regimen' => $regimenVacuna ?? null,
+                'condicion_usuaria' => $condicionUsuariaVacuna ?? null,
+                'ips_primaria_codigo' => $ipsPrimariaCodigo,
+                'ips_primaria_nombre' => $ipsPrimariaNombre,
+                'ips_primaria_resolved_at' => $nowTs,
                 'vacunas_id' => (int)$vacunasId,
                 'user_id' => (int)$this->userId,
                 'batch_verifications_id' => (int)$this->batch_verifications_id,
@@ -1574,6 +1607,21 @@ class AfiliadoImportStreaming implements ToModel, WithStartRow, WithChunkReading
             ]);
             $db->table('vacunas')->insert($vacChunk);
         }
+    }
+
+    private function normalizeExternalLookupValue($value): ?string
+    {
+        if ($value === null) {
+            return null;
+        }
+
+        $text = trim((string) $value);
+
+        if ($text === '' || $this->isNullToken($text)) {
+            return null;
+        }
+
+        return $text;
     }
 
     private function resolveFinalColumns(array $row): array

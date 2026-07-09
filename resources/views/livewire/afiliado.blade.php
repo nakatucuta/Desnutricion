@@ -1855,7 +1855,7 @@ window.PAI_INITIAL_LOAD_STATE = @json($paiLoadState ?? ['busy' => false]);
       url = url.replace(':carnet', encodeURIComponent(carnet));
 
       $('#vacunaList').html(
-          '<tr><td colspan="8">' +
+          '<tr><td colspan="9">' +
               '<div class="pai-skeleton-row"><div class="pai-skeleton pai-skeleton-line"></div><div class="pai-skeleton pai-skeleton-line"></div></div>' +
               '<div class="pai-skeleton-row"><div class="pai-skeleton pai-skeleton-line"></div><div class="pai-skeleton pai-skeleton-line"></div></div>' +
               '<div class="pai-skeleton-row"><div class="pai-skeleton pai-skeleton-line"></div><div class="pai-skeleton pai-skeleton-line"></div></div>' +
@@ -1872,7 +1872,7 @@ window.PAI_INITIAL_LOAD_STATE = @json($paiLoadState ?? ['busy' => false]);
               $('#vacunaList').empty();
 
               if(!data || data.length === 0){
-                  $('#vacunaList').append('<tr><td colspan="8"><div class="pai-empty-state"><i class="fas fa-syringe"></i>No se encontraron vacunas para este afiliado.</div></td></tr>');
+                  $('#vacunaList').append('<tr><td colspan="9"><div class="pai-empty-state"><i class="fas fa-syringe"></i>No se encontraron vacunas para este afiliado.</div></td></tr>');
                   $('#vacunaModal').modal('show');
                   return;
               }
@@ -1900,6 +1900,7 @@ window.PAI_INITIAL_LOAD_STATE = @json($paiLoadState ?? ['busy' => false]);
                           '<td>' + (v.nombre_usuario ?? '') + '</td>' +
                           '<td>' + (v.responsable ? v.responsable : '---') + '</td>' +
                           '<td>' + (v.regimen_vacuna ? v.regimen_vacuna : '---') + '</td>' +
+                          '<td>' + (v.condicion_usuaria_vacuna ? v.condicion_usuaria_vacuna : '---') + '</td>' +
                       '</tr>'
                   );
               });

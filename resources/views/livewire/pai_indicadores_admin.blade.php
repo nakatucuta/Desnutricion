@@ -9,6 +9,9 @@
         <div class="text-muted">CRUD directo sobre <code>metas_vacunacion</code> para ajustar la programacion anual por vigencia.</div>
     </div>
     <div class="d-flex flex-wrap gap-2">
+        <a href="{{ route('afiliado.stats.settings.index') }}" class="btn btn-outline-dark">
+            <i class="fas fa-sliders-h mr-1"></i> Parametrizaciones PAI
+        </a>
         <a href="{{ route('afiliado.stats.view') }}" class="btn btn-outline-secondary">
             <i class="fas fa-arrow-left mr-1"></i> Volver a Estadisticas
         </a>
@@ -21,6 +24,8 @@
 
 @section('content')
 <div class="container-fluid pb-4 pai-shell">
+    @include('livewire.partials.pai_admin_nav')
+
     <div class="pai-hero card mb-3">
         <div class="card-body">
             <div class="row align-items-center">
@@ -238,6 +243,11 @@
 .pai-shell{background:linear-gradient(180deg,#f6f9ff 0%,#fff 100%)}
 .pai-head{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
 .pai-title{font-weight:900;color:#132238}
+.pai-admin-nav{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.pai-admin-nav__item{display:flex;flex-direction:column;gap:4px;padding:14px 16px;border-radius:18px;border:1px solid rgba(15,23,42,.08);background:#fff;color:#0f172a;box-shadow:0 10px 24px rgba(15,23,42,.05);text-decoration:none}
+.pai-admin-nav__item small{color:#64748b}
+.pai-admin-nav__item.is-active{border-color:rgba(29,78,216,.26);background:linear-gradient(180deg,#eff6ff,#fff)}
+.pai-admin-nav__eyebrow{font-size:.72rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#2563eb}
 .pai-card{border:1px solid rgba(15,23,42,.08);border-radius:18px;box-shadow:0 14px 34px rgba(15,23,42,.06);overflow:hidden}
 .pai-card__header{display:flex;justify-content:space-between;align-items:center;gap:12px;background:linear-gradient(90deg,#f8fbff 0%,#fff 100%)}
 .pai-hero{border:0;border-radius:22px;box-shadow:0 18px 40px rgba(15,23,42,.06);background:radial-gradient(circle at top left,#eef6ff 0%,#ffffff 55%)}
@@ -253,6 +263,9 @@
 .pai-readonly{background:#f8fafc;color:#334155}
 .pai-helpbox{padding:12px 14px;border-radius:14px;background:#f8fbff;border:1px solid rgba(37,99,235,.12)}
 .gap-2{gap:.5rem}
+@media (max-width: 991.98px){
+    .pai-admin-nav{grid-template-columns:1fr}
+}
 </style>
 @stop
 

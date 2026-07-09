@@ -20,6 +20,8 @@ class EnforceModulePermissions
             return $next($request);
         }
 
+        $user->loadMissing('modulePermissions.modulePermission');
+
         // Permitir rutas de gestion de accesos para no generar loops.
         if ($request->routeIs('access.*') || $request->routeIs('access-control.*') || $request->routeIs('access-requests.*')) {
             return $next($request);

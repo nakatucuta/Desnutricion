@@ -9,6 +9,9 @@
         <div class="text-muted">Replica dinamica del formato de seguimiento de coberturas</div>
     </div>
     <div class="d-flex gap-2">
+        <a href="{{ route('afiliado.stats.settings.index') }}" class="btn btn-outline-dark mr-2">
+            <i class="fas fa-sliders-h mr-1"></i> Parametrizaciones PAI
+        </a>
         <a href="{{ route('afiliado.stats.indicadores.index') }}" class="btn btn-outline-primary mr-2">
             <i class="fas fa-database mr-1"></i> Administrar Indicadores
         </a>
@@ -84,7 +87,7 @@
 
             <div class="d-flex justify-content-between align-items-center mt-2 flex-wrap">
                 <small class="text-muted mb-2" id="paiMeta">Cargando...</small>
-                <div class="mb-2">
+                <div class="mb-2 d-flex flex-wrap align-items-center justify-content-end gap-2">
                     <button class="btn btn-sm btn-outline-secondary" id="paiLimpiar">Limpiar</button>
                     <button class="btn btn-sm btn-primary" id="paiAplicar">Aplicar</button>
                 </div>
@@ -117,6 +120,17 @@
 
     <div class="card pai-card mt-2">
         <div class="card-body p-0">
+            <div class="pai-table-toolbar">
+                <div>
+                    <div class="pai-table-toolbar__title">Indicadores</div>
+                    <div class="pai-table-toolbar__hint">Filtra la tabla sin recalcular la consulta.</div>
+                </div>
+                <label class="pai-toggle mb-0" for="paiTracerToggle">
+                    <input type="checkbox" id="paiTracerToggle">
+                    <span class="pai-toggle__track" aria-hidden="true"><span class="pai-toggle__thumb"></span></span>
+                    <span class="pai-toggle__label">Solo trazadores</span>
+                </label>
+            </div>
             <div class="table-responsive">
                 <table class="table table-sm table-striped table-hover mb-0">
                     <thead class="pai-table-head">
@@ -223,11 +237,21 @@
 .pai-tag strong{color:#0f172a}
 .pai-tag--active{border-color:rgba(37,99,235,.35);background:linear-gradient(180deg,#eff6ff,#fff);color:#1d4ed8}
 .pai-progress-note{font-size:.76rem;color:#64748b}
+.pai-toggle{display:inline-flex;align-items:center;gap:8px;padding:5px 9px;border:1px solid rgba(148,163,184,.32);border-radius:999px;background:#fff;color:#334155;font-size:.78rem;font-weight:800;cursor:pointer;user-select:none}
+.pai-toggle input{position:absolute;opacity:0;pointer-events:none}
+.pai-toggle__track{position:relative;width:34px;height:18px;border-radius:999px;background:#cbd5e1;transition:background .18s ease;flex:0 0 auto}
+.pai-toggle__thumb{position:absolute;top:2px;left:2px;width:14px;height:14px;border-radius:50%;background:#fff;box-shadow:0 1px 4px rgba(15,23,42,.22);transition:transform .18s ease}
+.pai-toggle input:checked + .pai-toggle__track{background:#2563eb}
+.pai-toggle input:checked + .pai-toggle__track .pai-toggle__thumb{transform:translateX(16px)}
+.pai-toggle__label{line-height:1}
 .pai-dose-link{border:none;background:transparent;color:#1d4ed8;font-weight:900;font-size:1rem;padding:2px 6px;border-radius:10px;transition:all .16s ease}
 .pai-dose-link:hover{background:rgba(37,99,235,.08);transform:translateY(-1px);text-decoration:none}
 .pai-mini{background:#fff;border:1px solid rgba(15,23,42,.08);border-radius:12px;padding:12px}
 .pai-mini__label{font-size:.76rem;text-transform:uppercase;color:#64748b;font-weight:800}
 .pai-mini__value{font-size:1.3rem;font-weight:900;color:#0f172a}
+.pai-table-toolbar{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;padding:12px 14px;border-bottom:1px solid rgba(15,23,42,.08);background:#fff}
+.pai-table-toolbar__title{font-weight:900;color:#0f172a;line-height:1.1}
+.pai-table-toolbar__hint{font-size:.76rem;color:#64748b;margin-top:2px}
 .pai-table-head th{font-size:.74rem;text-transform:uppercase;letter-spacing:.02em;background:#f8fbff;border-top:none}
 .pai-chip{display:inline-block;padding:5px 10px;border-radius:0;font-size:.78rem;font-weight:800;border:1px solid #000;color:#000}
 .chip-optimo{background:#0070c0;color:#fff}
@@ -320,7 +344,7 @@
             meta.textContent = message;
         }
 
-        ['paiYear','paiEscala','paiPeriodo','paiMunicipio','paiIps','paiRegimen','paiAplicar','paiLimpiar']
+        ['paiYear','paiEscala','paiPeriodo','paiMunicipio','paiIps','paiRegimen','paiAplicar','paiLimpiar','paiTracerToggle']
             .forEach(function(id){
                 const el = document.getElementById(id);
                 if (el) {
@@ -375,11 +399,67 @@
         }, 520);
     }
 
+    function normalizeText(value){
+        return String(value || '')
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .toUpperCase()
+            .replace(/[^A-Z0-9]+/g, ' ')
+            .replace(/\s+/g, ' ')
+            .trim();
+    }
+
+    function isTracerIndicator(row){
+        const indicador = normalizeText(row?.indicador);
+        const biologico = normalizeText(row?.biologico);
+        const dosis = normalizeText(row?.dosis_meta);
+        const all = [indicador, biologico, dosis].join(' ');
+
+        if (all.includes('BCG')) return true;
+        if (all.includes('PENTAVALENTE') && (all.includes('3RA') || all.includes('TERCERA') || /\b3\b/.test(all))) return true;
+        if (all.includes('TRIPLE VIRAL') && (indicador.includes('1 ANO') || dosis.includes('1') || all.includes('PRIMERA'))) return true;
+        if (all.includes('TRIPLE VIRAL') && (indicador.includes('18 MESES') || all.includes('REFUERZO'))) return true;
+        if (all.includes('FIEBRE AMARILLA') && (indicador.includes('18 MESES') || all.includes('18 MESES'))) return true;
+        if (all.includes('DPT') && (indicador.includes('5 ANOS') || all.includes('SEGUNDO REFUERZO') || all.includes('2DO REFUERZO'))) return true;
+        if (all.includes('VPH')) return true;
+        if (indicador.includes('GESTANTE') && (all.includes('DPT') || all.includes('TDAP') || all.includes('DTPA'))) return true;
+        if (indicador.includes('GESTANTE') && (all.includes('VSR') || all.includes('RSV') || all.includes('SINCITIAL'))) return true;
+
+        return false;
+    }
+
+    function visibleRows(rows){
+        const tracerOnly = document.getElementById('paiTracerToggle')?.checked || false;
+        const source = rows || [];
+        return tracerOnly ? source.filter(isTracerIndicator) : source;
+    }
+
+    function renderKpis(rows){
+        const totals = (rows || []).reduce(function(acc, row){
+            acc.meta += Number(row.meta || 0);
+            acc.dosis += Number(row.dosis_aplicadas || 0);
+            acc.susceptibles += Number(row.susceptibles || 0);
+            return acc;
+        }, { meta: 0, dosis: 0, susceptibles: 0 });
+
+        document.getElementById('kpiMeta').textContent = num.format(totals.meta);
+        document.getElementById('kpiDosis').textContent = num.format(totals.dosis);
+        document.getElementById('kpiSusceptibles').textContent = num.format(totals.susceptibles);
+    }
+
     function renderRows(rows){
         const body = document.getElementById('paiBody');
         if (!body) return;
         body.innerHTML = '';
-        (rows || []).forEach(function(r){
+        const sourceRows = visibleRows(rows);
+        renderKpis(sourceRows);
+
+        if (!sourceRows.length) {
+            body.innerHTML = '<tr><td colspan="8" class="text-center text-muted py-4">No hay indicadores para mostrar.</td></tr>';
+            return;
+        }
+
+        sourceRows.forEach(function(r){
             const tr = document.createElement('tr');
             const pct = Number(r.cobertura || 0) * 100;
             const dose = Number(r.dosis_aplicadas || 0);
@@ -535,10 +615,6 @@
                         ' | Sin registros para esta combinacion de Municipio + Codigo + Regimen.';
                 }
 
-                document.getElementById('kpiMeta').textContent = num.format(Number(resp.totals?.meta || 0));
-                document.getElementById('kpiDosis').textContent = num.format(Number(resp.totals?.dosis_aplicadas || 0));
-                document.getElementById('kpiSusceptibles').textContent = num.format(Number(resp.totals?.susceptibles || 0));
-
                 renderRows(resp.rows || []);
                 renderThresholds(resp.thresholds || {});
             })
@@ -612,6 +688,10 @@
     document.getElementById('paiRegimen').addEventListener('change', function(){
         syncFilterLocks();
         scheduleLoad();
+    });
+
+    document.getElementById('paiTracerToggle').addEventListener('change', function(){
+        renderRows(lastResponse?.rows || []);
     });
 
     document.getElementById('paiAplicar').addEventListener('click', function(e){

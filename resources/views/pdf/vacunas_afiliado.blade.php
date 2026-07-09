@@ -72,6 +72,7 @@
                     <th>IPS vacunadora</th>
                     <th>Vacunador</th>
                     <th>Regimen</th>
+                    <th>Condicion usuaria</th>
                 </tr>
             </thead>
             <tbody>
@@ -85,6 +86,7 @@
                         <td>{{ $v->nombre_usuario ?? '' }}</td>
                         <td>{{ $v->responsable ?? '' }}</td>
                         <td>{{ $v->regimen_vacuna ?? '' }}</td>
+                        <td>{{ $v->condicion_usuaria_vacuna ?? '' }}</td>
                     </tr>
                 @endforeach
             </tbody>

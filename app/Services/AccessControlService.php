@@ -22,6 +22,11 @@ class AccessControlService
     public const CICLOSVIDA_ACCESS = 'ciclosvida.access';
     public const PERMISSIONS_MANAGE = 'permissions.manage';
 
+    private ?bool $accessControlTablesAvailable = null;
+
+    /** @var array<int, array<int, string>> */
+    private array $cachedPermissionCodesByUser = [];
+
     /**
      * @return array<int, array{code:string,name:string,description:?string,assignable:bool}>
      */
@@ -83,7 +88,7 @@ class AccessControlService
             return true;
         }
 
-        if (!Schema::hasTable('module_permissions') || !Schema::hasTable('user_module_permissions')) {
+        if (!$this->hasAccessControlTables()) {
             return !$this->isGesExclusiveUser($user);
         }
 
@@ -96,27 +101,16 @@ class AccessControlService
             return true;
         }
 
-        if (!Schema::hasTable('module_permissions') || !Schema::hasTable('user_module_permissions')) {
+        if (!$this->hasAccessControlTables()) {
             return false;
         }
 
-        if ($user->relationLoaded('modulePermissions')) {
-            return $user->modulePermissions->contains(
-                static fn (UserModulePermission $row) => ($row->modulePermission->code ?? null) === $permissionCode
-            );
-        }
-
-        return UserModulePermission::query()
-            ->where('user_id', (int) $user->id)
-            ->whereHas('modulePermission', function ($q) use ($permissionCode) {
-                $q->where('code', $permissionCode);
-            })
-            ->exists();
+        return in_array($permissionCode, $this->permissionCodesForUser($user), true);
     }
 
     public function ensureCatalogExists(): void
     {
-        if (!Schema::hasTable('module_permissions')) {
+        if (!$this->hasAccessControlTables()) {
             return;
         }
 
@@ -154,6 +148,8 @@ class AccessControlService
                 'notes' => $notes,
             ]
         );
+
+        unset($this->cachedPermissionCodesByUser[(int) $user->id]);
     }
 
     public function revokePermission(User $user, string $permissionCode): void
@@ -167,6 +163,8 @@ class AccessControlService
             ->where('user_id', (int) $user->id)
             ->where('module_permission_id', (int) $permission->id)
             ->delete();
+
+        unset($this->cachedPermissionCodesByUser[(int) $user->id]);
     }
 
     /**
@@ -208,6 +206,8 @@ class AccessControlService
                 ]);
             }
         });
+
+        unset($this->cachedPermissionCodesByUser[(int) $user->id]);
     }
 
     public function resolvePermissionForRequest(Request $request): ?string
@@ -435,6 +435,39 @@ class AccessControlService
             ->orderByDesc('login_count')
             ->limit($limit)
             ->get();
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private function permissionCodesForUser(User $user): array
+    {
+        $userId = (int) $user->id;
+
+        if (array_key_exists($userId, $this->cachedPermissionCodesByUser)) {
+            return $this->cachedPermissionCodesByUser[$userId];
+        }
+
+        $user->loadMissing('modulePermissions.modulePermission');
+
+        $codes = $user->modulePermissions
+            ->map(static fn (UserModulePermission $row) => (string) ($row->modulePermission->code ?? ''))
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
+
+        return $this->cachedPermissionCodesByUser[$userId] = $codes;
+    }
+
+    private function hasAccessControlTables(): bool
+    {
+        if ($this->accessControlTablesAvailable !== null) {
+            return $this->accessControlTablesAvailable;
+        }
+
+        return $this->accessControlTablesAvailable =
+            Schema::hasTable('module_permissions') && Schema::hasTable('user_module_permissions');
     }
 
     /**

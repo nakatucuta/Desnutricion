@@ -84,6 +84,18 @@ Route::get('/alteraciones-nutricionales/indicadores/gaps', [AlteracionesNutricio
     ->middleware(['auth', 'can:access-nutricional']);
 Route::get('/afiliado/estadisticas/indicadores', [AfiliadoController::class, 'paiIndicadoresIndex'])->name('afiliado.stats.indicadores.index')
 ->middleware('auth');
+Route::get('/afiliado/estadisticas/parametrizaciones', [AfiliadoController::class, 'paiSettingsIndex'])->name('afiliado.stats.settings.index')
+->middleware('auth');
+Route::get('/afiliado/estadisticas/referencias-ips', [AfiliadoController::class, 'paiIpsReferenciasIndex'])->name('afiliado.stats.references.index')
+->middleware('auth');
+Route::get('/afiliado/estadisticas/referencias-ips/data', [AfiliadoController::class, 'paiIpsReferenciasData'])->name('afiliado.stats.references.data')
+->middleware('auth');
+Route::post('/afiliado/estadisticas/referencias-ips', [AfiliadoController::class, 'paiIpsReferenciasStore'])->name('afiliado.stats.references.store')
+->middleware('auth');
+Route::put('/afiliado/estadisticas/referencias-ips/{id}', [AfiliadoController::class, 'paiIpsReferenciasUpdate'])->name('afiliado.stats.references.update')
+->middleware('auth');
+Route::delete('/afiliado/estadisticas/referencias-ips/{id}', [AfiliadoController::class, 'paiIpsReferenciasDestroy'])->name('afiliado.stats.references.destroy')
+->middleware('auth');
 Route::get('/afiliado/estadisticas/indicadores/data', [AfiliadoController::class, 'paiIndicadoresData'])->name('afiliado.stats.indicadores.data')
 ->middleware('auth');
 Route::post('/afiliado/estadisticas/indicadores', [AfiliadoController::class, 'paiIndicadoresStore'])->name('afiliado.stats.indicadores.store')

@@ -133,17 +133,29 @@ class PaiDoseNormalizer
             return null;
         }
 
-        if (preg_match('/^(?:DOSIS\s+)?UNICA(?:\s*[_ ]?\s*(0[.,]\d+))?$/u', $normalized, $m)) {
+        if (preg_match('/^(?:DOSIS\s+)?(?:UNICA|U\?NICA|UN?ICA)(?:\s*[_ ]?\s*(0[.,]\d+))?$/u', $normalized, $m)) {
             $suffix = isset($m[1]) ? ' ' . str_replace(',', '.', $m[1]) : '';
             return $this->ascii([85, 78, 73, 67, 65]) . $suffix;
         }
 
-        if (preg_match('/^(?:UNICA|DOSIS\s+UNICA)\s*[_ ]\s*(0[.,]\d+)$/u', $normalized, $m)) {
+        if (preg_match('/^(?:(?:UNICA|U\?NICA|UN?ICA)|DOSIS\s+(?:UNICA|U\?NICA|UN?ICA))\s*[_ ]\s*(0[.,]\d+)$/u', $normalized, $m)) {
             return $this->ascii([85, 78, 73, 67, 65]) . ' ' . str_replace(',', '.', $m[1]);
         }
 
-        if (preg_match('/^RECIEN NACIDO$|^DOSIS DE RECIEN NACIDO$/u', $normalized)) {
+        if (preg_match('/^(?:RECIEN|RECI\?N|RECIN|RECI N)\s+NACIDO$/u', $normalized)) {
             return $this->ascii([82, 69, 67, 73, 69, 78, 32, 78, 65, 67, 73, 68, 79]);
+        }
+
+        if (preg_match('/^DOSIS\s+DE\s+(?:RECIEN|RECI\?N|RECIN|RECI N)\s+NACIDO$/u', $normalized)) {
+            return $this->ascii([82, 69, 67, 73, 69, 78, 32, 78, 65, 67, 73, 68, 79]);
+        }
+
+        if ($normalized === 'CERO' || $normalized === 'DOSIS CERO' || $normalized === 'DOSIS 0') {
+            return 'CERO';
+        }
+
+        if (preg_match('/^(?:DOSIS\s+)?ADICIONAL$/u', $normalized)) {
+            return 'ADICIONAL';
         }
 
         if ($normalized === 'PRIMERA' || $normalized === 'PRIMERA DOSIS' || $normalized === '1RA DOSIS' || $normalized === '1RA') {
@@ -231,7 +243,7 @@ class PaiDoseNormalizer
             return false;
         }
 
-        if (preg_match('/\b(DOSIS|REFUERZO|UNICA|RECIEN NACIDO)\b/u', $normalized)) {
+        if (preg_match('/\b(DOSIS|REFUERZO|UNICA|U\?NICA|RECIEN NACIDO|CERO|ADICIONAL)\b/u', $normalized)) {
             return true;
         }
 
