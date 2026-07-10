@@ -67,6 +67,34 @@ class PaiDoseNormalizer
         return $this->normalizeDocis($value, $vacunasId) !== null;
     }
 
+    public function normalizeDocisStrict($value): ?string
+    {
+        if ($value !== null) {
+            $value = str_replace(["'", '"', 'Â´', 'â€™', 'â€˜'], '', (string) $value);
+        }
+
+        $raw = $this->cleanText($value);
+        if ($raw === null) {
+            return null;
+        }
+
+        $normalized = $this->normalizeText($raw);
+        $canonical = $this->matchCanonicalDose($normalized);
+        if ($canonical !== null) {
+            return $canonical;
+        }
+
+        if ($this->isSpecialGarbage($normalized)) {
+            return null;
+        }
+
+        if ($this->looksLikeDoseText($normalized)) {
+            return $this->formatCanonicalText($normalized);
+        }
+
+        return null;
+    }
+
     public function defaultForVaccine(?int $vacunasId, array $context = []): ?string
     {
         if ($vacunasId === null) {
@@ -127,6 +155,34 @@ class PaiDoseNormalizer
 
         if ($normalized === '') {
             return null;
+        }
+
+        if (in_array($normalized, [
+            'PRIMERA Y SEGUNDA DOSIS',
+            'PRIMERA SEGUNDA DOSIS',
+            'PRIMERA Y 2DA DOSIS',
+            '1RA Y 2DA DOSIS',
+            '1RA 2DA DOSIS',
+        ], true)) {
+            return 'PRIMERA Y SEGUNDA DOSIS';
+        }
+
+        if (in_array($normalized, [
+            'TERCERA Y CUARTA DOSIS',
+            'TERCERA CUARTA DOSIS',
+            'TECERA Y CUARTA DOSIS',
+            '3RA Y 4TA DOSIS',
+            '3RA 4TA DOSIS',
+        ], true)) {
+            return 'TERCERA Y CUARTA DOSIS';
+        }
+
+        if ($normalized === 'TERECERA DOSIS' || $normalized === 'TECERA DOSIS') {
+            return 'TERCERA DOSIS';
+        }
+
+        if ($normalized === 'NUMERO DE FRASCOS' || $normalized === 'NUMERO FRASCOS') {
+            return 'NUMERO DE FRASCOS';
         }
 
         if ($this->hasConflictingDoseSignals($normalized)) {

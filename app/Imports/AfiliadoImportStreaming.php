@@ -321,6 +321,13 @@ class AfiliadoImportStreaming implements ToModel, WithStartRow, WithChunkReading
         }
     }
 
+    private function failImport(string $msg): void
+    {
+        $this->addError($msg);
+        $this->pushProgress('validacion', 'Importacion detenida por errores de validacion.', 99);
+        throw new \RuntimeException($msg);
+    }
+
     private function addNoAfiliado(int $excelRow, string $tipo, string $numero, string $motivo = 'No existe en BD externa'): void
     {
         $this->noAfiliados[] = [
@@ -1050,6 +1057,97 @@ class AfiliadoImportStreaming implements ToModel, WithStartRow, WithChunkReading
         return $this->doseNormalizer->normalizeDocis($value);
     }
 
+    private function normalizeDocisStrict($value): ?string
+    {
+        return $this->doseNormalizer->normalizeDocisStrict($value);
+    }
+
+    private function normalizeCatalogText(?string $value): ?string
+    {
+        if ($value === null) {
+            return null;
+        }
+
+        $txt = trim($value);
+        if ($txt === '') {
+            return null;
+        }
+
+        $txt = @iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', $txt) ?: $txt;
+        $txt = mb_strtoupper($txt, 'UTF-8');
+        $txt = preg_replace('/[^A-Z0-9]+/u', ' ', $txt) ?? $txt;
+        $txt = preg_replace('/\s+/u', ' ', trim($txt)) ?? trim($txt);
+
+        return $txt === '' ? null : $txt;
+    }
+
+    private function catalogKeyForVacuna(?string $vacunaNombre): ?string
+    {
+        $name = $this->normalizeCatalogText($vacunaNombre);
+        if ($name === null) {
+            return null;
+        }
+
+        if (str_contains($name, 'COVID')) return 'COVID19';
+        if ($name === 'BCG' || str_contains($name, ' BCG')) return 'BCG';
+        if (str_contains($name, 'VSR') || str_contains($name, 'SINCITIAL')) return 'VSR';
+        if (str_contains($name, 'HEPATITIS') && str_contains($name, 'B') && str_contains($name, 'INMUNOGLOBULINA')) return 'HEPATITIS B INMUNOGLOBULINA';
+        if ((str_contains($name, 'HEPATITIS') || str_contains($name, 'HAPATITIS')) && str_contains($name, ' A')) return 'HEPATITIS A';
+        if ((str_contains($name, 'HEPATITIS') || str_contains($name, 'HAPATITIS')) && str_contains($name, ' B')) return 'HEPATITIS B';
+        if (str_contains($name, 'POLIO')) return 'POLIO INACTIVO';
+        if (str_contains($name, 'PENTAVALENTE')) return 'PENTAVALENTE';
+        if (str_contains($name, 'HEXAVALENTE')) return 'HEXAVALENTE';
+        if ((str_contains($name, 'DPTA') || str_contains($name, 'DPT A')) && str_contains($name, 'ADULTO')) return 'DPTA ADULTO';
+        if ((str_contains($name, 'DPTA') || str_contains($name, 'DPT A')) && (str_contains($name, 'PED') || str_contains($name, 'PEDIATR'))) return 'DPTA PED';
+        if (str_contains($name, 'DPT')) return 'DPT';
+        if (str_contains($name, 'ROTAVIRUS')) return 'ROTAVIRUS';
+        if (str_contains($name, 'NEUMOCOCO')) return 'NEUMOCOCO';
+        if (str_contains($name, 'SARAMPION')) return 'SARAMPION';
+        if (str_contains($name, 'FIEBRE') && str_contains($name, 'AMARILLA')) return 'FIEBRE AMARILLA';
+        if (str_contains($name, 'VARICELA')) return 'VARICELA';
+        if (str_contains($name, 'TOXOIDE') && str_contains($name, 'TETAN')) return 'TOXOIDE TETANICO';
+        if (str_contains($name, 'INFLUENZA')) return 'INFLUENZA';
+        if (str_contains($name, 'VPH') || str_contains($name, 'PAPILOMA')) return 'VPH';
+        if (str_contains($name, 'ANTIRRABICA') && str_contains($name, 'SUERO')) return 'ANTIRRABICA SUERO';
+        if (str_contains($name, 'ANTIRRABICA')) return 'ANTIRRABICA HUMANA';
+        if (str_contains($name, 'ANTITOCOIDE') && str_contains($name, 'TETAN')) return 'ANTITOCOIDE TETANICA';
+        if ($name === 'INMUNOGLOBULINA' || (str_contains($name, 'INMUNOGLOBULINA') && !str_contains($name, 'HEPATITIS'))) return 'INMUNOGLOBULINA';
+        if (str_contains($name, 'MENINGOCOCO')) return 'MENINGOCOCO';
+
+        $catalog = (array) config('pai_docis.valid_doses_by_vaccine', []);
+        return array_key_exists($name, $catalog) ? $name : null;
+    }
+
+    private function validDosesForVacuna(int $vacunasId): ?array
+    {
+        $catalog = (array) config('pai_docis.valid_doses_by_vacunas_id', []);
+        return isset($catalog[$vacunasId]) ? array_values((array) $catalog[$vacunasId]) : null;
+    }
+
+    private function isFrascosVacuna(array $vacunaData): bool
+    {
+        return array_key_exists('num_frascos_utilizados', $vacunaData);
+    }
+
+    private function validateFrascosValue($value): ?string
+    {
+        if ($value === null || $this->isNullToken($value)) {
+            return null;
+        }
+
+        $txt = trim((string) $value);
+        if ($txt === '') {
+            return null;
+        }
+
+        $normalized = str_replace(',', '.', $txt);
+        if (!is_numeric($normalized) || (float) $normalized <= 0) {
+            return null;
+        }
+
+        return $txt;
+    }
+
     private function forceStringLots(array $row): array
     {
         foreach (['lote', 'lote_jeringa', 'lote_diluyente'] as $k) {
@@ -1272,6 +1370,9 @@ class AfiliadoImportStreaming implements ToModel, WithStartRow, WithChunkReading
                         $vacunasId = $vacunaData['vacunas_id'] ?? null;
 
                         if ($vacunasId === null || $vacunasId === '' || !is_numeric($vacunasId)) {
+                            $this->failImport(
+                                "Fila " . (int)($fila['excelRow'] ?? 0) . ": vacuna con vacunas_id invalido ({$vacunasId}). No se guardo nada."
+                            );
                             Log::warning("IMPORT VACUNA SKIP: vacunas_id inválido", [
                                 'excelRow' => $fila['excelRow'] ?? null,
                                 'vacunas_id' => $vacunasId,
@@ -1282,12 +1383,15 @@ class AfiliadoImportStreaming implements ToModel, WithStartRow, WithChunkReading
 
                         $vacunasId = (int)$vacunasId;
 
-                        $docisNorm = $this->normalizeDocis($vacunaData['docis'] ?? null);
+                        $docisNorm = $this->normalizeDocisStrict($vacunaData['docis'] ?? null);
                         $fechaVac = $this->toSqlDate($vacunaData['fecha_vacuna'] ?? null);
                         $vacunaNombre = $this->vacunaNombreCache[$vacunasId] ?? null;
 
                         // ✅ si no existe en referencia_vacunas => NO insertamos y lo mostramos al usuario
                         if (!isset($validVacIdSet[$vacunasId])) {
+                            $this->failImport(
+                                "Fila " . (int)($fila['excelRow'] ?? 0) . ": la vacuna (vacunas_id={$vacunasId}) no existe en referencia_vacunas. No se guardo nada."
+                            );
                             $this->oldVacuna++;
                             $this->addVacunaOmitida(
                                 (int)($fila['excelRow'] ?? 0),
@@ -1302,6 +1406,91 @@ class AfiliadoImportStreaming implements ToModel, WithStartRow, WithChunkReading
                                 "La vacuna (vacunas_id={$vacunasId}) no existe en referencia_vacunas. No se insertó."
                             );
                             continue;
+                        }
+
+                        if ($this->isFrascosVacuna($vacunaData)) {
+                            $frascos = $this->validateFrascosValue($vacunaData['num_frascos_utilizados'] ?? null);
+                            if ($frascos === null) {
+                                $this->failImport(
+                                    "Fila " . (int)($fila['excelRow'] ?? 0) . ": la vacuna " . ($vacunaNombre ?: "vacunas_id={$vacunasId}") . " requiere numero de frascos utilizado y debe ser un valor numerico positivo. No se guardo nada."
+                                );
+                                $this->oldVacuna++;
+                                $this->addVacunaOmitida(
+                                    (int)($fila['excelRow'] ?? 0),
+                                    (string)($fila['tipo'] ?? ''),
+                                    (string)($fila['numero'] ?? ''),
+                                    (string)($fila['carnet'] ?? null),
+                                    (int)$afiliadoId,
+                                    $vacunasId,
+                                    $vacunaNombre,
+                                    null,
+                                    $fechaVac,
+                                    "La vacuna requiere numero de frascos utilizado y debe ser un valor numerico positivo. No se insertó."
+                                );
+                                continue;
+                            }
+                            $vacunaData['num_frascos_utilizados'] = $frascos;
+                        } else {
+                            $allowedDoses = $this->validDosesForVacuna($vacunasId);
+                            if ($allowedDoses === null) {
+                                $this->failImport(
+                                    "Fila " . (int)($fila['excelRow'] ?? 0) . ": no hay catalogo de dosis configurado para la vacuna " . ($vacunaNombre ?: "vacunas_id={$vacunasId}") . ". No se guardo nada."
+                                );
+                                $this->oldVacuna++;
+                                $this->addVacunaOmitida(
+                                    (int)($fila['excelRow'] ?? 0),
+                                    (string)($fila['tipo'] ?? ''),
+                                    (string)($fila['numero'] ?? ''),
+                                    (string)($fila['carnet'] ?? null),
+                                    (int)$afiliadoId,
+                                    $vacunasId,
+                                    $vacunaNombre,
+                                    $docisNorm,
+                                    $fechaVac,
+                                    "No hay catalogo de dosis configurado para esta vacuna. No se insertó."
+                                );
+                                continue;
+                            }
+
+                            if ($docisNorm === null) {
+                                $this->failImport(
+                                    "Fila " . (int)($fila['excelRow'] ?? 0) . ": la vacuna " . ($vacunaNombre ?: "vacunas_id={$vacunasId}") . " tiene informacion en el Excel pero la dosis esta vacia o no se pudo normalizar. Dosis permitidas: " . implode(', ', $allowedDoses) . ". No se guardo nada."
+                                );
+                                $this->oldVacuna++;
+                                $this->addVacunaOmitida(
+                                    (int)($fila['excelRow'] ?? 0),
+                                    (string)($fila['tipo'] ?? ''),
+                                    (string)($fila['numero'] ?? ''),
+                                    (string)($fila['carnet'] ?? null),
+                                    (int)$afiliadoId,
+                                    $vacunasId,
+                                    $vacunaNombre,
+                                    null,
+                                    $fechaVac,
+                                    "La vacuna tiene informacion en el Excel pero la dosis esta vacia o no se pudo normalizar. Dosis permitidas: " . implode(', ', $allowedDoses) . ". No se insertó."
+                                );
+                                continue;
+                            }
+
+                            if (!in_array($docisNorm, $allowedDoses, true)) {
+                                $this->failImport(
+                                    "Fila " . (int)($fila['excelRow'] ?? 0) . ": la dosis '{$docisNorm}' no pertenece al catalogo de la vacuna " . ($vacunaNombre ?: "vacunas_id={$vacunasId}") . ". Dosis permitidas: " . implode(', ', $allowedDoses) . ". No se guardo nada."
+                                );
+                                $this->oldVacuna++;
+                                $this->addVacunaOmitida(
+                                    (int)($fila['excelRow'] ?? 0),
+                                    (string)($fila['tipo'] ?? ''),
+                                    (string)($fila['numero'] ?? ''),
+                                    (string)($fila['carnet'] ?? null),
+                                    (int)$afiliadoId,
+                                    $vacunasId,
+                                    $vacunaNombre,
+                                    $docisNorm,
+                                    $fechaVac,
+                                    "La dosis '{$docisNorm}' no pertenece al catalogo de esta vacuna. Dosis permitidas: " . implode(', ', $allowedDoses) . ". No se insertó."
+                                );
+                                continue;
+                            }
                         }
 
                         $key = (int)$afiliadoId . '|' . $vacunasId . '|' . ($docisNorm ?? '');
