@@ -6,6 +6,7 @@ use App\Imports\AfiliadoImportStreaming;
 use App\Models\ImportJob;
 use App\Models\User;
 use App\Mail\ImportResumenMail;
+use App\Services\PaiVacunaExcelPrevalidator;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -41,7 +42,7 @@ class ImportAfiliadosExcelJob implements ShouldQueue
             return;
         }
 
-        // ✅ LOCK: evita doble ejecución en paralelo del mismo importJobId
+        //  LOCK: evita doble ejecución en paralelo del mismo importJobId
         $lockKey = "import_lock:{$this->importJobId}";
         $lock = Cache::lock($lockKey, 3600);
 
@@ -53,26 +54,55 @@ class ImportAfiliadosExcelJob implements ShouldQueue
         $import = null;
 
         try {
-            // ✅ si ya está finalizado, no hagas nada
+            //  si ya está finalizado, no hagas nada
             if (in_array($jobRow->status, ['done', 'failed'], true)) {
                 return;
             }
 
-            // ✅ Limpia errores SOLO al inicio
+            //  Limpia errores SOLO al inicio
             $jobRow->errors = null;
             $jobRow->errors_count = 0;
             $jobRow->save();
 
-            $this->updateJobSafe($jobRow, 'running', 3, 'inicio', 'Iniciando importación…');
+            $this->updateJobSafe($jobRow, 'running', 3, 'inicio', 'Iniciando importaciÃ³nâ€¦');
 
             if (!is_file($this->fullPath)) {
                 throw new \RuntimeException("No existe el archivo: {$this->fullPath}");
             }
 
-            $this->updateJobSafe($jobRow, 'running', 5, 'lectura', 'Leyendo Excel (estimando filas)…');
+            $this->updateJobSafe($jobRow, 'running', 5, 'lectura', 'Leyendo Excel (estimando filas)â€¦');
 
             $totalRows = $this->estimateTotalRows($this->fullPath);
             $totalDataRows = max(1, $totalRows - 2); // startRow = 3
+
+            $this->updateJobSafe($jobRow, 'running', 6, 'prevalidacion', 'Validando catalogo de vacunas...');
+
+            $prevalidationErrors = app(PaiVacunaExcelPrevalidator::class)
+                ->validate($this->fullPath, 3, 1);
+
+            if (!empty($prevalidationErrors)) {
+                $this->updateJobSafe(
+                    $jobRow,
+                    'failed',
+                    100,
+                    'validacion',
+                    'Importacion con errores. No se guardo nada.',
+                    $prevalidationErrors
+                );
+
+                $this->sendImportEmailSafe(
+                    ok: false,
+                    batchId: 0,
+                    insertedAfil: 0,
+                    insertedVac: 0,
+                    stats: [],
+                    errores: $prevalidationErrors,
+                    noAfiliados: [],
+                    extraMsg: 'Importacion con errores en prevalidacion. No se guardo nada.'
+                );
+
+                return;
+            }
 
             $import = new AfiliadoImportStreaming(
                 userId: $this->userId,
@@ -84,7 +114,7 @@ class ImportAfiliadosExcelJob implements ShouldQueue
 
                     if (in_array($fresh->status, ['done', 'failed'], true)) return;
 
-                    // ✅ evita spamear el mismo mensaje/porcentaje
+                    //  evita spamear el mismo mensaje/porcentaje
                     if ((int)$fresh->percent === (int)$pct
                         && (string)$fresh->message === (string)$msg
                         && (string)$fresh->step === (string)$step) {
@@ -95,25 +125,25 @@ class ImportAfiliadosExcelJob implements ShouldQueue
                 }
             );
 
-            // ✅ guardo batch_id en import_jobs
+            //  guardo batch_id en import_jobs
             $jobRow->batch_verifications_id = $import->getBatchVerificationsID();
             $jobRow->save();
 
-            $this->updateJobSafe($jobRow, 'running', 8, 'procesando', 'Procesando filas…');
+            $this->updateJobSafe($jobRow, 'running', 8, 'procesando', 'Procesando filasâ€¦');
 
             /**
-             * ✅ IMPORTANTE:
+             * IMPORTANTE:
              * Para evitar el error "ROLLBACK trans2" en SQL Server,
              * DEBES tener en config/excel.php:  'transactions.handler' => null
              */
             Excel::import($import, $this->fullPath);
 
-            // ✅ flush final (si tu import lo tiene)
+            // flush final (si tu import lo tiene)
             if ($import && method_exists($import, 'finalize')) {
                 try { $import->finalize(); } catch (\Throwable $x) {}
             }
 
-            // ✅ errores acumulados
+            // errores acumulados
             $errores = [];
             try { $errores = $import->getErrores(); } catch (\Throwable $x) { $errores = []; }
 
@@ -125,11 +155,11 @@ class ImportAfiliadosExcelJob implements ShouldQueue
                     'failed',
                     100,
                     'validacion',
-                    'Importación con errores. No se guardó nada.',
+                    'ImportaciÃ³n con errores. No se guardÃ³ nada.',
                     $errores
                 );
 
-                // ✅ correo FAIL (opcional pero recomendado)
+                //  correo FAIL (opcional pero recomendado)
                 $this->sendImportEmailSafe(
                     ok: false,
                     batchId: (int)($jobRow->batch_verifications_id ?? 0),
@@ -138,7 +168,7 @@ class ImportAfiliadosExcelJob implements ShouldQueue
                     stats: $this->safeStats($import),
                     errores: $errores,
                     noAfiliados: $this->safeNoAfiliados($import),
-                    extraMsg: 'Importación con errores. Se hizo rollback (no se guardó nada).'
+                    extraMsg: 'ImportaciÃ³n con errores. Se hizo rollback (no se guardÃ³ nada).'
                 );
 
                 return;
@@ -146,16 +176,16 @@ class ImportAfiliadosExcelJob implements ShouldQueue
 
             $batchId = (int)($jobRow->batch_verifications_id ?? 0);
 
-            // ✅ Conteo REAL insertado (NO depende del import)
+            //  Conteo REAL insertado (NO depende del import)
             [$insertedAfil, $insertedVac] = $this->countInsertedByBatch($batchId);
 
-            // ✅ Stats extra (si están disponibles) solo como complemento
+            //  Stats extra (si están disponibles) solo como complemento
             $stats = $this->safeStats($import);
 
             $oldAfil   = (int)($stats['oldAfil'] ?? 0);
             $oldVacuna = (int)($stats['oldVacuna'] ?? 0);
 
-            $msg = "Importación finalizada. "
+            $msg = "ImportaciÃ³n finalizada. "
                  . "Afiliados insertados: {$insertedAfil}. "
                  . "Vacunas insertadas: {$insertedVac}.";
 
@@ -165,7 +195,7 @@ class ImportAfiliadosExcelJob implements ShouldQueue
 
             $this->updateJobSafe($jobRow, 'done', 100, 'final', $msg);
 
-            // ✅ correo OK (en cola, no estorba)
+            //  correo OK (en cola, no estorba)
             $this->sendImportEmailSafe(
                 ok: true,
                 batchId: $batchId,
@@ -198,6 +228,7 @@ class ImportAfiliadosExcelJob implements ShouldQueue
                 $s = is_string($v) ? trim($v) : (string)$v;
                 return $s === '' ? null : $s;
             }, $errorsList))));
+            $publicErrors = $this->publicImportErrors($errorsList);
 
             Log::error("ImportAfiliadosExcelJob ERROR: " . $mainMsg, [
                 'importJobId' => $this->importJobId,
@@ -209,21 +240,21 @@ class ImportAfiliadosExcelJob implements ShouldQueue
                 $this->rollbackBatchSafe((int)$jobRow->batch_verifications_id);
             }
 
-            $this->updateJobSafe($jobRow, 'failed', 100, 'error', 'Importación detenida por error.', $errorsList);
+            $this->updateJobSafe($jobRow, 'failed', 100, 'error', 'ImportaciÃ³n detenida por error.', $publicErrors);
 
-            // ✅ correo FAIL por excepción
+            //  correo FAIL por excepciÃ³n
             $this->sendImportEmailSafe(
                 ok: false,
                 batchId: (int)($jobRow->batch_verifications_id ?? 0),
                 insertedAfil: 0,
                 insertedVac: 0,
                 stats: $this->safeStats($import),
-                errores: $errorsList,
+                errores: $publicErrors,
                 noAfiliados: $this->safeNoAfiliados($import),
-                extraMsg: 'Importación detenida por excepción.'
+                extraMsg: 'ImportaciÃ³n detenida por excepciÃ³n.'
             );
 
-            // ✅ re-lanza para que la cola lo marque como failed correctamente
+            //  re-lanza para que la cola lo marque como failed correctamente
             throw $e;
 
         } finally {
@@ -233,7 +264,7 @@ class ImportAfiliadosExcelJob implements ShouldQueue
     }
 
     // =========================================================
-    // ✅ ENVÍO DE CORREO (NO BLOQUEA)
+    //  ENVÍO DE CORREO (NO BLOQUEA)
     // =========================================================
     private function sendImportEmailSafe(
         bool $ok,
@@ -249,12 +280,12 @@ class ImportAfiliadosExcelJob implements ShouldQueue
             $user = User::find($this->userId);
 
             if (!$user || empty($user->email)) {
-                Log::warning("MAIL IMPORT: no se envía (usuario sin email)", ['userId' => $this->userId]);
+                Log::warning("MAIL IMPORT: no se envÃ­a (usuario sin email)", ['userId' => $this->userId]);
                 return;
             }
 
-            // limita tamaños para que no reviente el correo
-            $errores = array_slice($errores ?? [], 0, 50);
+            // limita tamaÃ±os para que no reviente el correo
+            $errores = array_slice($this->publicImportErrors($errores ?? []), 0, 50);
             $noAfiliados = array_slice($noAfiliados ?? [], 0, 50);
 
             $stats = array_merge([
@@ -272,7 +303,7 @@ class ImportAfiliadosExcelJob implements ShouldQueue
                 noAfiliados: $noAfiliados
             );
 
-            // ✅ en cola (no entorpece)
+            //  en cola (no entorpece)
             Mail::to($user->email)
                 ->cc(['jsuarez@epsianaswayuu.com','pai@epsianaswayuu.com'])
                 ->queue($mail);
@@ -310,6 +341,51 @@ class ImportAfiliadosExcelJob implements ShouldQueue
             }
         } catch (\Throwable $e) {}
         return [];
+    }
+
+    private function publicImportErrors(array $errors): array
+    {
+        $public = [];
+
+        foreach ($errors as $error) {
+            $message = is_string($error) ? trim($error) : trim((string) $error);
+            if ($message === '') {
+                continue;
+            }
+
+            if ($this->isTechnicalImportError($message)) {
+                $public[] = 'La importacion se detuvo por un error tecnico al guardar la informacion. No se guardo nada. Contacta al equipo de soporte para revisar el problema.';
+                continue;
+            }
+
+            $public[] = mb_substr($message, 0, 500);
+        }
+
+        return array_values(array_unique($public));
+    }
+
+    private function isTechnicalImportError(string $message): bool
+    {
+        $needles = [
+            'SQLSTATE',
+            'ODBC Driver',
+            'Connection:',
+            'Stack trace',
+            'insert into',
+            'select * from',
+            'QueryException',
+            'PDOException',
+            'vendor\\',
+            'vendor/',
+        ];
+
+        foreach ($needles as $needle) {
+            if (stripos($message, $needle) !== false) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     // =========================================================
@@ -396,3 +472,5 @@ class ImportAfiliadosExcelJob implements ShouldQueue
         $fresh->save();
     }
 }
+
+

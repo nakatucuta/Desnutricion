@@ -53,6 +53,7 @@ class AfiliadoImportStreaming implements ToModel, WithStartRow, WithChunkReading
 
     private bool $isFinalized = false;
     private bool $isFlushing = false;
+    private bool $abortImport = false;
 
     /** cache: columnas numéricas reales por tabla (leídas de sys.columns) */
     private array $numericColsCache = [];
@@ -275,8 +276,10 @@ class AfiliadoImportStreaming implements ToModel, WithStartRow, WithChunkReading
         if ($this->isFinalized) return;
         $this->isFinalized = true;
 
-        try { $this->flushBuffer(); }
-        catch (\Throwable $e) { Log::error("AfiliadoImportStreaming finalize ERROR: " . $e->getMessage()); }
+        if (!$this->abortImport) {
+            try { $this->flushBuffer(); }
+            catch (\Throwable $e) { Log::error("AfiliadoImportStreaming finalize ERROR: " . $e->getMessage()); }
+        }
 
         try {
             if ($this->token) {
@@ -323,6 +326,7 @@ class AfiliadoImportStreaming implements ToModel, WithStartRow, WithChunkReading
 
     private function failImport(string $msg): void
     {
+        $this->abortImport = true;
         $this->addError($msg);
         $this->pushProgress('validacion', 'Importacion detenida por errores de validacion.', 99);
         throw new \RuntimeException($msg);
@@ -521,7 +525,7 @@ class AfiliadoImportStreaming implements ToModel, WithStartRow, WithChunkReading
      */
     private function nowSqlDateTime(): string
     {
-        return now()->format('Y-m-d H:i:s');
+        return now()->format('Ymd H:i:s');
     }
 
     /**
@@ -829,6 +833,22 @@ class AfiliadoImportStreaming implements ToModel, WithStartRow, WithChunkReading
         $regimenVacuna         = $this->cleanText($row[20] ?? null);
         $condicionUsuariaVacuna = $this->cleanText($row[43] ?? null);
 
+        // Validacion temprana: si la fila trae vacunas, sus dosis/frascos deben ser validos
+        // antes de consultar BD externa o insertar datos del batch.
+        $vacunasData = $this->extraerVacunasOptimizado(
+            $row,
+            $fechaatencion,
+            $responsable,
+            $fuen_ingresado_paiweb,
+            $motivo_noingreso,
+            $observaciones,
+            $regimenVacuna,
+            $condicionUsuariaVacuna,
+            null,
+            null
+        );
+        $this->prevalidateVacunasForImport($vacunasData, $excelRow);
+
         // Afiliado externo con cache: carnet + IPS primaria vigente al momento del cargue.
         $cacheKey = $tipo_identifi . '|' . $numero_identifi;
 
@@ -1001,19 +1021,12 @@ class AfiliadoImportStreaming implements ToModel, WithStartRow, WithChunkReading
             $afiliadoData = $this->normalizeAfiliadoRow($afiliadoData);
         }
 
-        // Vacunas
-        $vacunasData = $this->extraerVacunasOptimizado(
-            $row,
-            $fechaatencion,
-            $responsable,
-            $fuen_ingresado_paiweb,
-            $motivo_noingreso,
-            $observaciones,
-            $regimenVacuna,
-            $condicionUsuariaVacuna,
-            $ipsPrimariaCodigo,
-            $ipsPrimariaNombre
-        );
+        foreach ($vacunasData as &$vacunaData) {
+            $vacunaData['ips_primaria_codigo'] = $ipsPrimariaCodigo;
+            $vacunaData['ips_primaria_nombre'] = $ipsPrimariaNombre;
+            $vacunaData['ips_primaria_resolved_at'] = $this->nowSqlDateTime();
+        }
+        unset($vacunaData);
 
         $this->bufferRows[] = [
             'excelRow'    => $excelRow,
@@ -1146,6 +1159,52 @@ class AfiliadoImportStreaming implements ToModel, WithStartRow, WithChunkReading
         }
 
         return $txt;
+    }
+
+    private function prevalidateVacunasForImport(array $vacunasData, int $excelRow): void
+    {
+        foreach ($vacunasData as $vacunaData) {
+            $vacunasId = $vacunaData['vacunas_id'] ?? null;
+
+            if ($vacunasId === null || $vacunasId === '' || !is_numeric($vacunasId)) {
+                $this->failImport(
+                    "Fila {$excelRow}: vacuna con vacunas_id invalido ({$vacunasId}). No se guardo nada."
+                );
+            }
+
+            $vacunasId = (int) $vacunasId;
+
+            if ($this->isFrascosVacuna($vacunaData)) {
+                $frascos = $this->validateFrascosValue($vacunaData['num_frascos_utilizados'] ?? null);
+                if ($frascos === null) {
+                    $this->failImport(
+                        "Fila {$excelRow}: la vacuna vacunas_id={$vacunasId} requiere numero de frascos utilizado y debe ser un valor numerico positivo. No se guardo nada."
+                    );
+                }
+
+                continue;
+            }
+
+            $allowedDoses = $this->validDosesForVacuna($vacunasId);
+            if ($allowedDoses === null) {
+                $this->failImport(
+                    "Fila {$excelRow}: no hay catalogo de dosis configurado para vacunas_id={$vacunasId}. No se guardo nada."
+                );
+            }
+
+            $docisNorm = $this->normalizeDocisStrict($vacunaData['docis'] ?? null);
+            if ($docisNorm === null) {
+                $this->failImport(
+                    "Fila {$excelRow}: vacunas_id={$vacunasId} tiene informacion en el Excel pero la dosis esta vacia o no se pudo normalizar. Dosis permitidas: " . implode(', ', $allowedDoses) . ". No se guardo nada."
+                );
+            }
+
+            if (!in_array($docisNorm, $allowedDoses, true)) {
+                $this->failImport(
+                    "Fila {$excelRow}: la dosis '{$docisNorm}' no pertenece al catalogo de vacunas_id={$vacunasId}. Dosis permitidas: " . implode(', ', $allowedDoses) . ". No se guardo nada."
+                );
+            }
+        }
     }
 
     private function forceStringLots(array $row): array
@@ -1542,6 +1601,7 @@ class AfiliadoImportStreaming implements ToModel, WithStartRow, WithChunkReading
                         // ✅ timestamps nativos SQL Server (evita 22007)
                         $vacunaData['created_at'] = DB::raw('GETDATE()');
                         $vacunaData['updated_at'] = DB::raw('GETDATE()');
+                        $vacunaData['ips_primaria_resolved_at'] = DB::raw('GETDATE()');
 
                         // ✅ fecha vacuna segura
                         if (array_key_exists('fecha_vacuna', $vacunaData)) {
