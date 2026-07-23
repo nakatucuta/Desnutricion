@@ -5,10 +5,24 @@
 @section('content_header')
 <div class="pai-head">
     <div>
-        <h1 class="pai-title mb-1">Estadisticas PAI 2026</h1>
-        <div class="text-muted">Replica dinamica del formato de seguimiento de coberturas</div>
+        @if(request()->routeIs('afiliado.stats.charts.view'))
+            <h1 class="pai-title mb-1">Graficas estadisticas PAI</h1>
+            <div class="text-muted">Resumen de vacunacion reportada y poblacion asignada</div>
+        @else
+            <h1 class="pai-title mb-1">Coberturas PAI {{ now()->year }}</h1>
+            <div class="text-muted">Seguimiento de metas, dosis aplicadas y susceptibles</div>
+        @endif
     </div>
     <div class="d-flex gap-2">
+        @if(request()->routeIs('afiliado.stats.charts.view'))
+            <a href="{{ route('afiliado.stats.view') }}" class="btn btn-outline-info mr-2">
+                <i class="fas fa-table mr-1"></i> Ver coberturas
+            </a>
+        @else
+            <a href="{{ route('afiliado.stats.charts.view') }}" class="btn btn-outline-info mr-2">
+                <i class="fas fa-chart-bar mr-1"></i> Ver graficas
+            </a>
+        @endif
         <a href="{{ route('afiliado.stats.settings.index') }}" class="btn btn-outline-dark mr-2">
             <i class="fas fa-sliders-h mr-1"></i> Parametrizaciones PAI
         </a>
@@ -24,6 +38,75 @@
 
 @section('content')
 <div class="container-fluid pb-4">
+    @if(request()->routeIs('afiliado.stats.charts.view'))
+    <section class="pai-visual" id="paiVisualDashboard">
+        <div class="pai-visual__header">
+            <div>
+                <div class="pai-kicker">Resumen grafico</div>
+                <h2 class="pai-section-title mb-1">Vacunacion reportada y poblacion asignada</h2>
+                <div class="pai-section-subtitle">Consolidado de dosis por territorio, vacunadora, biologico y poblacion asignada.</div>
+            </div>
+            <button type="button" class="btn btn-sm btn-outline-primary" id="paiChartsRefresh">
+                <i class="fas fa-sync-alt mr-1"></i> Actualizar
+            </button>
+        </div>
+
+        <div class="pai-visual__filters">
+            <div class="row">
+                <div class="col-xl-2 col-md-4 mb-2">
+                    <label for="chartYear">Vigencia</label>
+                    <input type="number" min="2000" max="2100" class="form-control form-control-sm" id="chartYear" value="{{ now()->year }}">
+                </div>
+                <div class="col-xl-2 col-md-4 mb-2">
+                    <label for="chartStartDate">Fecha inicial</label>
+                    <input type="date" class="form-control form-control-sm" id="chartStartDate" value="{{ now()->startOfYear()->format('Y-m-d') }}">
+                </div>
+                <div class="col-xl-2 col-md-4 mb-2">
+                    <label for="chartEndDate">Fecha final</label>
+                    <input type="date" class="form-control form-control-sm" id="chartEndDate" value="{{ now()->endOfYear()->format('Y-m-d') }}">
+                </div>
+                <div class="col-xl-2 col-md-4 mb-2">
+                    <label for="chartMunicipio">Municipio vacunadora</label>
+                    <select class="form-control form-control-sm" id="chartMunicipio"><option value="">Todos</option></select>
+                </div>
+                <div class="col-xl-2 col-md-4 mb-2">
+                    <label for="chartVaccinator">IPS vacunadora</label>
+                    <select class="form-control form-control-sm" id="chartVaccinator"><option value="">Todas</option></select>
+                </div>
+                <div class="col-xl-2 col-md-4 mb-2">
+                    <label for="chartRegimen">Regimen</label>
+                    <select class="form-control form-control-sm" id="chartRegimen"><option value="">Todos</option></select>
+                </div>
+                <div class="col-xl-3 col-md-5 mb-2">
+                    <label for="chartBiologico">Biologico</label>
+                    <select class="form-control form-control-sm" id="chartBiologico"><option value="">Todos</option></select>
+                </div>
+                <div class="col-xl-3 col-md-7 mb-2 d-flex align-items-end">
+                    <button type="button" class="btn btn-sm btn-light mr-2" id="paiChartsReset">Limpiar</button>
+                    <button type="button" class="btn btn-sm btn-primary" id="paiChartsApply">Aplicar filtros</button>
+                </div>
+            </div>
+            <div class="pai-visual__meta" id="paiChartsMeta">Preparando estadisticas...</div>
+        </div>
+
+        <div class="row mt-3">
+            <div class="col-lg-3 col-6 mb-3"><div class="pai-visual-kpi"><span>Dosis aplicadas</span><strong id="chartKpiDoses">0</strong></div></div>
+            <div class="col-lg-3 col-6 mb-3"><div class="pai-visual-kpi"><span>Personas vacunadas</span><strong id="chartKpiPeople">0</strong></div></div>
+            <div class="col-lg-3 col-6 mb-3"><div class="pai-visual-kpi pai-visual-kpi--assigned"><span>Dosis de IPS asignadas</span><strong id="chartKpiAssigned">0</strong></div></div>
+            <div class="col-lg-3 col-6 mb-3"><div class="pai-visual-kpi pai-visual-kpi--percent"><span>Asignadas / total vacunado</span><strong id="chartKpiAssignedPct">0%</strong></div></div>
+        </div>
+
+        <div class="row">
+            <div class="col-xl-6 mb-3"><div class="pai-visual-card"><h3>Total vacunas aplicadas por municipio</h3><div class="pai-chart-box"><canvas id="chartPaiMunicipalities"></canvas></div></div></div>
+            <div class="col-xl-6 mb-3"><div class="pai-visual-card"><h3>Top IPS con mayor cantidad reportada</h3><div class="pai-chart-box"><canvas id="chartPaiProviders"></canvas></div></div></div>
+            <div class="col-xl-6 mb-3"><div class="pai-visual-card"><h3>Total biologicos aplicados por mes</h3><div class="pai-chart-box"><canvas id="chartPaiMonthly"></canvas></div></div></div>
+            <div class="col-xl-6 mb-3"><div class="pai-visual-card"><h3>Total vacunas reportadas por biologico</h3><div class="pai-chart-box pai-chart-box--scroll"><canvas id="chartPaiBiologics"></canvas></div></div></div>
+            <div class="col-xl-6 mb-3"><div class="pai-visual-card"><h3>IPS asignadas contra todo lo vacunado</h3><p class="pai-visual-card__hint">El porcentaje usa como denominador todas las dosis aplicadas por la vacunadora seleccionada.</p><div class="pai-chart-box pai-chart-box--donut"><canvas id="chartPaiAssignment"></canvas></div></div></div>
+            <div class="col-xl-6 mb-3"><div class="pai-visual-card"><h3>Total vacunas aplicadas por sexo</h3><div class="pai-chart-box pai-chart-box--donut"><canvas id="chartPaiSex"></canvas></div></div></div>
+            <div class="col-12 mb-3"><div class="pai-visual-card"><h3>Porcentaje de poblacion asignada por vacunadora</h3><p class="pai-visual-card__hint">Dosis cuya IPS primaria esta activa en la asignacion de cada vacunadora, sobre el total reportado por ella.</p><div class="pai-chart-box pai-chart-box--wide"><canvas id="chartPaiAssignmentProviders"></canvas></div></div></div>
+        </div>
+    </section>
+    @else
     <div class="pai-dashboard-shell">
     <div class="pai-dashboard-overlay" id="paiDashboardOverlay" aria-hidden="true">
         <div class="pai-dashboard-overlay__card">
@@ -158,8 +241,10 @@
         </div>
     </div>
     </div>
+    @endif
 </div>
 
+@unless(request()->routeIs('afiliado.stats.charts.view'))
 <div class="modal fade" id="paiDoseModal" tabindex="-1" role="dialog" aria-hidden="true">
     <div class="modal-dialog modal-xl modal-dialog-scrollable" role="document">
         <div class="modal-content">
@@ -193,6 +278,7 @@
         </div>
     </div>
 </div>
+@endunless
 @stop
 
 @section('css')
@@ -262,10 +348,31 @@
 .chip-muy-critica{background:#ff0000;color:#000}
 .chip-sin{background:#fff;color:#000}
 .gap-2{gap:.5rem}
+.pai-visual{position:relative;margin-bottom:24px;padding:22px;border:1px solid rgba(15,23,42,.08);border-radius:22px;background:linear-gradient(145deg,#f8fbff,#fff);box-shadow:0 16px 36px rgba(15,23,42,.07)}
+.pai-visual.is-loading:after{content:'Consultando datos...';position:absolute;inset:0;z-index:20;display:flex;align-items:center;justify-content:center;border-radius:22px;background:rgba(248,250,252,.78);backdrop-filter:blur(2px);font-weight:900;color:#0f766e}
+.pai-visual__header{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap}
+.pai-visual__filters{margin-top:18px;padding:14px 14px 8px;border:1px solid rgba(148,163,184,.24);border-radius:15px;background:rgba(255,255,255,.86)}
+.pai-visual__filters label{display:block;margin-bottom:4px;font-size:.72rem;font-weight:900;letter-spacing:.04em;text-transform:uppercase;color:#64748b}
+.pai-visual__meta{padding:4px 0 3px;font-size:.78rem;color:#64748b}
+.pai-visual-kpi{height:100%;padding:16px;border:1px solid rgba(14,116,144,.14);border-radius:16px;background:#fff;box-shadow:0 9px 22px rgba(15,23,42,.05)}
+.pai-visual-kpi span{display:block;font-size:.75rem;font-weight:900;text-transform:uppercase;color:#64748b}
+.pai-visual-kpi strong{display:block;margin-top:6px;font-size:1.65rem;line-height:1;color:#0f172a}
+.pai-visual-kpi--assigned{background:linear-gradient(145deg,#ecfdf5,#fff)}
+.pai-visual-kpi--percent{background:linear-gradient(145deg,#ecfeff,#fff)}
+.pai-visual-kpi--percent strong{color:#0f766e}
+.pai-visual-card{height:100%;min-height:355px;padding:18px;border:1px solid rgba(15,23,42,.08);border-radius:20px;background:#fff;box-shadow:0 12px 28px rgba(15,23,42,.06)}
+.pai-visual-card h3{margin:0 0 12px;text-align:center;font-size:.92rem;font-weight:900;text-transform:uppercase;color:#0f172a}
+.pai-visual-card__hint{margin:-5px auto 8px;max-width:660px;text-align:center;font-size:.74rem;color:#64748b}
+.pai-chart-box{position:relative;height:285px;min-width:0}
+.pai-chart-box--donut{height:270px}
+.pai-chart-box--wide{height:360px}
+.pai-chart-box--scroll{overflow-x:auto}
+@media(max-width:767.98px){.pai-visual{padding:14px;border-radius:16px}.pai-visual-card{min-height:330px;padding:12px}.pai-chart-box{height:270px}.pai-visual-kpi strong{font-size:1.3rem}}
 </style>
 @stop
 
 @section('js')
+@unless(request()->routeIs('afiliado.stats.charts.view'))
 <script>
 (function(){
     const url = @json(route('afiliado.stats.dashboard'));
@@ -709,4 +816,255 @@
     load(false);
 })();
 </script>
+@endunless
+@if(request()->routeIs('afiliado.stats.charts.view'))
+@vite('resources/js/pai-statistics.js')
+<script>
+(function(){
+    const chartsUrl = @json(route('afiliado.stats.charts.data'));
+    const numberFormat = new Intl.NumberFormat('es-CO');
+    const chartInstances = {};
+    let chartCatalogs = { municipalities: [], providers: [], regimes: [], biologics: [] };
+
+    function value(id){ return String(document.getElementById(id)?.value || '').trim(); }
+
+    function setOptions(id, rows, valueKey, labelBuilder, keepValue){
+        const select = document.getElementById(id);
+        if (!select) return;
+        const selected = keepValue ? select.value : '';
+        const firstLabel = id === 'chartVaccinator' ? 'Todas' : (id === 'chartMunicipio' ? 'Todos' : 'Todos');
+        select.innerHTML = '<option value="">' + firstLabel + '</option>';
+        (rows || []).forEach(function(row){
+            const option = document.createElement('option');
+            option.value = typeof row === 'object' ? String(row[valueKey] ?? '') : String(row);
+            option.textContent = labelBuilder ? labelBuilder(row) : String(row);
+            select.appendChild(option);
+        });
+        if (keepValue && Array.from(select.options).some(option => option.value === selected)) {
+            select.value = selected;
+        }
+    }
+
+    function providersForMunicipality(){
+        const municipality = value('chartMunicipio');
+        return (chartCatalogs.providers || []).filter(function(provider){
+            return !municipality || String(provider.municipio || '').toUpperCase() === municipality.toUpperCase();
+        });
+    }
+
+    function renderCatalogs(catalogs, keepValues){
+        chartCatalogs = catalogs || chartCatalogs;
+        setOptions('chartMunicipio', chartCatalogs.municipalities || [], null, null, keepValues);
+        setOptions('chartVaccinator', providersForMunicipality(), 'code', function(row){
+            return (row.name || 'IPS') + ' | ' + (row.code || '');
+        }, keepValues);
+        setOptions('chartRegimen', chartCatalogs.regimes || [], null, null, keepValues);
+        setOptions('chartBiologico', chartCatalogs.biologics || [], 'id', row => row.name || '', keepValues);
+    }
+
+    const valueLabelsPlugin = {
+        id: 'paiValueLabels',
+        afterDatasetsDraw(chart, args, options){
+            if (options === false || chart.config.type === 'doughnut' || chart.config.type === 'pie') return;
+            const ctx = chart.ctx;
+            ctx.save();
+            ctx.fillStyle = '#0f172a';
+            ctx.font = '700 10px sans-serif';
+            ctx.textAlign = chart.options.indexAxis === 'y' ? 'left' : 'center';
+            chart.data.datasets.forEach(function(dataset, datasetIndex){
+                const meta = chart.getDatasetMeta(datasetIndex);
+                meta.data.forEach(function(element, index){
+                    const raw = Number(dataset.data[index] || 0);
+                    if (!raw) return;
+                    const suffix = options?.suffix || '';
+                    const text = (suffix === '%' ? raw.toFixed(1) : numberFormat.format(raw)) + suffix;
+                    const pos = element.tooltipPosition();
+                    const x = chart.options.indexAxis === 'y' ? pos.x + 6 : pos.x;
+                    const y = chart.options.indexAxis === 'y' ? pos.y + 3 : pos.y - 8;
+                    ctx.fillText(text, x, y);
+                });
+            });
+            ctx.restore();
+        }
+    };
+
+    function destroyChart(key){
+        if (chartInstances[key]) {
+            chartInstances[key].destroy();
+            delete chartInstances[key];
+        }
+    }
+
+    function buildChart(key, canvasId, type, items, options){
+        destroyChart(key);
+        const canvas = document.getElementById(canvasId);
+        if (!canvas || typeof window.Chart === 'undefined') return;
+        const rows = items || [];
+        const config = options || {};
+        const dataset = {
+            label: config.datasetLabel || 'Dosis',
+            data: rows.map(row => Number(config.valueKey ? row[config.valueKey] : row.total) || 0),
+            backgroundColor: config.backgroundColor || '#079a9a',
+            borderColor: config.borderColor || config.backgroundColor || '#079a9a',
+            borderWidth: config.borderWidth ?? 1,
+            tension: config.tension ?? 0,
+            fill: config.fill || false,
+            pointRadius: config.pointRadius ?? 3
+        };
+
+        chartInstances[key] = new window.Chart(canvas, {
+            type: type,
+            data: { labels: rows.map(row => row.label || ''), datasets: [dataset] },
+            plugins: [valueLabelsPlugin],
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                indexAxis: config.indexAxis || 'x',
+                layout: { padding: { top: 20, right: config.indexAxis === 'y' ? 52 : 12 } },
+                plugins: {
+                    legend: { display: config.legend === true, position: 'right' },
+                    paiValueLabels: config.showLabels === false ? false : { suffix: config.suffix || '' },
+                    tooltip: config.tooltip || {}
+                },
+                scales: type === 'doughnut' ? {} : {
+                    x: { beginAtZero: true, ticks: { autoSkip: false, maxRotation: config.maxRotation ?? 45, minRotation: config.minRotation ?? 0 } },
+                    y: { beginAtZero: true, ticks: { precision: 0 } }
+                }
+            }
+        });
+    }
+
+    function buildDoughnut(key, canvasId, items, colors){
+        destroyChart(key);
+        const canvas = document.getElementById(canvasId);
+        if (!canvas || typeof window.Chart === 'undefined') return;
+        chartInstances[key] = new window.Chart(canvas, {
+            type: 'doughnut',
+            data: {
+                labels: (items || []).map(row => row.label),
+                datasets: [{ data: (items || []).map(row => Number(row.total || 0)), backgroundColor: colors, borderColor: '#fff', borderWidth: 2 }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                cutout: '58%',
+                plugins: {
+                    legend: { display: true, position: 'right' },
+                    tooltip: { callbacks: { label(context){
+                        const values = context.dataset.data || [];
+                        const total = values.reduce((sum, current) => sum + Number(current || 0), 0);
+                        const current = Number(context.raw || 0);
+                        const pct = total > 0 ? ((current / total) * 100).toFixed(1) : '0.0';
+                        return ' ' + context.label + ': ' + numberFormat.format(current) + ' (' + pct + '%)';
+                    } } }
+                }
+            }
+        });
+    }
+
+    function renderCharts(response){
+        const charts = response.charts || {};
+        buildChart('municipalities', 'chartPaiMunicipalities', 'bar', charts.municipalities, { backgroundColor: '#069b9b', maxRotation: 0 });
+        buildChart('providers', 'chartPaiProviders', 'bar', charts.providers, { backgroundColor: '#08a9df', indexAxis: 'y', maxRotation: 0 });
+        buildChart('monthly', 'chartPaiMonthly', 'line', charts.monthly, { backgroundColor: 'rgba(6,182,212,.14)', borderColor: '#06b6d4', borderWidth: 3, tension: .25, fill: true, maxRotation: 0 });
+        buildChart('biologics', 'chartPaiBiologics', 'bar', charts.biologics, { backgroundColor: '#0f9f96', maxRotation: 58 });
+        buildDoughnut('assignment', 'chartPaiAssignment', charts.assignment, ['#0ea5a4','#f59e0b','#cbd5e1']);
+        buildDoughnut('sex', 'chartPaiSex', charts.sex, ['#ff2bb5','#082b65','#94a3b8']);
+
+        const assignmentRows = charts.assignment_by_provider || [];
+        buildChart('assignmentProviders', 'chartPaiAssignmentProviders', 'bar', assignmentRows, {
+            backgroundColor: '#14b8a6',
+            indexAxis: 'y',
+            valueKey: 'percentage',
+            datasetLabel: 'Porcentaje asignado',
+            suffix: '%',
+            maxRotation: 0,
+            tooltip: { callbacks: { afterLabel(context){
+                const row = assignmentRows[context.dataIndex] || {};
+                return 'Asignadas: ' + numberFormat.format(row.assigned || 0) + ' / Total: ' + numberFormat.format(row.total || 0);
+            } } }
+        });
+    }
+
+    function setLoading(active){
+        document.getElementById('paiVisualDashboard')?.classList.toggle('is-loading', active);
+        ['paiChartsRefresh','paiChartsReset','paiChartsApply'].forEach(function(id){
+            const button = document.getElementById(id);
+            if (button) button.disabled = active;
+        });
+    }
+
+    function loadCharts(keepCatalogValues){
+        const params = new URLSearchParams();
+        params.set('year', value('chartYear') || String(new Date().getFullYear()));
+        ['StartDate','EndDate'].forEach(function(suffix){
+            const field = value('chart' + suffix);
+            if (field) params.set(suffix === 'StartDate' ? 'start_date' : 'end_date', field);
+        });
+        if (value('chartMunicipio')) params.set('municipio', value('chartMunicipio'));
+        if (value('chartVaccinator')) params.set('vaccinator_code', value('chartVaccinator'));
+        if (value('chartRegimen')) params.set('regimen', value('chartRegimen'));
+        if (value('chartBiologico')) params.set('biologico_id', value('chartBiologico'));
+
+        setLoading(true);
+        fetch(chartsUrl + '?' + params.toString(), { headers: { Accept: 'application/json' } })
+            .then(function(response){
+                if (!response.ok) throw new Error('HTTP ' + response.status);
+                return response.json();
+            })
+            .then(function(response){
+                if (!response || !response.ok) throw new Error('Respuesta invalida');
+                renderCatalogs(response.catalogs || {}, keepCatalogValues);
+                document.getElementById('chartKpiDoses').textContent = numberFormat.format(response.totals?.doses || 0);
+                document.getElementById('chartKpiPeople').textContent = numberFormat.format(response.totals?.people || 0);
+                document.getElementById('chartKpiAssigned').textContent = numberFormat.format(response.totals?.assigned_doses || 0);
+                document.getElementById('chartKpiAssignedPct').textContent = Number(response.totals?.assigned_percentage || 0).toFixed(1) + '%';
+                document.getElementById('paiChartsMeta').textContent =
+                    'Rango: ' + (response.filters?.start_date || '-') + ' a ' + (response.filters?.end_date || '-') +
+                    ' | Asignadas: ' + numberFormat.format(response.assignment?.assigned || 0) +
+                    ' | No asignadas: ' + numberFormat.format(response.assignment?.not_assigned || 0) +
+                    ' | Sin IPS primaria: ' + numberFormat.format(response.assignment?.missing_primary || 0) +
+                    ' | Generado: ' + (response.generated_at || '-');
+                renderCharts(response);
+            })
+            .catch(function(error){
+                document.getElementById('paiChartsMeta').textContent = 'No fue posible cargar las graficas: ' + error.message;
+            })
+            .finally(function(){ setLoading(false); });
+    }
+
+    function resetCharts(){
+        const year = new Date().getFullYear();
+        document.getElementById('chartYear').value = year;
+        document.getElementById('chartStartDate').value = year + '-01-01';
+        document.getElementById('chartEndDate').value = year + '-12-31';
+        ['chartMunicipio','chartVaccinator','chartRegimen','chartBiologico'].forEach(function(id){ document.getElementById(id).value = ''; });
+        loadCharts(false);
+    }
+
+    function initCharts(){
+        if (typeof window.Chart === 'undefined') {
+            document.getElementById('paiChartsMeta').textContent = 'La libreria de graficas no esta disponible.';
+            return;
+        }
+        document.getElementById('paiChartsApply').addEventListener('click', () => loadCharts(true));
+        document.getElementById('paiChartsRefresh').addEventListener('click', () => loadCharts(true));
+        document.getElementById('paiChartsReset').addEventListener('click', resetCharts);
+        document.getElementById('chartMunicipio').addEventListener('change', function(){
+            setOptions('chartVaccinator', providersForMunicipality(), 'code', row => (row.name || 'IPS') + ' | ' + (row.code || ''), false);
+        });
+        document.getElementById('chartYear').addEventListener('change', function(){
+            const year = value('chartYear');
+            if (/^\d{4}$/.test(year)) {
+                document.getElementById('chartStartDate').value = year + '-01-01';
+                document.getElementById('chartEndDate').value = year + '-12-31';
+            }
+        });
+        loadCharts(false);
+    }
+
+    window.addEventListener('load', initCharts, { once: true });
+})();
+</script>
+@endif
 @stop

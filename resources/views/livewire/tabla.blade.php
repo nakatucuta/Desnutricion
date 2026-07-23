@@ -286,6 +286,11 @@
   color:#9f1239;
   border-color:#ffd3d8;
 }
+.pai-esquema-badge--neutral{
+  background:#f1f5f9;
+  color:#475569;
+  border-color:#cbd5e1;
+}
 .pai-esquema-open{
   text-decoration:none !important;
 }

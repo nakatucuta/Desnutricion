@@ -8,6 +8,11 @@ class PaiIpsReferencia extends Model
 {
     protected $table = 'pai_ips_referenciadas';
 
+    /**
+     * Use SQL Server's unambiguous date format regardless of DATEFORMAT/language.
+     */
+    protected $dateFormat = 'Ymd H:i:s';
+
     protected $fillable = [
         'vigencia',
         'municipio',

@@ -66,10 +66,11 @@
                 <div class="d-flex justify-content-between align-items-center flex-wrap mb-2">
                     <h6 class="mb-1 mb-md-0">
                         <i class="fas fa-clipboard-check mr-1 text-primary"></i>
-                        Estado esquema normativo (Fase 2)
+                        Estado por curso de vida: <span id="mvpCourseLabel">--</span>
                     </h6>
                     <div>
-                        <span class="badge badge-danger mr-1">Faltantes: <span id="mvpMissingCount">0</span></span>
+                        <span class="badge badge-info mr-1">Estado: <span id="mvpStatusLabel">--</span></span>
+                        <span class="badge badge-danger mr-1">Dosis faltantes: <span id="mvpMissingCount">0</span></span>
                         <span class="badge badge-success mr-1">Cumplidas: <span id="mvpDoneCount">0</span></span>
                         <span class="badge badge-secondary">No aplica: <span id="mvpNoAplicaCount">0</span></span>
                     </div>

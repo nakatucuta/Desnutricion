@@ -460,6 +460,20 @@ return [
                     'label_color' => 'success',
                     // 'icon_color'  => 'red'
                 ],
+                [
+                    'text'        => 'Graficas PAI',
+                    'url'         => 'afiliado/estadisticas/graficas',
+                    'icon'        => 'fas fa-chart-bar',
+                    'label'       => '',
+                    'label_color' => 'info',
+                ],
+                [
+                    'text'        => 'Coberturas PAI',
+                    'url'         => 'afiliado/estadisticas',
+                    'icon'        => 'fas fa-table',
+                    'label'       => '',
+                    'label_color' => 'info',
+                ],
                 //  [
                 //     'text'        => 'seguimiento',
                 //      'url'         => 'new412_seguimiento',

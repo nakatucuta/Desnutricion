@@ -69,8 +69,8 @@
                         <th>Edad</th>
                         <th>Documento</th>
                         <th>Prestador</th>
-                        <th class="text-center">Faltantes</th>
-                        <th>Resumen de faltantes (Normativo)</th>
+                        <th class="text-center">Dosis faltantes</th>
+                        <th>Resumen de dosis faltantes</th>
                         <th style="width:120px;">Detalle</th>
                     </tr>
                 </thead>
@@ -83,7 +83,10 @@
                                     {{ $r['nombre'] ?: 'Sin nombre' }}
                                 </a>
                             </td>
-                            <td>{{ $r['edad_texto'] ?? 'N/A' }}</td>
+                            <td>
+                                {{ $r['edad_texto'] ?? 'N/A' }}
+                                <div class="text-muted small">{{ $r['curso_vida'] ?? 'No determinado' }}</div>
+                            </td>
                             <td>
                                 {{ trim(($r['tipo_identificacion'] ?? '').' '.($r['numero_identificacion'] ?? '')) }}
                                 @if(!empty($r['numero_carnet']))
@@ -92,17 +95,21 @@
                             </td>
                             <td>{{ $r['prestador'] }}</td>
                             <td class="text-center">
-                                @if(($r['faltantes_count'] ?? 0) > 0)
+                                @if(($r['estado'] ?? '') === 'INCOMPLETO')
                                     <span class="badge badge-danger">{{ $r['faltantes_count'] }}</span>
+                                @elseif(($r['estado'] ?? '') === 'COMPLETO')
+                                    <span class="badge badge-success">Completo</span>
                                 @else
-                                    <span class="badge badge-success">0</span>
+                                    <span class="badge badge-secondary">{{ str_replace('_', ' ', $r['estado'] ?? 'NO_EVALUABLE') }}</span>
                                 @endif
                             </td>
                             <td>
                                 @if(!empty($r['faltantes_text']))
                                     {{ implode(' | ', $r['faltantes_text']) }}
-                                @else
+                                @elseif(($r['estado'] ?? '') === 'COMPLETO')
                                     <span class="text-success">Sin faltantes en reglas normativas</span>
+                                @else
+                                    <span class="text-muted">{{ $r['motivo_estado'] ?? 'Sin reglas exigibles para la edad actual.' }}</span>
                                 @endif
                             </td>
                             <td>
@@ -114,7 +121,7 @@
                         <tr class="collapse bg-light" id="detail-{{ $r['id'] }}">
                             <td colspan="8" class="p-0">
                                 <div class="p-3">
-                                    <h6 class="mb-2">Detalle normativo por vacuna faltante</h6>
+                                    <h6 class="mb-2">Detalle de dosis exigibles y faltantes</h6>
                                     @if(!empty($r['faltantes_detail']))
                                         <div class="table-responsive">
                                             <table class="table table-sm table-bordered mb-0">

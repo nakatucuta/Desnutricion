@@ -35,6 +35,7 @@ use Yajra\DataTables\Facades\DataTables;
 use PhpOffice\PhpSpreadsheet\IOFactory;
 use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
 use App\Services\PaiMvpCoverageService;
+use App\Services\PaiStatisticsService;
 
 
 class AfiliadoController extends Controller
@@ -585,6 +586,28 @@ class AfiliadoController extends Controller
     public function statsView()
     {
         return view('livewire.afiliado_stats');
+    }
+
+    public function statsChartsView()
+    {
+        return view('livewire.afiliado_stats');
+    }
+
+    public function statsCharts(Request $request, PaiStatisticsService $statistics)
+    {
+        $this->applyReadOptimizations();
+
+        $filters = $request->validate([
+            'year' => 'nullable|integer|min:2000|max:2100',
+            'start_date' => 'nullable|date',
+            'end_date' => 'nullable|date',
+            'municipio' => 'nullable|string|max:120',
+            'vaccinator_code' => 'nullable|string|max:60',
+            'regimen' => 'nullable|string|max:80',
+            'biologico_id' => 'nullable|integer|min:1',
+        ]);
+
+        return response()->json($statistics->build($filters));
     }
 
     public function statsDoseDetail(Request $request)
@@ -3627,22 +3650,24 @@ class AfiliadoController extends Controller
                 }
 
                 $eval = $evalCache[$afiliadoId] ?? ['ok' => false];
-                $faltantes = (int) data_get($eval, 'stats.faltantes_count', 0);
-                $hasBirthDate = !empty(data_get($eval, 'afiliado.fecha_nacimiento'));
                 $ok = (bool) data_get($eval, 'ok', false);
-
-                $isComplete = $ok && $hasBirthDate && $faltantes === 0;
+                $status = $ok ? (string) data_get($eval, 'estado', 'NO_EVALUABLE') : 'NO_EVALUABLE';
                 $carnet = e((string) ($row->numero_carnet ?? ''));
                 $id = e((string) $afiliadoId);
-
-                if ($isComplete) {
-                    return '<a href="#" class="pai-esquema-open" data-id="' . $id . '" data-carnet="' . $carnet . '">'
-                        . '<span class="pai-esquema-badge pai-esquema-badge--ok">Completo</span>'
-                        . '</a>';
-                }
+                $label = match ($status) {
+                    'COMPLETO' => 'Completo',
+                    'INCOMPLETO' => 'Incompleto',
+                    'NO_APLICA' => 'No aplica',
+                    default => 'No evaluable',
+                };
+                $class = match ($status) {
+                    'COMPLETO' => 'pai-esquema-badge--ok',
+                    'INCOMPLETO' => 'pai-esquema-badge--bad',
+                    default => 'pai-esquema-badge--neutral',
+                };
 
                 return '<a href="#" class="pai-esquema-open" data-id="' . $id . '" data-carnet="' . $carnet . '">'
-                    . '<span class="pai-esquema-badge pai-esquema-badge--bad">Incompleto</span>'
+                    . '<span class="pai-esquema-badge ' . $class . '">' . $label . '</span>'
                     . '</a>';
             })
             ->addColumn('acciones', function ($row) use ($isAdmin) {
@@ -5163,6 +5188,9 @@ public function missingVaccinesIndex(Request $request)
             'numero_identificacion' => $row->numero_identificacion ?? '',
             'numero_carnet' => $row->numero_carnet ?? '',
             'prestador' => $row->prestador ?? 'Sin prestador',
+            'estado' => $summary['estado'] ?? 'NO_EVALUABLE',
+            'motivo_estado' => $summary['motivo_estado'] ?? '',
+            'curso_vida' => data_get($summary, 'curso.label', 'No determinado'),
             'edad_texto' => (string) (
                 ($edadAnios !== null ? $edadAnios : 'N/A')
                 . ' años / '

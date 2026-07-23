@@ -70,6 +70,10 @@ Route::get('/afiliado/stats-dashboard/dosis-detalle', [AfiliadoController::class
   ->middleware('auth');
 Route::get('/afiliado/estadisticas', [AfiliadoController::class, 'statsView'])->name('afiliado.stats.view')
   ->middleware('auth');
+Route::get('/afiliado/estadisticas/graficas', [AfiliadoController::class, 'statsChartsView'])->name('afiliado.stats.charts.view')
+  ->middleware(['auth', 'can:access-pai']);
+Route::get('/afiliado/estadisticas/graficas/data', [AfiliadoController::class, 'statsCharts'])->name('afiliado.stats.charts.data')
+  ->middleware(['auth', 'can:access-pai']);
 Route::get('/alteraciones-nutricionales/indicadores', [AlteracionesNutricionalesIndicadoresController::class, 'index'])
     ->name('alteraciones.nutricionales.indicadores')
     ->middleware(['auth', 'can:access-nutricional']);

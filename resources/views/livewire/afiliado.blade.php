@@ -2167,6 +2167,8 @@ window.PAI_INITIAL_LOAD_STATE = @json($paiLoadState ?? ['busy' => false]);
   }
 
   function resetMvpMissingUI(){
+      $('#mvpStatusLabel').text('--');
+      $('#mvpCourseLabel').text('--');
       $('#mvpMissingCount').text('0');
       $('#mvpDoneCount').text('0');
       $('#mvpNoAplicaCount').text('0');
@@ -2189,13 +2191,20 @@ window.PAI_INITIAL_LOAD_STATE = @json($paiLoadState ?? ['busy' => false]);
 
               const faltantes = Array.isArray(resp.faltantes) ? resp.faltantes : [];
               const stats = resp.stats || {};
+              const estado = String(resp.estado || 'NO_EVALUABLE').replace(/_/g, ' ');
+              const curso = (resp.curso && resp.curso.label) ? resp.curso.label : 'No determinado';
 
+              $('#mvpStatusLabel').text(estado);
+              $('#mvpCourseLabel').text(curso);
               $('#mvpMissingCount').text(Number(stats.faltantes_count || 0));
               $('#mvpDoneCount').text(Number(stats.cumplidas_count || 0));
               $('#mvpNoAplicaCount').text(Number(stats.no_aplica_count || 0));
 
               if (!faltantes.length) {
-                  $('#mvpMissingList').html('<tr><td colspan="6" class="text-center text-success">Sin faltantes en reglas normativas para este afiliado.</td></tr>');
+                  const message = resp.motivo_estado || (resp.estado === 'COMPLETO'
+                      ? 'Cumple todas las vacunas exigibles para el curso y la edad actual.'
+                      : 'No hay vacunas faltantes para la evaluación actual.');
+                  $('#mvpMissingList').html('<tr><td colspan="6" class="text-center text-muted">' + escapeHtml(message) + '</td></tr>');
                   return;
               }
 
