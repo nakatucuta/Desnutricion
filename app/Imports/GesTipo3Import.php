@@ -13,28 +13,68 @@ use Maatwebsite\Excel\Concerns\WithStartRow;
 use Maatwebsite\Excel\Row;
 use PhpOffice\PhpSpreadsheet\Shared\Date as ExcelDate;
 
-class GesTipo3Import implements OnEachRow, WithStartRow, WithChunkReading, SkipsEmptyRows
+class GesTipo3Import implements OnEachRow, SkipsEmptyRows, WithChunkReading, WithStartRow
 {
+    private const CUPS_CONSULTAS = [
+        '890201',
+        '890205',
+        '890206',
+        '890250',
+        '890266',
+        '890301',
+        '890302',
+        '890305',
+        '890306',
+        '890350',
+        '890366',
+        '890701',
+    ];
+
+    private const CUPS_ECOGRAFIAS = [
+        '881401',
+        '881402',
+        '881403',
+        '881410',
+        '881431',
+        '881432',
+        '881434',
+        '881435',
+        '881436',
+        '881437',
+    ];
+
     private int $batchVerificationsId;
+
     private int $userId;
 
     private array $buffer = [];
+
     private ?int $maxRowsPerInsert = null;
 
     private array $errores = [];
+
     private bool $rowHasErrors = false;
+
     private bool $errorsCapNoticeAdded = false;
 
     private array $seenInFile = [];
+
     private array $cupsSet = [];
+
     private array $finalidadSet = [];
+
     private array $parentCache = [];
+
     private array $afiliadoActivoCache = [];
 
     private int $rowsTotal = 0;
+
     private int $rowsCreated = 0;
+
     private int $rowsInvalid = 0;
+
     private int $rowsSkipped = 0;
+
     private int $rowsDuplicated = 0;
 
     public function __construct(int $userId, int $batchVerificationsId)
@@ -44,6 +84,8 @@ class GesTipo3Import implements OnEachRow, WithStartRow, WithChunkReading, Skips
 
         $this->cupsSet = DB::connection('sqlsrv_1')
             ->table('sga.dbo.refcups')
+            ->whereRaw('ff >= GETDATE()')
+            ->whereRaw('LEN(codigo) = 6')
             ->pluck('codigo')
             ->map(fn ($c) => mb_strtoupper(trim((string) $c), 'UTF-8'))
             ->flip()
@@ -117,10 +159,11 @@ class GesTipo3Import implements OnEachRow, WithStartRow, WithChunkReading, Skips
         $this->rowHasErrors = true;
 
         if (count($this->errores) >= 5000) {
-            if (!$this->errorsCapNoticeAdded) {
+            if (! $this->errorsCapNoticeAdded) {
                 $this->errores[] = 'Se alcanzo el limite de 5000 errores mostrables. Corrige el archivo y vuelve a intentar.';
                 $this->errorsCapNoticeAdded = true;
             }
+
             return;
         }
 
@@ -128,20 +171,25 @@ class GesTipo3Import implements OnEachRow, WithStartRow, WithChunkReading, Skips
         $value = $this->clean($value);
 
         if ($value !== null) {
-            $msg .= ' (valor: ' . mb_substr((string) $value, 0, 120) . ')';
+            $msg .= ' (valor: '.mb_substr((string) $value, 0, 120).')';
         }
 
         $this->errores[] = $msg;
     }
 
-    private function parseDate($value, int $excelRow, string $field, bool $required = true): ?string
-    {
+    private function parseDate(
+        $value,
+        int $excelRow,
+        string $field,
+        bool $required = true
+    ): ?string {
         $value = $this->clean($value);
 
         if ($value === null) {
             if ($required) {
                 $this->addError($excelRow, $field, 'fecha vacia');
             }
+
             return null;
         }
 
@@ -152,36 +200,65 @@ class GesTipo3Import implements OnEachRow, WithStartRow, WithChunkReading, Skips
         }
 
         if ($dt === null && is_numeric($value)) {
+            $excelSerial = (float) $value;
+
+            if ($excelSerial <= 0 || $excelSerial > 2958465) {
+                $this->addError($excelRow, $field, 'numero de fecha Excel fuera de rango', $value);
+
+                return null;
+            }
+
             try {
-                $dt = Carbon::instance(ExcelDate::excelToDateTimeObject((float) $value));
+                $dt = Carbon::instance(ExcelDate::excelToDateTimeObject($excelSerial));
             } catch (\Throwable $e) {
                 $this->addError($excelRow, $field, 'fecha invalida', $value);
+
                 return null;
             }
         }
 
-        if ($dt === null) {
-            $raw = (string) $value;
-            foreach (['Y-m-d', 'Y/m/d', 'd/m/Y', 'd-m-Y', 'm/d/Y', 'm-d-Y'] as $fmt) {
-                try {
-                    $dt = Carbon::createFromFormat($fmt, $raw);
+        if ($dt === null && is_string($value)) {
+            $raw = trim($value);
+
+            foreach ([
+                'Y-m-d',
+                'Y-n-j',
+                'Y/m/d',
+                'Y/n/j',
+                'd/m/Y',
+                'j/n/Y',
+                'd-m-Y',
+                'j-n-Y',
+                'm/d/Y',
+                'n/j/Y',
+                'm-d-Y',
+                'n-j-Y',
+                'Y-m-d H:i:s',
+                'Y-n-j H:i:s',
+                'Y/m/d H:i:s',
+                'Y/n/j H:i:s',
+            ] as $format) {
+                $parsed = \DateTimeImmutable::createFromFormat('!'.$format, $raw);
+                $dateErrors = \DateTimeImmutable::getLastErrors();
+                $hasDateErrors = is_array($dateErrors)
+                    && (($dateErrors['warning_count'] ?? 0) > 0 || ($dateErrors['error_count'] ?? 0) > 0);
+
+                if ($parsed && ! $hasDateErrors && $parsed->format($format) === $raw) {
+                    $dt = Carbon::instance($parsed);
                     break;
-                } catch (\Throwable $e) {
                 }
             }
         }
 
         if ($dt === null) {
-            try {
-                $dt = Carbon::parse((string) $value);
-            } catch (\Throwable $e) {
-                $this->addError($excelRow, $field, 'fecha invalida', $value);
-                return null;
-            }
+            $this->addError($excelRow, $field, 'fecha invalida o formato no reconocido', $value);
+
+            return null;
         }
 
         if ((int) $dt->year < 1753 || (int) $dt->year > 9999) {
             $this->addError($excelRow, $field, 'fecha fuera de rango SQL Server', $value);
+
             return null;
         }
 
@@ -203,21 +280,24 @@ class GesTipo3Import implements OnEachRow, WithStartRow, WithChunkReading, Skips
             if ($required) {
                 $this->addError($excelRow, $field, 'campo obligatorio');
             }
+
             return null;
         }
 
         $normalized = str_replace([' ', ','], ['', '.'], (string) $value);
 
-        if (!is_numeric($normalized)) {
+        if (! is_numeric($normalized)) {
             $this->addError($excelRow, $field, 'debe ser numero entero', $value);
+
             return null;
         }
 
         $floatValue = (float) $normalized;
         $rounded = (int) round($floatValue);
 
-        if (!$allowDecimal && abs($floatValue - $rounded) > 0.0000001) {
+        if (! $allowDecimal && abs($floatValue - $rounded) > 0.0000001) {
             $this->addError($excelRow, $field, 'debe ser numero entero', $value);
+
             return null;
         }
 
@@ -225,11 +305,13 @@ class GesTipo3Import implements OnEachRow, WithStartRow, WithChunkReading, Skips
 
         if ($min !== null && $n < $min) {
             $this->addError($excelRow, $field, "debe ser >= {$min}", $value);
+
             return null;
         }
 
         if ($max !== null && $n > $max) {
             $this->addError($excelRow, $field, "debe ser <= {$max}", $value);
+
             return null;
         }
 
@@ -244,13 +326,15 @@ class GesTipo3Import implements OnEachRow, WithStartRow, WithChunkReading, Skips
             if ($required) {
                 $this->addError($excelRow, $field, 'campo obligatorio');
             }
+
             return null;
         }
 
         $normalized = str_replace([' ', ','], ['', '.'], (string) $value);
 
-        if (!is_numeric($normalized)) {
+        if (! is_numeric($normalized)) {
             $this->addError($excelRow, $field, 'debe ser numerico', $value);
+
             return null;
         }
 
@@ -258,11 +342,13 @@ class GesTipo3Import implements OnEachRow, WithStartRow, WithChunkReading, Skips
 
         if ($min !== null && $n < $min) {
             $this->addError($excelRow, $field, "debe ser >= {$min}", $value);
+
             return null;
         }
 
         if ($max !== null && $n > $max) {
             $this->addError($excelRow, $field, "debe ser <= {$max}", $value);
+
             return null;
         }
 
@@ -275,6 +361,7 @@ class GesTipo3Import implements OnEachRow, WithStartRow, WithChunkReading, Skips
 
         if ($value === null) {
             $this->addError($excelRow, 'Tipo identificacion', 'campo obligatorio');
+
             return null;
         }
 
@@ -290,62 +377,109 @@ class GesTipo3Import implements OnEachRow, WithStartRow, WithChunkReading, Skips
 
         $allowed = ['CC', 'TI', 'RC', 'CE', 'PA', 'AS', 'MS', 'CD', 'SC', 'PE', 'PT', 'CN', 'DE', 'SI', 'NIT', 'NUIP'];
 
-        if (!in_array($v, $allowed, true)) {
+        if (! in_array($v, $allowed, true)) {
             $this->addError($excelRow, 'Tipo identificacion', 'valor no permitido', $value);
+
             return null;
         }
 
         return $v;
     }
 
-    private function parseBoolCode($value, int $excelRow, string $field): ?int
-    {
-        $value = $this->clean($value);
-
-        if ($value === null) {
-            return null;
-        }
-
-        $v = mb_strtoupper(trim((string) $value), 'UTF-8');
-
-        $map = [
-            '1' => 1,
-            'SI' => 1,
-            'S' => 1,
-            'TRUE' => 1,
-            '0' => 0,
-            'NO' => 0,
-            'N' => 0,
-            'FALSE' => 0,
-            '2' => 0,
-            '21' => 1,
-        ];
-
-        if (!array_key_exists($v, $map)) {
-            if (is_numeric($v)) {
-                return (((float) $v) > 0) ? 1 : 0;
-            }
-
-            $this->addError($excelRow, $field, 'solo permite SI/NO o 1/0', $value);
-            return null;
-        }
-
-        return $map[$v];
-    }
-
-    private function parseFinalidadTecnologia($value, int $excelRow): ?int
-    {
-        $codigo = $this->parseInteger($value, $excelRow, 'Finalidad tecnologia en salud', false, 0);
+    private function parseAllowedIntegerCode(
+        $value,
+        int $excelRow,
+        string $field,
+        array $allowed,
+        bool $required = true
+    ): ?int {
+        $codigo = $this->parseInteger($value, $excelRow, $field, $required);
         if ($codigo === null) {
             return null;
         }
 
-        if (!isset($this->finalidadSet[(string) $codigo])) {
-            $this->addError($excelRow, 'Finalidad tecnologia en salud', 'el codigo no es valido', $value);
+        if (! in_array($codigo, $allowed, true)) {
+            $this->addError(
+                $excelRow,
+                $field,
+                'valor no permitido; permitidos: '.implode(', ', $allowed),
+                $value
+            );
+
             return null;
         }
 
         return $codigo;
+    }
+
+    private function parseFinalidadTecnologia($value, int $excelRow): ?int
+    {
+        $codigo = $this->parseInteger($value, $excelRow, 'Finalidad tecnologia en salud', true, 0);
+        if ($codigo === null) {
+            return null;
+        }
+
+        if (! isset($this->finalidadSet[(string) $codigo])) {
+            $this->addError($excelRow, 'Finalidad tecnologia en salud', 'el codigo no es valido', $value);
+
+            return null;
+        }
+
+        return $codigo;
+    }
+
+    private function parseFormattedDecimal(
+        $value,
+        int $excelRow,
+        string $field,
+        bool $required,
+        int $decimalPlaces,
+        float $min,
+        float $max
+    ): ?float {
+        $value = $this->clean($value);
+
+        if ($value === null) {
+            if ($required) {
+                $this->addError($excelRow, $field, 'campo obligatorio');
+            }
+
+            return null;
+        }
+
+        if (is_string($value)) {
+            $raw = trim($value);
+
+            if (str_contains($raw, ',')) {
+                $this->addError($excelRow, $field, 'debe usar punto como separador decimal', $value);
+
+                return null;
+            }
+
+            if (! preg_match('/^[+-]?\d+(?:\.\d+)?$/', $raw)) {
+                $this->addError($excelRow, $field, 'debe ser numerico', $value);
+
+                return null;
+            }
+        } elseif (! is_numeric($value)) {
+            $this->addError($excelRow, $field, 'debe ser numerico', $value);
+
+            return null;
+        }
+
+        $rounded = round((float) $value, $decimalPlaces, PHP_ROUND_HALF_UP);
+
+        return $this->parseDecimal($rounded, $excelRow, $field, false, $min, $max);
+    }
+
+    private function isCupsConsulta(?string $cups): bool
+    {
+        return $cups !== null && in_array($cups, self::CUPS_CONSULTAS, true);
+    }
+
+    private function isCupsEcografia(?string $cups): bool
+    {
+        return $cups !== null && in_array($cups, self::CUPS_ECOGRAFIAS, true);
     }
 
     private function parseString($value, int $excelRow, string $field, bool $required = false, int $max = 255): ?string
@@ -356,6 +490,7 @@ class GesTipo3Import implements OnEachRow, WithStartRow, WithChunkReading, Skips
             if ($required) {
                 $this->addError($excelRow, $field, 'campo obligatorio');
             }
+
             return null;
         }
 
@@ -363,6 +498,7 @@ class GesTipo3Import implements OnEachRow, WithStartRow, WithChunkReading, Skips
 
         if (mb_strlen($v) > $max) {
             $this->addError($excelRow, $field, "supera {$max} caracteres");
+
             return null;
         }
 
@@ -395,7 +531,7 @@ class GesTipo3Import implements OnEachRow, WithStartRow, WithChunkReading, Skips
         $tipoIdent = $this->normalizeTipoIdent($tipoIdent);
         $noId = $this->normalizeNoId($noId);
 
-        $key = $tipoIdent . '|' . $noId;
+        $key = $tipoIdent.'|'.$noId;
 
         if (array_key_exists($key, $this->parentCache)) {
             return $this->parentCache[$key];
@@ -417,7 +553,7 @@ class GesTipo3Import implements OnEachRow, WithStartRow, WithChunkReading, Skips
         $tipoIdent = $this->normalizeTipoIdent($tipoIdent);
         $noId = $this->normalizeNoId($noId);
 
-        $key = $tipoIdent . '|' . $noId;
+        $key = $tipoIdent.'|'.$noId;
 
         if (array_key_exists($key, $this->afiliadoActivoCache)) {
             return $this->afiliadoActivoCache[$key];
@@ -439,15 +575,16 @@ class GesTipo3Import implements OnEachRow, WithStartRow, WithChunkReading, Skips
             $this->addError(
                 0,
                 'DB externa',
-                'error consultando sqlsrv_1: ' . $e->getMessage(),
-                $tipoIdent . ' - ' . $noId
+                'error consultando sqlsrv_1: '.$e->getMessage(),
+                $tipoIdent.' - '.$noId
             );
 
             $this->afiliadoActivoCache[$key] = false;
+
             return false;
         }
 
-        $this->afiliadoActivoCache[$key] = !empty($numeroCarnet);
+        $this->afiliadoActivoCache[$key] = ! empty($numeroCarnet);
 
         return $this->afiliadoActivoCache[$key];
     }
@@ -468,14 +605,16 @@ class GesTipo3Import implements OnEachRow, WithStartRow, WithChunkReading, Skips
             }
         }
 
-        if (!$hasAny) {
+        if (! $hasAny) {
             $this->rowsSkipped++;
+
             return;
         }
 
         if (count($r) < 23) {
             $this->addError($excelRow, 'Estructura', 'el archivo no tiene las 23 columnas esperadas');
             $this->rowsInvalid++;
+
             return;
         }
 
@@ -484,6 +623,7 @@ class GesTipo3Import implements OnEachRow, WithStartRow, WithChunkReading, Skips
                 if ((int) $idx > 22 && $this->clean($val) !== null) {
                     $this->addError($excelRow, 'Estructura', 'se detectaron columnas adicionales no permitidas');
                     $this->rowsInvalid++;
+
                     return;
                 }
             }
@@ -501,7 +641,7 @@ class GesTipo3Import implements OnEachRow, WithStartRow, WithChunkReading, Skips
         $tipoIdent = $this->normalizeTipoIdent($tipoIdent);
         $noId = $this->normalizeNoId($noId);
 
-        if ($noId !== null && !preg_match('/^[A-Za-z0-9\-]+$/', $noId)) {
+        if ($noId !== null && ! preg_match('/^[A-Za-z0-9\-]+$/', $noId)) {
             $this->addError($excelRow, 'No ID usuario', 'solo permite letras, numeros y guion', $noId);
         }
 
@@ -510,44 +650,124 @@ class GesTipo3Import implements OnEachRow, WithStartRow, WithChunkReading, Skips
             $this->addError($excelRow, 'Fecha tecnologia en salud', 'no puede ser futura', $fechaTecnologia);
         }
 
-        $cups = $this->parseString($r[5] ?? null, $excelRow, 'Codigo CUPS', true, 30);
+        $cups = $this->parseString($r[5] ?? null, $excelRow, 'Codigo CUPS', true, 6);
         if ($cups !== null) {
             $cups = mb_strtoupper(trim($cups), 'UTF-8');
-            if (!isset($this->cupsSet[$cups])) {
+            if (mb_strlen($cups) !== 6) {
+                $this->addError($excelRow, 'Codigo CUPS', 'debe tener exactamente 6 caracteres', $cups);
+            } elseif (! isset($this->cupsSet[$cups])) {
                 $this->addError($excelRow, 'Codigo CUPS', 'no existe en referencia CUPS (refcups)', $cups);
             }
         }
 
         $finalidad = $this->parseFinalidadTecnologia($r[6] ?? null, $excelRow);
-        $riesgoGest = $this->parseInteger($r[7] ?? null, $excelRow, 'Clasificacion riesgo gestacional', false, 0, 99);
-        $riesgoPree = $this->parseInteger($r[8] ?? null, $excelRow, 'Clasificacion riesgo preeclampsia', false, 0, 99);
+        $riesgoGest = $this->parseAllowedIntegerCode(
+            $r[7] ?? null,
+            $excelRow,
+            'Clasificacion riesgo gestacional',
+            [4, 5, 21]
+        );
+        $riesgoPree = $this->parseAllowedIntegerCode(
+            $r[8] ?? null,
+            $excelRow,
+            'Clasificacion riesgo preeclampsia',
+            [4, 5, 21]
+        );
 
-        $asa = $this->parseBoolCode($r[9] ?? null, $excelRow, 'Suministro ASA');
-        $folico = $this->parseBoolCode($r[10] ?? null, $excelRow, 'Suministro acido folico');
-        $ferroso = $this->parseBoolCode($r[11] ?? null, $excelRow, 'Suministro sulfato ferroso');
-        $calcio = $this->parseBoolCode($r[12] ?? null, $excelRow, 'Suministro calcio');
+        $suministroCodes = [0, 1, 21];
+        $asa = $this->parseAllowedIntegerCode($r[9] ?? null, $excelRow, 'Suministro ASA', $suministroCodes);
+        $folico = $this->parseAllowedIntegerCode($r[10] ?? null, $excelRow, 'Suministro acido folico', $suministroCodes);
+        $ferroso = $this->parseAllowedIntegerCode($r[11] ?? null, $excelRow, 'Suministro sulfato ferroso', $suministroCodes);
+        $calcio = $this->parseAllowedIntegerCode($r[12] ?? null, $excelRow, 'Suministro calcio', $suministroCodes);
 
-        $fechaAnticonceptivo = $this->parseDate($r[13] ?? null, $excelRow, 'Fecha suministro anticonceptivo post evento', false);
-        $metodoAnticonceptivo = $this->parseBoolCode($r[14] ?? null, $excelRow, 'Suministro metodo anticonceptivo post evento');
-        $fechaSalida = $this->parseDate($r[15] ?? null, $excelRow, 'Fecha salida aborto/parto/cesarea', false);
-        $fechaTerminacion = $this->parseDate($r[16] ?? null, $excelRow, 'Fecha terminacion gestacion', false);
+        $fechaAnticonceptivo = $this->parseDate(
+            $r[13] ?? null,
+            $excelRow,
+            'Fecha suministro anticonceptivo post evento',
+            true
+        );
+        $metodoAnticonceptivo = $this->parseAllowedIntegerCode(
+            $r[14] ?? null,
+            $excelRow,
+            'Suministro metodo anticonceptivo post evento',
+            [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21]
+        );
+        $fechaSalida = $this->parseDate(
+            $r[15] ?? null,
+            $excelRow,
+            'Fecha salida aborto/parto/cesarea',
+            true
+        );
+        $fechaTerminacion = $this->parseDate(
+            $r[16] ?? null,
+            $excelRow,
+            'Fecha terminacion gestacion',
+            true
+        );
 
-        $tipoTerminacion = $this->parseInteger($r[17] ?? null, $excelRow, 'Tipo terminacion gestacion', false, 0, 99);
-        $pas = $this->parseInteger($r[18] ?? null, $excelRow, 'Tension arterial sistolica PAS', false, 40, 300, true);
-        $pad = $this->parseInteger($r[19] ?? null, $excelRow, 'Tension arterial diastolica PAD', false, 20, 200, true);
+        $tipoTerminacion = $this->parseAllowedIntegerCode(
+            $r[17] ?? null,
+            $excelRow,
+            'Tipo terminacion gestacion',
+            [0, 1, 2, 3, 4]
+        );
+
+        $requiereMedidasConsultaPrenatal = $this->isCupsConsulta($cups) && $finalidad === 23;
+        $pas = $this->parseInteger(
+            $r[18] ?? null,
+            $excelRow,
+            'Tension arterial sistolica PAS',
+            $requiereMedidasConsultaPrenatal,
+            40,
+            300
+        );
+        $pad = $this->parseInteger(
+            $r[19] ?? null,
+            $excelRow,
+            'Tension arterial diastolica PAD',
+            $requiereMedidasConsultaPrenatal,
+            20,
+            200
+        );
 
         if ($pas !== null && $pad !== null && $pas <= $pad) {
             $this->addError($excelRow, 'Tension arterial', 'PAS debe ser mayor que PAD');
         }
 
-        $imc = $this->parseDecimal($r[20] ?? null, $excelRow, 'Indice de masa corporal', false, 5, 80);
-        $hemoglobina = $this->parseDecimal($r[21] ?? null, $excelRow, 'Resultado hemoglobina', false, 0, 30);
-        $ipUterinas = $this->parseDecimal($r[22] ?? null, $excelRow, 'Indice de pulsatilidad arterias uterinas', false, 0, 20);
+        $imc = $this->parseFormattedDecimal(
+            $r[20] ?? null,
+            $excelRow,
+            'Indice de masa corporal',
+            $requiereMedidasConsultaPrenatal,
+            1,
+            5,
+            80
+        );
+        $hemoglobina = $this->parseFormattedDecimal(
+            $r[21] ?? null,
+            $excelRow,
+            'Resultado hemoglobina',
+            true,
+            1,
+            0,
+            30
+        );
+
+        $requierePulsatilidad = $this->isCupsEcografia($cups);
+        $ipUterinas = $this->parseFormattedDecimal(
+            $r[22] ?? null,
+            $excelRow,
+            'Indice de pulsatilidad arterias uterinas',
+            $requierePulsatilidad,
+            2,
+            0,
+            20
+        );
 
         $gesTipo1Id = null;
         if ($tipoIdent !== null && $noId !== null) {
-            if (!$this->hasActiveAffiliate($tipoIdent, $noId)) {
-                $this->addError($excelRow, 'Afiliado', 'no se encontro afiliado activo en DB externa con esa identificacion', $tipoIdent . ' - ' . $noId);
+            if (! $this->hasActiveAffiliate($tipoIdent, $noId)) {
+                $this->addError($excelRow, 'Afiliado', 'no se encontro afiliado activo en DB externa con esa identificacion', $tipoIdent.' - '.$noId);
             }
 
             $gesTipo1Id = $this->getParentGestanteId($tipoIdent, $noId);
@@ -556,7 +776,7 @@ class GesTipo3Import implements OnEachRow, WithStartRow, WithChunkReading, Skips
                     $excelRow,
                     'Relacion tipo 2',
                     'no hay registro asociado al tipo 2. Favor realizar primero el cargue tipo 2 para continuar',
-                    $tipoIdent . ' - ' . $noId
+                    $tipoIdent.' - '.$noId
                 );
             }
         }
@@ -587,6 +807,7 @@ class GesTipo3Import implements OnEachRow, WithStartRow, WithChunkReading, Skips
 
         if ($this->rowHasErrors) {
             $this->rowsInvalid++;
+
             return;
         }
 
