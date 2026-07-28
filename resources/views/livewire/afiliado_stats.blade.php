@@ -832,12 +832,17 @@
         const select = document.getElementById(id);
         if (!select) return;
         const selected = keepValue ? select.value : '';
+        const uppercaseLabels = id === 'chartVaccinator' || id === 'chartBiologico';
+        const normalizeLabel = function(label){
+            const text = String(label || '');
+            return uppercaseLabels ? text.toLocaleUpperCase('es-CO') : text;
+        };
         const firstLabel = id === 'chartVaccinator' ? 'Todas' : (id === 'chartMunicipio' ? 'Todos' : 'Todos');
-        select.innerHTML = '<option value="">' + firstLabel + '</option>';
+        select.innerHTML = '<option value="">' + normalizeLabel(firstLabel) + '</option>';
         (rows || []).forEach(function(row){
             const option = document.createElement('option');
             option.value = typeof row === 'object' ? String(row[valueKey] ?? '') : String(row);
-            option.textContent = labelBuilder ? labelBuilder(row) : String(row);
+            option.textContent = normalizeLabel(labelBuilder ? labelBuilder(row) : String(row));
             select.appendChild(option);
         });
         if (keepValue && Array.from(select.options).some(option => option.value === selected)) {

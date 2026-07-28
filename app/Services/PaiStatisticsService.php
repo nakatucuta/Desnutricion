@@ -8,6 +8,8 @@ use Illuminate\Support\Facades\DB;
 
 class PaiStatisticsService
 {
+    private const EXCLUDED_BIOLOGIC_ID_RANGE = [28, 54];
+
     public function build(array $filters): array
     {
         $year = $this->validYear($filters['year'] ?? null);
@@ -37,6 +39,8 @@ class PaiStatisticsService
             ->get();
 
         $biologics = (clone $scope)
+            ->whereNotBetween('v.vacunas_id', self::EXCLUDED_BIOLOGIC_ID_RANGE)
+            ->whereRaw("LTRIM(RTRIM(ISNULL(v.docis, ''))) <> ''")
             ->selectRaw("COALESCE(NULLIF(LTRIM(RTRIM(rv.nombre)), ''), 'SIN BIOLOGICO') as label")
             ->selectRaw('COUNT_BIG(*) as total')
             ->groupByRaw("COALESCE(NULLIF(LTRIM(RTRIM(rv.nombre)), ''), 'SIN BIOLOGICO')")
@@ -257,6 +261,7 @@ class PaiStatisticsService
 
         $biologics = DB::table('referencia_vacunas')
             ->select('id', 'nombre')
+            ->whereNotBetween('id', self::EXCLUDED_BIOLOGIC_ID_RANGE)
             ->whereRaw("LTRIM(RTRIM(ISNULL(nombre, ''))) <> ''")
             ->orderBy('nombre')
             ->get()
