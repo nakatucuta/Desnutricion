@@ -17,9 +17,11 @@
     </div>
 
     <div class="pai-topbar__right">
+        @can('view-statistics')
         <a href="{{ route('afiliado.stats.view') }}" class="btn btn-pai btn-pai-secondary mr-2">
             <i class="fas fa-chart-pie mr-2"></i> Estadisticas PAI
         </a>
+        @endcan
         <a href="{{ route('vacunas.faltantes.normativo') }}" class="btn btn-pai btn-pai-secondary mr-2">
             <i class="fas fa-clipboard-list mr-2"></i> Faltantes poblacionales (Normativo)
         </a>

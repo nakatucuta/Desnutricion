@@ -65,15 +65,15 @@ Route::get('/afiliado/data', [AfiliadoController::class, 'dataTable'])->name('af
 Route::get('/afiliado/load-state', [AfiliadoController::class, 'paiLoadState'])->name('afiliado.load-state')
 ->middleware('auth');
 Route::get('/afiliado/stats-dashboard', [AfiliadoController::class, 'statsDashboard'])->name('afiliado.stats.dashboard')
-  ->middleware('auth');
+  ->middleware(['auth', 'can:view-statistics']);
 Route::get('/afiliado/stats-dashboard/dosis-detalle', [AfiliadoController::class, 'statsDoseDetail'])->name('afiliado.stats.dose.detail')
-  ->middleware('auth');
+  ->middleware(['auth', 'can:view-statistics']);
 Route::get('/afiliado/estadisticas', [AfiliadoController::class, 'statsView'])->name('afiliado.stats.view')
-  ->middleware('auth');
+  ->middleware(['auth', 'can:view-statistics']);
 Route::get('/afiliado/estadisticas/graficas', [AfiliadoController::class, 'statsChartsView'])->name('afiliado.stats.charts.view')
-  ->middleware(['auth', 'can:access-pai']);
+  ->middleware(['auth', 'can:access-pai', 'can:view-statistics']);
 Route::get('/afiliado/estadisticas/graficas/data', [AfiliadoController::class, 'statsCharts'])->name('afiliado.stats.charts.data')
-  ->middleware(['auth', 'can:access-pai']);
+  ->middleware(['auth', 'can:access-pai', 'can:view-statistics']);
 Route::get('/alteraciones-nutricionales/indicadores', [AlteracionesNutricionalesIndicadoresController::class, 'index'])
     ->name('alteraciones.nutricionales.indicadores')
     ->middleware(['auth', 'can:access-nutricional']);
@@ -87,29 +87,29 @@ Route::get('/alteraciones-nutricionales/indicadores/gaps', [AlteracionesNutricio
     ->name('alteraciones.nutricionales.indicadores.gaps')
     ->middleware(['auth', 'can:access-nutricional']);
 Route::get('/afiliado/estadisticas/indicadores', [AfiliadoController::class, 'paiIndicadoresIndex'])->name('afiliado.stats.indicadores.index')
-->middleware('auth');
+->middleware(['auth', 'can:view-statistics']);
 Route::get('/afiliado/estadisticas/parametrizaciones', [AfiliadoController::class, 'paiSettingsIndex'])->name('afiliado.stats.settings.index')
-->middleware('auth');
+->middleware(['auth', 'can:view-statistics']);
 Route::get('/afiliado/estadisticas/referencias-ips', [AfiliadoController::class, 'paiIpsReferenciasIndex'])->name('afiliado.stats.references.index')
-->middleware('auth');
+->middleware(['auth', 'can:view-statistics']);
 Route::get('/afiliado/estadisticas/referencias-ips/data', [AfiliadoController::class, 'paiIpsReferenciasData'])->name('afiliado.stats.references.data')
-->middleware('auth');
+->middleware(['auth', 'can:view-statistics']);
 Route::post('/afiliado/estadisticas/referencias-ips', [AfiliadoController::class, 'paiIpsReferenciasStore'])->name('afiliado.stats.references.store')
-->middleware('auth');
+->middleware(['auth', 'can:view-statistics']);
 Route::put('/afiliado/estadisticas/referencias-ips/{id}', [AfiliadoController::class, 'paiIpsReferenciasUpdate'])->name('afiliado.stats.references.update')
-->middleware('auth');
+->middleware(['auth', 'can:view-statistics']);
 Route::delete('/afiliado/estadisticas/referencias-ips/{id}', [AfiliadoController::class, 'paiIpsReferenciasDestroy'])->name('afiliado.stats.references.destroy')
-->middleware('auth');
+->middleware(['auth', 'can:view-statistics']);
 Route::get('/afiliado/estadisticas/indicadores/data', [AfiliadoController::class, 'paiIndicadoresData'])->name('afiliado.stats.indicadores.data')
-->middleware('auth');
+->middleware(['auth', 'can:view-statistics']);
 Route::post('/afiliado/estadisticas/indicadores', [AfiliadoController::class, 'paiIndicadoresStore'])->name('afiliado.stats.indicadores.store')
-->middleware('auth');
+->middleware(['auth', 'can:view-statistics']);
 Route::post('/afiliado/estadisticas/indicadores/importar-programacion', [AfiliadoController::class, 'paiIndicadoresImportProgramacion'])->name('afiliado.stats.indicadores.import.programacion')
-->middleware('auth');
+->middleware(['auth', 'can:view-statistics']);
 Route::put('/afiliado/estadisticas/indicadores/{id}', [AfiliadoController::class, 'paiIndicadoresUpdate'])->name('afiliado.stats.indicadores.update')
-->middleware('auth');
+->middleware(['auth', 'can:view-statistics']);
 Route::delete('/afiliado/estadisticas/indicadores/{id}', [AfiliadoController::class, 'paiIndicadoresDestroy'])->name('afiliado.stats.indicadores.destroy')
-->middleware('auth');
+->middleware(['auth', 'can:view-statistics']);
 
 
 // Rutas para el cargue de la informaciÃ³n

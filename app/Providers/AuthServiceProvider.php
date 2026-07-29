@@ -35,9 +35,9 @@ class AuthServiceProvider extends ServiceProvider
             // Evita cortar el arranque si la tabla aun no existe o hay un problema temporal de DB.
         }
 
-        //Esta Gate habilita la estadisticas solo a los usuarios tipo 1 y tipo 3, directiva can:view-statistics en adminlte.php
+        // Habilita las estadísticas y parametrizaciones PAI solo a usuarios tipo 1 y tipo 3.
         Gate::define('view-statistics', function ($user){
-            return $user->usertype == 1 || $user->usertype == 3; 
+            return $user->usertype == 1; 
         });
 
         Gate::define('access-gestantes', function ($user) use ($access) {
