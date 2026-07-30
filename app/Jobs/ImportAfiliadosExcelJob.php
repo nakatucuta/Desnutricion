@@ -43,7 +43,7 @@ class ImportAfiliadosExcelJob implements ShouldQueue
             return;
         }
 
-        //  LOCK: evita doble ejecución en paralelo del mismo importJobId
+        //  LOCK: evita doble ejecucion en paralelo del mismo importJobId
         $lockKey = "import_lock:{$this->importJobId}";
         $lock = Cache::lock($lockKey, 3600);
 
@@ -55,7 +55,7 @@ class ImportAfiliadosExcelJob implements ShouldQueue
         $import = null;
 
         try {
-            //  si ya está finalizado, no hagas nada
+            //  si ya esta finalizado, no hagas nada
             if (in_array($jobRow->status, ['done', 'failed'], true)) {
                 return;
             }
@@ -187,7 +187,7 @@ class ImportAfiliadosExcelJob implements ShouldQueue
             //  Conteo REAL insertado (NO depende del import)
             [$insertedAfil, $insertedVac] = $this->countInsertedByBatch($batchId);
 
-            //  Stats extra (si están disponibles) solo como complemento
+            //  Stats extra (si estan disponibles) solo como complemento
             $stats = $this->safeStats($import);
 
             $oldAfil   = (int)($stats['oldAfil'] ?? 0);
@@ -301,7 +301,7 @@ class ImportAfiliadosExcelJob implements ShouldQueue
     }
 
     // =========================================================
-    //  ENVÍO DE CORREO (NO BLOQUEA)
+    //  ENVIO DE CORREO (NO BLOQUEA)
     // =========================================================
     private function sendImportEmailSafe(
         bool $ok,

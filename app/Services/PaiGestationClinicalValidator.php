@@ -153,32 +153,12 @@ class PaiGestationClinicalValidator
     private function normalizeText($value): string
     {
         $text = preg_replace('/\s+/u', ' ', mb_strtoupper(trim((string) ($value ?? '')), 'UTF-8')) ?? '';
+        $ascii = @iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', $text);
 
-        return strtr($text, [
-            'Á' => 'A',
-            'À' => 'A',
-            'Â' => 'A',
-            'Ä' => 'A',
-            'Ã' => 'A',
-            'É' => 'E',
-            'È' => 'E',
-            'Ê' => 'E',
-            'Ë' => 'E',
-            'Í' => 'I',
-            'Ì' => 'I',
-            'Î' => 'I',
-            'Ï' => 'I',
-            'Ó' => 'O',
-            'Ò' => 'O',
-            'Ô' => 'O',
-            'Ö' => 'O',
-            'Õ' => 'O',
-            'Ú' => 'U',
-            'Ù' => 'U',
-            'Û' => 'U',
-            'Ü' => 'U',
-            'Ñ' => 'N',
-        ]);
+        $normalized = $ascii !== false ? $ascii : $text;
+        $normalized = str_replace(["'", '`', '^', '~'], '', $normalized);
+
+        return preg_replace('/\s+/u', ' ', trim($normalized)) ?? $normalized;
     }
 
     public function normalizeCondition($value): ?string

@@ -65,7 +65,7 @@ class PaiClinicalDateNormalizer
         }
 
         if ($this->normalize($value) === null) {
-            return "{$field}: fecha inválida; use DD/MM/AAAA o AAAA-MM-DD";
+            return "{$field}: fecha invalida; use DD/MM/AAAA o AAAA-MM-DD";
         }
 
         return null;

@@ -17,10 +17,10 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Storage;
-use App\Models\referencia_vacuna; // Importa el modelo aquí
+use App\Models\referencia_vacuna; // Importa el modelo aqui
 use App\Exports\VacunaExport;             // <- agrega
 use Illuminate\Support\Facades\Cache;
-use Illuminate\Support\Str; // ✅ ESTE ES EL FIX
+use Illuminate\Support\Str; //  ESTE ES EL FIX
 use App\Models\ImportJob;
 use App\Models\PaiIndicador2026;
 use App\Models\PaiIndicadorCatalogo;
@@ -28,7 +28,7 @@ use App\Models\PaiIpsReferencia;
 use App\Models\PaiProgramacionMeta;
 use App\Models\PaiProgramacionImportLote;
 use App\Jobs\ImportAfiliadosExcelJob;
-  // ✅ ESTE ES EL JOB (cola)
+  //  ESTE ES EL JOB (cola)
 use ZipArchive;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Yajra\DataTables\Facades\DataTables;
@@ -167,7 +167,7 @@ class AfiliadoController extends Controller
         }
 
         if (!hash_equals($officialSig, $uploadedSig)) {
-            return 'Formato inválido: el archivo no corresponde al formato oficial de la plataforma. '
+            return 'Formato invalido: el archivo no corresponde al formato oficial de la plataforma. '
                 .'Descarga nuevamente el formato desde "Descargar formato" e intenta de nuevo.';
         }
 
@@ -297,7 +297,7 @@ class AfiliadoController extends Controller
             }
 
             // El estado de alta demanda se basa en la cola real de PAI (jobs.queue),
-            // evitando falsos positivos por import_jobs "running" pegados u otros módulos.
+            // evitando falsos positivos por import_jobs "running" pegados u otros modulos.
             $busy = (
                 $queueRunningRecent >= $runningThreshold
                 || ($queueRunningRecent > 0 && $queuePending >= $queueThreshold)
@@ -402,7 +402,7 @@ class AfiliadoController extends Controller
         $ipsId = (int) $request->input('ips_id', 0);
         $regimen = mb_strtoupper(trim((string) $request->input('regimen', '')), 'UTF-8');
 
-        // Si no vienen filtros completos, usamos una combinación real con datos del año.
+        // Si no vienen filtros completos, usamos una combinacion real con datos del ano.
         if ($municipio === '' || $ipsId <= 0 || $regimen === '') {
             $combo = DB::table('vacunas as v')
                 ->join('afiliados as a', 'a.id', '=', 'v.afiliado_id')
@@ -2707,7 +2707,7 @@ class AfiliadoController extends Controller
         return [
             [
                 'key' => 'bcg',
-                'indicador' => 'COBERTURA NIÑO Y NIÑAS MENOR DE UN AÑO',
+                'indicador' => 'COBERTURA NINO Y NINAS MENOR DE UN ANO',
                 'biologico' => 'BCG',
                 'vaccine_key' => 'BCG',
                 'population_rule' => 'lt_12m',
@@ -2715,7 +2715,7 @@ class AfiliadoController extends Controller
             ],
             [
                 'key' => 'penta_3',
-                'indicador' => 'COBERTURA NIÑO Y NIÑAS MENOR DE UN AÑO',
+                'indicador' => 'COBERTURA NINO Y NINAS MENOR DE UN ANO',
                 'biologico' => '3ra DE PENTAVALENTE',
                 'vaccine_key' => 'PENTAVALENTE',
                 'population_rule' => 'lt_12m',
@@ -2723,7 +2723,7 @@ class AfiliadoController extends Controller
             ],
             [
                 'key' => 'triple_viral_1',
-                'indicador' => 'COBERTURA NIÑO Y NIÑAS DE 1 AÑO',
+                'indicador' => 'COBERTURA NINO Y NINAS DE 1 ANO',
                 'biologico' => 'TRIPLE VIRAL',
                 'vaccine_key' => 'TRIPLE_VIRAL',
                 'population_rule' => '12_to_23m',
@@ -2731,7 +2731,7 @@ class AfiliadoController extends Controller
             ],
             [
                 'key' => 'triple_viral_ref',
-                'indicador' => 'COBERTURAS EN NIÑOS Y NIÑAS DE 18 MESES',
+                'indicador' => 'COBERTURAS EN NINOS Y NINAS DE 18 MESES',
                 'biologico' => 'REFUERZO TRIPLE VIRAL',
                 'vaccine_key' => 'TRIPLE_VIRAL',
                 'population_rule' => '18_to_23m',
@@ -2739,7 +2739,7 @@ class AfiliadoController extends Controller
             ],
             [
                 'key' => 'penta_ref',
-                'indicador' => 'COBERTURAS EN NIÑOS Y NIÑAS DE 18 MESES',
+                'indicador' => 'COBERTURAS EN NINOS Y NINAS DE 18 MESES',
                 'biologico' => 'REFUERZO PENTAVALANTE',
                 'vaccine_key' => 'PENTAVALENTE',
                 'population_rule' => '18_to_23m',
@@ -2747,7 +2747,7 @@ class AfiliadoController extends Controller
             ],
             [
                 'key' => 'dpt_ref2',
-                'indicador' => 'COBERTURA NIÑOS DE 5 AÑOS',
+                'indicador' => 'COBERTURA NINOS DE 5 ANOS',
                 'biologico' => '2do REFUERZO DPT',
                 'vaccine_key' => 'DPT',
                 'population_rule' => '60_to_71m',
@@ -2763,7 +2763,7 @@ class AfiliadoController extends Controller
             ],
             [
                 'key' => 'vph_f',
-                'indicador' => 'COBERTURA EN NIÑAS DE 9 A 17 AÑOS',
+                'indicador' => 'COBERTURA EN NINAS DE 9 A 17 ANOS',
                 'biologico' => 'DOSIS UNICA',
                 'vaccine_key' => 'VPH',
                 'population_rule' => '9_to_17_f',
@@ -2771,7 +2771,7 @@ class AfiliadoController extends Controller
             ],
             [
                 'key' => 'vph_m',
-                'indicador' => 'COBERTURA EN NIÑOS DE 9 A 17 AÑOS',
+                'indicador' => 'COBERTURA EN NINOS DE 9 A 17 ANOS',
                 'biologico' => 'DOSIS UNICA',
                 'vaccine_key' => 'VPH',
                 'population_rule' => '9_to_17_m',
@@ -2915,7 +2915,7 @@ class AfiliadoController extends Controller
             implode('|', [$mun, $ips, $reg, $indicador, $biologico]),
         ];
 
-        // Alias puntuales para diferencias de digitación.
+        // Alias puntuales para diferencias de digitacion.
         if ($biologico === 'REFUERZO PENTAVALANTE') {
             $keys[] = implode('|', [$mun, $ips, $reg, $indicador, 'REFUERZO PENTAVALENTE']);
         }
@@ -3399,22 +3399,22 @@ class AfiliadoController extends Controller
             return 'SIN REPORTE';
         }
         if ($percentage > 100) {
-            return 'Cobertura Óptima';
+            return 'Cobertura Optima';
         }
         if ($percentage >= 95.00) {
-            return 'Cobertura útil';
+            return 'Cobertura util';
         }
         if ($percentage >= 90.00) {
             return 'Cobertura bajo riesgo';
         }
         if ($percentage >= 80.00) {
-            return 'Cobertura no útil';
+            return 'Cobertura no util';
         }
         if ($percentage > 50.00) {
-            return 'Cobertura Crítica';
+            return 'Cobertura Critica';
         }
         if ($percentage <= 50.00) {
-            return 'Cobertura muy crítica';
+            return 'Cobertura muy critica';
         }
 
         return 'SIN REPORTE';
@@ -3436,13 +3436,13 @@ class AfiliadoController extends Controller
         $connSGA = DB::connection('sqlsrv_1');  // SGA
         $connDES = DB::connection('sqlsrv');    // DESNUTRICION
     
-        // 2) Subconsulta de carnets filtrados (evita whereIn masivo > 2100 parámetros)
+        // 2) Subconsulta de carnets filtrados (evita whereIn masivo > 2100 parametros)
         $filteredCarnets = $connSGA->table('maestroidentificaciones as x')
             ->select('x.numeroCarnet')
             ->where('x.identificacion', 'LIKE', "%{$search}%")
             ->groupBy('x.numeroCarnet');
 
-        // 3) Por cada carnet filtrado, obtener identificación máxima (SGA)
+        // 3) Por cada carnet filtrado, obtener identificacion maxima (SGA)
         $maxPerCarnet = $connSGA->table('maestroidentificaciones as mi')
             ->joinSub($filteredCarnets, 'fc', function ($join) {
                 $join->on('fc.numeroCarnet', '=', 'mi.numeroCarnet');
@@ -3450,7 +3450,7 @@ class AfiliadoController extends Controller
             ->select('mi.numeroCarnet', DB::raw('MAX(mi.identificacion) as numero_identificacion'))
             ->groupBy('mi.numeroCarnet');
     
-        // 4) Obtener datos del afiliado + maestro + solo la fila "máxima" por carnet (SGA)
+        // 4) Obtener datos del afiliado + maestro + solo la fila "maxima" por carnet (SGA)
         $results = $connSGA->table('maestroafiliados as c')
             ->joinSub($maxPerCarnet, 'm', function($join) {
                 $join->on('c.numeroCarnet', '=', 'm.numeroCarnet');
@@ -4028,7 +4028,7 @@ class AfiliadoController extends Controller
     //         return response()->json([]);
     //     }
     
-    //     // 1) Obtener los carnet(s) asociados a la identificación buscada
+    //     // 1) Obtener los carnet(s) asociados a la identificacion buscada
     //     $carnets = DB::table('sga.dbo.maestroidentificaciones')
     //         ->where('identificacion', 'LIKE', "%{$search}%")
     //         ->pluck('numeroCarnet');
@@ -4066,7 +4066,7 @@ class AfiliadoController extends Controller
      */
     public function showImportForm()
     {
-        // Puedes añadir lógica aquí si necesitas un formulario separado para la importación.
+        // Puedes anadir logica aqui si necesitas un formulario separado para la importacion.
         return view('livewire.import-excel');
     }
 
@@ -4115,7 +4115,7 @@ public function importExcel(Request $request)
 
         Cache::put("import_progress:{$claim['token']}", [
             'percent' => 1,
-            'message' => 'Archivo recibido. Encolando procesamiento…',
+            'message' => 'Archivo recibido. Encolando procesamiento...',
             'step'    => 'encolado',
             'done'    => false,
             'ok'      => true,
@@ -4126,7 +4126,7 @@ public function importExcel(Request $request)
             'success',
             $claim['outcome'] === 'retried'
                 ? 'El reintento controlado fue encolado usando el mismo proceso.'
-                : 'Archivo recibido. El sistema lo está procesando en segundo plano.'
+                : 'Archivo recibido. El sistema lo esta procesando en segundo plano.'
         );
     }
 
@@ -4149,7 +4149,7 @@ public function importExcel(Request $request)
         ),
         default => redirect()->route('afiliado')->with(
             'error1',
-            'Ingresa más tarde; hay muchos usuarios cargando.'
+            'Ingresa mas tarde; hay muchos usuarios cargando.'
         ),
     };
 }
@@ -4162,7 +4162,7 @@ private function generarArchivoVacunasDesdeDB(int $batchId, string $filePath): v
         throw new \RuntimeException("No se pudo crear el TXT en: {$filePath}");
     }
 
-    // Ajusta columnas según lo que tú escribías antes en el TXT
+    // Ajusta columnas segun lo que tu escribias antes en el TXT
     $query = DB::table('vacunas as v')
         ->join('afiliados as a', 'a.id', '=', 'v.afiliado_id')
         ->select([
@@ -4216,7 +4216,7 @@ private function generarArchivoVacunasDesdeDB(int $batchId, string $filePath): v
         foreach ($data as $linea) {
             // Validar que exista 'afiliado'
             if (!isset($linea['afiliado'])) {
-                Log::error("Datos del afiliado no encontrados en la línea: " . json_encode($linea));
+                Log::error("Datos del afiliado no encontrados en la linea: " . json_encode($linea));
                 $contenido .= "Datos del afiliado no disponibles.\n";
                 $contenido .= "-------------------------------------------\n";
                 continue;
@@ -4292,19 +4292,19 @@ private function generarArchivoVacunasDesdeDB(int $batchId, string $filePath): v
             // Obtener el nombre del usuario autenticado
             $usuario = Auth::check() ? Auth::user()->name : 'Usuario desconocido';
     
-            // Obtener el correo electrónico del usuario autenticado
+            // Obtener el correo electronico del usuario autenticado
             $correoUsuario = Auth::check() ? Auth::user()->email : null;
     
             // Validar que el usuario autenticado tenga un correo
             if (!$correoUsuario) {
-                Log::error("El usuario autenticado no tiene un correo válido.");
+                Log::error("El usuario autenticado no tiene un correo valido.");
                 return;
             }
     
             // Crear un nuevo correo con el archivo adjunto
             $email = new \App\Mail\VacunasCargadas($filePath, $usuario);
     
-            // Log de información
+            // Log de informacion
             Log::info("Intentando enviar correo con vista 'mail.vacunas_cargadas' y archivo: $filePath");
     
             // Enviar el correo al usuario autenticado con copia a otros destinatarios
@@ -4312,8 +4312,8 @@ private function generarArchivoVacunasDesdeDB(int $batchId, string $filePath): v
                 ->cc(['jsuarez@epsianaswayuu.com','pai@epsianaswayuu.com'])
                 ->send($email);
     
-            // Log de éxito
-            Log::info("Correo enviado con éxito al usuario autenticado ({$correoUsuario}), jsuarez@epsianaswayuu.com y pai@epsianaswayuu.com con el archivo: $filePath");
+            // Log de exito
+            Log::info("Correo enviado con exito al usuario autenticado ({$correoUsuario}), jsuarez@epsianaswayuu.com y pai@epsianaswayuu.com con el archivo: $filePath");
         } else {
             // Log de error si no encuentra el archivo
             Log::error("Archivo no encontrado para enviar: $filePath");
@@ -4342,12 +4342,12 @@ private function generarArchivoVacunasDesdeDB(int $batchId, string $filePath): v
     
 
     /**
-     * Obtiene las vacunas asociadas a un afiliado específico.
+     * Obtiene las vacunas asociadas a un afiliado especifico.
      *
      * @param  int  $id
      * @return \Illuminate\Http\JsonResponse
      */
-  // Método que obtiene las vacunas asociadas a un afiliado por id y número de carnet
+  // Metodo que obtiene las vacunas asociadas a un afiliado por id y numero de carnet
   public function getVacunas($id, $numeroCarnet = null)
 {
     $this->applyReadOptimizations();
@@ -4395,7 +4395,7 @@ private function generarArchivoVacunasDesdeDB(int $batchId, string $filePath): v
         ->where(function ($query) use ($id, $numeroCarnet) {
             $query->where('b.id', $id);
 
-            // ✅ solo filtra por carnet si viene
+            //  solo filtra por carnet si viene
             if (!empty($numeroCarnet)) {
                 $query->orWhere('b.numero_carnet', $numeroCarnet);
             }
@@ -4836,10 +4836,10 @@ public function getVacunasPdf($id, $numeroCarnet = null)
 
 // METODO PARA DESCARGAR EL  FORMATO EXCEL 
  
-    // Método para descargar el archivo Excel
+    // Metodo para descargar el archivo Excel
     public function downloadExcel()
 {
-    // ✅ ZIP oficial del formato de vacunas (disco "public" => storage/app/public)
+    //  ZIP oficial del formato de vacunas (disco "public" => storage/app/public)
     $zipName = 'formato_registro_diario.zip';
     if (Storage::disk('public')->exists($zipName)) {
         return Storage::disk('public')->download($zipName, $zipName);
@@ -4850,7 +4850,7 @@ public function getVacunasPdf($id, $numeroCarnet = null)
     $pdfPath = 'public/Manual para el uso de registro diario pai.pdf';
 
     if (!Storage::exists($excelPath) || !Storage::exists($pdfPath)) {
-        abort(404, 'No se encontró el ZIP nuevo y tampoco el formato anterior.');
+        abort(404, 'No se encontro el ZIP nuevo y tampoco el formato anterior.');
     }
 
     $zipFileName = 'documentos.zip';
@@ -4923,33 +4923,33 @@ public function exportVacunas(Request $request)
         // 1) Encabezados
         fputcsv($out, $headings, $delimiter);
 /*
-            'Prestador','IPS PRIMARIA','Fecha de Atención','Tipo de Identificación',
-            'Número de Identificación','Primer Nombre','Segundo Nombre','Primer Apellido',
-            'Segundo Apellido','Fecha de Nacimiento','Edad (Años)','Edad (Meses)',
-            'Edad (Días)','Total de Meses','Esquema Completo','Sexo','Género',
-            'Orientación Sexual','Edad Gestacional','País de Nacimiento',
-            'Estatus Migratorio','Lugar de Atención del Parto','Régimen','Aseguradora',
-            'Pertenencia Étnica','Desplazado','Discapacitado','Fallecido',
-            'Víctima de Conflicto','Estudia','País de Residencia','Departamento de Residencia',
-            'Municipio de Residencia','Comuna','Área','Dirección','Teléfono Fijo','Celular',
-            'Email','Autoriza Llamadas','Autoriza Correos','Contraindicación Vacuna',
-            'Enfermedad Contraindicación','Reacción a Biológicos','Síntomas Reacción',
-            'Condición Usuaria','Fecha Última Menstruación','Semanas de Gestación',
+            'Prestador','IPS PRIMARIA','Fecha de Atencion','Tipo de Identificacion',
+            'Numero de Identificacion','Primer Nombre','Segundo Nombre','Primer Apellido',
+            'Segundo Apellido','Fecha de Nacimiento','Edad (Anos)','Edad (Meses)',
+            'Edad (Dias)','Total de Meses','Esquema Completo','Sexo','Genero',
+            'Orientacion Sexual','Edad Gestacional','Pais de Nacimiento',
+            'Estatus Migratorio','Lugar de Atencion del Parto','Regimen','Aseguradora',
+            'Pertenencia Etnica','Desplazado','Discapacitado','Fallecido',
+            'Victima de Conflicto','Estudia','Pais de Residencia','Departamento de Residencia',
+            'Municipio de Residencia','Comuna','Area','Direccion','Telefono Fijo','Celular',
+            'Email','Autoriza Llamadas','Autoriza Correos','Contraindicacion Vacuna',
+            'Enfermedad Contraindicacion','Reaccion a Biologicos','Sintomas Reaccion',
+            'Condicion Usuaria','Fecha Ultima Menstruacion','Semanas de Gestacion',
             'Fecha Probable de Parto','Embarazos Previos','Fecha Antecedente',
-            'Tipo de Antecedente','Descripción del Antecedente','Observaciones Especiales',
-            'Madre Tipo de Identificación','Madre Identificación','Madre Primer Nombre',
+            'Tipo de Antecedente','Descripcion del Antecedente','Observaciones Especiales',
+            'Madre Tipo de Identificacion','Madre Identificacion','Madre Primer Nombre',
             'Madre Segundo Nombre','Madre Primer Apellido','Madre Segundo Apellido',
-            'Madre Correo','Madre Teléfono','Madre Celular','Madre Régimen',
-            'Madre Pertenencia Étnica','Madre Desplazada','Cuidador Tipo de Identificación',
-            'Cuidador Identificación','Cuidador Primer Nombre','Cuidador Segundo Nombre',
+            'Madre Correo','Madre Telefono','Madre Celular','Madre Regimen',
+            'Madre Pertenencia Etnica','Madre Desplazada','Cuidador Tipo de Identificacion',
+            'Cuidador Identificacion','Cuidador Primer Nombre','Cuidador Segundo Nombre',
             'Cuidador Primer Apellido','Cuidador Segundo Apellido','Cuidador Parentesco',
-            'Cuidador Correo','Cuidador Teléfono','Cuidador Celular','Esquema de Vacunación',
+            'Cuidador Correo','Cuidador Telefono','Cuidador Celular','Esquema de Vacunacion',
             'Nombre de la Vacuna','Dosis','Laboratorio','Lote','Jeringa','Lote de Jeringa',
-            'Diluyente','Lote de Diluyente','Observación','Gotero','Tipo Neumococo',
-            'Número de Frascos Utilizados','Fecha de Vacunación','Responsable',
+            'Diluyente','Lote de Diluyente','Observacion','Gotero','Tipo Neumococo',
+            'Numero de Frascos Utilizados','Fecha de Vacunacion','Responsable',
             'Fuente Ingresado en PAIWEB','Motivo No Ingreso','Observaciones','Regimen de la Vacuna',
             'Condicion Usuaria de la Vacuna',
-            'Fecha de Creación',
+            'Fecha de Creacion',
         ]);
 
         // 2) Chunked query y escritura
@@ -5095,7 +5095,7 @@ public function exportVacunas(Request $request)
                         $rowValues[] = $rowAssoc[$key] ?? '';
                     }
 
-                    // Fuerza el mismo número de columnas del encabezado.
+                    // Fuerza el mismo numero de columnas del encabezado.
                     if (count($rowValues) < $expectedColumns) {
                         $rowValues = array_pad($rowValues, $expectedColumns, '');
                     } elseif (count($rowValues) > $expectedColumns) {
@@ -5218,7 +5218,7 @@ public function missingVaccinesIndex(Request $request)
             'curso_vida' => data_get($summary, 'curso.label', 'No determinado'),
             'edad_texto' => (string) (
                 ($edadAnios !== null ? $edadAnios : 'N/A')
-                . ' años / '
+                . ' anos / '
                 . ($edadMesesRestantes !== null ? $edadMesesRestantes : 'N/A')
                 . ' meses'
             ),
@@ -5807,7 +5807,7 @@ public function importProgress($token)
     if (!$data) {
         return response()->json([
             'percent' => 0,
-            'message' => 'En espera…',
+            'message' => 'En espera...',
             'step'    => 'validacion',
             'done'    => false,
             'ok'      => true,
@@ -5872,7 +5872,7 @@ public function startImport(Request $request)
 
         if ($claim['outcome'] === 'busy') {
             $payload['wait'] = true;
-            $payload['message'] = 'Ingresa más tarde; hay muchos usuarios cargando.';
+            $payload['message'] = 'Ingresa mas tarde; hay muchos usuarios cargando.';
             return response()->json($payload, 503);
         }
 
@@ -5968,7 +5968,7 @@ public function importStatus(string $token)
         }
     }
 
-    // 2) ✅ Leer el resultado final (no_afiliados / vacunas_omitidas / errores) desde Storage JSON
+    // 2)  Leer el resultado final (no_afiliados / vacunas_omitidas / errores) desde Storage JSON
     $noAfiliados = [];
     $vacunasOmitidas = [];
     $erroresJson = [];
@@ -5985,13 +5985,13 @@ public function importStatus(string $token)
         }
     }
 
-    // 2.5) ✅ Detalle de lo cargado (solo si terminó bien)
+    // 2.5)  Detalle de lo cargado (solo si termino bien)
     $status = strtolower((string)($job->status ?? ''));
     if ($status === 'done' && empty($errors)) {
         $loadedDetails = $this->buildLoadedDetailsForConsole((int)($job->batch_verifications_id ?? 0));
     }
 
-    // 3) ✅ Unir errores del job + errores del json (sin duplicar)
+    // 3)  Unir errores del job + errores del json (sin duplicar)
     if (is_array($erroresJson) && !empty($erroresJson)) {
         foreach ($erroresJson as $e) {
             $e = trim((string)$e);
@@ -6059,7 +6059,7 @@ public function importStatus(string $token)
     // (Opcional) evitar que el payload se vuelva enorme en UI
     if (count($errors) > 5000) {
         $errors = array_slice($errors, 0, 5000);
-        $errors[] = "… (Se truncó la lista de mensajes a 5000 líneas)";
+        $errors[] = "... (Se trunco la lista de mensajes a 5000 lineas)";
     }
 
     return response()->json([
@@ -6068,10 +6068,10 @@ public function importStatus(string $token)
         'step' => (string)($job->step ?? ''),
         'message' => (string)($job->message ?? ''),
 
-        // ✅ Esto es lo que tu JS pinta en la ventanita negra
+        //  Esto es lo que tu JS pinta en la ventanita negra
         'errors' => $errors,
 
-        // ✅ Además los mando separados (por si luego quieres pestañas)
+        //  Ademas los mando separados (por si luego quieres pestanas)
         'no_afiliados' => $noAfiliados,
         'vacunas_omitidas' => $vacunasOmitidas,
         'loaded_details' => $loadedDetails,
@@ -6170,7 +6170,7 @@ private function buildLoadedDetailsForConsole(int $batchId, int $limitVacunas = 
         $totalVacunas = (int) DB::table('vacunas')->where('batch_verifications_id', $batchId)->count();
         if ($totalVacunas > $limitVacunas) {
             $faltantes = $totalVacunas - $limitVacunas;
-            $lines[] = "… (Se muestran {$limitVacunas} de {$totalVacunas} vacunas. Faltan {$faltantes} líneas)";
+            $lines[] = "... (Se muestran {$limitVacunas} de {$totalVacunas} vacunas. Faltan {$faltantes} lineas)";
         }
 
         return $lines;

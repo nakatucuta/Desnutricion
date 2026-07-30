@@ -23,7 +23,7 @@ class AfiliadoImportStreaming implements ToModel, WithStartRow, WithChunkReading
     protected array $errores = [];
     protected array $noAfiliados = [];
 
-    // ✅ NUEVO: vacunas omitidas (duplicadas ya existentes o repetidas en el mismo Excel / FK inválida)
+    //  NUEVO: vacunas omitidas (duplicadas ya existentes o repetidas en el mismo Excel / FK invalida)
     protected array $vacunasOmitidas = [];
 
     private int $batch_verifications_id;
@@ -44,7 +44,7 @@ class AfiliadoImportStreaming implements ToModel, WithStartRow, WithChunkReading
     private PaiImportClinicalValidator $importClinicalValidator;
     private PaiGestationClinicalValidator $gestationClinicalValidator;
 
-    /** ✅ Conexión LOCAL (sqlsrv) */
+    /**  Conexion LOCAL (sqlsrv) */
     private string $localConn = 'sqlsrv';
 
     private array $bufferRows = [];
@@ -62,19 +62,19 @@ class AfiliadoImportStreaming implements ToModel, WithStartRow, WithChunkReading
     private bool $isFlushing = false;
     private bool $abortImport = false;
 
-    /** cache: columnas numéricas reales por tabla (leídas de sys.columns) */
+    /** cache: columnas numericas reales por tabla (leidas de sys.columns) */
     private array $numericColsCache = [];
 
     private bool $loggedTarget = false;
 
     /**
-     * ✅ MODO NO ESTRICTO:
+     *  MODO NO ESTRICTO:
      * - "NO TIENE" / "SIN DATO" / etc => NULL
-     * - Si un campo numérico llega con texto raro => NULL + error (no tumba el proceso)
+     * - Si un campo numerico llega con texto raro => NULL + error (no tumba el proceso)
      */
     private bool $modoEstricto = false;
 
-    /** Tokens que tratamos como "vacío" */
+    /** Tokens que tratamos como "vacio" */
     private array $nullTokens = [
         'NO TIENE', 'N/A', 'NA', 'SIN DATO', 'NULL', 'NONE', '?', 'NO APLICA', 'NO APLIQUE'
     ];
@@ -119,9 +119,9 @@ class AfiliadoImportStreaming implements ToModel, WithStartRow, WithChunkReading
     ];
 
     /**
-     * SQL Server puede inferir tipos numéricos en INSERT multi-row cuando mezcla
-     * valores numéricos y texto por columna. Estas columnas deben viajar SIEMPRE
-     * como string para evitar conversiones implícitas a bigint.
+     * SQL Server puede inferir tipos numericos en INSERT multi-row cuando mezcla
+     * valores numericos y texto por columna. Estas columnas deben viajar SIEMPRE
+     * como string para evitar conversiones implicitas a bigint.
      */
     private array $forceStringCols = [
         'tipo_identificacion',
@@ -138,9 +138,9 @@ class AfiliadoImportStreaming implements ToModel, WithStartRow, WithChunkReading
     ];
 
     /**
-     * ✅ IMPORTANTE:
+     *  IMPORTANTE:
      * - Incluye tipo_identificacion para que no se pierda en normalizeAfiliadoRow()
-     * - (Si tu tabla afiliados NO tiene tipo_identificacion, elimínala aquí y del insert)
+     * - (Si tu tabla afiliados NO tiene tipo_identificacion, eliminala aqui y del insert)
      */
     private array $afiliadoColumns = [
         'area',
@@ -218,14 +218,14 @@ class AfiliadoImportStreaming implements ToModel, WithStartRow, WithChunkReading
         'sintomas_reaccion',
         'telefono_fijo',
         'tipo_antecedente',
-        'tipo_identificacion',      // ✅
+        'tipo_identificacion',      // 
         'total_meses',
         'updated_at',
         'user_id',
         'victima_conflicto',
     ];
 
-    // ✅ NUEVO: cache para resolver nombre de vacuna desde referencia_vacunas
+    //  NUEVO: cache para resolver nombre de vacuna desde referencia_vacunas
     private array $vacunaNombreCache = [];
     private ?string $vacunaNombreColumn = null;
 
@@ -280,7 +280,7 @@ class AfiliadoImportStreaming implements ToModel, WithStartRow, WithChunkReading
     public function getBatchVerificationsID(): int { return $this->batch_verifications_id; }
     public function getErrores(): array { return $this->errores; }
     public function getNoAfiliados(): array { return $this->noAfiliados; }
-    public function getVacunasOmitidas(): array { return $this->vacunasOmitidas; } // ✅ nuevo
+    public function getVacunasOmitidas(): array { return $this->vacunasOmitidas; } //  nuevo
 
     public function getStats(): array
     {
@@ -290,7 +290,7 @@ class AfiliadoImportStreaming implements ToModel, WithStartRow, WithChunkReading
             'newVacuna'   => $this->newVacuna,
             'oldVacuna'   => $this->oldVacuna,
             'noAfiliados' => count($this->noAfiliados),
-            'vacunasOmitidas' => count($this->vacunasOmitidas), // ✅ nuevo
+            'vacunasOmitidas' => count($this->vacunasOmitidas), //  nuevo
         ];
     }
 
@@ -310,7 +310,7 @@ class AfiliadoImportStreaming implements ToModel, WithStartRow, WithChunkReading
                     'batch_verifications_id' => $this->batch_verifications_id,
                     'stats' => $this->getStats(),
                     'no_afiliados' => $this->noAfiliados,
-                    'vacunas_omitidas' => $this->vacunasOmitidas, // ✅ nuevo (para mostrarlo en la UI)
+                    'vacunas_omitidas' => $this->vacunasOmitidas, //  nuevo (para mostrarlo en la UI)
                     'errores' => $this->errores,
                     'generated_at' => now()->toDateTimeString(),
                 ];
@@ -369,7 +369,7 @@ class AfiliadoImportStreaming implements ToModel, WithStartRow, WithChunkReading
         }
     }
 
-    // ✅ NUEVO: registrar vacunas omitidas (duplicadas / repetidas / FK inválida)
+    //  NUEVO: registrar vacunas omitidas (duplicadas / repetidas / FK invalida)
     private function addVacunaOmitida(
         int $excelRow,
         string $tipo,
@@ -428,10 +428,10 @@ class AfiliadoImportStreaming implements ToModel, WithStartRow, WithChunkReading
 
         $v = is_string($v) ? trim($v) : $v;
 
-        // ✅ Modo no estricto: NO TIENE => NULL
+        //  Modo no estricto: NO TIENE => NULL
         if ($this->isNullToken($v)) return null;
 
-        // ✅ Para texto: 0 suele ser “relleno” => lo volvemos null
+        //  Para texto: 0 suele ser “relleno” => lo volvemos null
         if ($this->isZeroLike($v)) return null;
 
         return is_string($v) ? trim($v) : $v;
@@ -463,7 +463,7 @@ class AfiliadoImportStreaming implements ToModel, WithStartRow, WithChunkReading
 
         $v = is_string($v) ? trim($v) : $v;
 
-        // ✅ Modo no estricto: NO TIENE => NULL
+        //  Modo no estricto: NO TIENE => NULL
         if ($this->isNullToken($v)) return null;
 
         if ($this->isZeroLike($v)) return null;
@@ -476,10 +476,10 @@ class AfiliadoImportStreaming implements ToModel, WithStartRow, WithChunkReading
         foreach ($this->textZeroNullCols as $col) {
             if (!array_key_exists($col, $data)) continue;
 
-            // ✅ 0-like a NULL
+            //  0-like a NULL
             if ($this->isZeroLike($data[$col])) $data[$col] = null;
 
-            // ✅ tokens tipo NO TIENE / ? / etc a NULL
+            //  tokens tipo NO TIENE / ? / etc a NULL
             if ($this->isNullToken($data[$col])) $data[$col] = null;
 
             if (is_string($data[$col])) {
@@ -523,8 +523,8 @@ class AfiliadoImportStreaming implements ToModel, WithStartRow, WithChunkReading
     }
 
     /**
-     * ✅ FECHAS: convierte Excel/strings (dd/mm/yyyy) a Y-m-d.
-     * Vacío / NO TIENE / ? => null (evita 22007).
+     *  FECHAS: convierte Excel/strings (dd/mm/yyyy) a Y-m-d.
+     * Vacio / NO TIENE / ? => null (evita 22007).
      */
     private function toSqlDate($v): ?string
     {
@@ -532,7 +532,7 @@ class AfiliadoImportStreaming implements ToModel, WithStartRow, WithChunkReading
     }
 
     /**
-     * ✅ timestamps compatibles con datetime (sin milisegundos)
+     *  timestamps compatibles con datetime (sin milisegundos)
      */
     private function nowSqlDateTime(): string
     {
@@ -540,7 +540,7 @@ class AfiliadoImportStreaming implements ToModel, WithStartRow, WithChunkReading
     }
 
     /**
-     * ✅ FECHAS ESTRICTAS ANTES DE INSERTAR:
+     *  FECHAS ESTRICTAS ANTES DE INSERTAR:
      * Si no queda YYYY-MM-DD => NULL y log.
      */
     private function sanitizeDateColumnsStrict(array $row, int $excelRow): array
@@ -574,7 +574,7 @@ class AfiliadoImportStreaming implements ToModel, WithStartRow, WithChunkReading
     }
 
     /**
-     * ✅ LECTURA REAL DE TIPOS EN SQL SERVER (evita que se cuele texto a INT)
+     *  LECTURA REAL DE TIPOS EN SQL SERVER (evita que se cuele texto a INT)
      */
     private function getNumericColumns(string $tableName): array
     {
@@ -605,7 +605,7 @@ class AfiliadoImportStreaming implements ToModel, WithStartRow, WithChunkReading
 
             if (empty($map)) {
                 $map = ($tableName === 'afiliados') ? $this->fallbackNumericColsAfiliados : $this->fallbackNumericColsVacunas;
-                Log::warning("IMPORT: sys.columns devolvió vacío para {$tableName}. Usando fallback.");
+                Log::warning("IMPORT: sys.columns devolvio vacio para {$tableName}. Usando fallback.");
             }
 
             Log::info("IMPORT NUMERIC MAP {$tableName}", $map);
@@ -620,9 +620,9 @@ class AfiliadoImportStreaming implements ToModel, WithStartRow, WithChunkReading
     }
 
     /**
-     * ✅ MODO NO ESTRICTO:
+     *  MODO NO ESTRICTO:
      * - Tokens "NO TIENE" => NULL
-     * - Si llega texto raro en numérico => NULL + error (pero NO tumba)
+     * - Si llega texto raro en numerico => NULL + error (pero NO tumba)
      */
     private function sanitizeNumericByMap(array $data, array $numCols, int $excelRow, string $tableName): array
     {
@@ -648,7 +648,7 @@ class AfiliadoImportStreaming implements ToModel, WithStartRow, WithChunkReading
             }
 
             if (!is_numeric($v)) {
-                $this->addError("Fila {$excelRow}: '{$tableName}.{$col}' es {$type} pero llegó '".mb_substr((string)$v, 0, 120)."' -> lo guardo NULL");
+                $this->addError("Fila {$excelRow}: '{$tableName}.{$col}' es {$type} pero llego '".mb_substr((string)$v, 0, 120)."' -> lo guardo NULL");
                 $data[$col] = null;
                 continue;
             }
@@ -690,7 +690,7 @@ class AfiliadoImportStreaming implements ToModel, WithStartRow, WithChunkReading
         }
     }
 
-    // ✅ NUEVO: detectar columna de "nombre" en referencia_vacunas sin romper si no existe
+    //  NUEVO: detectar columna de "nombre" en referencia_vacunas sin romper si no existe
     private function detectVacunaNombreColumn(): string
     {
         if ($this->vacunaNombreColumn) return $this->vacunaNombreColumn;
@@ -721,7 +721,7 @@ class AfiliadoImportStreaming implements ToModel, WithStartRow, WithChunkReading
         return $this->vacunaNombreColumn;
     }
 
-    // ✅ NUEVO: precargar nombres de vacunas por IDs (cache)
+    //  NUEVO: precargar nombres de vacunas por IDs (cache)
     private function preloadVacunaNames(array $vacIds): array
     {
         $vacIds = array_values(array_unique(array_filter($vacIds, fn($x) => is_int($x) && $x > 0)));
@@ -803,13 +803,13 @@ class AfiliadoImportStreaming implements ToModel, WithStartRow, WithChunkReading
             return null;
         }
 
-        // ✅ Fechas robustas
+        //  Fechas robustas
         $fechaatencion    = $this->toSqlDate($row[0] ?? null);
         $fechaNacimiento  = $this->toSqlDate($row[7] ?? null);
         $fechaProbParto   = $this->toSqlDate($row[46] ?? null);
         $fechaAntecedente = $this->toSqlDate($row[48] ?? null);
 
-        // ✅ Edades
+        //  Edades
         $edad_anos         = $this->toIntOrNull($row[8]  ?? null);
         $edad_meses        = $this->toIntOrNull($row[9]  ?? null);
         $edad_dias         = $this->toIntOrNull($row[10] ?? null);
@@ -973,7 +973,7 @@ class AfiliadoImportStreaming implements ToModel, WithStartRow, WithChunkReading
                 'area' => $this->cleanText($row[32] ?? null),
                 'direccion' => $this->cleanText($row[33] ?? null),
 
-                // ✅ modo no estricto: NO TIENE => NULL (evita nvarchar->bigint si tu columna fuera numérica)
+                //  modo no estricto: NO TIENE => NULL (evita nvarchar->bigint si tu columna fuera numerica)
                 'telefono_fijo' => $this->cleanAny($row[34] ?? null),
                 'celular' => $this->cleanAny($row[35] ?? null),
 
@@ -1030,7 +1030,7 @@ class AfiliadoImportStreaming implements ToModel, WithStartRow, WithChunkReading
                 'updated_at' => $nowTs,
             ];
 
-            // Sanitiza por si algo raro se coló
+            // Sanitiza por si algo raro se colo
             $afiliadoData = $this->sanitizeDateColumnsStrict($afiliadoData, $excelRow);
             $afiliadoData = $this->sanitizeTextZeroColumns($afiliadoData, $excelRow);
             $afiliadoData = $this->sanitizeAfiliadoInsert($afiliadoData, $excelRow);
@@ -1283,10 +1283,10 @@ class AfiliadoImportStreaming implements ToModel, WithStartRow, WithChunkReading
 
                     $excelRow = (int)($fila['excelRow'] ?? 0);
 
-                    // ✅ fechas vacías/basura => NULL
+                    //  fechas vacias/basura => NULL
                     $row = $this->sanitizeDateColumnsStrict($row, $excelRow);
 
-                    // ✅ timestamps (sin ms)
+                    //  timestamps (sin ms)
                     $row['created_at'] = $this->nowSqlDateTime();
                     $row['updated_at'] = $this->nowSqlDateTime();
 
@@ -1357,7 +1357,7 @@ class AfiliadoImportStreaming implements ToModel, WithStartRow, WithChunkReading
                     }
                 }
 
-                // ✅ 3.5) Validar FK de vacunas_id contra referencia_vacunas (y precargar nombres)
+                //  3.5) Validar FK de vacunas_id contra referencia_vacunas (y precargar nombres)
                 $vacIdsInChunk = [];
                 foreach ($buffer as $fila) {
                     foreach (($fila['vacunas'] ?? []) as $v) {
@@ -1376,7 +1376,7 @@ class AfiliadoImportStreaming implements ToModel, WithStartRow, WithChunkReading
 
                     foreach ($valid as $vid) $validVacIdSet[(int)$vid] = true;
 
-                    // ✅ precargar nombres solo de los válidos
+                    //  precargar nombres solo de los validos
                     $this->preloadVacunaNames(array_keys($validVacIdSet));
                 }
 
@@ -1432,7 +1432,7 @@ class AfiliadoImportStreaming implements ToModel, WithStartRow, WithChunkReading
                             $this->failImport(
                                 "Fila " . (int)($fila['excelRow'] ?? 0) . ": vacuna con vacunas_id invalido ({$vacunasId}). No se guardo nada."
                             );
-                            Log::warning("IMPORT VACUNA SKIP: vacunas_id inválido", [
+                            Log::warning("IMPORT VACUNA SKIP: vacunas_id invalido", [
                                 'excelRow' => $fila['excelRow'] ?? null,
                                 'vacunas_id' => $vacunasId,
                                 'carnet' => $fila['carnet'] ?? null,
@@ -1446,7 +1446,7 @@ class AfiliadoImportStreaming implements ToModel, WithStartRow, WithChunkReading
                         $fechaVac = $this->toSqlDate($vacunaData['fecha_vacuna'] ?? null);
                         $vacunaNombre = $this->vacunaNombreCache[$vacunasId] ?? null;
 
-                        // ✅ si no existe en referencia_vacunas => NO insertamos y lo mostramos al usuario
+                        //  si no existe en referencia_vacunas => NO insertamos y lo mostramos al usuario
                         if (!isset($validVacIdSet[$vacunasId])) {
                             $this->failImport(
                                 "Fila " . (int)($fila['excelRow'] ?? 0) . ": la vacuna (vacunas_id={$vacunasId}) no existe en referencia_vacunas. No se guardo nada."
@@ -1599,12 +1599,12 @@ class AfiliadoImportStreaming implements ToModel, WithStartRow, WithChunkReading
                         $vacunaData['user_id'] = (int)$this->userId;
                         $vacunaData['batch_verifications_id'] = (int)$this->batch_verifications_id;
 
-                        // ✅ timestamps nativos SQL Server (evita 22007)
+                        //  timestamps nativos SQL Server (evita 22007)
                         $vacunaData['created_at'] = DB::raw('GETDATE()');
                         $vacunaData['updated_at'] = DB::raw('GETDATE()');
                         $vacunaData['ips_primaria_resolved_at'] = DB::raw('GETDATE()');
 
-                        // ✅ fecha vacuna segura
+                        //  fecha vacuna segura
                         if (array_key_exists('fecha_vacuna', $vacunaData)) {
                             $vacunaData['fecha_vacuna'] = $this->toSqlDate($vacunaData['fecha_vacuna']);
                         }
@@ -1626,8 +1626,8 @@ class AfiliadoImportStreaming implements ToModel, WithStartRow, WithChunkReading
                             if (($vacunaData[$k] ?? null) === null) {
                                 continue;
                             }
-                            // Fuerza SIEMPRE texto (incluso si Excel entregó int/float).
-                            // Evita que SQL Server infiera INT y falle con valores alfanuméricos (ej: 2423007A).
+                            // Fuerza SIEMPRE texto (incluso si Excel entrego int/float).
+                            // Evita que SQL Server infiera INT y falle con valores alfanumericos (ej: 2423007A).
                             $v = trim((string) $vacunaData[$k]);
                             $vacunaData[$k] = ($v === '') ? null : $v;
                         }
@@ -1660,7 +1660,7 @@ class AfiliadoImportStreaming implements ToModel, WithStartRow, WithChunkReading
     }
 
     /**
-     * ✅ EXTRACTOR VACUNAS (igual que el tuyo)
+     *  EXTRACTOR VACUNAS (igual que el tuyo)
      */
     private function extraerVacunasOptimizado(
         array $row,
@@ -1715,7 +1715,7 @@ class AfiliadoImportStreaming implements ToModel, WithStartRow, WithChunkReading
             return false;
         };
 
-        // 👇 (tu bloque de vacunas completo, sin cambios de índices)
+        //  (tu bloque de vacunas completo, sin cambios de indices)
         $blocks = [
             [1,  range(75,80),  function() use ($doc,$val){ return ['docis'=>$doc(75),'laboratorio'=>$val(76),'lote'=>$val(77),'jeringa'=>$val(78),'lote_jeringa'=>$val(79),'diluyente'=>$val(80)]; }],
             [2,  range(81,86),  function() use ($doc,$val){ return ['docis'=>$doc(81),'lote'=>$val(82),'jeringa'=>$val(83),'lote_jeringa'=>$val(84),'lote_diluyente'=>$val(85),'observacion'=>$val(86)]; }],
@@ -1807,8 +1807,8 @@ class AfiliadoImportStreaming implements ToModel, WithStartRow, WithChunkReading
     }
 
     /**
-     * SQL Server solo soporta 2100 parámetros por statement.
-     * Calcula un tamaño de chunk seguro según columnas "bindables" por fila.
+     * SQL Server solo soporta 2100 parametros por statement.
+     * Calcula un tamano de chunk seguro segun columnas "bindables" por fila.
      */
     private function insertVacunasSafeForSqlServer($db, array $rows): void
     {
@@ -1825,7 +1825,7 @@ class AfiliadoImportStreaming implements ToModel, WithStartRow, WithChunkReading
             }
         }
 
-        // Si por alguna razón no detecta columnas, usa un chunk conservador.
+        // Si por alguna razon no detecta columnas, usa un chunk conservador.
         if ($bindableCols <= 0) {
             $bindableCols = 30;
         }
@@ -1834,7 +1834,7 @@ class AfiliadoImportStreaming implements ToModel, WithStartRow, WithChunkReading
         $maxParams = 1800;
         $chunkSize = (int) floor($maxParams / $bindableCols);
 
-        // Límites prácticos.
+        // Limites practicos.
         if ($chunkSize < 1) {
             $chunkSize = 1;
         }

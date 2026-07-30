@@ -1,4 +1,4 @@
-﻿@extends('adminlte::page')
+@extends('adminlte::page')
 
 @section('title', 'PAI')
 
@@ -1780,7 +1780,7 @@ window.PAI_INITIAL_LOAD_STATE = @json($paiLoadState ?? ['busy' => false]);
                   first: 'Primero',
                   previous: 'Anterior',
                   next: 'Siguiente',
-                  last: 'Último'
+                  last: 'Ultimo'
               }
           }
       });
@@ -2278,7 +2278,7 @@ window.PAI_INITIAL_LOAD_STATE = @json($paiLoadState ?? ['busy' => false]);
               if (!faltantes.length) {
                   const message = resp.motivo_estado || (resp.estado === 'COMPLETO'
                       ? 'Cumple todas las vacunas exigibles para el curso y la edad actual.'
-                      : 'No hay vacunas faltantes para la evaluación actual.');
+                      : 'No hay vacunas faltantes para la evaluacion actual.');
                   $('#mvpMissingList').html('<tr><td colspan="6" class="text-center text-muted">' + escapeHtml(message) + '</td></tr>');
                   return;
               }
@@ -2382,7 +2382,7 @@ window.PAI_INITIAL_LOAD_STATE = @json($paiLoadState ?? ['busy' => false]);
           toast: true,
           position: 'top-end',
           icon: 'info',
-          title: headerTitle + ' con correcciones automáticas',
+          title: headerTitle + ' con correcciones automaticas',
           html:
               '<div class="text-left">' +
                   '<div>Registros exportados: <strong>' + formatExportMetric(writtenRows) + '</strong></div>' +
@@ -2393,7 +2393,7 @@ window.PAI_INITIAL_LOAD_STATE = @json($paiLoadState ?? ['busy' => false]);
                   '<div>Campos riesgosos detectados: <strong>' + formatExportMetric(riskFields) + '</strong></div>' +
                   '<div>Con separadores protegidos: <strong>' + formatExportMetric(delimiterFields) + '</strong></div>' +
                   '<div>Con comillas protegidas: <strong>' + formatExportMetric(quoteFields) + '</strong></div>' +
-                  '<div>Protegidos como fórmula: <strong>' + formatExportMetric(formulaFields) + '</strong></div>' +
+                  '<div>Protegidos como formula: <strong>' + formatExportMetric(formulaFields) + '</strong></div>' +
               '</div>',
           showConfirmButton: false,
           timer: 7000,

@@ -88,7 +88,7 @@ class AfiliadoImport implements ToModel, WithStartRow, WithChunkReading
         $usuario_activo = Auth::id();
         $now = Carbon::now()->format('Y-m-d H:i:s');
 
-        // ---------- Helpers rápidos ----------
+        // ---------- Helpers rapidos ----------
         $clean = function ($v) {
             if ($v === null) return null;
             $v = is_string($v) ? trim($v) : $v;
@@ -111,7 +111,7 @@ class AfiliadoImport implements ToModel, WithStartRow, WithChunkReading
                 }
             }
 
-            // Si viene como número excel
+            // Si viene como numero excel
             try {
                 return Date::excelToDateTimeObject($v)->format('Y-m-d');
             } catch (\Throwable $e) {
@@ -123,9 +123,9 @@ class AfiliadoImport implements ToModel, WithStartRow, WithChunkReading
         $tipo_identifi   = $clean((string)($row[1] ?? null));
         $numero_identifi = $clean(isset($row[2]) ? (string)$row[2] : null);
 
-        // Si viene vacía la identificación, no hagas nada
+        // Si viene vacia la identificacion, no hagas nada
         if (!$tipo_identifi || !$numero_identifi) {
-            $this->errores[] = "Fila sin identificación (tipo o número vacío).";
+            $this->errores[] = "Fila sin identificacion (tipo o numero vacio).";
             $this->guardar = false;
             return null;
         }
@@ -141,7 +141,7 @@ class AfiliadoImport implements ToModel, WithStartRow, WithChunkReading
         $regimenVacuna         = $clean($row[20] ?? null);
         $condicionUsuariaVacuna = $this->normalizeConditionUsuaria($clean($row[43] ?? null));
 
-        // ---------- Validación rápida ----------
+        // ---------- Validacion rapida ----------
         $data = [
             'edad_anos' => $row[8],
             'edad_meses' => $row[9],
@@ -190,7 +190,7 @@ class AfiliadoImport implements ToModel, WithStartRow, WithChunkReading
                 ] : null;
             } catch (\Throwable $e) {
                 Log::error("IMPORT AFILIADO: error consultando DB externa | {$tipo_identifi} {$numero_identifi} | ".$e->getMessage());
-                $this->errores[] = "Error consultando DB externa para la identificación: $numero_identifi y tipo: $tipo_identifi";
+                $this->errores[] = "Error consultando DB externa para la identificacion: $numero_identifi y tipo: $tipo_identifi";
                 $this->guardar = false;
                 return null;
             }
@@ -200,7 +200,7 @@ class AfiliadoImport implements ToModel, WithStartRow, WithChunkReading
         $numero_carnet = $afiliadoExterno['numeroCarnet'] ?? null;
 
         if (!$numero_carnet) {
-            $this->errores[] = "No se encontró afiliado en DB externa con identificación: $numero_identifi y tipo: $tipo_identifi";
+            $this->errores[] = "No se encontro afiliado en DB externa con identificacion: $numero_identifi y tipo: $tipo_identifi";
             $this->guardar = false;
             return null;
         }
@@ -345,7 +345,7 @@ class AfiliadoImport implements ToModel, WithStartRow, WithChunkReading
      * EXTRAER VACUNAS (OPTIMIZADO 1:1)
      * - Sin barrer 75..250.
      * - Revisa solo el “gatillo” de cada bloque.
-     * - Extrae exactamente las mismas columnas que tu lógica anterior.
+     * - Extrae exactamente las mismas columnas que tu logica anterior.
      */
     private function extraerVacunas(
         array $row,
@@ -375,7 +375,7 @@ class AfiliadoImport implements ToModel, WithStartRow, WithChunkReading
 
         foreach (self::VACUNA_TRIGGERS as $vacunaNombre => $trigger) {
 
-            // Caso especial vacuna 12: puede venir el tipo_neumococo (123) aunque docis (124) venga vacío
+            // Caso especial vacuna 12: puede venir el tipo_neumococo (123) aunque docis (124) venga vacio
             if ($vacunaNombre === 12) {
                 if (!$cellHasValue($row[123] ?? null) && !$cellHasValue($row[124] ?? null)) {
                     continue;
@@ -389,7 +389,7 @@ class AfiliadoImport implements ToModel, WithStartRow, WithChunkReading
             $docis = $laboratorio = $lote = $jeringa = $lote_jeringa = $diluyente = $lote_diluyente =
             $observacion = $gotero = $tipo_neumococo = $num_frascos_utilizados = null;
 
-            // === 1:1 con tu lógica anterior ===
+            // === 1:1 con tu logica anterior ===
             switch ($vacunaNombre) {
 
                 case 1:

@@ -69,7 +69,7 @@ class PaiImportClinicalValidatorTest extends TestCase
         $row[7] = '1986-01-01';
         $row[8] = 40;
         $row[13] = 'mujer';
-        $row[43] = 'mujer en edad fértil';
+        $row[43] = 'mujer en edad f' . "\xC3\xA9" . 'rtil';
 
         $this->assertSame([], $this->validator->validateExcelRow($row, 5));
     }
@@ -85,8 +85,8 @@ class PaiImportClinicalValidatorTest extends TestCase
 
         $message = implode(' ', $this->validator->validateExcelRow($row, 6));
 
-        $this->assertStringNotContainsString('Ã', $message);
-        $this->assertStringNotContainsString('â', $message);
+        $this->assertStringNotContainsString("\xC3\x83", $message);
+        $this->assertStringNotContainsString("\xC3\xA2", $message);
         $this->assertStringContainsString('inconsistencia clinica de gestacion', $message);
         $this->assertStringContainsString('una gestante requiere al menos uno', $message);
     }

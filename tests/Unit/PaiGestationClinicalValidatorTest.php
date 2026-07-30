@@ -120,7 +120,7 @@ class PaiGestationClinicalValidatorTest extends TestCase
     {
         $this->assertSame('MUJER', $this->validator->normalizeSex(' mujer '));
         $this->assertSame('INDETERMINADO', $this->validator->normalizeSex('indeterminado'));
-        $this->assertSame('MUJER EN EDAD FERTIL', $this->validator->normalizeCondition('mujer en edad fértil'));
+        $this->assertSame('MUJER EN EDAD FERTIL', $this->validator->normalizeCondition('mujer en edad f' . "\xC3\xA9" . 'rtil'));
         $this->assertSame('MUJER MAYOR DE 50 ANOS', $this->validator->normalizeCondition('mujer mayor de 50 anos'));
         $this->assertNull($this->validator->normalizeCondition(''));
     }

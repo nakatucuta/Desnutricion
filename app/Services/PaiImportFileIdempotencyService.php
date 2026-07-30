@@ -517,7 +517,7 @@ class PaiImportFileIdempotencyService
         );
 
         if ((int) ($row->result ?? -999) < 0) {
-            throw new RuntimeException('No fue posible reclamar de forma atómica la huella del archivo.');
+            throw new RuntimeException('No fue posible reclamar de forma atomica la huella del archivo.');
         }
     }
 

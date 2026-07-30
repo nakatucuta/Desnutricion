@@ -113,7 +113,7 @@ class PaiMvpCoverageService
                 $evaluation['afiliado']['edad_meses']
             );
             $missing['edad_meses_actual'] = $evaluation['afiliado']['edad_meses'];
-            $missing['motivo'] = $missing['motivo'] ?? 'Vacuna o dosis exigible para el curso y la edad actual sin registro válido.';
+            $missing['motivo'] = $missing['motivo'] ?? 'Vacuna o dosis exigible para el curso y la edad actual sin registro valido.';
         }
         unset($missing);
 
@@ -215,6 +215,6 @@ class PaiMvpCoverageService
             return 'Sin fecha de nacimiento';
         }
 
-        return (int) ($years ?? 0).' años ('.(int) ($months ?? 0).' meses)';
+        return (int) ($years ?? 0).' anos ('.(int) ($months ?? 0).' meses)';
     }
 }

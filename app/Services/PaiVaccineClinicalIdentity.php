@@ -12,8 +12,8 @@ class PaiVaccineClinicalIdentity
     ) {}
 
     /**
-     * Identidad clínica de una aplicación:
-     * afiliado + vacuna + dosis normalizada + fecha de aplicación.
+     * Identidad clinica de una aplicacion:
+     * afiliado + vacuna + dosis normalizada + fecha de aplicacion.
      */
     public function key(
         int $afiliadoId,
