@@ -3314,9 +3314,9 @@ class AfiliadoController extends Controller
         $this->applyPaiPopulationRule($q, (string) $indicator['population_rule'], $cutoffDate);
 
         if (($indicator['key'] ?? '') === 'vph_f') {
-            $q->whereRaw("UPPER(LTRIM(RTRIM(ISNULL(a.sexo, '')))) LIKE 'F%'");
+            $q->whereRaw("UPPER(LTRIM(RTRIM(ISNULL(a.sexo, '')))) LIKE 'HOMBRE%'");
         } elseif (($indicator['key'] ?? '') === 'vph_m') {
-            $q->whereRaw("UPPER(LTRIM(RTRIM(ISNULL(a.sexo, '')))) LIKE 'M%'");
+            $q->whereRaw("UPPER(LTRIM(RTRIM(ISNULL(a.sexo, '')))) LIKE 'MUJER%'");
         }
 
         return (int) $q->distinct('v.afiliado_id')->count('v.afiliado_id');
@@ -3353,7 +3353,7 @@ class AfiliadoController extends Controller
         if ($rule === 'gestante') {
             $query->where(function ($q) {
                 $q->whereRaw("UPPER(LTRIM(RTRIM(ISNULL(a.condicion_usuaria, '')))) LIKE '%GESTANTE%'")
-                    ->orWhere('a.edad_gestacional', '>', 0)
+                    ->orWhere('a.semanas_gestacion', '>', 0)
                     ->orWhereNotNull('a.fecha_prob_parto');
             });
             return;
@@ -3362,14 +3362,14 @@ class AfiliadoController extends Controller
         if ($rule === '9_to_17_f') {
             $query->whereNotNull('a.fecha_nacimiento')
                 ->whereRaw("$ageMonthsExpr BETWEEN 108 AND 215")
-                ->whereRaw("UPPER(LTRIM(RTRIM(ISNULL(a.sexo, '')))) LIKE 'F%'");
+                ->whereRaw("UPPER(LTRIM(RTRIM(ISNULL(a.sexo, '')))) LIKE 'MUJER%'");
             return;
         }
 
         if ($rule === '9_to_17_m') {
             $query->whereNotNull('a.fecha_nacimiento')
                 ->whereRaw("$ageMonthsExpr BETWEEN 108 AND 215")
-                ->whereRaw("UPPER(LTRIM(RTRIM(ISNULL(a.sexo, '')))) LIKE 'M%'");
+                ->whereRaw("UPPER(LTRIM(RTRIM(ISNULL(a.sexo, '')))) LIKE 'HOMBRE%'");
         }
     }
 
