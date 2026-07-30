@@ -3,7 +3,11 @@
 namespace App\Imports;
 
 use App\Models\batch_verifications;
+use App\Services\PaiClinicalDateNormalizer;
 use App\Services\PaiDoseNormalizer;
+use App\Services\PaiGestationClinicalValidator;
+use App\Services\PaiImportClinicalValidator;
+use App\Services\PaiVaccineClinicalIdentity;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -13,7 +17,6 @@ use Maatwebsite\Excel\Concerns\ToModel;
 use Maatwebsite\Excel\Concerns\WithBatchInserts;
 use Maatwebsite\Excel\Concerns\WithChunkReading;
 use Maatwebsite\Excel\Concerns\WithStartRow;
-use PhpOffice\PhpSpreadsheet\Shared\Date;
 
 class AfiliadoImportStreaming implements ToModel, WithStartRow, WithChunkReading, WithBatchInserts
 {
@@ -36,6 +39,10 @@ class AfiliadoImportStreaming implements ToModel, WithStartRow, WithChunkReading
     private array $carnetCache = [];
     private array $afiliadoIdCache = [];
     private PaiDoseNormalizer $doseNormalizer;
+    private PaiVaccineClinicalIdentity $vaccineClinicalIdentity;
+    private PaiClinicalDateNormalizer $clinicalDateNormalizer;
+    private PaiImportClinicalValidator $importClinicalValidator;
+    private PaiGestationClinicalValidator $gestationClinicalValidator;
 
     /** ✅ Conexión LOCAL (sqlsrv) */
     private string $localConn = 'sqlsrv';
@@ -226,12 +233,17 @@ class AfiliadoImportStreaming implements ToModel, WithStartRow, WithChunkReading
         int $userId,
         ?string $uploadToken = null,
         ?int $totalRows = null,
-        ?callable $progressFn = null
+        ?callable $progressFn = null,
+        ?int $batchVerificationId = null
     ) {
         @set_time_limit(0);
         @ini_set('memory_limit', '1024M');
 
         $this->doseNormalizer = app(PaiDoseNormalizer::class);
+        $this->vaccineClinicalIdentity = app(PaiVaccineClinicalIdentity::class);
+        $this->clinicalDateNormalizer = app(PaiClinicalDateNormalizer::class);
+        $this->importClinicalValidator = app(PaiImportClinicalValidator::class);
+        $this->gestationClinicalValidator = app(PaiGestationClinicalValidator::class);
 
         $this->userId = $userId;
         $this->token  = $uploadToken;
@@ -239,12 +251,23 @@ class AfiliadoImportStreaming implements ToModel, WithStartRow, WithChunkReading
         $this->totalRows = max(1, (int)($totalRows ?? 1));
         $this->progressFn = $progressFn;
 
-        // ✅ crear batch_verifications EN sqlsrv
-        $verificacion = new batch_verifications([
-            'fecha_cargue' => Carbon::now(),
-        ]);
-        $verificacion->setConnection($this->localConn);
-        $verificacion->save();
+        if ($batchVerificationId !== null && $batchVerificationId > 0) {
+            $verificacion = (new batch_verifications())
+                ->setConnection($this->localConn)
+                ->newQuery()
+                ->find($batchVerificationId);
+
+            if (! $verificacion) {
+                throw new \RuntimeException("No existe el batch {$batchVerificationId} reclamado para este archivo.");
+            }
+        } else {
+            // Los reintentos idempotentes reutilizan el batch ya creado.
+            $verificacion = new batch_verifications([
+                'fecha_cargue' => Carbon::now(),
+            ]);
+            $verificacion->setConnection($this->localConn);
+            $verificacion->save();
+        }
 
         $this->batch_verifications_id = (int)$verificacion->id;
         $this->currentExcelRow = $this->startRow();
@@ -414,6 +437,26 @@ class AfiliadoImportStreaming implements ToModel, WithStartRow, WithChunkReading
         return is_string($v) ? trim($v) : $v;
     }
 
+    private function cleanSex($v): ?string
+    {
+        $v = $this->cleanText($v);
+        if ($v === null) {
+            return null;
+        }
+
+        return $this->gestationClinicalValidator->normalizeSex($v);
+    }
+
+    private function cleanConditionUsuaria($v): ?string
+    {
+        $v = $this->cleanText($v);
+        if ($v === null) {
+            return null;
+        }
+
+        return $this->gestationClinicalValidator->normalizeCondition($v);
+    }
+
     private function cleanAny($v)
     {
         if ($v === null) return null;
@@ -485,39 +528,7 @@ class AfiliadoImportStreaming implements ToModel, WithStartRow, WithChunkReading
      */
     private function toSqlDate($v): ?string
     {
-        if ($v === null) return null;
-
-        if ($this->isNullToken($v)) return null;
-
-        if ($v instanceof \DateTimeInterface) {
-            return $v->format('Y-m-d');
-        }
-
-        // Excel serial
-        if (is_int($v) || is_float($v) || (is_string($v) && is_numeric(trim($v)))) {
-            try {
-                $dt = Date::excelToDateTimeObject((float)$v);
-                return $dt ? $dt->format('Y-m-d') : null;
-            } catch (\Throwable $e) {
-                // sigue
-            }
-        }
-
-        $s = trim((string)$v);
-        if ($s === '' || $s === '-' || $s === '0') return null;
-
-        foreach (['d/m/Y', 'd/m/y', 'Y-m-d', 'Y/m/d'] as $fmt) {
-            try {
-                $dt = Carbon::createFromFormat($fmt, $s);
-                if ($dt !== false) return $dt->format('Y-m-d');
-            } catch (\Throwable $e) {}
-        }
-
-        try {
-            return Carbon::parse($s)->format('Y-m-d');
-        } catch (\Throwable $e) {
-            return null;
-        }
+        return $this->clinicalDateNormalizer->normalize($v);
     }
 
     /**
@@ -778,12 +789,17 @@ class AfiliadoImportStreaming implements ToModel, WithStartRow, WithChunkReading
             ]);
         }
 
+        $clinicalErrors = $this->importClinicalValidator->validateExcelRow($row, $excelRow);
+        if ($clinicalErrors !== []) {
+            $this->failImport($clinicalErrors[0] . ' No se guardo nada.');
+        }
+
         $tipo_identifi   = $this->cleanAny((string)($row[1] ?? null));
         $numero_identifi = $this->cleanAny(isset($row[2]) ? (string)$row[2] : null);
 
         if (!$tipo_identifi || !$numero_identifi) {
-            $this->addError("Fila {$excelRow}: identificación incompleta (tipo o número vacío).");
-            $this->pushProgress('validacion', "Validando filas… (fila {$excelRow})");
+            $this->addError("Fila {$excelRow}: identificacion incompleta (tipo o numero vacio).");
+            $this->pushProgress('validacion', "Validando filas... (fila {$excelRow})");
             return null;
         }
 
@@ -823,15 +839,15 @@ class AfiliadoImportStreaming implements ToModel, WithStartRow, WithChunkReading
         $validator = Validator::make($data, $rules);
         if ($validator->fails()) {
             $errs = implode(' | ', $validator->errors()->all());
-            $this->addError("Fila {$excelRow}: error de validación: {$errs} ({$tipo_identifi} {$numero_identifi})");
-            $this->pushProgress('validacion', "Validando filas… (fila {$excelRow})");
+            $this->addError("Fila {$excelRow}: error de validacion: {$errs} ({$tipo_identifi} {$numero_identifi})");
+            $this->pushProgress('validacion', "Validando filas... (fila {$excelRow})");
             return null;
         }
 
         // Cola final (formato nuevo: 255..258, formato anterior: 251..254)
         [$responsable, $fuen_ingresado_paiweb, $motivo_noingreso, $observaciones] = $this->resolveFinalColumns($row);
         $regimenVacuna         = $this->cleanText($row[20] ?? null);
-        $condicionUsuariaVacuna = $this->cleanText($row[43] ?? null);
+        $condicionUsuariaVacuna = $this->cleanConditionUsuaria($row[43] ?? null);
 
         // Validacion temprana: si la fila trae vacunas, sus dosis/frascos deben ser validos
         // antes de consultar BD externa o insertar datos del batch.
@@ -895,7 +911,7 @@ class AfiliadoImportStreaming implements ToModel, WithStartRow, WithChunkReading
             $this->addError($msg);
             $this->addNoAfiliado($excelRow, (string)$tipo_identifi, (string)$numero_identifi, 'No existe en BD externa');
             Log::warning("IMPORT NO AFILIADO: ".$msg);
-            $this->pushProgress('no_afiliado', "Detectando NO afiliados… (fila {$excelRow})");
+            $this->pushProgress('no_afiliado', "Detectando NO afiliados... (fila {$excelRow})");
             if ($this->stopOnNonAffiliate) throw new \RuntimeException($msg);
             return null;
         }
@@ -935,7 +951,7 @@ class AfiliadoImportStreaming implements ToModel, WithStartRow, WithChunkReading
                 'total_meses' => $total_meses,
 
                 'esquema_completo' => $this->cleanText($row[12] ?? null),
-                'sexo' => $this->cleanText($row[13] ?? null),
+                'sexo' => $this->cleanSex($row[13] ?? null),
                 'genero' => $this->cleanText($row[14] ?? null),
                 'orientacion_sexual' => $this->cleanText($row[15] ?? null),
                 'edad_gestacional' => $edad_gestacional,
@@ -969,7 +985,7 @@ class AfiliadoImportStreaming implements ToModel, WithStartRow, WithChunkReading
                 'enfermedad_contraindicacion' => $this->cleanText($row[40] ?? null),
                 'reaccion_biologicos' => $this->cleanText($row[41] ?? null),
                 'sintomas_reaccion' => $this->cleanText($row[42] ?? null),
-                'condicion_usuaria' => $this->cleanText($row[43] ?? null),
+                'condicion_usuaria' => $this->cleanConditionUsuaria($row[43] ?? null),
 
                 'fecha_ultima_menstruacion' => $this->toSqlDate($row[44] ?? null),
                 'semanas_gestacion' => $this->toIntOrNull($row[45] ?? null),
@@ -1034,17 +1050,11 @@ class AfiliadoImportStreaming implements ToModel, WithStartRow, WithChunkReading
             'numero'      => (string)$numero_identifi,
             'carnet'      => $numero_carnet,
             'existe'      => ($afiliado_id_local !== 0),
-            'isGestante'  => $this->isGestanteRow(
-                $edad_gestacional,
-                $this->toIntOrNull($row[45] ?? null),
-                $fechaProbParto,
-                $this->toSqlDate($row[44] ?? null)
-            ),
             'afiliadoData'=> $afiliadoData,
             'vacunas'     => $vacunasData,
         ];
 
-        $this->pushProgress('procesando', "Procesando filas… (fila {$excelRow})");
+        $this->pushProgress('procesando', "Procesando filas... (fila {$excelRow})");
 
         if (count($this->bufferRows) >= $this->bufferLimit) {
             $this->flushBuffer();
@@ -1059,7 +1069,7 @@ class AfiliadoImportStreaming implements ToModel, WithStartRow, WithChunkReading
 
         try {
             $this->finalize();
-            $this->pushProgress('finalizando', 'Finalizando…', 99);
+            $this->pushProgress('finalizando', 'Finalizando...', 99);
         } catch (\Throwable $e) {
             Log::error("ERROR finalize __destruct: " . $e->getMessage());
         }
@@ -1218,19 +1228,6 @@ class AfiliadoImportStreaming implements ToModel, WithStartRow, WithChunkReading
         return $row;
     }
 
-    private function isGestanteRow(
-        ?int $edadGestacional,
-        ?int $semanasGestacion,
-        ?string $fechaProbParto,
-        ?string $fechaUltimaMenstruacion
-    ): bool
-    {
-        return ($edadGestacional !== null && $edadGestacional > 0)
-            || ($semanasGestacion !== null && $semanasGestacion > 0)
-            || !empty($fechaProbParto)
-            || !empty($fechaUltimaMenstruacion);
-    }
-
     private function flushBuffer(): void
     {
         if ($this->isFlushing) return;
@@ -1242,7 +1239,7 @@ class AfiliadoImportStreaming implements ToModel, WithStartRow, WithChunkReading
             $buffer = $this->bufferRows;
             $this->bufferRows = [];
 
-            $this->pushProgress('guardando', 'Guardando bloque…');
+            $this->pushProgress('guardando', 'Guardando bloque...');
 
             $db = DB::connection($this->localConn);
 
@@ -1345,12 +1342,17 @@ class AfiliadoImportStreaming implements ToModel, WithStartRow, WithChunkReading
                 $existingKeys = [];
                 if (!empty($afiliadoIds)) {
                     $exist = $db->table('vacunas')
-                        ->select('afiliado_id', 'vacunas_id', 'docis')
+                        ->select('afiliado_id', 'vacunas_id', 'docis', 'fecha_vacuna')
                         ->whereIn('afiliado_id', $afiliadoIds)
                         ->get();
 
                     foreach ($exist as $e) {
-                        $k = (int)$e->afiliado_id . '|' . (int)$e->vacunas_id . '|' . ($this->normalizeDocis($e->docis) ?? '');
+                        $k = $this->vaccineClinicalIdentity->key(
+                            (int) $e->afiliado_id,
+                            (int) $e->vacunas_id,
+                            $e->docis,
+                            $e->fecha_vacuna
+                        );
                         $existingKeys[$k] = true;
                     }
                 }
@@ -1420,8 +1422,6 @@ class AfiliadoImportStreaming implements ToModel, WithStartRow, WithChunkReading
                     $afiliadoId = $afiliadoIdPorCarnet[$carnet] ?? null;
                     if (!$afiliadoId) continue;
 
-                    $isGestante = (bool) ($fila['isGestante'] ?? false);
-
                     $vacunas = $fila['vacunas'] ?? [];
                     if (empty($vacunas)) continue;
 
@@ -1462,7 +1462,7 @@ class AfiliadoImportStreaming implements ToModel, WithStartRow, WithChunkReading
                                 $vacunaNombre,
                                 $docisNorm,
                                 $fechaVac,
-                                "La vacuna (vacunas_id={$vacunasId}) no existe en referencia_vacunas. No se insertó."
+                                "La vacuna (vacunas_id={$vacunasId}) no existe en referencia_vacunas. No se inserto."
                             );
                             continue;
                         }
@@ -1484,7 +1484,7 @@ class AfiliadoImportStreaming implements ToModel, WithStartRow, WithChunkReading
                                     $vacunaNombre,
                                     null,
                                     $fechaVac,
-                                    "La vacuna requiere numero de frascos utilizado y debe ser un valor numerico positivo. No se insertó."
+                                    "La vacuna requiere numero de frascos utilizado y debe ser un valor numerico positivo. No se inserto."
                                 );
                                 continue;
                             }
@@ -1506,7 +1506,7 @@ class AfiliadoImportStreaming implements ToModel, WithStartRow, WithChunkReading
                                     $vacunaNombre,
                                     $docisNorm,
                                     $fechaVac,
-                                    "No hay catalogo de dosis configurado para esta vacuna. No se insertó."
+                                    "No hay catalogo de dosis configurado para esta vacuna. No se inserto."
                                 );
                                 continue;
                             }
@@ -1526,7 +1526,7 @@ class AfiliadoImportStreaming implements ToModel, WithStartRow, WithChunkReading
                                     $vacunaNombre,
                                     null,
                                     $fechaVac,
-                                    "La vacuna tiene informacion en el Excel pero la dosis esta vacia o no se pudo normalizar. Dosis permitidas: " . implode(', ', $allowedDoses) . ". No se insertó."
+                                    "La vacuna tiene informacion en el Excel pero la dosis esta vacia o no se pudo normalizar. Dosis permitidas: " . implode(', ', $allowedDoses) . ". No se inserto."
                                 );
                                 continue;
                             }
@@ -1546,16 +1546,20 @@ class AfiliadoImportStreaming implements ToModel, WithStartRow, WithChunkReading
                                     $vacunaNombre,
                                     $docisNorm,
                                     $fechaVac,
-                                    "La dosis '{$docisNorm}' no pertenece al catalogo de esta vacuna. Dosis permitidas: " . implode(', ', $allowedDoses) . ". No se insertó."
+                                    "La dosis '{$docisNorm}' no pertenece al catalogo de esta vacuna. Dosis permitidas: " . implode(', ', $allowedDoses) . ". No se inserto."
                                 );
                                 continue;
                             }
                         }
 
-                        $key = (int)$afiliadoId . '|' . $vacunasId . '|' . ($docisNorm ?? '');
+                        $key = $this->vaccineClinicalIdentity->key(
+                            (int) $afiliadoId,
+                            $vacunasId,
+                            $docisNorm,
+                            $fechaVac
+                        );
 
-                        // Para gestantes permitimos cargar varias veces la misma vacuna/dosis.
-                        if (!$isGestante && isset($existingKeys[$key])) {
+                        if (isset($existingKeys[$key])) {
                             $this->oldVacuna++;
                             $this->addVacunaOmitida(
                                 (int)($fila['excelRow'] ?? 0),
@@ -1567,13 +1571,12 @@ class AfiliadoImportStreaming implements ToModel, WithStartRow, WithChunkReading
                                 $vacunaNombre,
                                 $docisNorm,
                                 $fechaVac,
-                                "El afiliado ya tiene registrada esta vacuna. No se insertó."
+                                "El afiliado ya tiene registrada esta vacuna, dosis y fecha de aplicacion. No se inserto."
                             );
                             continue;
                         }
 
-                        // Para gestantes tampoco bloqueamos duplicados dentro del mismo archivo.
-                        if (!$isGestante && isset($seenInChunk[$key])) {
+                        if (isset($seenInChunk[$key])) {
                             $this->oldVacuna++;
                             $this->addVacunaOmitida(
                                 (int)($fila['excelRow'] ?? 0),
@@ -1585,14 +1588,12 @@ class AfiliadoImportStreaming implements ToModel, WithStartRow, WithChunkReading
                                 $vacunaNombre,
                                 $docisNorm,
                                 $fechaVac,
-                                "Vacuna repetida dentro del mismo archivo Excel. No se insertó."
+                                "Vacuna, dosis y fecha de aplicacion repetidas dentro del mismo archivo Excel. No se inserto."
                             );
                             continue;
                         }
 
-                        if (!$isGestante) {
-                            $seenInChunk[$key] = true;
-                        }
+                        $seenInChunk[$key] = true;
 
                         $vacunaData['afiliado_id'] = (int)$afiliadoId;
                         $vacunaData['user_id'] = (int)$this->userId;

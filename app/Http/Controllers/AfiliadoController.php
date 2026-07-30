@@ -36,6 +36,7 @@ use PhpOffice\PhpSpreadsheet\IOFactory;
 use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
 use App\Services\PaiMvpCoverageService;
 use App\Services\PaiStatisticsService;
+use App\Services\PaiImportFileIdempotencyService;
 
 
 class AfiliadoController extends Controller
@@ -4078,13 +4079,10 @@ class AfiliadoController extends Controller
      */
 public function importExcel(Request $request)
 {
-    if ($this->paiIsBusy()) {
-        return redirect()->route('afiliado')->with('error1', 'Ingresa mas tarde hay muchos usuarios cargando');
-    }
-
     $request->validate([
         'file' => 'required|mimes:xlsx,xls',
         'upload_token' => 'nullable|string',
+        'retry_failed' => 'nullable|boolean',
     ]);
 
     if (!Auth::check()) {
@@ -4093,17 +4091,29 @@ public function importExcel(Request $request)
 
     $file   = $request->file('file');
     $userId = Auth::id();
-    $user   = Auth::user()->name ?? 'SIN_NOMBRE';
     $token  = $request->input('upload_token') ?: (string) Str::uuid();
+    $originalName = (string) $file->getClientOriginalName();
 
-    // Guardar el archivo en storage/app/imports
     $storedPath = $file->storeAs(
         'imports',
         'import_' . $userId . '_' . now()->format('Ymd_His') . '_' . uniqid() . '.' . $file->getClientOriginalExtension()
     );
+    $fullPath = storage_path('app/' . $storedPath);
 
-    if ($token) {
-        Cache::put("import_progress:{$token}", [
+    $claim = app(PaiImportFileIdempotencyService::class)->claim(
+        storedFilePath: $fullPath,
+        originalName: $originalName,
+        userId: (int) $userId,
+        formatVersion: (string) config('pai_import.format_version', 'pai-afiliados-v1'),
+        requestedToken: $token,
+        retryFailed: $request->boolean('retry_failed'),
+        allowNewWork: ! $this->paiIsBusy()
+    );
+
+    if ($claim['dispatch']) {
+        $this->dispatchClaimedPaiImport($claim, $fullPath, (int) $userId);
+
+        Cache::put("import_progress:{$claim['token']}", [
             'percent' => 1,
             'message' => 'Archivo recibido. Encolando procesamiento…',
             'step'    => 'encolado',
@@ -4111,32 +4121,37 @@ public function importExcel(Request $request)
             'ok'      => true,
             'done_steps' => ['encolado'],
         ], now()->addMinutes(60));
+
+        return redirect()->route('afiliado')->with(
+            'success',
+            $claim['outcome'] === 'retried'
+                ? 'El reintento controlado fue encolado usando el mismo proceso.'
+                : 'Archivo recibido. El sistema lo está procesando en segundo plano.'
+        );
     }
 
-    $fullPath = storage_path('app/' . $storedPath);
-
-    $jobRow = \App\Models\ImportJob::create([
-        'user_id' => $userId,
-        'token' => $token,
-        'status' => 'queued',
-        'percent' => 0,
-        'step' => 'cola',
-        'message' => 'En cola...',
-        'errors' => null,
-        'errors_count' => 0,
-        'report_path' => null,
-        'batch_verifications_id' => null,
-    ]);
-
-    // ✅ Disparar el job (background) en cola dedicada PAI
-    \App\Jobs\ImportAfiliadosExcelJob::dispatch((int) $jobRow->id, $fullPath, $userId, $token)
-        ->onQueue((string) config('import_queues.pai', 'imports_pai'));
-
-    // Responder rápido (NO se cae la página por procesamiento)
-    return redirect()->route('afiliado')->with(
-        'success',
-        'Archivo recibido. El sistema lo está procesando en segundo plano. Puedes ver el progreso en pantalla.'
-    );
+    return match ($claim['outcome']) {
+        'reuse_done' => redirect()->route('afiliado')->with(
+            'warning',
+            "Este archivo ya fue procesado y sus vacunas ya se cargaron. Numero de lote de cargue: {$claim['batch_verifications_id']}. Fecha de cargue: " . ($this->formatImportProcessedAt($claim['processed_at'] ?? null) ?? 'no disponible') . "."
+        ),
+        'reuse_active' => redirect()->route('afiliado')->with(
+            'warning',
+            'Este archivo ya esta en cola o procesandose. No se creo un nuevo cargue; se reutilizo el proceso existente.'
+        ),
+        'retry_available' => redirect()->route('afiliado')->with(
+            'error1',
+            'Este archivo ya tuvo un intento fallido anterior. Puedes reintentar el procesamiento del mismo archivo.'
+        ),
+        'retry_blocked' => redirect()->route('afiliado')->with(
+            'error1',
+            'No es posible reintentar este archivo porque el intento anterior no quedo en un estado seguro o se alcanzo el limite de reintentos.'
+        ),
+        default => redirect()->route('afiliado')->with(
+            'error1',
+            'Ingresa más tarde; hay muchos usuarios cargando.'
+        ),
+    };
 }
 
 
@@ -4625,7 +4640,7 @@ public function getVacunasPdf($id, $numeroCarnet = null)
 
         return redirect()
             ->route('batch.cleanup.index')
-            ->with('success', "Se eliminaron {$deleted['deleted_batches']} lote(s), {$deleted['deleted_afiliados']} afiliado(s) y {$deleted['deleted_vacunas']} vacuna(s).");
+            ->with('success', "Se eliminaron {$deleted['deleted_batches']} lote(s), {$deleted['deleted_afiliados']} afiliado(s) y {$deleted['deleted_vacunas']} vacuna(s). Claims liberados para recarga del mismo archivo: " . (int) ($deleted['released_claims'] ?? 0) . '.');
     }
 
     private function deleteBatchSets(array $ids): array
@@ -4643,10 +4658,11 @@ public function getVacunasPdf($id, $numeroCarnet = null)
                 'deleted_batches' => 0,
                 'deleted_afiliados' => 0,
                 'deleted_vacunas' => 0,
+                'released_claims' => 0,
             ];
         }
 
-        $existingIds = DB::table('batch_verifications')
+        $existingIds = DB::connection('sqlsrv')->table('batch_verifications')
             ->whereIn('id', $ids)
             ->pluck('id')
             ->map(fn ($id) => (int) $id)
@@ -4658,30 +4674,38 @@ public function getVacunasPdf($id, $numeroCarnet = null)
                 'deleted_batches' => 0,
                 'deleted_afiliados' => 0,
                 'deleted_vacunas' => 0,
+                'released_claims' => 0,
             ];
         }
 
-        $totalAfiliados = (int) DB::table('afiliados')
+        $totalAfiliados = (int) DB::connection('sqlsrv')->table('afiliados')
             ->whereIn('batch_verifications_id', $existingIds)
             ->count();
 
-        $totalVacunas = (int) DB::table('vacunas')
+        $totalVacunas = (int) DB::connection('sqlsrv')->table('vacunas')
             ->whereIn('batch_verifications_id', $existingIds)
             ->count();
 
         $deletedBatches = 0;
+        $releasedClaims = 0;
 
-        DB::transaction(function () use ($existingIds, &$deletedBatches) {
+        DB::connection('sqlsrv')->transaction(function () use ($existingIds, &$deletedBatches, &$releasedClaims) {
+            $releasedClaims = app(PaiImportFileIdempotencyService::class)->releaseClaimsForBatches(
+                $existingIds,
+                (int) (Auth::id() ?? 0),
+                'Lote eliminado de forma controlada'
+            );
+
             foreach (array_chunk($existingIds, 500) as $chunk) {
-                DB::table('vacunas')
+                DB::connection('sqlsrv')->table('vacunas')
                     ->whereIn('batch_verifications_id', $chunk)
                     ->delete();
 
-                DB::table('afiliados')
+                DB::connection('sqlsrv')->table('afiliados')
                     ->whereIn('batch_verifications_id', $chunk)
                     ->delete();
 
-                $deletedBatches += DB::table('batch_verifications')
+                $deletedBatches += DB::connection('sqlsrv')->table('batch_verifications')
                     ->whereIn('id', $chunk)
                     ->delete();
             }
@@ -4692,6 +4716,7 @@ public function getVacunasPdf($id, $numeroCarnet = null)
             'deleted_batches' => (int) $deletedBatches,
             'deleted_afiliados' => $totalAfiliados,
             'deleted_vacunas' => $totalVacunas,
+            'released_claims' => (int) $releasedClaims,
         ];
     }
 
@@ -4738,7 +4763,7 @@ public function getVacunasPdf($id, $numeroCarnet = null)
                 return redirect()->back()->with('error', 'El lote no existe o ya fue eliminado.');
             }
             $this->registerCleanupAudit($request, 'single_delete', $deleted);
-            return redirect()->back()->with('success', 'Lote eliminado correctamente.');
+            return redirect()->back()->with('success', 'Lote eliminado correctamente. Claims liberados para recarga del mismo archivo: ' . (int) ($deleted['released_claims'] ?? 0) . '.');
         } catch (\Exception $e) {
             return redirect()->back()->with('error', 'Hubo un problema al eliminar los registros: ' . $e->getMessage());
         }
@@ -5796,16 +5821,9 @@ public function importProgress($token)
 public function startImport(Request $request)
 {
     try {
-        if ($this->paiIsBusy()) {
-            return response()->json([
-                'ok' => false,
-                'wait' => true,
-                'message' => 'Ingresa mas tarde hay muchos usuarios cargando',
-            ], 503);
-        }
-
         $request->validate([
             'file' => 'required|mimes:xlsx,xls|max:10240',
+            'retry_failed' => 'nullable|boolean',
         ]);
         $userId = Auth::id();
         if (!$userId) {
@@ -5821,28 +5839,61 @@ public function startImport(Request $request)
             ], 422);
         }
 
+        $originalName = (string) $request->file('file')->getClientOriginalName();
         $path = $request->file('file')->store('imports');
         $fullPath = storage_path('app/' . $path);
 
-        $token = (string) \Illuminate\Support\Str::uuid();
+        $claim = app(PaiImportFileIdempotencyService::class)->claim(
+            storedFilePath: $fullPath,
+            originalName: $originalName,
+            userId: (int) $userId,
+            formatVersion: (string) config('pai_import.format_version', 'pai-afiliados-v1'),
+            requestedToken: null,
+            retryFailed: $request->boolean('retry_failed'),
+            allowNewWork: ! $this->paiIsBusy()
+        );
 
-        $jobRow = \App\Models\ImportJob::create([
-            'user_id' => $userId,
-            'token' => $token,
-            'status' => 'queued',
-            'percent' => 0,
-            'step' => 'cola',
-            'message' => 'En cola…',
-            'errors' => null,
-            'errors_count' => 0,
-            'report_path' => null,
-            'batch_verifications_id' => null,
-        ]);
+        if ($claim['dispatch']) {
+            $this->dispatchClaimedPaiImport($claim, $fullPath, (int) $userId);
+        }
 
-        \App\Jobs\ImportAfiliadosExcelJob::dispatch($jobRow->id, $fullPath, $userId, $token)
-            ->onQueue((string) config('import_queues.pai', 'imports_pai'));
+        $payload = [
+            'ok' => ! in_array($claim['outcome'], ['busy', 'retry_available', 'retry_blocked'], true),
+            'token' => $claim['token'],
+            'status' => $claim['status'],
+            'outcome' => $claim['outcome'],
+            'reused' => ! in_array($claim['outcome'], ['created', 'retried'], true),
+            'batch_verifications_id' => $claim['batch_verifications_id'],
+            'processed_at' => $claim['processed_at'] ?? null,
+            'processed_at_label' => $this->formatImportProcessedAt($claim['processed_at'] ?? null),
+            'content_sha256' => $claim['content_sha256'] ?? null,
+            'retry_available' => $claim['outcome'] === 'retry_available',
+        ];
 
-        return response()->json(['ok' => true, 'token' => $token]);
+        if ($claim['outcome'] === 'busy') {
+            $payload['wait'] = true;
+            $payload['message'] = 'Ingresa más tarde; hay muchos usuarios cargando.';
+            return response()->json($payload, 503);
+        }
+
+        if ($claim['outcome'] === 'retry_available') {
+            $payload['message'] = 'Este archivo ya tuvo un intento fallido anterior. Puedes reintentar el procesamiento del mismo archivo.';
+            return response()->json($payload, 409);
+        }
+
+        if ($claim['outcome'] === 'retry_blocked') {
+            $payload['message'] = 'No es posible reintentar este archivo porque el intento anterior no quedo en un estado seguro o se alcanzo el limite de reintentos.';
+            return response()->json($payload, 409);
+        }
+
+        $payload['message'] = match ($claim['outcome']) {
+            'reuse_done' => 'Este archivo ya fue procesado y sus vacunas ya se cargaron.',
+            'reuse_active' => 'El archivo ya esta en cola o procesandose; se reutiliza el proceso existente.',
+            'retried' => 'Reintento controlado encolado sobre el mismo proceso.',
+            default => 'Archivo recibido y encolado.',
+        };
+
+        return response()->json($payload);
 
     } catch (\Throwable $e) {
         Log::error('startImport ERROR: '.$e->getMessage(), [
@@ -5854,6 +5905,37 @@ public function startImport(Request $request)
             'ok' => false,
             'message' => 'Error en startImport: '.$e->getMessage(),
         ], 500);
+    }
+}
+
+private function dispatchClaimedPaiImport(array $claim, string $fullPath, int $userId): void
+{
+    try {
+        ImportAfiliadosExcelJob::dispatch(
+            (int) $claim['job_id'],
+            $fullPath,
+            $userId,
+            (string) $claim['token']
+        )->onQueue((string) config('import_queues.pai', 'imports_pai'));
+    } catch (\Throwable $e) {
+        $job = ImportJob::find((int) $claim['job_id']);
+        if ($job) {
+            $job->status = 'failed';
+            $job->percent = 100;
+            $job->step = 'dispatch';
+            $job->message = 'No fue posible encolar el procesamiento.';
+            $job->retryable = true;
+            $job->errors = json_encode([$e->getMessage()], JSON_UNESCAPED_UNICODE);
+            $job->errors_count = 1;
+            $job->save();
+            app(PaiImportFileIdempotencyService::class)->syncFromJob($job);
+        }
+
+        if (is_file($fullPath)) {
+            @unlink($fullPath);
+        }
+
+        throw $e;
     }
 }
 
@@ -5919,13 +6001,14 @@ public function importStatus(string $token)
         }
     }
 
-    // 4) ✅ PARA QUE SALGA EN LA VENTANITA NEGRA SIN CAMBIAR TU JS:
-    //    Convertimos NO afiliados y Vacunas omitidas en líneas de texto dentro de errors[]
-    //    (Tu JS solo pinta errors[], entonces aquí lo resolvemos)
+    $informationalMessages = [];
+
+    // 4) Mensajes informativos: si el proceso termino bien, no deben convertir
+    //    el cargue en fallido.
     if (is_array($noAfiliados) && count($noAfiliados) > 0) {
-        $errors[] = "==============================";
-        $errors[] = "NO AFILIADOS (no existen en BD externa)";
-        $errors[] = "==============================";
+        $informationalMessages[] = "==============================";
+        $informationalMessages[] = "NO AFILIADOS (no existen en BD externa)";
+        $informationalMessages[] = "==============================";
 
         foreach ($noAfiliados as $x) {
             if (!is_array($x)) continue;
@@ -5935,14 +6018,14 @@ public function importStatus(string $token)
             $num   = $x['numero_identificacion'] ?? '';
             $mot   = $x['motivo'] ?? 'No existe en BD externa';
 
-            $errors[] = "Fila {$fila}: {$tipo} {$num} — {$mot}";
+            $informationalMessages[] = "Fila {$fila}: {$tipo} {$num} - {$mot}";
         }
     }
 
     if (is_array($vacunasOmitidas) && count($vacunasOmitidas) > 0) {
-        $errors[] = "==============================";
-        $errors[] = "VACUNAS NO INSERTADAS (ya existen / repetidas / inválidas)";
-        $errors[] = "==============================";
+        $informationalMessages[] = "==============================";
+        $informationalMessages[] = "VACUNAS NO INSERTADAS (ya existen o estan repetidas)";
+        $informationalMessages[] = "==============================";
 
         foreach ($vacunasOmitidas as $x) {
             if (!is_array($x)) continue;
@@ -5952,7 +6035,7 @@ public function importStatus(string $token)
             $num  = $x['numero_identificacion'] ?? '';
 
             $who = trim("{$tipo} {$num}");
-            if ($who === '') $who = 'Identificación desconocida';
+            if ($who === '') $who = 'Identificacion desconocida';
 
             $vacunaNombre = $x['vacuna_nombre'] ?? null;
             $vacId = $x['vacunas_id'] ?? null;
@@ -5961,10 +6044,16 @@ public function importStatus(string $token)
             $docis = $x['docis'] ?? null;
             $docisTxt = $docis ? " DOCIS:{$docis}" : "";
 
-            $motivo = $x['motivo'] ?? 'No se insertó.';
+            $motivo = $x['motivo'] ?? 'No se inserto.';
 
-            $errors[] = "Fila {$fila}: {$who} — {$vacuna}{$docisTxt} — {$motivo}";
+            $informationalMessages[] = "Fila {$fila}: {$who} - {$vacuna}{$docisTxt} - {$motivo}";
         }
+    }
+
+    if ($status === 'done') {
+        $loadedDetails = array_merge($loadedDetails, $informationalMessages);
+    } else {
+        $errors = array_merge($errors, $informationalMessages);
     }
 
     // (Opcional) evitar que el payload se vuelva enorme en UI
@@ -5988,7 +6077,31 @@ public function importStatus(string $token)
         'loaded_details' => $loadedDetails,
 
         'batch_verifications_id' => $job->batch_verifications_id ?? null,
+        'import_job_id' => (int) $job->id,
+        'file_claim_id' => $job->file_claim_id,
+        'file_sha256' => $job->file_sha256,
+        'content_sha256' => $job->content_sha256,
+        'file_size' => $job->file_size,
+        'content_rows' => $job->content_rows,
+        'content_columns' => $job->content_columns,
+        'original_name' => $job->original_name,
+        'format_version' => $job->format_version,
+        'retry_count' => (int) ($job->retry_count ?? 0),
+        'retryable' => (bool) ($job->retryable ?? false),
     ]);
+}
+
+private function formatImportProcessedAt($value): ?string
+{
+    if (empty($value)) {
+        return null;
+    }
+
+    try {
+        return Carbon::parse($value)->format('Y-m-d H:i:s');
+    } catch (\Throwable $e) {
+        return (string) $value;
+    }
 }
 
 private function buildLoadedDetailsForConsole(int $batchId, int $limitVacunas = 400): array

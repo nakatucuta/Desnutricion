@@ -1114,6 +1114,7 @@ window.PAI_INITIAL_LOAD_STATE = @json($paiLoadState ?? ['busy' => false]);
   let pollTimer = null;
   let safetyTimer = null;
   let currentToken = null;
+  let currentStartOutcome = null;
 
   // OK banderas para no repetir mensajes finales
   let alreadyFinished = false;
@@ -1165,6 +1166,7 @@ window.PAI_INITIAL_LOAD_STATE = @json($paiLoadState ?? ['busy' => false]);
       stopPolling();
       stopWaitForSlot();
       currentToken = null;
+      currentStartOutcome = null;
 
       alreadyFinished = false;
       alreadyAlerted = false;
@@ -1217,9 +1219,10 @@ window.PAI_INITIAL_LOAD_STATE = @json($paiLoadState ?? ['busy' => false]);
           showLoadedDetails(details);
       }
 
+      const reusedActive = currentStartOutcome === 'reuse_active';
       Swal.fire({
-          icon: 'success',
-          title: 'Importacion finalizada',
+          icon: reusedActive ? 'info' : 'success',
+          title: reusedActive ? 'Proceso existente finalizado' : 'Importacion finalizada',
           text: message || 'Proceso completado.',
           toast: true,
           position: 'top-end',
@@ -1232,6 +1235,7 @@ window.PAI_INITIAL_LOAD_STATE = @json($paiLoadState ?? ['busy' => false]);
           submitButton.disabled = false;
           submitButton.innerHTML = '<i class="fas fa-play mr-2"></i> Iniciar importacion';
       }
+      currentStartOutcome = null;
   }
 
   function finishFailed(message, errors){
@@ -1466,6 +1470,7 @@ window.PAI_INITIAL_LOAD_STATE = @json($paiLoadState ?? ['busy' => false]);
 
           alreadyFinished = false;
           alreadyAlerted = false;
+          currentStartOutcome = null;
 
           setRingState('normal');
 
@@ -1474,6 +1479,10 @@ window.PAI_INITIAL_LOAD_STATE = @json($paiLoadState ?? ['busy' => false]);
 
           const formData = new FormData();
           formData.append('file', input.files[0]);
+          if(form.dataset.retryFailed === '1'){
+              formData.append('retry_failed', '1');
+              delete form.dataset.retryFailed;
+          }
 
           const csrf = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
 
@@ -1505,6 +1514,24 @@ window.PAI_INITIAL_LOAD_STATE = @json($paiLoadState ?? ['busy' => false]);
                   const waitRequested = (resp.status === 503) || (data && data.wait === true);
                   const msg = (data && data.message) ? data.message : 'No se pudo iniciar el proceso.';
 
+                  if(data && data.retry_available === true){
+                      const confirmation = await Swal.fire({
+                          icon: 'warning',
+                          title: 'Archivo con intento fallido',
+                          text: msg || 'Este archivo ya tuvo un intento fallido anterior. Puedes reintentar el procesamiento del mismo archivo.',
+                          showCancelButton: true,
+                          confirmButtonText: 'Reintentar proceso',
+                          cancelButtonText: 'Cancelar'
+                      });
+
+                      if(confirmation.isConfirmed){
+                          form.dataset.retryFailed = '1';
+                          if(submitButton) submitButton.disabled = false;
+                          form.requestSubmit();
+                      }
+                      return;
+                  }
+
                   if (waitRequested) {
                       Swal.fire({
                           icon: 'info',
@@ -1524,7 +1551,44 @@ window.PAI_INITIAL_LOAD_STATE = @json($paiLoadState ?? ['busy' => false]);
                   return;
               }
 
-              setProgress(5, 'Importacion en cola...', 'cola');
+              if(data.outcome === 'reuse_active'){
+                  currentStartOutcome = 'reuse_active';
+                  setProgress(5, data.message || 'Este archivo ya esta en cola o procesandose. Se mostrara el proceso existente.', 'cola');
+                  await Swal.fire({
+                      icon: 'info',
+                      title: 'Archivo ya en proceso',
+                      text: data.message || 'Este mismo archivo ya esta en cola o procesandose. No se creo un nuevo cargue; se reutilizara el proceso existente.',
+                      confirmButtonText: 'Ver proceso'
+                  });
+                  startPolling(data.token);
+                  return;
+              }
+
+              if(data.outcome === 'reuse_done'){
+                  currentStartOutcome = 'reuse_done';
+                  stopPolling();
+                  setRingState('success');
+                  setProgress(100, data.message || 'Este archivo ya fue procesado y sus vacunas ya se cargaron.', 'final');
+                  if(btnClose) btnClose.style.display = 'inline-block';
+                  if(btnCloseX) btnCloseX.style.display = 'inline-flex';
+                  if(submitButton){
+                      submitButton.disabled = false;
+                      submitButton.innerHTML = '<i class="fas fa-play mr-2"></i> Iniciar importacion';
+                  }
+
+                  const loteText = data.batch_verifications_id ? (' Numero de lote de cargue: ' + data.batch_verifications_id + '.') : '';
+                  const processedText = data.processed_at_label ? (' Fecha de cargue: ' + data.processed_at_label + '.') : '';
+                  await Swal.fire({
+                      icon: 'info',
+                      title: 'Archivo ya procesado',
+                      text: (data.message || 'Este archivo ya fue procesado y sus vacunas ya se cargaron.') + loteText + processedText,
+                      confirmButtonText: 'Entendido'
+                  });
+                  return;
+              }
+
+              setProgress(5, data.message || 'Importacion en cola...', 'cola');
+              currentStartOutcome = data.outcome || 'created';
               startPolling(data.token);
 
           }catch(err){
@@ -1582,6 +1646,15 @@ window.PAI_INITIAL_LOAD_STATE = @json($paiLoadState ?? ['busy' => false]);
               position: 'top-end',
               timer: 5000,
               showConfirmButton: false
+          });
+      @endif
+
+      @if (Session::has('warning'))
+          Swal.fire({
+              icon: 'info',
+              title: 'Atencion',
+              text: @json(Session::get('warning')),
+              confirmButtonText: 'Entendido'
           });
       @endif
 

@@ -152,10 +152,14 @@ class PaiMvpCoverageService
             'a.segundo_nombre',
             'a.primer_apellido',
             'a.segundo_apellido',
+            'a.fecha_atencion',
             'a.fecha_nacimiento',
+            'a.edad_anos',
             'a.sexo',
             'a.condicion_usuaria',
+            'a.fecha_ultima_menstruacion',
             'a.semanas_gestacion',
+            'a.fecha_prob_parto',
             'a.municipio_residencia',
             'a.contraindicacion_vacuna',
             'a.enfermedad_contraindicacion',
@@ -168,6 +172,14 @@ class PaiMvpCoverageService
         return $this->gestationClassifier->isGestante(
             $row->condicion_usuaria ?? null,
             $row->semanas_gestacion ?? null,
+            [
+                'fecha_atencion' => $row->fecha_atencion ?? null,
+                'fecha_nacimiento' => $row->fecha_nacimiento ?? null,
+                'edad_anos' => $row->edad_anos ?? null,
+                'sexo' => $row->sexo ?? null,
+                'fecha_ultima_menstruacion' => $row->fecha_ultima_menstruacion ?? null,
+                'fecha_prob_parto' => $row->fecha_prob_parto ?? null,
+            ]
         );
     }
 

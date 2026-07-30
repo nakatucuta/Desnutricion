@@ -14,6 +14,7 @@ use Maatwebsite\Excel\Concerns\ToModel;
 use Maatwebsite\Excel\Concerns\WithStartRow;
 use Maatwebsite\Excel\Concerns\WithChunkReading;
 use PhpOffice\PhpSpreadsheet\Shared\Date;
+use App\Services\PaiGestationClinicalValidator;
 
 class AfiliadoImport implements ToModel, WithStartRow, WithChunkReading
 {
@@ -42,6 +43,7 @@ class AfiliadoImport implements ToModel, WithStartRow, WithChunkReading
     protected $filasParaGuardar = [];
 
     private $batch_verifications_id;
+    private PaiGestationClinicalValidator $gestationClinicalValidator;
 
     // Cache en memoria para no consultar DB externa por cada fila repetida
     // key: "TIPO|IDENTIFICACION" => ['numeroCarnet' => ?, 'estado' => ?] | null
@@ -55,6 +57,7 @@ class AfiliadoImport implements ToModel, WithStartRow, WithChunkReading
     {
         @set_time_limit(0);
         @ini_set('memory_limit', '1024M');
+        $this->gestationClinicalValidator = app(PaiGestationClinicalValidator::class);
 
         $verificacion = new batch_verifications([
             'fecha_cargue' => Carbon::now(),
@@ -136,7 +139,7 @@ class AfiliadoImport implements ToModel, WithStartRow, WithChunkReading
         // Campos finales (formato nuevo: 255..258, formato anterior: 251..254)
         [$responsable, $fuen_ingresado_paiweb, $motivo_noingreso, $observaciones] = $this->resolveFinalColumns($row, $clean);
         $regimenVacuna         = $clean($row[20] ?? null);
-        $condicionUsuariaVacuna = $clean($row[43] ?? null);
+        $condicionUsuariaVacuna = $this->normalizeConditionUsuaria($clean($row[43] ?? null));
 
         // ---------- Validación rápida ----------
         $data = [
@@ -246,7 +249,7 @@ class AfiliadoImport implements ToModel, WithStartRow, WithChunkReading
                 'edad_dias' => $clean($row[10]),
                 'total_meses' => $clean($row[11]),
                 'esquema_completo' => $clean($row[12]),
-                'sexo' => $clean($row[13]),
+                'sexo' => $this->normalizeSex($clean($row[13])),
                 'genero' => $clean($row[14]),
                 'orientacion_sexual' => $clean($row[15]),
                 'edad_gestacional' => $clean($row[16]),
@@ -277,7 +280,7 @@ class AfiliadoImport implements ToModel, WithStartRow, WithChunkReading
                 'enfermedad_contraindicacion' => $clean($row[40]),
                 'reaccion_biologicos' => $clean($row[41]),
                 'sintomas_reaccion' => $clean($row[42]),
-                'condicion_usuaria' => $clean($row[43]),
+                'condicion_usuaria' => $this->normalizeConditionUsuaria($clean($row[43])),
                 'fecha_ultima_menstruacion' => $excelDateToYmd($row[44]),
                 'semanas_gestacion' => $clean($row[45]),
                 'fecha_prob_parto' => $fechaProbParto,
@@ -788,6 +791,24 @@ class AfiliadoImport implements ToModel, WithStartRow, WithChunkReading
     public function getBatchVerificationsID()
     {
         return $this->batch_verifications_id;
+    }
+
+    private function normalizeSex($value): ?string
+    {
+        if ($value === null || trim((string) $value) === '') {
+            return null;
+        }
+
+        return $this->gestationClinicalValidator->normalizeSex($value);
+    }
+
+    private function normalizeConditionUsuaria($value): ?string
+    {
+        if ($value === null || trim((string) $value) === '') {
+            return null;
+        }
+
+        return $this->gestationClinicalValidator->normalizeCondition($value);
     }
 
     private function resolveFinalColumns(array $row, callable $clean): array

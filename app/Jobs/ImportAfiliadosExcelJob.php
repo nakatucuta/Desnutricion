@@ -7,6 +7,7 @@ use App\Models\ImportJob;
 use App\Models\User;
 use App\Mail\ImportResumenMail;
 use App\Services\PaiVacunaExcelPrevalidator;
+use App\Services\PaiImportFileIdempotencyService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -64,23 +65,27 @@ class ImportAfiliadosExcelJob implements ShouldQueue
             $jobRow->errors_count = 0;
             $jobRow->save();
 
-            $this->updateJobSafe($jobRow, 'running', 3, 'inicio', 'Iniciando importaciÃ³nâ€¦');
+            $this->updateJobSafe($jobRow, 'running', 3, 'inicio', 'Iniciando importacion...');
 
             if (!is_file($this->fullPath)) {
                 throw new \RuntimeException("No existe el archivo: {$this->fullPath}");
             }
 
-            $this->updateJobSafe($jobRow, 'running', 5, 'lectura', 'Leyendo Excel (estimando filas)â€¦');
+            $this->updateJobSafe($jobRow, 'running', 5, 'lectura', 'Leyendo Excel...');
 
-            $totalRows = $this->estimateTotalRows($this->fullPath);
+            $totalRows = (int) ($jobRow->content_rows ?? 0);
+            if ($totalRows <= 0) {
+                $totalRows = $this->estimateTotalRows($this->fullPath);
+            }
             $totalDataRows = max(1, $totalRows - 2); // startRow = 3
 
-            $this->updateJobSafe($jobRow, 'running', 6, 'prevalidacion', 'Validando catalogo de vacunas...');
+            $this->updateJobSafe($jobRow, 'running', 6, 'prevalidacion', 'Validando datos clinicos y catalogo de vacunas...');
 
             $prevalidationErrors = app(PaiVacunaExcelPrevalidator::class)
                 ->validate($this->fullPath, 3, 1);
 
             if (!empty($prevalidationErrors)) {
+                $this->setRetryable($jobRow, true);
                 $this->updateJobSafe(
                     $jobRow,
                     'failed',
@@ -122,14 +127,16 @@ class ImportAfiliadosExcelJob implements ShouldQueue
                     }
 
                     $this->updateJobSafe($fresh, 'running', $pct, $step, $msg);
-                }
+                },
+                batchVerificationId: $jobRow->batch_verifications_id
             );
 
             //  guardo batch_id en import_jobs
             $jobRow->batch_verifications_id = $import->getBatchVerificationsID();
             $jobRow->save();
+            app(PaiImportFileIdempotencyService::class)->syncFromJob($jobRow);
 
-            $this->updateJobSafe($jobRow, 'running', 8, 'procesando', 'Procesando filasâ€¦');
+            $this->updateJobSafe($jobRow, 'running', 8, 'procesando', 'Procesando filas...');
 
             /**
              * IMPORTANTE:
@@ -148,14 +155,15 @@ class ImportAfiliadosExcelJob implements ShouldQueue
             try { $errores = $import->getErrores(); } catch (\Throwable $x) { $errores = []; }
 
             if (!empty($errores)) {
-                $this->rollbackBatchSafe((int)($jobRow->batch_verifications_id ?? 0));
+                $rollbackOk = $this->rollbackBatchSafe((int)($jobRow->batch_verifications_id ?? 0));
+                $this->setRetryable($jobRow, $rollbackOk);
 
                 $this->updateJobSafe(
                     $jobRow,
                     'failed',
                     100,
                     'validacion',
-                    'ImportaciÃ³n con errores. No se guardÃ³ nada.',
+                    'Importacion con errores. No se guardo nada.',
                     $errores
                 );
 
@@ -168,7 +176,7 @@ class ImportAfiliadosExcelJob implements ShouldQueue
                     stats: $this->safeStats($import),
                     errores: $errores,
                     noAfiliados: $this->safeNoAfiliados($import),
-                    extraMsg: 'ImportaciÃ³n con errores. Se hizo rollback (no se guardÃ³ nada).'
+                    extraMsg: 'Importacion con errores. Se hizo rollback. No se guardo nada.'
                 );
 
                 return;
@@ -185,7 +193,7 @@ class ImportAfiliadosExcelJob implements ShouldQueue
             $oldAfil   = (int)($stats['oldAfil'] ?? 0);
             $oldVacuna = (int)($stats['oldVacuna'] ?? 0);
 
-            $msg = "ImportaciÃ³n finalizada. "
+            $msg = "Importacion finalizada. "
                  . "Afiliados insertados: {$insertedAfil}. "
                  . "Vacunas insertadas: {$insertedVac}.";
 
@@ -194,6 +202,7 @@ class ImportAfiliadosExcelJob implements ShouldQueue
             }
 
             $this->updateJobSafe($jobRow, 'done', 100, 'final', $msg);
+            $this->setRetryable($jobRow, false);
 
             //  correo OK (en cola, no estorba)
             $this->sendImportEmailSafe(
@@ -236,13 +245,12 @@ class ImportAfiliadosExcelJob implements ShouldQueue
                 'trace' => $e->getTraceAsString(),
             ]);
 
-            if (!empty($jobRow->batch_verifications_id)) {
-                $this->rollbackBatchSafe((int)$jobRow->batch_verifications_id);
-            }
+            $rollbackOk = empty($jobRow->batch_verifications_id)
+                || $this->rollbackBatchSafe((int)$jobRow->batch_verifications_id);
+            $this->setRetryable($jobRow, $rollbackOk);
+            $this->updateJobSafe($jobRow, 'failed', 100, 'error', 'Importacion detenida por error.', $publicErrors);
 
-            $this->updateJobSafe($jobRow, 'failed', 100, 'error', 'ImportaciÃ³n detenida por error.', $publicErrors);
-
-            //  correo FAIL por excepciÃ³n
+            //  correo FAIL por excepcion
             $this->sendImportEmailSafe(
                 ok: false,
                 batchId: (int)($jobRow->batch_verifications_id ?? 0),
@@ -251,7 +259,7 @@ class ImportAfiliadosExcelJob implements ShouldQueue
                 stats: $this->safeStats($import),
                 errores: $publicErrors,
                 noAfiliados: $this->safeNoAfiliados($import),
-                extraMsg: 'ImportaciÃ³n detenida por excepciÃ³n.'
+                extraMsg: 'Importacion detenida por excepcion.'
             );
 
             //  re-lanza para que la cola lo marque como failed correctamente
@@ -260,6 +268,35 @@ class ImportAfiliadosExcelJob implements ShouldQueue
         } finally {
             try { @unlink($this->fullPath); } catch (\Throwable $e) {}
             try { $lock?->release(); } catch (\Throwable $e) {}
+        }
+    }
+
+    public function failed(\Throwable $exception): void
+    {
+        $jobRow = ImportJob::find($this->importJobId);
+        if (! $jobRow) {
+            return;
+        }
+
+        $rollbackOk = empty($jobRow->batch_verifications_id)
+            || $this->rollbackBatchSafe((int) $jobRow->batch_verifications_id);
+
+        $jobRow->status = 'failed';
+        $jobRow->percent = 100;
+        $jobRow->step = 'queue_failed';
+        $jobRow->message = 'La cola detuvo la importacion.';
+        $jobRow->retryable = $rollbackOk;
+        $jobRow->errors = json_encode(
+            $this->publicImportErrors([$exception->getMessage()]),
+            JSON_UNESCAPED_UNICODE
+        );
+        $jobRow->errors_count = 1;
+        $jobRow->save();
+
+        app(PaiImportFileIdempotencyService::class)->syncFromJob($jobRow);
+
+        if (is_file($this->fullPath)) {
+            @unlink($this->fullPath);
         }
     }
 
@@ -280,11 +317,11 @@ class ImportAfiliadosExcelJob implements ShouldQueue
             $user = User::find($this->userId);
 
             if (!$user || empty($user->email)) {
-                Log::warning("MAIL IMPORT: no se envÃ­a (usuario sin email)", ['userId' => $this->userId]);
+                Log::warning("MAIL IMPORT: no se envia (usuario sin email)", ['userId' => $this->userId]);
                 return;
             }
 
-            // limita tamaÃ±os para que no reviente el correo
+            // limita tamanos para que no reviente el correo
             $errores = array_slice($this->publicImportErrors($errores ?? []), 0, 50);
             $noAfiliados = array_slice($noAfiliados ?? [], 0, 50);
 
@@ -391,15 +428,26 @@ class ImportAfiliadosExcelJob implements ShouldQueue
     // =========================================================
     // utilidades
     // =========================================================
-    private function rollbackBatchSafe(int $batchId): void
+    private function rollbackBatchSafe(int $batchId): bool
     {
-        if ($batchId <= 0) return;
+        if ($batchId <= 0) return true;
 
         try {
-            DB::table('vacunas')->where('batch_verifications_id', $batchId)->delete();
-            DB::table('afiliados')->where('batch_verifications_id', $batchId)->delete();
+            DB::connection('sqlsrv')->transaction(function () use ($batchId) {
+                DB::connection('sqlsrv')
+                    ->table('vacunas')
+                    ->where('batch_verifications_id', $batchId)
+                    ->delete();
+                DB::connection('sqlsrv')
+                    ->table('afiliados')
+                    ->where('batch_verifications_id', $batchId)
+                    ->delete();
+            });
+
+            return true;
         } catch (\Throwable $e) {
             Log::error("rollbackBatchSafe ERROR: " . $e->getMessage(), ['batchId' => $batchId]);
+            return false;
         }
     }
 
@@ -425,7 +473,10 @@ class ImportAfiliadosExcelJob implements ShouldQueue
 
             $spreadsheet = $reader->load($path);
             $sheet = $spreadsheet->getActiveSheet();
-            return (int) $sheet->getHighestRow();
+            $rows = (int) $sheet->getHighestRow();
+            $spreadsheet->disconnectWorksheets();
+
+            return $rows;
         } catch (\Throwable $e) {
             return 1000;
         }
@@ -470,6 +521,19 @@ class ImportAfiliadosExcelJob implements ShouldQueue
         }
 
         $fresh->save();
+        app(PaiImportFileIdempotencyService::class)->syncFromJob($fresh);
+    }
+
+    private function setRetryable(ImportJob $jobRow, bool $retryable): void
+    {
+        ImportJob::query()
+            ->where('id', (int) $jobRow->id)
+            ->update([
+                'retryable' => $retryable,
+                'updated_at' => DB::raw('GETDATE()'),
+            ]);
+
+        $jobRow->retryable = $retryable;
     }
 }
 

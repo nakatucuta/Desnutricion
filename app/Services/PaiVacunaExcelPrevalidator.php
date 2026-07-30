@@ -7,7 +7,8 @@ use PhpOffice\PhpSpreadsheet\IOFactory;
 class PaiVacunaExcelPrevalidator
 {
     public function __construct(
-        private PaiDoseNormalizer $doseNormalizer
+        private PaiDoseNormalizer $doseNormalizer,
+        private PaiImportClinicalValidator $clinicalValidator
     ) {}
 
     public function validate(string $path, int $startRow = 3, int $maxErrors = 1): array
@@ -24,6 +25,14 @@ class PaiVacunaExcelPrevalidator
         for ($rowNumber = $startRow; $rowNumber <= $highestRow; $rowNumber++) {
             $row = $sheet->rangeToArray("A{$rowNumber}:IV{$rowNumber}", null, true, false)[0] ?? [];
             $row = array_replace(array_fill(0, 256, null), $row);
+
+            foreach ($this->clinicalValidator->validateExcelRow($row, $rowNumber) as $error) {
+                $errors[] = $error;
+                if (count($errors) >= $maxErrors) {
+                    $spreadsheet->disconnectWorksheets();
+                    return $errors;
+                }
+            }
 
             foreach ($this->vaccineBlocks() as $block) {
                 [$vacunasId, $idxs, $doseIdx, $frascosIdx] = $block;
