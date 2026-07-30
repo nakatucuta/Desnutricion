@@ -116,6 +116,11 @@ class PaiCoveragePopulationRuleTest extends TestCase
         $this->assertStringNotContainsString('semanas_gestacion', $sql);
     }
 
+    public function test_first_booster_meta_accepts_generic_booster_dose(): void
+    {
+        $this->assertTrue($this->metaDoseMatches('PRIMER REFUERZO', 'REFUERZO'));
+    }
+
     private function applyRule(
         PaiPopulationRuleRecordingQuery $query,
         string $rule,
@@ -132,6 +137,13 @@ class PaiCoveragePopulationRuleTest extends TestCase
             $ageReferenceColumn,
             $conditionColumn
         );
+    }
+
+    private function metaDoseMatches(string $expectedDose, ?string $actualDose): bool
+    {
+        $method = new ReflectionMethod(AfiliadoController::class, 'paiMetaDoseMatches');
+
+        return $method->invoke(new AfiliadoController, $expectedDose, $actualDose);
     }
 }
 

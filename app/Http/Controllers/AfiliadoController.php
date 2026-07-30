@@ -1147,7 +1147,7 @@ class AfiliadoController extends Controller
             'PRIMERA DOSIS' => ['PRIMERA DOSIS', '1RA DOSIS', '1A DOSIS', 'PRIMERA'],
             'SEGUNDA DOSIS' => ['SEGUNDA DOSIS', '2DA DOSIS', '2A DOSIS', 'SEGUNDA'],
             'TERCERA DOSIS' => ['TERCERA DOSIS', '3RA DOSIS', '3ER DOSIS', 'TERCERA'],
-            'PRIMER REFUERZO' => ['PRIMER REFUERZO', '1ER REFUERZO', '1RO REFUERZO'],
+            'PRIMER REFUERZO' => ['PRIMER REFUERZO', '1ER REFUERZO', '1RO REFUERZO', 'REFUERZO'],
             'SEGUNDO REFUERZO' => ['SEGUNDO REFUERZO', '2DO REFUERZO'],
             'REFUERZO' => ['REFUERZO'],
         ];
