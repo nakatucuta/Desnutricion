@@ -1855,6 +1855,12 @@ class AfiliadoController extends Controller
             'prestadores' => $rows->pluck('prestador')->filter()->unique()->sort()->values(),
             'codigos' => $rows->pluck('codigo_habilitacion')->filter()->unique()->sort()->values(),
             'coberturas' => $rows->pluck('cobertura')->filter()->unique()->sort()->values(),
+            'dosis' => collect(config('pai_docis.canonical_labels', []))
+                ->merge($rows->pluck('dosis')->filter())
+                ->filter()
+                ->unique()
+                ->sort()
+                ->values(),
             'regimenes' => $rows->pluck('regimen')->filter()->unique()->sort()->values(),
             'biologicos' => DB::table('referencia_vacunas')
                 ->select('id', 'nombre')

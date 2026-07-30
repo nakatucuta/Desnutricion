@@ -6,7 +6,7 @@
 <div class="pai-head">
     <div>
         <h1 class="pai-title mb-1">Metas de Vacunacion</h1>
-        <div class="text-muted">CRUD directo sobre <code>metas_vacunacion</code> para ajustar la programacion anual por vigencia.</div>
+        <div class="text-muted">Ajusta la programacion anual por vigencia, IPS, cobertura y dosis.</div>
     </div>
     <div class="d-flex flex-wrap gap-2">
         <a href="{{ route('afiliado.stats.settings.index') }}" class="btn btn-outline-dark">
@@ -33,7 +33,7 @@
                     <div class="pai-hero__eyebrow">Edicion rapida</div>
                     <h2 class="pai-hero__title mb-2">Administra la meta anual de cada IPS, municipio y regimen</h2>
                     <p class="mb-0 text-muted">
-                        Cada fila representa una meta anual. Aqui puedes crear, corregir o eliminar registros sin pasar por hojas tecnicas ni tablas intermedias.
+                        Cada fila representa una meta anual. Aqui puedes crear, corregir o eliminar metas de forma directa.
                     </p>
                 </div>
                 <div class="col-lg-4 mt-3 mt-lg-0">
@@ -171,10 +171,12 @@
                                 <div class="form-control form-control-sm pai-readonly" id="bioPreview">Sin seleccionar</div>
                             </div>
                             <div class="form-group col-md-6">
-                                <label class="small text-muted mb-1">Estado</label>
-                                <select class="form-control form-control-sm" id="meta_state">
-                                    <option value="active" selected>Activo</option>
-                                    <option value="inactive">Inactivo</option>
+                                <label class="small text-muted mb-1">Dosis de la cobertura</label>
+                                <select class="form-control form-control-sm" id="dosis" required>
+                                    <option value="">Seleccione...</option>
+                                    @foreach(($dosis ?? []) as $item)
+                                        <option value="{{ $item }}">{{ $item }}</option>
+                                    @endforeach
                                 </select>
                             </div>
                         </div>
@@ -187,10 +189,6 @@
                             </div>
                         </div>
                     </form>
-
-                    <div class="mt-3 small text-muted pai-helpbox">
-                        <strong>Tip:</strong> el mismo codigo de habilitacion puede tener varios usuarios `_ges` en el sistema, pero aqui se administra una sola meta consolidada por IPS.
-                    </div>
                 </div>
             </div>
         </div>
@@ -261,7 +259,6 @@
 .pai-table-head th{font-size:.74rem;text-transform:uppercase;letter-spacing:.02em;background:#f8fbff;border-top:none;white-space:nowrap}
 .pai-table-wrap{max-height:70vh}
 .pai-readonly{background:#f8fafc;color:#334155}
-.pai-helpbox{padding:12px 14px;border-radius:14px;background:#f8fbff;border:1px solid rgba(37,99,235,.12)}
 .gap-2{gap:.5rem}
 @media (max-width: 991.98px){
     .pai-admin-nav{grid-template-columns:1fr}
@@ -298,6 +295,19 @@
     function biologicNameById(id){
         const row = (biologics || []).find(b => String(b.id) === String(id));
         return row ? String(row.nombre || '') : '';
+    }
+
+    function ensureSelectOption(id, value){
+        const el = document.getElementById(id);
+        const text = String(value ?? '').trim();
+        if (!el || !text) return;
+        const exists = Array.from(el.options).some(function(option){
+            return String(option.value) === text;
+        });
+        if (!exists) {
+            const option = new Option(text, text);
+            el.add(option);
+        }
     }
 
     function syncBioPreview(){
@@ -347,10 +357,10 @@
         set('cobertura', row.cobertura);
         set('id_vacuna', row.id_vacuna);
         set('biologico', row.biologico);
+        ensureSelectOption('dosis', row.dosis);
         set('dosis', row.dosis);
         set('regimen', row.regimen);
         set('poblacion', row.poblacion);
-        set('meta_state', 'active');
         document.getElementById('formTitle').textContent = 'Editando meta #' + row.id;
         msg.textContent = 'Editando registro #' + row.id;
         syncBioPreview();
@@ -362,7 +372,6 @@
         });
         set('vigencia', v('filterYear') || {{ (int) $defaultYear }});
         set('poblacion', '0');
-        set('meta_state', 'active');
         document.getElementById('formTitle').textContent = 'Nueva meta';
         msg.textContent = 'Listo para crear una nueva meta.';
         syncBioPreview();
