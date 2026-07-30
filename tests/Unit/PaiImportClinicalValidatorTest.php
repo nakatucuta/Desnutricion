@@ -16,8 +16,8 @@ class PaiImportClinicalValidatorTest extends TestCase
         parent::setUp();
 
         $this->validator = new PaiImportClinicalValidator(
-            new PaiClinicalDateNormalizer(),
-            new PaiGestationClinicalValidator()
+            new PaiClinicalDateNormalizer,
+            new PaiGestationClinicalValidator
         );
     }
 
@@ -69,9 +69,27 @@ class PaiImportClinicalValidatorTest extends TestCase
         $row[7] = '1986-01-01';
         $row[8] = 40;
         $row[13] = 'mujer';
-        $row[43] = 'mujer en edad f' . "\xC3\xA9" . 'rtil';
+        $row[43] = 'mujer en edad f'."\xC3\xA9".'rtil';
 
         $this->assertSame([], $this->validator->validateExcelRow($row, 5));
+    }
+
+    public function test_fertile_age_woman_with_1900_due_date_is_not_accepted_as_gestante(): void
+    {
+        $row = array_fill(0, 256, null);
+        $row[0] = '2026-07-15';
+        $row[7] = '1986-01-01';
+        $row[8] = 40;
+        $row[13] = 'MUJER';
+        $row[43] = 'MUJER EN EDAD FERTIL';
+        $row[46] = '1900-10-06';
+
+        $errors = implode(' ', $this->validator->validateExcelRow($row, 7));
+
+        $this->assertStringContainsString(
+            'fecha probable de parto requieren condicion_usuaria = GESTANTE',
+            $errors
+        );
     }
 
     public function test_clinical_error_messages_do_not_contain_mojibake(): void

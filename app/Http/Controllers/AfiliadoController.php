@@ -2710,7 +2710,7 @@ class AfiliadoController extends Controller
                 'indicador' => 'COBERTURA NINO Y NINAS MENOR DE UN ANO',
                 'biologico' => 'BCG',
                 'vaccine_key' => 'BCG',
-                'population_rule' => 'lt_12m',
+                'population_rule' => '0_to_1m',
                 'dose_rule' => 'any',
             ],
             [
@@ -2718,7 +2718,7 @@ class AfiliadoController extends Controller
                 'indicador' => 'COBERTURA NINO Y NINAS MENOR DE UN ANO',
                 'biologico' => '3ra DE PENTAVALENTE',
                 'vaccine_key' => 'PENTAVALENTE',
-                'population_rule' => 'lt_12m',
+                'population_rule' => '2_to_11m',
                 'dose_rule' => 'third',
             ],
             [
@@ -3311,24 +3311,40 @@ class AfiliadoController extends Controller
             );
         }
         $this->applyPaiDoseRule($q, (string) $indicator['dose_rule']);
-        $this->applyPaiPopulationRule($q, (string) $indicator['population_rule'], $cutoffDate);
-
-        if (($indicator['key'] ?? '') === 'vph_f') {
-            $q->whereRaw("UPPER(LTRIM(RTRIM(ISNULL(a.sexo, '')))) LIKE 'HOMBRE%'");
-        } elseif (($indicator['key'] ?? '') === 'vph_m') {
-            $q->whereRaw("UPPER(LTRIM(RTRIM(ISNULL(a.sexo, '')))) LIKE 'MUJER%'");
-        }
+        $this->applyPaiPopulationRule(
+            $q,
+            (string) $indicator['population_rule'],
+            $cutoffDate,
+            'v.fecha_vacuna',
+            'v.condicion_usuaria'
+        );
 
         return (int) $q->distinct('v.afiliado_id')->count('v.afiliado_id');
     }
 
-    private function applyPaiPopulationRule($query, string $rule, string $cutoffDate): void
+    private function applyPaiPopulationRule(
+        $query,
+        string $rule,
+        string $cutoffDate,
+        ?string $ageReferenceColumn = null,
+        string $conditionColumn = 'a.condicion_usuaria'
+    ): void
     {
-        $ageMonthsExpr = "DATEDIFF(MONTH, a.fecha_nacimiento, '{$cutoffDate}')";
+        $ageReferenceExpr = $ageReferenceColumn !== null
+            ? "CONVERT(DATE, {$ageReferenceColumn})"
+            : "CONVERT(DATE, '{$cutoffDate}')";
+        $ageMonthsExpr = "(DATEDIFF(MONTH, a.fecha_nacimiento, {$ageReferenceExpr})"
+            ." - CASE WHEN DAY({$ageReferenceExpr}) < DAY(a.fecha_nacimiento) THEN 1 ELSE 0 END)";
 
-        if ($rule === 'lt_12m') {
+        if ($rule === '0_to_1m') {
             $query->whereNotNull('a.fecha_nacimiento')
-                ->whereRaw("$ageMonthsExpr BETWEEN 0 AND 11");
+                ->whereRaw("$ageMonthsExpr BETWEEN 0 AND 1");
+            return;
+        }
+
+        if ($rule === '2_to_11m') {
+            $query->whereNotNull('a.fecha_nacimiento')
+                ->whereRaw("$ageMonthsExpr BETWEEN 2 AND 11");
             return;
         }
 
@@ -3351,11 +3367,9 @@ class AfiliadoController extends Controller
         }
 
         if ($rule === 'gestante') {
-            $query->where(function ($q) {
-                $q->whereRaw("UPPER(LTRIM(RTRIM(ISNULL(a.condicion_usuaria, '')))) LIKE '%GESTANTE%'")
-                    ->orWhere('a.semanas_gestacion', '>', 0)
-                    ->orWhereNotNull('a.fecha_prob_parto');
-            });
+            $query->whereRaw(
+                "UPPER(LTRIM(RTRIM(ISNULL({$conditionColumn}, '')))) = 'GESTANTE'"
+            );
             return;
         }
 

@@ -81,11 +81,47 @@ class PaiCoveragePopulationRuleTest extends TestCase
         $this->assertSame('60_to_71m', $indicators['dpt_ref2']['population_rule']);
     }
 
+    public function test_applied_gestante_doses_require_exact_condition_on_vaccine(): void
+    {
+        $query = new PaiPopulationRuleRecordingQuery;
+
+        $this->applyRule(
+            $query,
+            'gestante',
+            '2026-06-30',
+            'v.fecha_vacuna',
+            'v.condicion_usuaria'
+        );
+
+        $sql = implode(' ', $query->rawClauses);
+
+        $this->assertStringContainsString("ISNULL(v.condicion_usuaria, '')", $sql);
+        $this->assertStringContainsString("= 'GESTANTE'", $sql);
+        $this->assertStringNotContainsString('fecha_prob_parto', $sql);
+        $this->assertStringNotContainsString('semanas_gestacion', $sql);
+        $this->assertStringNotContainsString('LIKE', $sql);
+    }
+
+    public function test_gestante_population_requires_exact_condition_on_affiliate(): void
+    {
+        $query = new PaiPopulationRuleRecordingQuery;
+
+        $this->applyRule($query, 'gestante', '2026-06-30');
+
+        $sql = implode(' ', $query->rawClauses);
+
+        $this->assertStringContainsString("ISNULL(a.condicion_usuaria, '')", $sql);
+        $this->assertStringContainsString("= 'GESTANTE'", $sql);
+        $this->assertStringNotContainsString('fecha_prob_parto', $sql);
+        $this->assertStringNotContainsString('semanas_gestacion', $sql);
+    }
+
     private function applyRule(
         PaiPopulationRuleRecordingQuery $query,
         string $rule,
         string $cutoffDate,
-        ?string $ageReferenceColumn = null
+        ?string $ageReferenceColumn = null,
+        string $conditionColumn = 'a.condicion_usuaria'
     ): void {
         $method = new ReflectionMethod(AfiliadoController::class, 'applyPaiPopulationRule');
         $method->invoke(
@@ -93,7 +129,8 @@ class PaiCoveragePopulationRuleTest extends TestCase
             $query,
             $rule,
             $cutoffDate,
-            $ageReferenceColumn
+            $ageReferenceColumn,
+            $conditionColumn
         );
     }
 }
