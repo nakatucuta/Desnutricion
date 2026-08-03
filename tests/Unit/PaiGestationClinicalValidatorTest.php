@@ -24,6 +24,19 @@ class PaiGestationClinicalValidatorTest extends TestCase
         $this->assertSame([], $result['errors']);
     }
 
+    public function test_decimal_gestation_weeks_are_accepted(): void
+    {
+        foreach ([28.5, '28.5', '28,5'] as $weeks) {
+            $data = $this->coherentGestation();
+            $data['semanas_gestacion'] = $weeks;
+
+            $result = $this->validator->validate($data);
+
+            $this->assertTrue($result['is_gestante'], implode(' | ', $result['errors']));
+            $this->assertSame([], $result['errors'], (string) $weeks);
+        }
+    }
+
     public function test_weeks_or_due_date_do_not_determine_gestation_without_exact_condition(): void
     {
         $data = $this->coherentGestation();
@@ -32,7 +45,7 @@ class PaiGestationClinicalValidatorTest extends TestCase
         $result = $this->validator->validate($data);
 
         $this->assertFalse($result['is_gestante']);
-        $this->assertStringContainsString('requieren condicion_usuaria = GESTANTE', implode(' ', $result['errors']));
+        $this->assertStringContainsString('requieren Condicion Usuaria = GESTANTE', implode(' ', $result['errors']));
     }
 
     public function test_it_accepts_only_the_configured_condition_values_or_empty(): void
@@ -63,7 +76,7 @@ class PaiGestationClinicalValidatorTest extends TestCase
             'condicion_usuaria' => 'MADRE LACTANTE',
         ]);
 
-        $this->assertStringContainsString('condicion_usuaria debe ser', implode(' ', $invalid['errors']));
+        $this->assertStringContainsString('Condicion Usuaria debe ser', implode(' ', $invalid['errors']));
     }
 
     public function test_any_non_empty_condition_requires_female_sex(): void
@@ -109,7 +122,7 @@ class PaiGestationClinicalValidatorTest extends TestCase
             ]);
 
             $this->assertStringContainsString(
-                'sexo debe ser HOMBRE, MUJER o INDETERMINADO',
+                'Sexo debe ser HOMBRE, MUJER o INDETERMINADO',
                 implode(' ', $result['errors']),
                 $sex ?: 'vacio'
             );
@@ -158,7 +171,19 @@ class PaiGestationClinicalValidatorTest extends TestCase
         $this->assertFalse($result['is_gestante']);
         $this->assertStringContainsString('sexo femenino', $errors);
         $this->assertStringContainsString('entre 10 y 59 anos', $errors);
-        $this->assertStringContainsString('no puede anteceder mas de 14 dias', $errors);
+        $this->assertStringContainsString('Fecha Probable de Parto no puede anteceder mas de 14 dias', $errors);
+    }
+
+    public function test_incoherent_reported_weeks_do_not_block_gestation(): void
+    {
+        $data = $this->coherentGestation();
+        $data['fecha_ultima_menstruacion'] = '2026-01-01';
+        $data['semanas_gestacion'] = 10;
+
+        $result = $this->validator->validate($data);
+
+        $this->assertTrue($result['is_gestante'], implode(' | ', $result['errors']));
+        $this->assertSame([], $result['errors']);
     }
 
     private function coherentGestation(): array

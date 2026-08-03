@@ -12,11 +12,11 @@ class PaiImportClinicalValidator
     public function validateExcelRow(array $row, int $rowNumber): array
     {
         $dateFields = [
-            0 => 'fecha_atencion',
-            7 => 'fecha_nacimiento',
-            44 => 'fecha_ultima_menstruacion',
-            46 => 'fecha_prob_parto',
-            48 => 'fecha_antecedente',
+            0 => 'Fecha de Atencion',
+            7 => 'Fecha de Nacimiento',
+            44 => 'Fecha Ultima Menstruacion',
+            46 => 'Fecha Probable de Parto',
+            48 => 'Fecha de Antecedente',
         ];
 
         $errors = [];

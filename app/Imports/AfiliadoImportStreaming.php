@@ -8,6 +8,7 @@ use App\Services\PaiDoseNormalizer;
 use App\Services\PaiGestationClinicalValidator;
 use App\Services\PaiImportClinicalValidator;
 use App\Services\PaiVaccineClinicalIdentity;
+use App\Services\PaiVaccineExcelBlockCatalog;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -765,6 +766,14 @@ class AfiliadoImportStreaming implements ToModel, WithStartRow, WithChunkReading
         return $this->vacunaNombreCache;
     }
 
+    private function vacunaLabel(int $vacunasId): string
+    {
+        $this->preloadVacunaNames([$vacunasId]);
+        $name = $this->vacunaNombreCache[$vacunasId] ?? null;
+
+        return $name ?: PaiVaccineExcelBlockCatalog::nameForVacunasId($vacunasId) ?: 'sin nombre en catalogo';
+    }
+
     public function model(array $row)
     {
         $minCols = 272;
@@ -1173,22 +1182,31 @@ class AfiliadoImportStreaming implements ToModel, WithStartRow, WithChunkReading
 
     private function prevalidateVacunasForImport(array $vacunasData, int $excelRow): void
     {
+        $vacunasIds = array_values(array_unique(array_filter(array_map(
+            fn ($vacunaData) => isset($vacunaData['vacunas_id']) && is_numeric($vacunaData['vacunas_id'])
+                ? (int) $vacunaData['vacunas_id']
+                : null,
+            $vacunasData
+        ))));
+        $this->preloadVacunaNames($vacunasIds);
+
         foreach ($vacunasData as $vacunaData) {
             $vacunasId = $vacunaData['vacunas_id'] ?? null;
 
             if ($vacunasId === null || $vacunasId === '' || !is_numeric($vacunasId)) {
                 $this->failImport(
-                    "Fila {$excelRow}: vacuna con vacunas_id invalido ({$vacunasId}). No se guardo nada."
+                    "Fila {$excelRow}: una vacuna del Excel tiene identificador interno invalido. No se guardo nada."
                 );
             }
 
             $vacunasId = (int) $vacunasId;
+            $vacunaNombre = $this->vacunaLabel($vacunasId);
 
             if ($this->isFrascosVacuna($vacunaData)) {
                 $frascos = $this->validateFrascosValue($vacunaData['num_frascos_utilizados'] ?? null);
                 if ($frascos === null) {
                     $this->failImport(
-                        "Fila {$excelRow}: la vacuna vacunas_id={$vacunasId} requiere numero de frascos utilizado y debe ser un valor numerico positivo. No se guardo nada."
+                        "Fila {$excelRow}: la vacuna {$vacunaNombre} requiere numero de frascos utilizado y debe ser un valor numerico positivo. No se guardo nada."
                     );
                 }
 
@@ -1198,20 +1216,20 @@ class AfiliadoImportStreaming implements ToModel, WithStartRow, WithChunkReading
             $allowedDoses = $this->validDosesForVacuna($vacunasId);
             if ($allowedDoses === null) {
                 $this->failImport(
-                    "Fila {$excelRow}: no hay catalogo de dosis configurado para vacunas_id={$vacunasId}. No se guardo nada."
+                    "Fila {$excelRow}: no hay catalogo de dosis configurado para la vacuna {$vacunaNombre}. No se guardo nada."
                 );
             }
 
             $docisNorm = $this->normalizeDocisStrict($vacunaData['docis'] ?? null);
             if ($docisNorm === null) {
                 $this->failImport(
-                    "Fila {$excelRow}: vacunas_id={$vacunasId} tiene informacion en el Excel pero la dosis esta vacia o no se pudo normalizar. Dosis permitidas: " . implode(', ', $allowedDoses) . ". No se guardo nada."
+                    "Fila {$excelRow}: la vacuna {$vacunaNombre} tiene informacion en el Excel pero la dosis esta vacia o no se pudo normalizar. Dosis permitidas: " . implode(', ', $allowedDoses) . ". No se guardo nada."
                 );
             }
 
             if (!in_array($docisNorm, $allowedDoses, true)) {
                 $this->failImport(
-                    "Fila {$excelRow}: la dosis '{$docisNorm}' no pertenece al catalogo de vacunas_id={$vacunasId}. Dosis permitidas: " . implode(', ', $allowedDoses) . ". No se guardo nada."
+                    "Fila {$excelRow}: la dosis '{$docisNorm}' no pertenece al catalogo de la vacuna {$vacunaNombre}. Dosis permitidas: " . implode(', ', $allowedDoses) . ". No se guardo nada."
                 );
             }
         }
@@ -1430,7 +1448,7 @@ class AfiliadoImportStreaming implements ToModel, WithStartRow, WithChunkReading
 
                         if ($vacunasId === null || $vacunasId === '' || !is_numeric($vacunasId)) {
                             $this->failImport(
-                                "Fila " . (int)($fila['excelRow'] ?? 0) . ": vacuna con vacunas_id invalido ({$vacunasId}). No se guardo nada."
+                                "Fila " . (int)($fila['excelRow'] ?? 0) . ": una vacuna del Excel tiene identificador interno invalido. No se guardo nada."
                             );
                             Log::warning("IMPORT VACUNA SKIP: vacunas_id invalido", [
                                 'excelRow' => $fila['excelRow'] ?? null,
@@ -1449,7 +1467,7 @@ class AfiliadoImportStreaming implements ToModel, WithStartRow, WithChunkReading
                         //  si no existe en referencia_vacunas => NO insertamos y lo mostramos al usuario
                         if (!isset($validVacIdSet[$vacunasId])) {
                             $this->failImport(
-                                "Fila " . (int)($fila['excelRow'] ?? 0) . ": la vacuna (vacunas_id={$vacunasId}) no existe en referencia_vacunas. No se guardo nada."
+                                "Fila " . (int)($fila['excelRow'] ?? 0) . ": una vacuna del Excel no existe en el catalogo de vacunas. No se guardo nada."
                             );
                             $this->oldVacuna++;
                             $this->addVacunaOmitida(
@@ -1462,7 +1480,7 @@ class AfiliadoImportStreaming implements ToModel, WithStartRow, WithChunkReading
                                 $vacunaNombre,
                                 $docisNorm,
                                 $fechaVac,
-                                "La vacuna (vacunas_id={$vacunasId}) no existe en referencia_vacunas. No se inserto."
+                                "La vacuna no existe en el catalogo de vacunas. No se inserto."
                             );
                             continue;
                         }
@@ -1471,7 +1489,7 @@ class AfiliadoImportStreaming implements ToModel, WithStartRow, WithChunkReading
                             $frascos = $this->validateFrascosValue($vacunaData['num_frascos_utilizados'] ?? null);
                             if ($frascos === null) {
                                 $this->failImport(
-                                    "Fila " . (int)($fila['excelRow'] ?? 0) . ": la vacuna " . ($vacunaNombre ?: "vacunas_id={$vacunasId}") . " requiere numero de frascos utilizado y debe ser un valor numerico positivo. No se guardo nada."
+                                    "Fila " . (int)($fila['excelRow'] ?? 0) . ": la vacuna " . ($vacunaNombre ?: 'sin nombre en catalogo') . " requiere numero de frascos utilizado y debe ser un valor numerico positivo. No se guardo nada."
                                 );
                                 $this->oldVacuna++;
                                 $this->addVacunaOmitida(
@@ -1493,7 +1511,7 @@ class AfiliadoImportStreaming implements ToModel, WithStartRow, WithChunkReading
                             $allowedDoses = $this->validDosesForVacuna($vacunasId);
                             if ($allowedDoses === null) {
                                 $this->failImport(
-                                    "Fila " . (int)($fila['excelRow'] ?? 0) . ": no hay catalogo de dosis configurado para la vacuna " . ($vacunaNombre ?: "vacunas_id={$vacunasId}") . ". No se guardo nada."
+                                    "Fila " . (int)($fila['excelRow'] ?? 0) . ": no hay catalogo de dosis configurado para la vacuna " . ($vacunaNombre ?: 'sin nombre en catalogo') . ". No se guardo nada."
                                 );
                                 $this->oldVacuna++;
                                 $this->addVacunaOmitida(
@@ -1513,7 +1531,7 @@ class AfiliadoImportStreaming implements ToModel, WithStartRow, WithChunkReading
 
                             if ($docisNorm === null) {
                                 $this->failImport(
-                                    "Fila " . (int)($fila['excelRow'] ?? 0) . ": la vacuna " . ($vacunaNombre ?: "vacunas_id={$vacunasId}") . " tiene informacion en el Excel pero la dosis esta vacia o no se pudo normalizar. Dosis permitidas: " . implode(', ', $allowedDoses) . ". No se guardo nada."
+                                    "Fila " . (int)($fila['excelRow'] ?? 0) . ": la vacuna " . ($vacunaNombre ?: 'sin nombre en catalogo') . " tiene informacion en el Excel pero la dosis esta vacia o no se pudo normalizar. Dosis permitidas: " . implode(', ', $allowedDoses) . ". No se guardo nada."
                                 );
                                 $this->oldVacuna++;
                                 $this->addVacunaOmitida(
@@ -1533,7 +1551,7 @@ class AfiliadoImportStreaming implements ToModel, WithStartRow, WithChunkReading
 
                             if (!in_array($docisNorm, $allowedDoses, true)) {
                                 $this->failImport(
-                                    "Fila " . (int)($fila['excelRow'] ?? 0) . ": la dosis '{$docisNorm}' no pertenece al catalogo de la vacuna " . ($vacunaNombre ?: "vacunas_id={$vacunasId}") . ". Dosis permitidas: " . implode(', ', $allowedDoses) . ". No se guardo nada."
+                                    "Fila " . (int)($fila['excelRow'] ?? 0) . ": la dosis '{$docisNorm}' no pertenece al catalogo de la vacuna " . ($vacunaNombre ?: 'sin nombre en catalogo') . ". Dosis permitidas: " . implode(', ', $allowedDoses) . ". No se guardo nada."
                                 );
                                 $this->oldVacuna++;
                                 $this->addVacunaOmitida(

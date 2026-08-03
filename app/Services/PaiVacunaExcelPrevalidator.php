@@ -2,10 +2,16 @@
 
 namespace App\Services;
 
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use PhpOffice\PhpSpreadsheet\IOFactory;
 
 class PaiVacunaExcelPrevalidator
 {
+    private ?string $vacunaNombreColumn = null;
+
+    private array $vacunaNombreCache = [];
+
     public function __construct(
         private PaiDoseNormalizer $doseNormalizer,
         private PaiImportClinicalValidator $clinicalValidator
@@ -61,18 +67,19 @@ class PaiVacunaExcelPrevalidator
 
     private function validateDose($value, int $rowNumber, int $vacunasId): ?string
     {
+        $vacunaLabel = $this->vacunaLabel($vacunasId);
         $allowedDoses = $this->validDosesForVacuna($vacunasId);
         if ($allowedDoses === null) {
-            return "Fila {$rowNumber}: no hay catalogo de dosis configurado para vacunas_id={$vacunasId}. No se guardo nada.";
+            return "Fila {$rowNumber}: no hay catalogo de dosis configurado para la vacuna {$vacunaLabel}. No se guardo nada.";
         }
 
         $docisNorm = $this->doseNormalizer->normalizeDocisStrict($value);
         if ($docisNorm === null) {
-            return "Fila {$rowNumber}: vacunas_id={$vacunasId} tiene informacion en el Excel pero la dosis esta vacia o no se pudo normalizar. Dosis permitidas: " . implode(', ', $allowedDoses) . ". No se guardo nada.";
+            return "Fila {$rowNumber}: la vacuna {$vacunaLabel} tiene informacion en el Excel pero la dosis esta vacia o no se pudo normalizar. Dosis permitidas: " . implode(', ', $allowedDoses) . ". No se guardo nada.";
         }
 
         if (!in_array($docisNorm, $allowedDoses, true)) {
-            return "Fila {$rowNumber}: la dosis '{$docisNorm}' no pertenece al catalogo de vacunas_id={$vacunasId}. Dosis permitidas: " . implode(', ', $allowedDoses) . ". No se guardo nada.";
+            return "Fila {$rowNumber}: la dosis '{$docisNorm}' no pertenece al catalogo de la vacuna {$vacunaLabel}. Dosis permitidas: " . implode(', ', $allowedDoses) . ". No se guardo nada.";
         }
 
         return null;
@@ -80,15 +87,16 @@ class PaiVacunaExcelPrevalidator
 
     private function validateFrascos($value, int $rowNumber, int $vacunasId): ?string
     {
+        $vacunaLabel = $this->vacunaLabel($vacunasId);
         if ($this->isNullLike($value)) {
-            return "Fila {$rowNumber}: la vacuna vacunas_id={$vacunasId} requiere numero de frascos utilizado y debe ser un valor numerico positivo. No se guardo nada.";
+            return "Fila {$rowNumber}: la vacuna {$vacunaLabel} requiere numero de frascos utilizado y debe ser un valor numerico positivo. No se guardo nada.";
         }
 
         $txt = trim((string) $value);
         $normalized = str_replace(',', '.', $txt);
 
         if (!is_numeric($normalized) || (float) $normalized <= 0) {
-            return "Fila {$rowNumber}: la vacuna vacunas_id={$vacunasId} requiere numero de frascos utilizado y debe ser un valor numerico positivo. No se guardo nada.";
+            return "Fila {$rowNumber}: la vacuna {$vacunaLabel} requiere numero de frascos utilizado y debe ser un valor numerico positivo. No se guardo nada.";
         }
 
         return null;
@@ -98,6 +106,74 @@ class PaiVacunaExcelPrevalidator
     {
         $catalog = (array) config('pai_docis.valid_doses_by_vacunas_id', []);
         return isset($catalog[$vacunasId]) ? array_values((array) $catalog[$vacunasId]) : null;
+    }
+
+    private function vacunaLabel(int $vacunasId): string
+    {
+        $name = $this->vacunaName($vacunasId);
+
+        return $name ?: PaiVaccineExcelBlockCatalog::nameForVacunasId($vacunasId) ?: 'sin nombre en catalogo';
+    }
+
+    private function vacunaName(int $vacunasId): ?string
+    {
+        if (array_key_exists($vacunasId, $this->vacunaNombreCache)) {
+            return $this->vacunaNombreCache[$vacunasId];
+        }
+
+        $col = $this->detectVacunaNombreColumn();
+        if ($col === 'id') {
+            return $this->vacunaNombreCache[$vacunasId] = null;
+        }
+
+        try {
+            $row = DB::connection('sqlsrv')
+                ->table('referencia_vacunas')
+                ->select(DB::raw("CAST([$col] AS NVARCHAR(255)) AS vacuna_nombre"))
+                ->where('id', $vacunasId)
+                ->first();
+
+            $name = $row?->vacuna_nombre !== null ? trim((string) $row->vacuna_nombre) : null;
+
+            return $this->vacunaNombreCache[$vacunasId] = ($name === '' ? null : $name);
+        } catch (\Throwable $e) {
+            Log::warning('No se pudo resolver nombre de vacuna para prevalidacion PAI', [
+                'vacunas_id' => $vacunasId,
+                'error' => $e->getMessage(),
+            ]);
+
+            return $this->vacunaNombreCache[$vacunasId] = null;
+        }
+    }
+
+    private function detectVacunaNombreColumn(): string
+    {
+        if ($this->vacunaNombreColumn !== null) {
+            return $this->vacunaNombreColumn;
+        }
+
+        $candidates = ['nombre', 'biologico', 'vacuna', 'descripcion', 'descripcion_vacuna', 'nombre_vacuna'];
+
+        try {
+            $rows = DB::connection('sqlsrv')->select("
+                SELECT COLUMN_NAME
+                FROM INFORMATION_SCHEMA.COLUMNS
+                WHERE TABLE_NAME = 'referencia_vacunas'
+            ");
+
+            $columns = array_map(fn ($row) => mb_strtolower((string) $row->COLUMN_NAME, 'UTF-8'), $rows);
+            foreach ($candidates as $candidate) {
+                if (in_array($candidate, $columns, true)) {
+                    return $this->vacunaNombreColumn = $candidate;
+                }
+            }
+        } catch (\Throwable $e) {
+            Log::warning('No se pudo detectar columna nombre en referencia_vacunas para prevalidacion PAI', [
+                'error' => $e->getMessage(),
+            ]);
+        }
+
+        return $this->vacunaNombreColumn = 'id';
     }
 
     private function hasAny(array $row, array $idxs): bool

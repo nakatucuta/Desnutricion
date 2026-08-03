@@ -41,7 +41,7 @@ class PaiImportClinicalValidatorTest extends TestCase
         $errors = $this->validator->validateExcelRow($row, 9);
 
         $this->assertCount(1, $errors);
-        $this->assertStringContainsString('Fila 9: fecha_atencion: serial Excel 280', $errors[0]);
+        $this->assertStringContainsString('Fila 9: Fecha de Atencion: serial Excel 280', $errors[0]);
     }
 
     public function test_invalid_condition_is_rejected_and_gestante_with_weeks_is_accepted(): void
@@ -54,10 +54,10 @@ class PaiImportClinicalValidatorTest extends TestCase
         $row[43] = 'OTRA CONDICION';
 
         $errors = $this->validator->validateExcelRow($row, 4);
-        $this->assertStringContainsString('condicion_usuaria debe ser', implode(' ', $errors));
+        $this->assertStringContainsString('Condicion Usuaria debe ser', implode(' ', $errors));
 
         $row[43] = 'GESTANTE';
-        $row[45] = 28;
+        $row[45] = '28,5';
 
         $this->assertSame([], $this->validator->validateExcelRow($row, 4));
     }
@@ -87,7 +87,7 @@ class PaiImportClinicalValidatorTest extends TestCase
         $errors = implode(' ', $this->validator->validateExcelRow($row, 7));
 
         $this->assertStringContainsString(
-            'fecha probable de parto requieren condicion_usuaria = GESTANTE',
+            'Fecha Probable de Parto requieren Condicion Usuaria = GESTANTE',
             $errors
         );
     }
