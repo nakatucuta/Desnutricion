@@ -41,7 +41,8 @@ class PaiImportClinicalValidatorTest extends TestCase
         $errors = $this->validator->validateExcelRow($row, 9);
 
         $this->assertCount(1, $errors);
-        $this->assertStringContainsString('Fila 9: Fecha de Atencion: serial Excel 280', $errors[0]);
+        $this->assertStringContainsString('Fila 9: Fecha de Atencion: la fecha 06/10/1900 no es valida para este campo.', $errors[0]);
+        $this->assertStringNotContainsString('280', $errors[0]);
     }
 
     public function test_invalid_condition_is_rejected_and_gestante_with_weeks_is_accepted(): void
@@ -87,9 +88,11 @@ class PaiImportClinicalValidatorTest extends TestCase
         $errors = implode(' ', $this->validator->validateExcelRow($row, 7));
 
         $this->assertStringContainsString(
-            'Fecha Probable de Parto requieren Condicion Usuaria = GESTANTE',
+            'Fecha Probable de Parto: fecha no valida',
             $errors
         );
+        $this->assertStringContainsString('si no aplica, deja la celda vacia', $errors);
+        $this->assertStringNotContainsString('requieren Condicion Usuaria = GESTANTE', $errors);
     }
 
     public function test_clinical_error_messages_do_not_contain_mojibake(): void

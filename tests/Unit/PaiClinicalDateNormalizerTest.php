@@ -13,8 +13,12 @@ class PaiClinicalDateNormalizerTest extends TestCase
 
         $this->assertNull($normalizer->normalize(280));
         $this->assertStringContainsString(
-            'serial Excel 280 fuera del rango permitido',
-            $normalizer->validationError(280, 'fecha_atencion')
+            'Fecha Probable de Parto: la fecha 06/10/1900 no es valida para este campo. Si no aplica, deja la celda vacia.',
+            $normalizer->validationError(280, 'Fecha Probable de Parto')
+        );
+        $this->assertStringNotContainsString(
+            '280',
+            $normalizer->validationError(280, 'Fecha Probable de Parto')
         );
     }
 
@@ -25,5 +29,17 @@ class PaiClinicalDateNormalizerTest extends TestCase
         $this->assertSame('2026-07-15', $normalizer->normalize('15/07/2026'));
         $this->assertNotNull($normalizer->normalize(46000));
         $this->assertNull($normalizer->normalize('31/02/2026'));
+    }
+
+    public function test_it_rejects_old_clinical_dates_like_1900(): void
+    {
+        $normalizer = new PaiClinicalDateNormalizer();
+
+        $this->assertSame('1900-10-06', $normalizer->normalize('1900-10-06'));
+        $this->assertStringContainsString(
+            'si no aplica, deja la celda vacia',
+            $normalizer->validationError('1900-10-06', 'Fecha Probable de Parto')
+        );
+        $this->assertNull($normalizer->validationError('1986-01-01', 'Fecha de Nacimiento'));
     }
 }

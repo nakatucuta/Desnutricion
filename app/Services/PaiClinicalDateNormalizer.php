@@ -10,6 +10,8 @@ class PaiClinicalDateNormalizer
 {
     private const MIN_EXCEL_SERIAL = 10000;
 
+    private const MIN_RECENT_FIELD_DATE = '2000-01-01';
+
     private const MAX_EXCEL_SERIAL = 80000;
 
     public function normalize($value): ?string
@@ -60,12 +62,22 @@ class PaiClinicalDateNormalizer
         if (is_int($value) || is_float($value) || (is_string($value) && is_numeric(trim($value)))) {
             $serial = (float) $value;
             if ($serial < self::MIN_EXCEL_SERIAL || $serial > self::MAX_EXCEL_SERIAL) {
-                return "{$field}: serial Excel {$value} fuera del rango permitido";
+                $displayDate = $this->displayDateFromExcelSerial($serial);
+                if ($displayDate !== null) {
+                    return "{$field}: la fecha {$displayDate} no es valida para este campo. Si no aplica, deja la celda vacia.";
+                }
+
+                return "{$field}: el valor ingresado no parece una fecha valida. Revisa que la celda tenga formato de fecha.";
             }
         }
 
-        if ($this->normalize($value) === null) {
-            return "{$field}: fecha invalida; use DD/MM/AAAA o AAAA-MM-DD";
+        $normalized = $this->normalize($value);
+        if ($normalized === null) {
+            return "{$field}: fecha no valida. Usa el formato DD/MM/AAAA o AAAA-MM-DD y verifica que no sea una fecha antigua como 1900.";
+        }
+
+        if ($this->requiresRecentDate($field) && $normalized < self::MIN_RECENT_FIELD_DATE) {
+            return "{$field}: fecha no valida. Para este campo no uses fechas antiguas como 1900; si no aplica, deja la celda vacia.";
         }
 
         return null;
@@ -80,5 +92,19 @@ class PaiClinicalDateNormalizer
         $text = mb_strtoupper(trim((string) $value), 'UTF-8');
 
         return in_array($text, ['', '-', '0', 'NO TIENE', 'N/A', 'NA', 'SIN DATO', 'NULL', 'NONE', '?', 'NO APLICA'], true);
+    }
+
+    private function requiresRecentDate(string $field): bool
+    {
+        return ! in_array($field, ['Fecha de Nacimiento', 'fecha_nacimiento'], true);
+    }
+
+    private function displayDateFromExcelSerial(float $serial): ?string
+    {
+        try {
+            return Date::excelToDateTimeObject($serial)->format('d/m/Y');
+        } catch (\Throwable) {
+            return null;
+        }
     }
 }
