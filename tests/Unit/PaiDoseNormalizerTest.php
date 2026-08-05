@@ -78,4 +78,16 @@ class PaiDoseNormalizerTest extends TestCase
             $normalizer->normalizeDocisStrictForAllowed('unica', $allowed)
         );
     }
+
+    public function test_covid_19_accepts_unica_as_valid_dose(): void
+    {
+        $normalizer = new PaiDoseNormalizer();
+        $allowed = config('pai_docis.valid_doses_by_vacunas_id.1');
+
+        $this->assertContains('UNICA', $allowed);
+        $this->assertSame(
+            'UNICA',
+            $normalizer->normalizeDocisStrictForAllowed('unica', $allowed)
+        );
+    }
 }

@@ -185,6 +185,7 @@ return [
     */
     'valid_doses_by_vacunas_id' => [
         1 => [
+            'UNICA',
             'PRIMERA DOSIS',
             'SEGUNDA DOSIS',
             'TERCERA DOSIS',

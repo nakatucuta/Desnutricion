@@ -81,7 +81,7 @@ class PaiCoveragePopulationRuleTest extends TestCase
         $this->assertSame('60_to_71m', $indicators['dpt_ref2']['population_rule']);
     }
 
-    public function test_applied_gestante_doses_require_exact_condition_on_vaccine(): void
+    public function test_applied_gestante_doses_use_vaccine_condition_with_affiliate_fallback(): void
     {
         $query = new PaiPopulationRuleRecordingQuery;
 
@@ -90,12 +90,15 @@ class PaiCoveragePopulationRuleTest extends TestCase
             'gestante',
             '2026-06-30',
             'v.fecha_vacuna',
-            'v.condicion_usuaria'
+            'COALESCE(v.condicion_usuaria, a.condicion_usuaria)'
         );
 
         $sql = implode(' ', $query->rawClauses);
 
-        $this->assertStringContainsString("ISNULL(v.condicion_usuaria, '')", $sql);
+        $this->assertStringContainsString(
+            "ISNULL(COALESCE(v.condicion_usuaria, a.condicion_usuaria), '')",
+            $sql
+        );
         $this->assertStringContainsString("= 'GESTANTE'", $sql);
         $this->assertStringNotContainsString('fecha_prob_parto', $sql);
         $this->assertStringNotContainsString('semanas_gestacion', $sql);

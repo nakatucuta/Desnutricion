@@ -3362,7 +3362,7 @@ class AfiliadoController extends Controller
             (string) $indicator['population_rule'],
             $cutoffDate,
             'v.fecha_vacuna',
-            'v.condicion_usuaria'
+            'COALESCE(v.condicion_usuaria, a.condicion_usuaria)'
         );
 
         return (int) $q->distinct('v.afiliado_id')->count('v.afiliado_id');
@@ -3446,7 +3446,17 @@ class AfiliadoController extends Controller
             ->whereNotNull('v.fecha_vacuna');
 
         $this->applyPaiCommonFilters($q, $year, $municipio, $ipsId, $regimen, null);
-        $this->applyPaiPopulationRule($q, (string) $indicator['population_rule'], $cutoffDate);
+        $conditionColumn = (string) $indicator['population_rule'] === 'gestante'
+            ? 'COALESCE(v.condicion_usuaria, a.condicion_usuaria)'
+            : 'a.condicion_usuaria';
+
+        $this->applyPaiPopulationRule(
+            $q,
+            (string) $indicator['population_rule'],
+            $cutoffDate,
+            null,
+            $conditionColumn
+        );
 
         return (int) $q->distinct('a.id')->count('a.id');
     }
