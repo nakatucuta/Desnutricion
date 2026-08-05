@@ -1094,6 +1094,11 @@ class AfiliadoImportStreaming implements ToModel, WithStartRow, WithChunkReading
         return $this->doseNormalizer->normalizeDocisStrict($value);
     }
 
+    private function normalizeDocisStrictForAllowed($value, array $allowedDoses): ?string
+    {
+        return $this->doseNormalizer->normalizeDocisStrictForAllowed($value, $allowedDoses);
+    }
+
     private function normalizeCatalogText(?string $value): ?string
     {
         if ($value === null) {
@@ -1220,7 +1225,7 @@ class AfiliadoImportStreaming implements ToModel, WithStartRow, WithChunkReading
                 );
             }
 
-            $docisNorm = $this->normalizeDocisStrict($vacunaData['docis'] ?? null);
+            $docisNorm = $this->normalizeDocisStrictForAllowed($vacunaData['docis'] ?? null, $allowedDoses);
             if ($docisNorm === null) {
                 $this->failImport(
                     "Fila {$excelRow}: la vacuna {$vacunaNombre} tiene informacion en el Excel pero la dosis esta vacia o no se pudo normalizar. Dosis permitidas: " . implode(', ', $allowedDoses) . ". No se guardo nada."
@@ -1529,6 +1534,7 @@ class AfiliadoImportStreaming implements ToModel, WithStartRow, WithChunkReading
                                 continue;
                             }
 
+                            $docisNorm = $this->normalizeDocisStrictForAllowed($vacunaData['docis'] ?? null, $allowedDoses);
                             if ($docisNorm === null) {
                                 $this->failImport(
                                     "Fila " . (int)($fila['excelRow'] ?? 0) . ": la vacuna " . ($vacunaNombre ?: 'sin nombre en catalogo') . " tiene informacion en el Excel pero la dosis esta vacia o no se pudo normalizar. Dosis permitidas: " . implode(', ', $allowedDoses) . ". No se guardo nada."

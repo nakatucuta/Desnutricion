@@ -24,8 +24,8 @@ return [
         'RECIEN NACIDO',
         'REFUERZO',
         'ADICIONAL',
-        'PRIMERA Y SEGUNDA DOSIS',
-        'TERCERA Y CUARTA DOSIS',
+        'PRIMERA DOSIS Y SEGUNDA DOSIS',
+        'TERCERA DOSIS Y CUARTA DOSIS',
         'NUMERO DE FRASCOS',
     ],
 
@@ -135,6 +135,7 @@ return [
         'INFLUENZA' => [
             'PRIMERA DOSIS',
             'SEGUNDA DOSIS',
+            'UNICA',
             'UNICA 0.25',
             'UNICA 0.5',
         ],
@@ -146,10 +147,10 @@ return [
         ],
         'ANTIRRABICA HUMANA' => [
             'PRIMERA DOSIS',
-            'PRIMERA Y SEGUNDA DOSIS',
+            'PRIMERA DOSIS Y SEGUNDA DOSIS',
             'SEGUNDA DOSIS',
             'TERCERA DOSIS',
-            'TERCERA Y CUARTA DOSIS',
+            'TERCERA DOSIS Y CUARTA DOSIS',
             'CUARTA DOSIS',
         ],
         'ANTIRRABICA SUERO' => [
@@ -292,6 +293,7 @@ return [
         20 => [
             'PRIMERA DOSIS',
             'SEGUNDA DOSIS',
+            'UNICA',
             'UNICA 0.25',
             'UNICA 0.5',
         ],
@@ -303,10 +305,10 @@ return [
         ],
         22 => [
             'PRIMERA DOSIS',
-            'PRIMERA Y SEGUNDA DOSIS',
+            'PRIMERA DOSIS Y SEGUNDA DOSIS',
             'SEGUNDA DOSIS',
             'TERCERA DOSIS',
-            'TERCERA Y CUARTA DOSIS',
+            'TERCERA DOSIS Y CUARTA DOSIS',
             'CUARTA DOSIS',
         ],
         23 => [
@@ -326,6 +328,13 @@ return [
             'SEGUNDA DOSIS',
             'TERCERA DOSIS',
             'UNICA',
+        ],
+        43 => [
+            'PRIMERA DOSIS',
+            'SEGUNDA DOSIS',
+            'UNICA',
+            'UNICA 0.25',
+            'UNICA 0.5',
         ],
         55 => [
             'UNICA',

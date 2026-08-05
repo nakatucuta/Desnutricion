@@ -73,7 +73,7 @@ class PaiVacunaExcelPrevalidator
             return "Fila {$rowNumber}: no hay catalogo de dosis configurado para la vacuna {$vacunaLabel}. No se guardo nada.";
         }
 
-        $docisNorm = $this->doseNormalizer->normalizeDocisStrict($value);
+        $docisNorm = $this->doseNormalizer->normalizeDocisStrictForAllowed($value, $allowedDoses);
         if ($docisNorm === null) {
             return "Fila {$rowNumber}: la vacuna {$vacunaLabel} tiene informacion en el Excel pero la dosis esta vacia o no se pudo normalizar. Dosis permitidas: " . implode(', ', $allowedDoses) . ". No se guardo nada.";
         }

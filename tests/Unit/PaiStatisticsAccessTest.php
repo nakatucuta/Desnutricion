@@ -45,6 +45,9 @@ class PaiStatisticsAccessTest extends TestCase
             'afiliado.stats.indicadores.import.programacion',
             'afiliado.stats.indicadores.update',
             'afiliado.stats.indicadores.destroy',
+            'afiliado.stats.bimonthly.index',
+            'afiliado.stats.bimonthly.data',
+            'afiliado.stats.bimonthly.export',
         ];
 
         foreach ($routeNames as $routeName) {

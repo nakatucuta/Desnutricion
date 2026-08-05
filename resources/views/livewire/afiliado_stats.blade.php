@@ -29,6 +29,9 @@
         <a href="{{ route('afiliado.stats.indicadores.index') }}" class="btn btn-outline-primary mr-2">
             <i class="fas fa-database mr-1"></i> Administrar Indicadores
         </a>
+        <a href="{{ route('afiliado.stats.bimonthly.index') }}" class="btn btn-outline-success mr-2">
+            <i class="fas fa-calendar-alt mr-1"></i> Informe bimestral
+        </a>
         <a href="{{ route('afiliado') }}" class="btn btn-outline-secondary">
             <i class="fas fa-arrow-left mr-1"></i> Volver a Cargue
         </a>

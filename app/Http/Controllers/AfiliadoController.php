@@ -19,6 +19,7 @@ use Carbon\Carbon;
 use Illuminate\Support\Facades\Storage;
 use App\Models\referencia_vacuna; // Importa el modelo aqui
 use App\Exports\VacunaExport;             // <- agrega
+use App\Exports\PaiBimonthlyIndicatorsExport;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Str; //  ESTE ES EL FIX
 use App\Models\ImportJob;
@@ -36,6 +37,7 @@ use PhpOffice\PhpSpreadsheet\IOFactory;
 use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
 use App\Services\PaiMvpCoverageService;
 use App\Services\PaiStatisticsService;
+use App\Services\PaiBimonthlyIndicatorsService;
 use App\Services\PaiImportFileIdempotencyService;
 
 
@@ -609,6 +611,44 @@ class AfiliadoController extends Controller
         ]);
 
         return response()->json($statistics->build($filters));
+    }
+
+    public function paiBimonthlyIndicatorsIndex()
+    {
+        return view('livewire.pai_indicadores_bimestrales');
+    }
+
+    public function paiBimonthlyIndicatorsData(Request $request, PaiBimonthlyIndicatorsService $indicators)
+    {
+        $filters = $request->validate([
+            'year' => 'nullable|integer|min:2000|max:2100',
+            'bimester' => 'nullable|integer|min:1|max:6',
+            'municipio' => 'nullable|string|max:120',
+            'ips_code' => 'nullable|string|max:60',
+            'regimen' => 'nullable|string|max:80',
+        ]);
+
+        return response()->json($indicators->build($filters));
+    }
+
+    public function paiBimonthlyIndicatorsExport(Request $request, PaiBimonthlyIndicatorsService $indicators)
+    {
+        $filters = $request->validate([
+            'year' => 'nullable|integer|min:2000|max:2100',
+            'bimester' => 'nullable|integer|min:1|max:6',
+            'municipio' => 'nullable|string|max:120',
+            'ips_code' => 'nullable|string|max:60',
+            'regimen' => 'nullable|string|max:80',
+        ]);
+
+        $payload = $indicators->build($filters);
+        $year = (int) ($payload['filters']['year'] ?? now()->year);
+        $bimester = (int) ($payload['filters']['bimester'] ?? 1);
+
+        return Excel::download(
+            new PaiBimonthlyIndicatorsExport($payload),
+            "indicadores_bimestrales_pai_{$year}_bimestre_{$bimester}.xlsx"
+        );
     }
 
     public function statsDoseDetail(Request $request)

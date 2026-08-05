@@ -95,6 +95,28 @@ class PaiDoseNormalizer
         return null;
     }
 
+    public function normalizeDocisStrictForAllowed($value, array $allowedDoses): ?string
+    {
+        $normalized = $this->normalizeDocisStrict($value);
+        if ($normalized === null) {
+            return null;
+        }
+
+        if (in_array($normalized, $allowedDoses, true)) {
+            return $normalized;
+        }
+
+        if (
+            $normalized === 'PRIMER REFUERZO'
+            && in_array('REFUERZO', $allowedDoses, true)
+            && !in_array('PRIMER REFUERZO', $allowedDoses, true)
+        ) {
+            return 'REFUERZO';
+        }
+
+        return $normalized;
+    }
+
     public function defaultForVaccine(?int $vacunasId, array $context = []): ?string
     {
         if ($vacunasId === null) {
@@ -138,7 +160,8 @@ class PaiDoseNormalizer
         $txt = trim($txt, " \t\n\r\0\x0B'\"");
         $txt = str_replace(["'", '"'], '', $txt);
         $txt = @iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', $txt) ?: $txt;
-        $txt = str_replace(['_', '-', '/', '\\'], ' ', $txt);
+        $txt = str_replace(["'", '`', '^', '~'], '', $txt);
+        $txt = str_replace(['_', '-', '/', "\\"], ' ', $txt);
         $txt = preg_replace('/\s+/u', ' ', $txt) ?? $txt;
         return mb_strtoupper(trim($txt), 'UTF-8');
     }
@@ -158,23 +181,29 @@ class PaiDoseNormalizer
         }
 
         if (in_array($normalized, [
+            'PRIMERA DOSIS Y SEGUNDA DOSIS',
             'PRIMERA Y SEGUNDA DOSIS',
+            'PRIMERA DOSIS SEGUNDA DOSIS',
             'PRIMERA SEGUNDA DOSIS',
+            'PRIMERA DOSIS Y 2DA DOSIS',
             'PRIMERA Y 2DA DOSIS',
             '1RA Y 2DA DOSIS',
             '1RA 2DA DOSIS',
         ], true)) {
-            return 'PRIMERA Y SEGUNDA DOSIS';
+            return 'PRIMERA DOSIS Y SEGUNDA DOSIS';
         }
 
         if (in_array($normalized, [
+            'TERCERA DOSIS Y CUARTA DOSIS',
             'TERCERA Y CUARTA DOSIS',
+            'TERCERA DOSIS CUARTA DOSIS',
             'TERCERA CUARTA DOSIS',
+            'TECERA DOSIS Y CUARTA DOSIS',
             'TECERA Y CUARTA DOSIS',
             '3RA Y 4TA DOSIS',
             '3RA 4TA DOSIS',
         ], true)) {
-            return 'TERCERA Y CUARTA DOSIS';
+            return 'TERCERA DOSIS Y CUARTA DOSIS';
         }
 
         if ($normalized === 'TERECERA DOSIS' || $normalized === 'TECERA DOSIS') {

@@ -14,4 +14,9 @@
         <strong>IPS objetivo / referenciadas</strong>
         <small>Que IPS primarias suman al numerador de cada vacunadora</small>
     </a>
+    <a href="{{ route('afiliado.stats.bimonthly.index') }}" class="pai-admin-nav__item {{ request()->routeIs('afiliado.stats.bimonthly.*') ? 'is-active' : '' }}">
+        <span class="pai-admin-nav__eyebrow">Indicadores</span>
+        <strong>Informe bimestral</strong>
+        <small>Programado, aplicado y porcentaje por vacuna y mes</small>
+    </a>
 </div>

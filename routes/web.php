@@ -74,6 +74,12 @@ Route::get('/afiliado/estadisticas/graficas', [AfiliadoController::class, 'stats
   ->middleware(['auth', 'can:access-pai', 'can:view-statistics']);
 Route::get('/afiliado/estadisticas/graficas/data', [AfiliadoController::class, 'statsCharts'])->name('afiliado.stats.charts.data')
   ->middleware(['auth', 'can:access-pai', 'can:view-statistics']);
+Route::get('/afiliado/estadisticas/indicadores-bimestrales', [AfiliadoController::class, 'paiBimonthlyIndicatorsIndex'])->name('afiliado.stats.bimonthly.index')
+->middleware(['auth', 'can:view-statistics']);
+Route::get('/afiliado/estadisticas/indicadores-bimestrales/data', [AfiliadoController::class, 'paiBimonthlyIndicatorsData'])->name('afiliado.stats.bimonthly.data')
+->middleware(['auth', 'can:view-statistics']);
+Route::get('/afiliado/estadisticas/indicadores-bimestrales/export', [AfiliadoController::class, 'paiBimonthlyIndicatorsExport'])->name('afiliado.stats.bimonthly.export')
+->middleware(['auth', 'can:view-statistics']);
 Route::get('/alteraciones-nutricionales/indicadores', [AlteracionesNutricionalesIndicadoresController::class, 'index'])
     ->name('alteraciones.nutricionales.indicadores')
     ->middleware(['auth', 'can:access-nutricional']);
