@@ -12,7 +12,7 @@ class PaiVaccineClinicalIdentity
     ) {}
 
     /**
-     * Identidad clinica de una aplicacion:
+     * Identidad clinica de una aplicacion gestante:
      * afiliado + vacuna + dosis normalizada + fecha de aplicacion.
      */
     public function key(
@@ -26,6 +26,27 @@ class PaiVaccineClinicalIdentity
             'vacunas_id' => $vacunasId,
             'docis' => $this->doseNormalizer->normalizeDocisStrict($dose),
             'fecha_vacuna' => $this->normalizeApplicationDate($applicationDate),
+        ];
+
+        return hash(
+            'sha256',
+            json_encode($components, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)
+        );
+    }
+
+    /**
+     * Identidad del esquema para poblacion no gestante:
+     * afiliado + vacuna + dosis normalizada.
+     */
+    public function keyWithoutApplicationDate(
+        int $afiliadoId,
+        int $vacunasId,
+        $dose
+    ): string {
+        $components = [
+            'afiliado_id' => $afiliadoId,
+            'vacunas_id' => $vacunasId,
+            'docis' => $this->doseNormalizer->normalizeDocisStrict($dose),
         ];
 
         return hash(

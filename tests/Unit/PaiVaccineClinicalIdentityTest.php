@@ -34,6 +34,14 @@ class PaiVaccineClinicalIdentityTest extends TestCase
         $this->assertNotSame($firstPregnancy, $laterPregnancy);
     }
 
+    public function test_same_vaccine_and_dose_on_different_dates_are_same_scheme_dose_without_date(): void
+    {
+        $first = $this->identity->keyWithoutApplicationDate(10, 19, 'UNICA');
+        $duplicate = $this->identity->keyWithoutApplicationDate(10, 19, 'DOSIS UNICA');
+
+        $this->assertSame($first, $duplicate);
+    }
+
     public function test_identity_changes_when_any_clinical_component_changes(): void
     {
         $base = $this->identity->key(10, 19, 'PRIMERA DOSIS', '2026-07-20');

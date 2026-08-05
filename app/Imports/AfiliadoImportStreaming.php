@@ -1099,6 +1099,11 @@ class AfiliadoImportStreaming implements ToModel, WithStartRow, WithChunkReading
         return $this->doseNormalizer->normalizeDocisStrictForAllowed($value, $allowedDoses);
     }
 
+    private function isGestanteCondition($value): bool
+    {
+        return $this->cleanConditionUsuaria($value) === 'GESTANTE';
+    }
+
     private function normalizeCatalogText(?string $value): ?string
     {
         if ($value === null) {
@@ -1362,7 +1367,8 @@ class AfiliadoImportStreaming implements ToModel, WithStartRow, WithChunkReading
                 $afiliadoIdPorCarnet = $afiliadosMap->map(fn($a) => (int)$a->id)->all();
                 $afiliadoIds = array_values(array_unique(array_filter($afiliadoIdPorCarnet)));
 
-                $existingKeys = [];
+                $existingKeysByDate = [];
+                $existingKeysWithoutDate = [];
                 if (!empty($afiliadoIds)) {
                     $exist = $db->table('vacunas')
                         ->select('afiliado_id', 'vacunas_id', 'docis', 'fecha_vacuna')
@@ -1370,13 +1376,19 @@ class AfiliadoImportStreaming implements ToModel, WithStartRow, WithChunkReading
                         ->get();
 
                     foreach ($exist as $e) {
-                        $k = $this->vaccineClinicalIdentity->key(
+                        $dateKey = $this->vaccineClinicalIdentity->key(
                             (int) $e->afiliado_id,
                             (int) $e->vacunas_id,
                             $e->docis,
                             $e->fecha_vacuna
                         );
-                        $existingKeys[$k] = true;
+                        $withoutDateKey = $this->vaccineClinicalIdentity->keyWithoutApplicationDate(
+                            (int) $e->afiliado_id,
+                            (int) $e->vacunas_id,
+                            $e->docis
+                        );
+                        $existingKeysByDate[$dateKey] = true;
+                        $existingKeysWithoutDate[$withoutDateKey] = true;
                     }
                 }
 
@@ -1405,7 +1417,8 @@ class AfiliadoImportStreaming implements ToModel, WithStartRow, WithChunkReading
 
                 // 4) Insert vacunas con template fijo
                 $insertVacunas = [];
-                $seenInChunk = [];
+                $seenInChunkByDate = [];
+                $seenInChunkWithoutDate = [];
 
                 $VACUNA_TEMPLATE = [
                     'docis' => null,
@@ -1576,14 +1589,27 @@ class AfiliadoImportStreaming implements ToModel, WithStartRow, WithChunkReading
                             }
                         }
 
-                        $key = $this->vaccineClinicalIdentity->key(
+                        $isGestanteVacuna = $this->isGestanteCondition($vacunaData['condicion_usuaria'] ?? null);
+                        $dateKey = $this->vaccineClinicalIdentity->key(
                             (int) $afiliadoId,
                             $vacunasId,
                             $docisNorm,
                             $fechaVac
                         );
+                        $withoutDateKey = $this->vaccineClinicalIdentity->keyWithoutApplicationDate(
+                            (int) $afiliadoId,
+                            $vacunasId,
+                            $docisNorm
+                        );
+                        $dedupeKey = $isGestanteVacuna ? $dateKey : $withoutDateKey;
+                        $existsDuplicate = $isGestanteVacuna
+                            ? isset($existingKeysByDate[$dedupeKey])
+                            : isset($existingKeysWithoutDate[$dedupeKey]);
+                        $seenDuplicate = $isGestanteVacuna
+                            ? isset($seenInChunkByDate[$dedupeKey])
+                            : isset($seenInChunkWithoutDate[$dedupeKey]);
 
-                        if (isset($existingKeys[$key])) {
+                        if ($existsDuplicate) {
                             $this->oldVacuna++;
                             $this->addVacunaOmitida(
                                 (int)($fila['excelRow'] ?? 0),
@@ -1595,12 +1621,14 @@ class AfiliadoImportStreaming implements ToModel, WithStartRow, WithChunkReading
                                 $vacunaNombre,
                                 $docisNorm,
                                 $fechaVac,
-                                "El afiliado ya tiene registrada esta vacuna, dosis y fecha de aplicacion. No se inserto."
+                                $isGestanteVacuna
+                                    ? "El afiliado ya tiene registrada esta vacuna, dosis y fecha de aplicacion. No se inserto."
+                                    : "El afiliado ya tiene registrada esta vacuna y dosis en su esquema. No se inserto."
                             );
                             continue;
                         }
 
-                        if (isset($seenInChunk[$key])) {
+                        if ($seenDuplicate) {
                             $this->oldVacuna++;
                             $this->addVacunaOmitida(
                                 (int)($fila['excelRow'] ?? 0),
@@ -1612,12 +1640,15 @@ class AfiliadoImportStreaming implements ToModel, WithStartRow, WithChunkReading
                                 $vacunaNombre,
                                 $docisNorm,
                                 $fechaVac,
-                                "Vacuna, dosis y fecha de aplicacion repetidas dentro del mismo archivo Excel. No se inserto."
+                                $isGestanteVacuna
+                                    ? "Vacuna, dosis y fecha de aplicacion repetidas dentro del mismo archivo Excel. No se inserto."
+                                    : "Vacuna y dosis repetidas dentro del mismo archivo Excel. No se inserto."
                             );
                             continue;
                         }
 
-                        $seenInChunk[$key] = true;
+                        $seenInChunkByDate[$dateKey] = true;
+                        $seenInChunkWithoutDate[$withoutDateKey] = true;
 
                         $vacunaData['afiliado_id'] = (int)$afiliadoId;
                         $vacunaData['user_id'] = (int)$this->userId;
