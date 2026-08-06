@@ -860,6 +860,7 @@ class AfiliadoController extends Controller
         if ($evaluationStart->lessThanOrEqualTo($evaluationEnd) && $selectedIpsCode !== '' && $selectedMunicipio !== '' && $selectedRegimen !== '') {
             $appliedVaccinesQuery = DB::table('vacunas as v')
                 ->join('users as u', 'u.id', '=', 'v.user_id')
+                ->join('afiliados as a', 'a.id', '=', 'v.afiliado_id')
                 ->whereNotNull('v.fecha_vacuna')
                 ->whereBetween('v.fecha_vacuna', [$evaluationStart->format('Y-m-d'), $evaluationEnd->format('Y-m-d')])
                 ->whereRaw("UPPER(LTRIM(RTRIM(ISNULL(u.codigohabilitacion, '')))) = ?", [$selectedIpsCode])
@@ -875,6 +876,8 @@ class AfiliadoController extends Controller
                     'u.municipio',
                     'v.regimen',
                     'v.ips_primaria_codigo',
+                    'v.condicion_usuaria as condicion_usuaria_vacuna',
+                    'a.condicion_usuaria as condicion_usuaria_afiliado',
                 ]);
 
             $this->applyPaiReferencedPrimaryIpsFilter(
@@ -893,13 +896,9 @@ class AfiliadoController extends Controller
             $annualPopulation = (int) ($meta->poblacion ?? 0);
             $metaPeriodo = (int) round($annualPopulation / max($divisor, 1));
 
-            $dosisAplicadas = $appliedVaccines->filter(function ($vacuna) use ($meta) {
-                if ((int) ($vacuna->vacunas_id ?? 0) !== (int) ($meta->id_vacuna ?? 0)) {
-                    return false;
-                }
-
-                return $this->paiMetaDoseMatches((string) ($meta->dosis ?? ''), $vacuna->docis);
-            })->count();
+            $dosisAplicadas = $appliedVaccines
+                ->filter(fn ($vacuna) => $this->paiApplicationMatchesCoverageMeta($vacuna, $meta))
+                ->count();
 
             $susceptibles = max($metaPeriodo - $dosisAplicadas, 0);
             $cobertura = $metaPeriodo > 0 ? ($dosisAplicadas / $metaPeriodo) : 0.0;
@@ -997,6 +996,7 @@ class AfiliadoController extends Controller
         $regimen = mb_strtoupper(trim((string) $request->input('regimen', '')), 'UTF-8');
         $idVacuna = (int) $request->input('id_vacuna', 0);
         $dosisMeta = trim((string) $request->input('dosis_meta', ''));
+        $coverageLabel = trim((string) $request->input('cobertura', $request->input('indicador', '')));
         $periodStartInput = trim((string) $request->input('period_start', ''));
         $periodEndInput = trim((string) $request->input('period_end', ''));
         $escala = trim((string) $request->input('escala', 'Trimestral'));
@@ -1048,9 +1048,11 @@ class AfiliadoController extends Controller
             ->where('v.vacunas_id', $idVacuna)
             ->select([
                 'v.id as vacuna_id',
+                'v.vacunas_id',
                 'v.fecha_vacuna',
                 'v.docis',
                 'v.docis_original',
+                'v.condicion_usuaria as condicion_usuaria_vacuna',
                 'rv.nombre as vacuna_nombre',
                 'a.tipo_identificacion',
                 'a.numero_identificacion',
@@ -1058,6 +1060,7 @@ class AfiliadoController extends Controller
                 'a.segundo_nombre',
                 'a.primer_apellido',
                 'a.segundo_apellido',
+                'a.condicion_usuaria as condicion_usuaria_afiliado',
             ])
             ->orderBy('v.fecha_vacuna');
 
@@ -1071,9 +1074,11 @@ class AfiliadoController extends Controller
 
         $rows = $rows
             ->get()
-            ->filter(function ($row) use ($dosisMeta) {
-                return $this->paiMetaDoseMatches($dosisMeta, (string) ($row->docis ?? $row->docis_original ?? ''));
-            })
+            ->filter(fn ($row) => $this->paiApplicationMatchesCoverageMeta($row, (object) [
+                'cobertura' => $coverageLabel,
+                'id_vacuna' => $idVacuna,
+                'dosis' => $dosisMeta,
+            ]))
             ->map(function ($row) {
                 $nombre = trim(implode(' ', array_filter([
                     (string) ($row->primer_nombre ?? ''),
@@ -1199,6 +1204,30 @@ class AfiliadoController extends Controller
         }
 
         return false;
+    }
+
+    private function paiApplicationMatchesCoverageMeta($vacuna, $meta): bool
+    {
+        if ((int) ($vacuna->vacunas_id ?? 0) !== (int) ($meta->id_vacuna ?? 0)) {
+            return false;
+        }
+
+        $actualDose = $vacuna->docis ?? $vacuna->docis_original ?? null;
+        if (! $this->paiMetaDoseMatches((string) ($meta->dosis ?? ''), $actualDose)) {
+            return false;
+        }
+
+        $coverageLabel = $this->paiNormalizeText((string) ($meta->cobertura ?? ''));
+        if (! Str::contains($coverageLabel, ['GESTANTE', 'GESTANTES'])) {
+            return true;
+        }
+
+        $vaccineCondition = $vacuna->condicion_usuaria_vacuna ?? null;
+        $effectiveCondition = $vaccineCondition === null
+            ? ($vacuna->condicion_usuaria_afiliado ?? null)
+            : $vaccineCondition;
+
+        return $this->paiNormalizeText((string) $effectiveCondition) === 'GESTANTE';
     }
 
     private function paiNormalizeIpsDisplayName(string $value): string
@@ -1425,6 +1454,8 @@ class AfiliadoController extends Controller
                     'u.codigohabilitacion',
                     'a.municipio_residencia',
                     'v.regimen',
+                    'v.condicion_usuaria as condicion_usuaria_vacuna',
+                    'a.condicion_usuaria as condicion_usuaria_afiliado',
                 ])
                 ->get();
         }
@@ -1434,13 +1465,9 @@ class AfiliadoController extends Controller
             $annualPopulation = (int) ($meta->poblacion ?? 0);
             $metaPeriodo = (int) round($annualPopulation / max($divisor, 1));
 
-            $dosisAplicadas = $appliedVaccines->filter(function ($vacuna) use ($meta) {
-                if ((int) ($vacuna->vacunas_id ?? 0) !== (int) ($meta->id_vacuna ?? 0)) {
-                    return false;
-                }
-
-                return $this->paiMetaDoseMatches((string) ($meta->dosis ?? ''), $vacuna->docis);
-            })->count();
+            $dosisAplicadas = $appliedVaccines
+                ->filter(fn ($vacuna) => $this->paiApplicationMatchesCoverageMeta($vacuna, $meta))
+                ->count();
 
             $susceptibles = max($metaPeriodo - $dosisAplicadas, 0);
             $cobertura = $metaPeriodo > 0 ? ($dosisAplicadas / $metaPeriodo) : 0.0;

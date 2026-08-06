@@ -124,6 +124,55 @@ class PaiCoveragePopulationRuleTest extends TestCase
         $this->assertTrue($this->metaDoseMatches('PRIMER REFUERZO', 'REFUERZO'));
     }
 
+    public function test_active_gestante_dashboard_counts_only_gestante_applications(): void
+    {
+        $meta = (object) [
+            'cobertura' => 'GESTANTES',
+            'id_vacuna' => 19,
+            'dosis' => 'TODAS',
+        ];
+
+        $applications = collect();
+        for ($i = 0; $i < 8; $i++) {
+            $applications->push($this->coverageApplication(19, null, 'GESTANTE'));
+        }
+        foreach (['MUJER EN EDAD FERTIL', 'MUJER EN EDAD FERTIL', 'NO APLICA', 'MUJER EN EDAD FERTIL'] as $condition) {
+            $applications->push($this->coverageApplication(19, null, $condition));
+        }
+
+        $count = $applications
+            ->filter(fn ($application) => $this->applicationMatchesCoverageMeta($application, $meta))
+            ->count();
+
+        $this->assertSame(8, $count);
+    }
+
+    public function test_vaccine_condition_has_priority_over_affiliate_condition(): void
+    {
+        $meta = (object) [
+            'cobertura' => 'COBERTURA GESTANTES',
+            'id_vacuna' => 19,
+            'dosis' => 'TODAS',
+        ];
+
+        $application = $this->coverageApplication(19, 'MUJER EN EDAD FERTIL', 'GESTANTE');
+
+        $this->assertFalse($this->applicationMatchesCoverageMeta($application, $meta));
+    }
+
+    public function test_non_gestante_meta_does_not_apply_gestante_condition_filter(): void
+    {
+        $meta = (object) [
+            'cobertura' => 'COBERTURA NINOS DE 5 ANOS',
+            'id_vacuna' => 19,
+            'dosis' => 'TODAS',
+        ];
+
+        $application = $this->coverageApplication(19, null, 'MUJER EN EDAD FERTIL');
+
+        $this->assertTrue($this->applicationMatchesCoverageMeta($application, $meta));
+    }
+
     private function applyRule(
         PaiPopulationRuleRecordingQuery $query,
         string $rule,
@@ -147,6 +196,23 @@ class PaiCoveragePopulationRuleTest extends TestCase
         $method = new ReflectionMethod(AfiliadoController::class, 'paiMetaDoseMatches');
 
         return $method->invoke(new AfiliadoController, $expectedDose, $actualDose);
+    }
+
+    private function applicationMatchesCoverageMeta(object $application, object $meta): bool
+    {
+        $method = new ReflectionMethod(AfiliadoController::class, 'paiApplicationMatchesCoverageMeta');
+
+        return $method->invoke(new AfiliadoController, $application, $meta);
+    }
+
+    private function coverageApplication(int $vaccineId, ?string $vaccineCondition, ?string $affiliateCondition): object
+    {
+        return (object) [
+            'vacunas_id' => $vaccineId,
+            'docis' => 'UNICA',
+            'condicion_usuaria_vacuna' => $vaccineCondition,
+            'condicion_usuaria_afiliado' => $affiliateCondition,
+        ];
     }
 }
 

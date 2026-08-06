@@ -757,6 +757,7 @@
             periodo: selectedVal('paiPeriodo'),
             id_vacuna: btn.dataset.idVacuna || '',
             dosis_meta: btn.dataset.dosisMeta || '',
+            cobertura: btn.dataset.indicador || '',
             period_start: btn.dataset.periodStart || (lastResponse?.evaluation_period?.start_date || ''),
             period_end: btn.dataset.periodEnd || (lastResponse?.evaluation_period?.end_date || ''),
             biologico: btn.dataset.biologico || '',
