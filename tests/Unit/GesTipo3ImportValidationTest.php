@@ -168,7 +168,7 @@ class GesTipo3ImportValidationTest extends TestCase
         $this->assertStringContainsString('debe ser <= 20', $import->getErrores()[0]);
     }
 
-    public function test_consulta_with_finalidad_23_requires_pas_pad_and_imc(): void
+    public function test_consulta_with_finalidad_23_allows_pas_pad_and_imc_empty(): void
     {
         $import = $this->importForCatalogCodes('890201', 23);
         $import->onRow($this->makeRow([
@@ -183,9 +183,9 @@ class GesTipo3ImportValidationTest extends TestCase
             'Tension arterial diastolica PAD',
             'Indice de masa corporal',
         ] as $field) {
-            $this->assertTrue(
-                collect($errors)->contains(fn (string $error) => str_contains($error, $field.': campo obligatorio')),
-                "No se encontro la obligatoriedad condicional para {$field}"
+            $this->assertFalse(
+                collect($errors)->contains(fn (string $error) => str_contains($error, $field.':')),
+                "{$field} debe aceptar un valor vacio aunque sea una consulta prenatal"
             );
         }
 
@@ -238,7 +238,7 @@ class GesTipo3ImportValidationTest extends TestCase
         }
     }
 
-    public function test_ecografia_requires_uterine_artery_pulsatility(): void
+    public function test_ecografia_allows_uterine_artery_pulsatility_empty(): void
     {
         $import = $this->importForCatalogCodes('881401', 22);
         $import->onRow($this->makeRow([
@@ -246,36 +246,58 @@ class GesTipo3ImportValidationTest extends TestCase
             6 => 22,
         ]));
 
-        $this->assertTrue(
+        $this->assertFalse(
             collect($import->getErrores())->contains(
                 fn (string $error) => str_contains(
                     $error,
-                    'Indice de pulsatilidad arterias uterinas: campo obligatorio'
+                    'Indice de pulsatilidad arterias uterinas:'
                 )
             )
         );
     }
 
-    public function test_exact_cups_lists_are_used_for_conditional_rules(): void
+    public function test_optional_consulta_and_ecografia_values_are_validated_when_present(): void
+    {
+        $import = $this->importForCatalogCodes('881401', 23);
+        $import->onRow($this->makeRow([
+            5 => '881401',
+            6 => 23,
+            18 => 20,
+            19 => 250,
+            20 => 90,
+            22 => 25,
+        ]));
+
+        $errors = $import->getErrores();
+
+        foreach ([
+            'Tension arterial sistolica PAS',
+            'Tension arterial diastolica PAD',
+            'Indice de masa corporal',
+            'Indice de pulsatilidad arterias uterinas',
+        ] as $field) {
+            $this->assertTrue(
+                collect($errors)->contains(fn (string $error) => str_contains($error, $field.':')),
+                "No se valido el valor informado para {$field}"
+            );
+        }
+    }
+
+    public function test_hemoglobin_cannot_be_zero(): void
     {
         $import = $this->newImportWithoutDatabase();
+        $result = $this->invoke(
+            $import,
+            'parseFormattedDecimal',
+            [0, 2, 'Resultado hemoglobina', true, 1, 0.1, 30]
+        );
 
-        foreach ([
-            '890201', '890205', '890206', '890250', '890266', '890301',
-            '890302', '890305', '890306', '890350', '890366', '890701',
-        ] as $cups) {
-            $this->assertTrue($this->invoke($import, 'isCupsConsulta', [$cups]));
-        }
-
-        foreach ([
-            '881401', '881402', '881403', '881410', '881431',
-            '881432', '881434', '881435', '881436', '881437',
-        ] as $cups) {
-            $this->assertTrue($this->invoke($import, 'isCupsEcografia', [$cups]));
-        }
-
-        $this->assertFalse($this->invoke($import, 'isCupsConsulta', ['890202']));
-        $this->assertFalse($this->invoke($import, 'isCupsEcografia', ['881404']));
+        $this->assertNull($result);
+        $this->assertTrue(
+            collect($import->getErrores())->contains(
+                fn (string $error) => str_contains($error, 'Resultado hemoglobina: debe ser >= 0.1')
+            )
+        );
     }
 
     private function newImportWithoutDatabase(): GesTipo3Import

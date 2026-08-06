@@ -15,6 +15,7 @@ use PhpOffice\PhpSpreadsheet\Shared\Date as ExcelDate;
 class GesTipo1Import implements OnEachRow, WithStartRow, WithChunkReading, SkipsEmptyRows
 {
     private const EDAD_MINIMA_FERTIL_ANIOS = 10;
+    private const FPP_DIAS_ANTERIORES_PERMITIDOS = 7;
     private const GESTACION_NORMAL_MAXIMA_DIAS = 294;
 
     private int $batchVerificationsId;
@@ -167,6 +168,50 @@ class GesTipo1Import implements OnEachRow, WithStartRow, WithChunkReading, Skips
         }
 
         return $dt->format('Y-m-d');
+    }
+
+    private function validateFechaProbableParto(?string $fechaProbableParto, ?string $fechaNacimiento, int $excelRow): void
+    {
+        if ($fechaProbableParto === null) {
+            return;
+        }
+
+        $today = Carbon::today();
+        $fpp = Carbon::parse($fechaProbableParto);
+
+        if ($fechaNacimiento !== null && $fpp->lt(Carbon::parse($fechaNacimiento))) {
+            $this->addError($excelRow, 'Fecha probable parto', 'no puede ser menor a fecha nacimiento');
+        }
+
+        if ($fpp->lt($today->copy()->subDays(self::FPP_DIAS_ANTERIORES_PERMITIDOS))) {
+            $this->addError(
+                $excelRow,
+                'Fecha probable parto',
+                'fecha anterior al rango permitido',
+                $fechaProbableParto
+            );
+        }
+
+        if ($fpp->gt($today->copy()->addDays(self::GESTACION_NORMAL_MAXIMA_DIAS))) {
+            $this->addError(
+                $excelRow,
+                'Fecha probable parto',
+                'fecha posterior al rango permitido',
+                $fechaProbableParto
+            );
+        }
+
+        if ($fechaNacimiento !== null) {
+            $fechaMinimaFertil = Carbon::parse($fechaNacimiento)->addYears(self::EDAD_MINIMA_FERTIL_ANIOS);
+            if ($fechaMinimaFertil->gt($fpp)) {
+                $this->addError(
+                    $excelRow,
+                    'Fecha probable parto',
+                    'no es coherente con una edad minima fertil de 10 anos',
+                    $fechaProbableParto
+                );
+            }
+        }
     }
 
     private function parseInteger($value, int $excelRow, string $field, bool $required = false, ?int $min = null, ?int $max = null): ?int
@@ -616,38 +661,7 @@ class GesTipo1Import implements OnEachRow, WithStartRow, WithChunkReading, Skips
             $this->addError($excelRow, 'Fecha nacimiento', 'no puede ser futura', $fechaNacimiento);
         }
 
-        if ($fechaProbableParto && $fechaNacimiento && Carbon::parse($fechaProbableParto)->lt(Carbon::parse($fechaNacimiento))) {
-            $this->addError($excelRow, 'Fecha probable parto', 'no puede ser menor a fecha nacimiento');
-        }
-
-        if ($fechaProbableParto) {
-            $fpp = Carbon::parse($fechaProbableParto);
-
-            if ($fpp->lt($today)) {
-                $this->addError($excelRow, 'Fecha probable parto', 'debe ser igual o posterior a la fecha actual', $fechaProbableParto);
-            }
-
-            if ($fpp->gt($today->copy()->addDays(self::GESTACION_NORMAL_MAXIMA_DIAS))) {
-                $this->addError(
-                    $excelRow,
-                    'Fecha probable parto',
-                    'debe estar dentro de un periodo de gestacion normal',
-                    $fechaProbableParto
-                );
-            }
-
-            if ($fechaNacimiento) {
-                $fechaMinimaFertil = Carbon::parse($fechaNacimiento)->addYears(self::EDAD_MINIMA_FERTIL_ANIOS);
-                if ($fechaMinimaFertil->gt($fpp)) {
-                    $this->addError(
-                        $excelRow,
-                        'Fecha probable parto',
-                        'no es coherente con una edad minima fertil de 10 anos',
-                        $fechaProbableParto
-                    );
-                }
-            }
-        }
+        $this->validateFechaProbableParto($fechaProbableParto, $fechaNacimiento, $excelRow);
 
         if ($tipoIdent !== null && $noId !== null) {
             $key = $tipoIdent . '|' . $noId;

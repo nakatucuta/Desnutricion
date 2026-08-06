@@ -15,34 +15,6 @@ use PhpOffice\PhpSpreadsheet\Shared\Date as ExcelDate;
 
 class GesTipo3Import implements OnEachRow, SkipsEmptyRows, WithChunkReading, WithStartRow
 {
-    private const CUPS_CONSULTAS = [
-        '890201',
-        '890205',
-        '890206',
-        '890250',
-        '890266',
-        '890301',
-        '890302',
-        '890305',
-        '890306',
-        '890350',
-        '890366',
-        '890701',
-    ];
-
-    private const CUPS_ECOGRAFIAS = [
-        '881401',
-        '881402',
-        '881403',
-        '881410',
-        '881431',
-        '881432',
-        '881434',
-        '881435',
-        '881436',
-        '881437',
-    ];
-
     private int $batchVerificationsId;
 
     private int $userId;
@@ -472,16 +444,6 @@ class GesTipo3Import implements OnEachRow, SkipsEmptyRows, WithChunkReading, Wit
         return $this->parseDecimal($rounded, $excelRow, $field, false, $min, $max);
     }
 
-    private function isCupsConsulta(?string $cups): bool
-    {
-        return $cups !== null && in_array($cups, self::CUPS_CONSULTAS, true);
-    }
-
-    private function isCupsEcografia(?string $cups): bool
-    {
-        return $cups !== null && in_array($cups, self::CUPS_ECOGRAFIAS, true);
-    }
-
     private function parseString($value, int $excelRow, string $field, bool $required = false, int $max = 255): ?string
     {
         $value = $this->clean($value);
@@ -712,12 +674,11 @@ class GesTipo3Import implements OnEachRow, SkipsEmptyRows, WithChunkReading, Wit
             [0, 1, 2, 3, 4]
         );
 
-        $requiereMedidasConsultaPrenatal = $this->isCupsConsulta($cups) && $finalidad === 23;
         $pas = $this->parseInteger(
             $r[18] ?? null,
             $excelRow,
             'Tension arterial sistolica PAS',
-            $requiereMedidasConsultaPrenatal,
+            false,
             40,
             300
         );
@@ -725,7 +686,7 @@ class GesTipo3Import implements OnEachRow, SkipsEmptyRows, WithChunkReading, Wit
             $r[19] ?? null,
             $excelRow,
             'Tension arterial diastolica PAD',
-            $requiereMedidasConsultaPrenatal,
+            false,
             20,
             200
         );
@@ -738,7 +699,7 @@ class GesTipo3Import implements OnEachRow, SkipsEmptyRows, WithChunkReading, Wit
             $r[20] ?? null,
             $excelRow,
             'Indice de masa corporal',
-            $requiereMedidasConsultaPrenatal,
+            false,
             1,
             5,
             80
@@ -749,16 +710,15 @@ class GesTipo3Import implements OnEachRow, SkipsEmptyRows, WithChunkReading, Wit
             'Resultado hemoglobina',
             true,
             1,
-            0,
+            0.1,
             30
         );
 
-        $requierePulsatilidad = $this->isCupsEcografia($cups);
         $ipUterinas = $this->parseFormattedDecimal(
             $r[22] ?? null,
             $excelRow,
             'Indice de pulsatilidad arterias uterinas',
-            $requierePulsatilidad,
+            false,
             2,
             0,
             20
