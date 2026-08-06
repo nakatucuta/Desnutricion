@@ -530,9 +530,9 @@ class AfiliadoImportStreaming implements ToModel, WithStartRow, WithChunkReading
      *  FECHAS: convierte Excel/strings (dd/mm/yyyy) a Y-m-d.
      * Vacio / NO TIENE / ? => null (evita 22007).
      */
-    private function toSqlDate($v): ?string
+    private function toSqlDate($v, ?string $field = null): ?string
     {
-        return $this->clinicalDateNormalizer->normalize($v);
+        return $this->clinicalDateNormalizer->normalize($v, $field);
     }
 
     /**
@@ -550,18 +550,18 @@ class AfiliadoImportStreaming implements ToModel, WithStartRow, WithChunkReading
     private function sanitizeDateColumnsStrict(array $row, int $excelRow): array
     {
         $dateCols = [
-            'fecha_antecedente',
-            'fecha_atencion',
-            'fecha_nacimiento',
-            'fecha_prob_parto',
-            'fecha_ultima_menstruacion',
+            'fecha_antecedente' => 'Fecha de Antecedente',
+            'fecha_atencion' => 'Fecha de Atencion',
+            'fecha_nacimiento' => 'Fecha de Nacimiento',
+            'fecha_prob_parto' => 'Fecha Probable de Parto',
+            'fecha_ultima_menstruacion' => 'Fecha Ultima Menstruacion',
         ];
 
-        foreach ($dateCols as $k) {
+        foreach ($dateCols as $k => $field) {
             if (!array_key_exists($k, $row)) continue;
 
             $raw = $row[$k];
-            $row[$k] = $this->toSqlDate($raw);
+            $row[$k] = $this->toSqlDate($raw, $field);
 
             if ($row[$k] !== null && !preg_match('/^\d{4}-\d{2}-\d{2}$/', (string)$row[$k])) {
                 Log::warning("IMPORT FECHA INVALIDA => NULL", [
@@ -817,7 +817,7 @@ class AfiliadoImportStreaming implements ToModel, WithStartRow, WithChunkReading
 
         //  Fechas robustas
         $fechaatencion    = $this->toSqlDate($row[0] ?? null);
-        $fechaNacimiento  = $this->toSqlDate($row[7] ?? null);
+        $fechaNacimiento  = $this->toSqlDate($row[7] ?? null, 'Fecha de Nacimiento');
         $fechaProbParto   = $this->toSqlDate($row[46] ?? null);
         $fechaAntecedente = $this->toSqlDate($row[48] ?? null);
 

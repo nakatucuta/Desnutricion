@@ -12,12 +12,14 @@ class PaiClinicalDateNormalizer
 
     private const MIN_RECENT_FIELD_DATE = '2000-01-01';
 
+    private const MIN_BIRTH_DATE = '1901-01-01';
+
     private const MAX_EXCEL_SERIAL = 80000;
 
-    public function normalize($value): ?string
+    public function normalize($value, ?string $field = null): ?string
     {
         if ($value instanceof DateTimeInterface) {
-            return $value->format('Y-m-d');
+            return $this->dateWithinFieldRange($value->format('Y-m-d'), $field);
         }
 
         if ($this->isEmpty($value)) {
@@ -26,12 +28,14 @@ class PaiClinicalDateNormalizer
 
         if (is_int($value) || is_float($value) || (is_string($value) && is_numeric(trim($value)))) {
             $serial = (float) $value;
-            if ($serial < self::MIN_EXCEL_SERIAL || $serial > self::MAX_EXCEL_SERIAL) {
+            $minimumSerial = $this->isBirthDateField($field) ? 1 : self::MIN_EXCEL_SERIAL;
+            if ($serial < $minimumSerial || $serial > self::MAX_EXCEL_SERIAL) {
                 return null;
             }
 
             try {
-                return Date::excelToDateTimeObject($serial)->format('Y-m-d');
+                $normalized = Date::excelToDateTimeObject($serial)->format('Y-m-d');
+                return $this->dateWithinFieldRange($normalized, $field);
             } catch (\Throwable) {
                 return null;
             }
@@ -46,7 +50,7 @@ class PaiClinicalDateNormalizer
                 $date !== false
                 && (! is_array($errors) || ($errors['warning_count'] === 0 && $errors['error_count'] === 0))
             ) {
-                return $date->format('Y-m-d');
+                return $this->dateWithinFieldRange($date->format('Y-m-d'), $field);
             }
         }
 
@@ -55,13 +59,13 @@ class PaiClinicalDateNormalizer
 
     public function validationError($value, string $field): ?string
     {
-        if ($this->isEmpty($value) || $value instanceof DateTimeInterface) {
+        if ($this->isEmpty($value)) {
             return null;
         }
 
         if (is_int($value) || is_float($value) || (is_string($value) && is_numeric(trim($value)))) {
             $serial = (float) $value;
-            if ($serial < self::MIN_EXCEL_SERIAL || $serial > self::MAX_EXCEL_SERIAL) {
+            if ($this->normalize($value, $field) === null) {
                 $displayDate = $this->displayDateFromExcelSerial($serial);
                 if ($displayDate !== null) {
                     return "{$field}: la fecha {$displayDate} no es valida para este campo. Si no aplica, deja la celda vacia.";
@@ -71,7 +75,7 @@ class PaiClinicalDateNormalizer
             }
         }
 
-        $normalized = $this->normalize($value);
+        $normalized = $this->normalize($value, $field);
         if ($normalized === null) {
             return "{$field}: fecha no valida. Usa el formato DD/MM/AAAA o AAAA-MM-DD y verifica que no sea una fecha antigua como 1900.";
         }
@@ -81,6 +85,20 @@ class PaiClinicalDateNormalizer
         }
 
         return null;
+    }
+
+    private function isBirthDateField(?string $field): bool
+    {
+        return in_array($field, ['Fecha de Nacimiento', 'fecha_nacimiento'], true);
+    }
+
+    private function dateWithinFieldRange(string $date, ?string $field): ?string
+    {
+        if ($this->isBirthDateField($field) && $date < self::MIN_BIRTH_DATE) {
+            return null;
+        }
+
+        return $date;
     }
 
     private function isEmpty($value): bool
@@ -96,7 +114,7 @@ class PaiClinicalDateNormalizer
 
     private function requiresRecentDate(string $field): bool
     {
-        return ! in_array($field, ['Fecha de Nacimiento', 'fecha_nacimiento'], true);
+        return ! $this->isBirthDateField($field);
     }
 
     private function displayDateFromExcelSerial(float $serial): ?string

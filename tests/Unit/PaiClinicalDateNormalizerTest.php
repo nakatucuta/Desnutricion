@@ -31,6 +31,25 @@ class PaiClinicalDateNormalizerTest extends TestCase
         $this->assertNull($normalizer->normalize('31/02/2026'));
     }
 
+    public function test_it_accepts_historical_excel_serial_for_birth_date(): void
+    {
+        $normalizer = new PaiClinicalDateNormalizer();
+
+        $this->assertSame('1925-04-08', $normalizer->normalize(9230, 'Fecha de Nacimiento'));
+        $this->assertNull($normalizer->validationError(9230, 'Fecha de Nacimiento'));
+        $this->assertNull($normalizer->normalize(9230));
+    }
+
+    public function test_it_still_rejects_1900_as_birth_date_placeholder(): void
+    {
+        $normalizer = new PaiClinicalDateNormalizer();
+
+        $this->assertNull($normalizer->normalize(280, 'Fecha de Nacimiento'));
+        $this->assertNotNull($normalizer->validationError(280, 'Fecha de Nacimiento'));
+        $this->assertNull($normalizer->normalize('06/10/1900', 'Fecha de Nacimiento'));
+        $this->assertNotNull($normalizer->validationError('06/10/1900', 'Fecha de Nacimiento'));
+    }
+
     public function test_it_rejects_old_clinical_dates_like_1900(): void
     {
         $normalizer = new PaiClinicalDateNormalizer();

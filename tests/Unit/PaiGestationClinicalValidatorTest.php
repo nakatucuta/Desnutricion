@@ -26,7 +26,7 @@ class PaiGestationClinicalValidatorTest extends TestCase
 
     public function test_decimal_gestation_weeks_are_accepted(): void
     {
-        foreach ([28.5, '28.5', '28,5'] as $weeks) {
+        foreach ([28.5, '28.5', '28,5', 42.5, '42,5'] as $weeks) {
             $data = $this->coherentGestation();
             $data['semanas_gestacion'] = $weeks;
 
@@ -35,6 +35,20 @@ class PaiGestationClinicalValidatorTest extends TestCase
             $this->assertTrue($result['is_gestante'], implode(' | ', $result['errors']));
             $this->assertSame([], $result['errors'], (string) $weeks);
         }
+    }
+
+    public function test_gestation_weeks_rejects_43_while_message_keeps_clinical_limit_42(): void
+    {
+        $data = $this->coherentGestation();
+        $data['semanas_gestacion'] = 43;
+
+        $result = $this->validator->validate($data);
+
+        $this->assertFalse($result['is_gestante']);
+        $this->assertStringContainsString(
+            'Semanas de Gestacion debe estar entre 1 y 42',
+            implode(' ', $result['errors'])
+        );
     }
 
     public function test_weeks_or_due_date_do_not_determine_gestation_without_exact_condition(): void

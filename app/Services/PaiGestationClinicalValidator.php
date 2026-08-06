@@ -99,7 +99,7 @@ class PaiGestationClinicalValidator
             $errors[] = 'una gestante requiere al menos uno de estos datos: ' . self::LABEL_LAST_PERIOD . ', ' . self::LABEL_WEEKS . ' o ' . self::LABEL_DUE;
         }
 
-        if ($weeks !== null && ($weeks < 1 || $weeks > 42)) {
+        if ($weeks !== null && ($weeks < 1 || $weeks >= 43)) {
             $errors[] = self::LABEL_WEEKS . ' debe estar entre 1 y 42';
         }
 
