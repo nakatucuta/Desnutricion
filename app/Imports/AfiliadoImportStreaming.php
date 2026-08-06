@@ -9,6 +9,7 @@ use App\Services\PaiGestationClinicalValidator;
 use App\Services\PaiImportClinicalValidator;
 use App\Services\PaiVaccineClinicalIdentity;
 use App\Services\PaiVaccineExcelBlockCatalog;
+use App\Services\PaiVaccineRepeatPolicy;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -41,6 +42,7 @@ class AfiliadoImportStreaming implements ToModel, WithStartRow, WithChunkReading
     private array $afiliadoIdCache = [];
     private PaiDoseNormalizer $doseNormalizer;
     private PaiVaccineClinicalIdentity $vaccineClinicalIdentity;
+    private PaiVaccineRepeatPolicy $vaccineRepeatPolicy;
     private PaiClinicalDateNormalizer $clinicalDateNormalizer;
     private PaiImportClinicalValidator $importClinicalValidator;
     private PaiGestationClinicalValidator $gestationClinicalValidator;
@@ -242,6 +244,7 @@ class AfiliadoImportStreaming implements ToModel, WithStartRow, WithChunkReading
 
         $this->doseNormalizer = app(PaiDoseNormalizer::class);
         $this->vaccineClinicalIdentity = app(PaiVaccineClinicalIdentity::class);
+        $this->vaccineRepeatPolicy = app(PaiVaccineRepeatPolicy::class);
         $this->clinicalDateNormalizer = app(PaiClinicalDateNormalizer::class);
         $this->importClinicalValidator = app(PaiImportClinicalValidator::class);
         $this->gestationClinicalValidator = app(PaiGestationClinicalValidator::class);
@@ -1295,7 +1298,7 @@ class AfiliadoImportStreaming implements ToModel, WithStartRow, WithChunkReading
                 ))));
 
                 $afRows = $db->table('afiliados')
-                    ->select('id', 'numero_carnet')
+                    ->select('id', 'numero_carnet', 'fecha_nacimiento')
                     ->whereIn('numero_carnet', $carnets)
                     ->get();
 
@@ -1351,7 +1354,7 @@ class AfiliadoImportStreaming implements ToModel, WithStartRow, WithChunkReading
 
                     // refrescar mapa
                     $afRows = $db->table('afiliados')
-                        ->select('id', 'numero_carnet')
+                        ->select('id', 'numero_carnet', 'fecha_nacimiento')
                         ->whereIn('numero_carnet', $carnets)
                         ->get();
 
@@ -1369,6 +1372,7 @@ class AfiliadoImportStreaming implements ToModel, WithStartRow, WithChunkReading
 
                 $existingKeysByDate = [];
                 $existingKeysWithoutDate = [];
+                $applicationsByAffiliate = [];
                 if (!empty($afiliadoIds)) {
                     $exist = $db->table('vacunas')
                         ->select('afiliado_id', 'vacunas_id', 'docis', 'fecha_vacuna')
@@ -1389,6 +1393,11 @@ class AfiliadoImportStreaming implements ToModel, WithStartRow, WithChunkReading
                         );
                         $existingKeysByDate[$dateKey] = true;
                         $existingKeysWithoutDate[$withoutDateKey] = true;
+                        $applicationsByAffiliate[(int) $e->afiliado_id][] = [
+                            'vacunas_id' => (int) $e->vacunas_id,
+                            'docis' => $e->docis,
+                            'fecha_vacuna' => $e->fecha_vacuna,
+                        ];
                     }
                 }
 
@@ -1601,13 +1610,38 @@ class AfiliadoImportStreaming implements ToModel, WithStartRow, WithChunkReading
                             $vacunasId,
                             $docisNorm
                         );
+                        $repeatDecision = $this->vaccineRepeatPolicy->evaluate(
+                            $vacunasId,
+                            $docisNorm,
+                            $fechaVac,
+                            $afiliadosMap[$carnet]->fecha_nacimiento ?? null,
+                            $applicationsByAffiliate[(int) $afiliadoId] ?? []
+                        );
+
+                        if ($repeatDecision !== null && ! $repeatDecision['allowed']) {
+                            $this->oldVacuna++;
+                            $this->addVacunaOmitida(
+                                (int)($fila['excelRow'] ?? 0),
+                                (string)($fila['tipo'] ?? ''),
+                                (string)($fila['numero'] ?? ''),
+                                (string)($fila['carnet'] ?? null),
+                                (int)$afiliadoId,
+                                $vacunasId,
+                                $vacunaNombre,
+                                $docisNorm,
+                                $fechaVac,
+                                (string) $repeatDecision['reason']
+                            );
+                            continue;
+                        }
+
                         $dedupeKey = $isGestanteVacuna ? $dateKey : $withoutDateKey;
-                        $existsDuplicate = $isGestanteVacuna
+                        $existsDuplicate = $repeatDecision === null && ($isGestanteVacuna
                             ? isset($existingKeysByDate[$dedupeKey])
-                            : isset($existingKeysWithoutDate[$dedupeKey]);
-                        $seenDuplicate = $isGestanteVacuna
+                            : isset($existingKeysWithoutDate[$dedupeKey]));
+                        $seenDuplicate = $repeatDecision === null && ($isGestanteVacuna
                             ? isset($seenInChunkByDate[$dedupeKey])
-                            : isset($seenInChunkWithoutDate[$dedupeKey]);
+                            : isset($seenInChunkWithoutDate[$dedupeKey]));
 
                         if ($existsDuplicate) {
                             $this->oldVacuna++;
@@ -1649,6 +1683,11 @@ class AfiliadoImportStreaming implements ToModel, WithStartRow, WithChunkReading
 
                         $seenInChunkByDate[$dateKey] = true;
                         $seenInChunkWithoutDate[$withoutDateKey] = true;
+                        $applicationsByAffiliate[(int) $afiliadoId][] = [
+                            'vacunas_id' => $vacunasId,
+                            'docis' => $docisNorm,
+                            'fecha_vacuna' => $fechaVac,
+                        ];
 
                         $vacunaData['afiliado_id'] = (int)$afiliadoId;
                         $vacunaData['user_id'] = (int)$this->userId;
